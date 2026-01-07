@@ -1,0 +1,66 @@
+# Build artifacts
+*.o
+*.elf
+*.hex
+*.bin
+*.map
+*.lst
+
+# Temporary files
+*~
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# IDE specific
+.vscode/
+.idea/
+*.code-workspace
+
+# Arduino IDE
+*.ino.cpp
+*.ino.globals.h
+
+# PlatformIO
+.pio/
+.pioenvs/
+.piolibdeps/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+
+# Logs
+*.log
+
+# Backup files
+*.bak
+*.backup
+
+# System files
+.fuse_hidden*
+
+# Compiled binaries
+teensy_firmware/*.hex
+teensy_firmware/*.elf
+esp32_firmware/*.bin
+
+# Web development
+web_portal/node_modules/
+web_portal/dist/
+
+# Testing
+test_results/
+*.test
+
+# Documentation generated files
+docs/html/
+docs/latex/
+
+# Temporary test files
+/tmp/
