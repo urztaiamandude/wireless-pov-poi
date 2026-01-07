@@ -1,4 +1,5 @@
 #include "pov_engine.h"
+#include <new>
 
 POVEngine::POVEngine(LEDDriver& ledDriver) 
     : leds(ledDriver), 
