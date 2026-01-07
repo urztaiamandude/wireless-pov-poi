@@ -39,6 +39,7 @@ private:
     float rotationSpeed;
     uint8_t displayMode;
     bool enabled;
+    unsigned long lastUpdateTime;
     
     // Calculate column to display based on rotation angle
     uint16_t getColumnForAngle(uint16_t angle);

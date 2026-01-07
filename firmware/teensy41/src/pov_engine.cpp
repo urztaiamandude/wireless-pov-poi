@@ -8,7 +8,8 @@ POVEngine::POVEngine(LEDDriver& ledDriver)
       currentAngle(0),
       rotationSpeed(0.0),
       displayMode(0),
-      enabled(false) {
+      enabled(false),
+      lastUpdateTime(0) {
 }
 
 void POVEngine::begin() {
@@ -22,9 +23,17 @@ void POVEngine::update() {
         return;
     }
     
-    // Update current angle based on rotation speed
-    // This would typically be driven by a hall sensor or accelerometer
-    // For now, this is a placeholder
+    // Update current angle based on rotation speed and time
+    // This is a simulation for now - in real hardware, this would be
+    // driven by a hall sensor, accelerometer, or other rotation sensor
+    unsigned long currentTime = millis();
+    if (lastUpdateTime > 0 && rotationSpeed > 0) {
+        float deltaTime = (currentTime - lastUpdateTime) / 1000.0; // seconds
+        float degreesPerSecond = rotationSpeed * 6.0; // RPM to degrees/sec
+        float angleDelta = degreesPerSecond * deltaTime;
+        currentAngle = (currentAngle + (uint16_t)angleDelta) % 360;
+    }
+    lastUpdateTime = currentTime;
     
     // Render the current column based on angle
     uint16_t column = getColumnForAngle(currentAngle);
@@ -35,11 +44,12 @@ void POVEngine::loadImageData(const uint8_t* data, size_t width, size_t height) 
     // Free existing buffer if any
     if (imageBuffer) {
         delete[] imageBuffer;
+        imageBuffer = nullptr;
     }
     
     // Allocate new buffer
     size_t bufferSize = width * height * 3; // RGB data
-    imageBuffer = new uint8_t[bufferSize];
+    imageBuffer = new (std::nothrow) uint8_t[bufferSize];
     
     if (imageBuffer && data) {
         memcpy(imageBuffer, data, bufferSize);
@@ -52,6 +62,12 @@ void POVEngine::loadImageData(const uint8_t* data, size_t width, size_t height) 
         DEBUG_SERIAL.print("x");
         DEBUG_SERIAL.println(height);
         #endif
+    } else if (!imageBuffer) {
+        #if DEBUG_ENABLED
+        DEBUG_SERIAL.println("ERROR: Failed to allocate image buffer");
+        #endif
+        imageWidth = 0;
+        imageHeight = 0;
     }
 }
 

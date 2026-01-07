@@ -20,12 +20,13 @@ bool ESP32Interface::available() {
 bool ESP32Interface::readMessage(uint8_t* buffer, size_t maxLen, size_t& bytesRead) {
     bytesRead = 0;
     
-    if (!available()) {
+    if (!available() || maxLen < 4) {
         return false;
     }
     
     // Simple message format: [TYPE][LENGTH_H][LENGTH_L][DATA...][CHECKSUM]
     uint8_t type = serial.read();
+    // TODO: Validate message type and add type-specific processing
     if (serial.available() < 2) {
         return false;
     }
@@ -34,7 +35,7 @@ bool ESP32Interface::readMessage(uint8_t* buffer, size_t maxLen, size_t& bytesRe
     uint8_t lenLow = serial.read();
     uint16_t dataLen = (lenHigh << 8) | lenLow;
     
-    if (dataLen > maxLen - 4) {
+    if (dataLen + 4 > maxLen) {
         return false;
     }
     
@@ -108,8 +109,10 @@ bool ESP32Interface::processCommand(uint8_t command, const uint8_t* data, size_t
 
 uint8_t ESP32Interface::calculateChecksum(const uint8_t* data, size_t len) {
     uint8_t checksum = 0;
-    for (size_t i = 0; i < len; i++) {
-        checksum ^= data[i];
+    if (data != nullptr) {
+        for (size_t i = 0; i < len; i++) {
+            checksum ^= data[i];
+        }
     }
     return checksum;
 }
