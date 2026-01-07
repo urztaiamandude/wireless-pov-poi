@@ -26,7 +26,7 @@ void POVEngine::update() {
     
     // Update current angle based on rotation speed and time
     // This is a simulation for now - in real hardware, this would be
-    // driven by a hall sensor, accelerometer, or other rotation sensor
+    // driven by accelerometer
     unsigned long currentTime = millis();
     if (lastUpdateTime > 0 && rotationSpeed > 0) {
         float deltaTime = (currentTime - lastUpdateTime) / 1000.0; // seconds
