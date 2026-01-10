@@ -259,7 +259,10 @@ void receiveImage() {
   uint16_t dataLen = (cmdBuffer[2] << 8) | cmdBuffer[3];
   uint8_t srcWidth = cmdBuffer[4];
   uint8_t srcHeight = cmdBuffer[5];
-  uint8_t imgIndex = 0;  // Always use slot 0 for uploaded images
+  
+  // Always store uploaded images in slot 0 (most recent upload)
+  // This simplifies the web/app interface - they don't need to manage slots
+  uint8_t imgIndex = 0;
   
   // Calculate expected data size
   uint16_t expectedBytes = 6 + srcWidth * srcHeight * 3 + 1; // header + pixels + end marker
@@ -270,8 +273,10 @@ void receiveImage() {
   }
   
   if (cmdBufferIndex < expectedBytes) {
-    Serial.printf("Warning: Incomplete image data. Expected %d, got %d\n", 
-                  expectedBytes, cmdBufferIndex);
+    Serial.print("Warning: Incomplete image data. Expected ");
+    Serial.print(expectedBytes);
+    Serial.print(", got ");
+    Serial.println(cmdBufferIndex);
     // Continue anyway with what we have
   }
   

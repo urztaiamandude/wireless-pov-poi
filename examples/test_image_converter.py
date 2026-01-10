@@ -10,9 +10,13 @@ from PIL import Image, ImageDraw
 import tempfile
 import shutil
 
-# Add parent directory to path for imports
-sys.path.insert(0, os.path.dirname(__file__))
-from image_converter import convert_image_for_pov
+# Import the image converter module from current directory
+try:
+    from image_converter import convert_image_for_pov
+except ImportError:
+    print("Error: Could not import image_converter module")
+    print("Make sure image_converter.py is in the same directory")
+    sys.exit(1)
 
 def create_test_image(width, height, color, filename):
     """Create a simple test image"""
