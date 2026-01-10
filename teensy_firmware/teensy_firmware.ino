@@ -77,7 +77,7 @@ bool displaying = false;
 CRGB liveBuffer[DISPLAY_LEDS];
 
 // Serial command buffer
-#define CMD_BUFFER_SIZE 256
+#define CMD_BUFFER_SIZE 6144  // Large enough for 31x64 RGB image + protocol overhead
 uint8_t cmdBuffer[CMD_BUFFER_SIZE];
 uint16_t cmdBufferIndex = 0;
 
@@ -190,7 +190,11 @@ void parseCommand() {
   if (cmdBuffer[0] != 0xFF) return;
   
   uint8_t cmd = cmdBuffer[1];
-  uint16_t dataLen = cmdBuffer[2];
+  
+  // Note: dataLen interpretation depends on command type
+  // For image command (0x02), bytes 2-3 are 16-bit length
+  // For other commands, byte 2 is 8-bit length
+  uint16_t dataLen = cmdBuffer[2];  // Used for simple commands
   
   Serial.print("Command received: 0x");
   Serial.println(cmd, HEX);
@@ -206,7 +210,7 @@ void parseCommand() {
       sendAck(cmd);
       break;
       
-    case 0x02:  // Upload image
+    case 0x02:  // Upload image (uses 16-bit length in bytes 2-3)
       receiveImage();
       sendAck(cmd);
       break;

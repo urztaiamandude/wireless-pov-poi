@@ -98,6 +98,9 @@ def test_aspect_ratio():
     """Test that aspect ratio is maintained"""
     print("\n=== Test 3: Aspect Ratio Preservation ===")
     
+    # Maximum acceptable aspect ratio difference
+    ASPECT_RATIO_TOLERANCE = 0.2
+    
     with tempfile.TemporaryDirectory() as tmpdir:
         # Create tall image
         test_img = os.path.join(tmpdir, "tall_test.png")
@@ -120,7 +123,7 @@ def test_aspect_ratio():
         result_ratio = result.height / result.width
         
         # Allow small difference due to rounding
-        if abs(original_ratio - result_ratio) > 0.2:
+        if abs(original_ratio - result_ratio) > ASPECT_RATIO_TOLERANCE:
             print(f"❌ FAILED: Aspect ratio changed significantly")
             print(f"   Original: {original_ratio:.2f}, Result: {result_ratio:.2f}")
             return False
