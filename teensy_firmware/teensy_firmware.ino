@@ -253,31 +253,84 @@ void parseCommand() {
 }
 
 void receiveImage() {
-  uint8_t imgIndex = cmdBuffer[3];
-  uint8_t width = cmdBuffer[4];
-  uint8_t height = cmdBuffer[5];
+  // Parse image header
+  uint16_t dataLen = (cmdBuffer[2] << 8) | cmdBuffer[3];
+  uint8_t srcWidth = cmdBuffer[4];
+  uint8_t srcHeight = cmdBuffer[5];
+  uint8_t imgIndex = 0;  // Always use slot 0 for uploaded images
   
   if (imgIndex >= MAX_IMAGES) return;
   
-  Serial.print("Receiving image ");
-  Serial.print(imgIndex);
-  Serial.print(" size: ");
-  Serial.print(width);
+  Serial.print("Receiving image, source size: ");
+  Serial.print(srcWidth);
   Serial.print("x");
-  Serial.println(height);
+  Serial.print(srcHeight);
+  Serial.print(" (");
+  Serial.print(dataLen);
+  Serial.println(" bytes)");
   
-  images[imgIndex].width = width;
-  images[imgIndex].height = height;
-  images[imgIndex].active = true;
-  
-  // Receive pixel data (simplified - actual implementation would receive full data)
-  // For now, create a test pattern
-  for (int x = 0; x < width && x < IMAGE_WIDTH; x++) {
-    for (int y = 0; y < height && y < 64; y++) {
-      uint8_t hue = (x * 255 / width + y * 255 / height) / 2;
-      images[imgIndex].pixels[x][y] = CHSV(hue, 255, 255);
+  // If image is already 31 pixels wide, use it directly
+  if (srcWidth == IMAGE_WIDTH && srcHeight <= 64) {
+    Serial.println("Image is already POV-compatible size");
+    images[imgIndex].width = srcWidth;
+    images[imgIndex].height = srcHeight;
+    images[imgIndex].active = true;
+    
+    // Read pixel data directly
+    uint16_t pixelCount = srcWidth * srcHeight;
+    for (uint16_t i = 0; i < pixelCount && (6 + i * 3 + 2) < cmdBufferIndex; i++) {
+      uint8_t x = i % srcWidth;
+      uint8_t y = i / srcWidth;
+      images[imgIndex].pixels[x][y] = CRGB(
+        cmdBuffer[6 + i * 3],
+        cmdBuffer[6 + i * 3 + 1],
+        cmdBuffer[6 + i * 3 + 2]
+      );
+    }
+  } else {
+    // Image needs conversion - resize to 31 pixels wide
+    Serial.println("Converting image to POV format (31 pixels wide)");
+    
+    // Calculate target height maintaining aspect ratio
+    uint8_t targetHeight = (uint16_t)srcHeight * IMAGE_WIDTH / srcWidth;
+    if (targetHeight > 64) targetHeight = 64;
+    if (targetHeight < 1) targetHeight = 1;
+    
+    Serial.print("Target size: ");
+    Serial.print(IMAGE_WIDTH);
+    Serial.print("x");
+    Serial.println(targetHeight);
+    
+    images[imgIndex].width = IMAGE_WIDTH;
+    images[imgIndex].height = targetHeight;
+    images[imgIndex].active = true;
+    
+    // Perform nearest-neighbor resize
+    for (uint8_t ty = 0; ty < targetHeight; ty++) {
+      for (uint8_t tx = 0; tx < IMAGE_WIDTH; tx++) {
+        // Map target pixel to source pixel
+        uint8_t sx = (uint16_t)tx * srcWidth / IMAGE_WIDTH;
+        uint8_t sy = (uint16_t)ty * srcHeight / targetHeight;
+        
+        // Get source pixel index
+        uint16_t srcIndex = sy * srcWidth + sx;
+        uint16_t bufferPos = 6 + srcIndex * 3;
+        
+        // Read and store pixel (with bounds checking)
+        if (bufferPos + 2 < cmdBufferIndex) {
+          images[imgIndex].pixels[tx][ty] = CRGB(
+            cmdBuffer[bufferPos],
+            cmdBuffer[bufferPos + 1],
+            cmdBuffer[bufferPos + 2]
+          );
+        } else {
+          images[imgIndex].pixels[tx][ty] = CRGB::Black;
+        }
+      }
     }
   }
+  
+  Serial.println("Image received and processed successfully");
 }
 
 void receivePattern() {
