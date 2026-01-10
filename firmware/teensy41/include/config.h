@@ -4,7 +4,7 @@
 // Hardware Configuration
 #define LED_DATA_PIN 11       // APA102 data pin
 #define LED_CLOCK_PIN 13      // APA102 clock pin
-#define NUM_LEDS 144          // Number of LEDs in the strip
+#define NUM_LEDS 32           // Number of LEDs in the strip (31 for display, 1 for level shifting)
 
 // ESP32 Communication
 #define ESP32_SERIAL Serial1  // Hardware serial for ESP32

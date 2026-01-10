@@ -12,7 +12,7 @@ The firmware manages:
 ## Hardware Requirements
 
 - Teensy 4.1 development board
-- APA102 LED strip (default: 144 LEDs)
+- APA102 LED strip (32 LEDs: 31 for display, 1 for level shifting)
 - ESP32 co-processor (connected via Serial1)
 - Power supply suitable for LED strip
 
