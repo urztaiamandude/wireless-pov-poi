@@ -214,6 +214,12 @@ POV (Persistence of Vision) works by rapidly displaying different columns of an 
 - High contrast images work best
 - Use in low-light environments for best effect
 
+### Image Conversion Tools
+
+To convert your images to POV-compatible format:
+- **Python Script**: Use `examples/image_converter.py` included in this repository
+- **POISonic Online Converter**: [https://web.archive.org/web/20210509110926/https://www.orchardelica.com/poisonic/poi_page.html](https://web.archive.org/web/20210509110926/https://www.orchardelica.com/poisonic/poi_page.html) - Browser-based tool for quick conversions
+
 ## Customization
 
 ### Changing WiFi Credentials

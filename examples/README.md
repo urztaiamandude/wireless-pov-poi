@@ -28,6 +28,12 @@ Images of any size are automatically resized to 31 pixels wide while maintaining
 
 ## Creating POV Images
 
+### Using Online Image Converter
+
+For a quick and easy conversion, you can use the POISonic online image converter:
+- **POISonic Image Converter**: [https://web.archive.org/web/20210509110926/https://www.orchardelica.com/poisonic/poi_page.html](https://web.archive.org/web/20210509110926/https://www.orchardelica.com/poisonic/poi_page.html)
+
+This tool can help you convert regular images to POV-compatible formats directly in your browser.
 ### Automatic Conversion (Recommended)
 
 The system automatically converts images when you upload them:
