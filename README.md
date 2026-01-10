@@ -74,6 +74,7 @@ See [docs/WIRING.md](docs/WIRING.md) for detailed wiring instructions.
 - **[Complete Setup Guide](docs/README.md)** - Detailed installation and usage instructions
 - **[Wiring Diagram](docs/WIRING.md)** - Hardware connections and assembly guide
 - **[API Documentation](docs/API.md)** - REST API reference for mobile app development
+- **[Image Conversion Guide](docs/IMAGE_CONVERSION.md)** - How automatic image conversion works
 
 ## Web Interface
 
@@ -82,7 +83,7 @@ The web portal provides a modern, responsive interface with:
 - System controls (brightness and frame rate sliders)
 - Quick pattern buttons (Rainbow, Wave, Gradient, Sparkle)
 - Color picker for custom pattern colors
-- Image upload functionality
+- **Image upload with automatic conversion** (any size → 31px wide)
 - Live drawing canvas for real-time control
 - Real-time status display
 
