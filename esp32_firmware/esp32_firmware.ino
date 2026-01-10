@@ -122,7 +122,9 @@ void setupWebServer() {
   server.on("/api/framerate", HTTP_POST, handleSetFrameRate);
   server.on("/api/pattern", HTTP_POST, handleUploadPattern);
   server.on("/api/image", HTTP_POST, 
-    []() { /* Empty handler - actual upload handled in handleUploadImage */ },
+    []() { 
+      // Final response sent in handleUploadImage after upload completes
+    },
     handleUploadImage);
   server.on("/api/live", HTTP_POST, handleLiveFrame);
   

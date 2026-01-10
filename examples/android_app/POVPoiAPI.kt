@@ -188,8 +188,9 @@ class POVPoiAPI(private val baseUrl: String = "http://192.168.4.1") {
             .post(povData.toRequestBody(binaryMediaType))
             .build()
         
-        val response = client.newCall(request).execute()
-        response.isSuccessful
+        client.newCall(request).execute().use { response ->
+            response.isSuccessful
+        }
     }
     
     /**

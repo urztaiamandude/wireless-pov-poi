@@ -278,7 +278,7 @@ void receiveImage() {
     
     // Read pixel data directly
     uint16_t pixelCount = srcWidth * srcHeight;
-    for (uint16_t i = 0; i < pixelCount && (6 + i * 3 + 2) < cmdBufferIndex; i++) {
+    for (uint16_t i = 0; i < pixelCount && (6 + i * 3 + 2) <= cmdBufferIndex; i++) {
       uint8_t x = i % srcWidth;
       uint8_t y = i / srcWidth;
       images[imgIndex].pixels[x][y] = CRGB(
@@ -317,7 +317,7 @@ void receiveImage() {
         uint16_t bufferPos = 6 + srcIndex * 3;
         
         // Read and store pixel (with bounds checking)
-        if (bufferPos + 2 < cmdBufferIndex) {
+        if (bufferPos + 2 <= cmdBufferIndex) {
           images[imgIndex].pixels[tx][ty] = CRGB(
             cmdBuffer[bufferPos],
             cmdBuffer[bufferPos + 1],
