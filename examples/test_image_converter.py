@@ -186,8 +186,11 @@ def test_invalid_file():
     """Test handling of invalid file"""
     print("\n=== Test 6: Invalid File Handling ===")
     
-    # Try to convert non-existent file
-    success = convert_image_for_pov("/nonexistent/file.png", "/tmp/output.png")
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # Try to convert non-existent file
+        nonexistent = os.path.join(tmpdir, "nonexistent.png")
+        output = os.path.join(tmpdir, "output.png")
+        success = convert_image_for_pov(nonexistent, output)
     
     if success:
         print("❌ FAILED: Should return False for non-existent file")
