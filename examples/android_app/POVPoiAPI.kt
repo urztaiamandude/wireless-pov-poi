@@ -1,10 +1,12 @@
 package com.example.povpoi
 
+import android.graphics.Bitmap
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.ByteArrayOutputStream
 import java.io.IOException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -22,6 +24,7 @@ class POVPoiAPI(private val baseUrl: String = "http://192.168.4.1") {
         .build()
     
     private val jsonMediaType = "application/json; charset=utf-8".toMediaType()
+    private val binaryMediaType = "application/octet-stream".toMediaType()
     
     /**
      * System Status Data Class
@@ -167,6 +170,66 @@ class POVPoiAPI(private val baseUrl: String = "http://192.168.4.1") {
         
         val response = client.newCall(request).execute()
         response.isSuccessful
+    }
+    
+    /**
+     * Upload image for POV display
+     * Automatically converts image to POV-compatible format (31 pixels wide)
+     * @param bitmap Source bitmap image
+     * @return true if successful
+     */
+    suspend fun uploadImage(bitmap: Bitmap): Boolean = withContext(Dispatchers.IO) {
+        // Convert bitmap to POV format (31 pixels wide)
+        val povData = convertBitmapToPOVFormat(bitmap)
+        
+        // Upload raw RGB data
+        val request = Request.Builder()
+            .url("$baseUrl/api/image")
+            .post(povData.toRequestBody(binaryMediaType))
+            .build()
+        
+        client.newCall(request).execute().use { response ->
+            response.isSuccessful
+        }
+    }
+    
+    /**
+     * Convert bitmap to POV-compatible format
+     * Resizes to 31 pixels wide, maintains aspect ratio, max 64 pixels tall
+     * @param bitmap Source bitmap
+     * @return ByteArray of RGB data (width * height * 3 bytes)
+     */
+    private fun convertBitmapToPOVFormat(bitmap: Bitmap): ByteArray {
+        val targetWidth = 31
+        val aspectRatio = bitmap.height.toFloat() / bitmap.width.toFloat()
+        var targetHeight = (targetWidth * aspectRatio).toInt()
+        
+        // Limit height to 64 pixels
+        if (targetHeight > 64) targetHeight = 64
+        if (targetHeight < 1) targetHeight = 1
+        
+        // Resize bitmap using nearest neighbor (crisp pixels)
+        val resized = Bitmap.createScaledBitmap(bitmap, targetWidth, targetHeight, false)
+        
+        try {
+            // Pre-allocate byte array for efficiency
+            val rgbData = ByteArray(targetWidth * targetHeight * 3)
+            val pixels = IntArray(targetWidth * targetHeight)
+            resized.getPixels(pixels, 0, targetWidth, 0, 0, targetWidth, targetHeight)
+            
+            // Convert to RGB bytes (remove alpha channel)
+            var byteIndex = 0
+            for (pixel in pixels) {
+                rgbData[byteIndex++] = ((pixel shr 16) and 0xFF).toByte()  // R
+                rgbData[byteIndex++] = ((pixel shr 8) and 0xFF).toByte()   // G
+                rgbData[byteIndex++] = (pixel and 0xFF).toByte()           // B
+            }
+            
+            return rgbData
+        } finally {
+            // Ensure bitmap is recycled even if an exception occurs
+            resized.recycle()
+        }
     }
     
     /**

@@ -121,7 +121,11 @@ void setupWebServer() {
   server.on("/api/brightness", HTTP_POST, handleSetBrightness);
   server.on("/api/framerate", HTTP_POST, handleSetFrameRate);
   server.on("/api/pattern", HTTP_POST, handleUploadPattern);
-  server.on("/api/image", HTTP_POST, handleUploadImage);
+  server.on("/api/image", HTTP_POST, 
+    []() { 
+      // Final response sent in handleUploadImage after upload completes
+    },
+    handleUploadImage);
   server.on("/api/live", HTTP_POST, handleLiveFrame);
   
   // Static files
@@ -533,22 +537,97 @@ void handleRoot() {
             }
             
             const file = fileInput.files[0];
-            const formData = new FormData();
-            formData.append('image', file);
             
+            // Convert image to POV format using Canvas
             try {
-                await fetch('/api/image', {
+                const povImageData = await convertImageToPOVFormat(file);
+                
+                // Create blob from raw RGB data
+                const blob = new Blob([povImageData.data], { type: 'application/octet-stream' });
+                
+                // Send raw RGB data to server
+                const response = await fetch('/api/image', {
                     method: 'POST',
-                    body: formData
+                    body: blob
                 });
                 
-                alert('Image uploaded successfully!');
-                
-                // Switch to image mode
-                document.getElementById('mode-select').value = '1';
-                await changeMode();
+                if (response.ok) {
+                    alert(`Image uploaded successfully! (${povImageData.width}x${povImageData.height})`);
+                    
+                    // Switch to image mode
+                    document.getElementById('mode-select').value = '1';
+                    await changeMode();
+                } else {
+                    alert('Upload failed: ' + response.statusText);
+                }
             } catch (e) {
                 alert('Upload failed: ' + e.message);
+            }
+        }
+        
+        async function convertImageToPOVFormat(file) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                const reader = new FileReader();
+                
+                reader.onload = (e) => {
+                    img.onload = () => {
+                        try {
+                            // Create canvas for conversion
+                            const canvas = document.createElement('canvas');
+                            const ctx = canvas.getContext('2d');
+                            
+                            // Calculate dimensions (31 pixels wide, maintain aspect ratio)
+                            const targetWidth = 31;
+                            const aspectRatio = img.height / img.width;
+                            let targetHeight = Math.round(targetWidth * aspectRatio);
+                            
+                            // Limit height to 64 pixels
+                            if (targetHeight > 64) {
+                                targetHeight = 64;
+                            }
+                            if (targetHeight < 1) {
+                                targetHeight = 1;
+                            }
+                            
+                            canvas.width = targetWidth;
+                            canvas.height = targetHeight;
+                            
+                            // Draw and resize image
+                            ctx.imageSmoothingEnabled = false; // Nearest neighbor
+                            ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+                            
+                            // Get image data
+                            const imageData = ctx.getImageData(0, 0, targetWidth, targetHeight);
+                            const pixels = imageData.data;
+                            
+                            // Convert to RGB array (remove alpha channel)
+                            const rgbData = new Uint8Array(targetWidth * targetHeight * 3);
+                            let rgbIndex = 0;
+                            
+                            for (let i = 0; i < pixels.length; i += 4) {
+                                rgbData[rgbIndex++] = pixels[i];     // R
+                                rgbData[rgbIndex++] = pixels[i + 1]; // G
+                                rgbData[rgbIndex++] = pixels[i + 2]; // B
+                            }
+                            
+                            resolve({
+                                width: targetWidth,
+                                height: targetHeight,
+                                data: rgbData
+                            });
+                        } catch (err) {
+                            reject(err);
+                        }
+                    };
+                    img.onerror = reject;
+                    img.src = e.target.result;
+                };
+                
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
             }
         }
     </script>
@@ -675,10 +754,76 @@ void handleUploadPattern() {
 }
 
 void handleUploadImage() {
-  // Image upload handling (simplified)
-  // In a real implementation, this would process the uploaded image
+  // Handle image upload from web interface
+  // Images are pre-converted to RGB data by the web interface
+  // Format: raw RGB bytes (width * height * 3)
   
-  server.send(200, "application/json", "{\"status\":\"ok\"}");
+  HTTPUpload& upload = server.upload();
+  static uint8_t imageBuffer[31 * 64 * 3];  // Max image: 31x64 RGB
+  static uint16_t bufferIndex = 0;
+  
+  if (upload.status == UPLOAD_FILE_START) {
+    Serial.printf("Upload Start: %s\n", upload.filename.c_str());
+    bufferIndex = 0;
+    
+  } else if (upload.status == UPLOAD_FILE_WRITE) {
+    // Accumulate image data
+    size_t bytesToCopy = upload.currentSize;
+    if (bufferIndex + bytesToCopy > sizeof(imageBuffer)) {
+      bytesToCopy = sizeof(imageBuffer) - bufferIndex;
+    }
+    
+    memcpy(imageBuffer + bufferIndex, upload.buf, bytesToCopy);
+    bufferIndex += bytesToCopy;
+    
+    Serial.printf("Upload Write: %d bytes (total: %d)\n", bytesToCopy, bufferIndex);
+    
+  } else if (upload.status == UPLOAD_FILE_END) {
+    Serial.printf("Upload End: %d bytes\n", bufferIndex);
+    
+    // Detect image dimensions from data size
+    // Expected: 31 * height * 3 bytes
+    uint16_t imageWidth = 31;
+    uint16_t imageHeight = bufferIndex / (imageWidth * 3);
+    
+    if (imageHeight > 64) imageHeight = 64;
+    if (imageHeight < 1) imageHeight = 1;
+    
+    uint16_t actualSize = imageWidth * imageHeight * 3;
+    
+    Serial.printf("Detected image: %dx%d (%d bytes)\n", imageWidth, imageHeight, actualSize);
+    
+    // Send image data to Teensy for processing
+    // Protocol: 0xFF 0x02 dataLen_high dataLen_low width height [RGB data...] 0xFE
+    TEENSY_SERIAL.write(0xFF);  // Start marker
+    TEENSY_SERIAL.write(0x02);  // Upload Image command
+    TEENSY_SERIAL.write((actualSize >> 8) & 0xFF);  // Data length high byte
+    TEENSY_SERIAL.write(actualSize & 0xFF);  // Data length low byte
+    TEENSY_SERIAL.write(imageWidth);  // Image width
+    TEENSY_SERIAL.write(imageHeight);  // Image height
+    
+    // Send pixel data
+    for (uint16_t i = 0; i < actualSize && i < bufferIndex; i++) {
+      TEENSY_SERIAL.write(imageBuffer[i]);
+    }
+    TEENSY_SERIAL.write(0xFE);  // End marker
+    
+    Serial.println("Image forwarded to Teensy");
+    
+    // Set mode to image display
+    delay(100);
+    state.currentMode = 1;
+    state.currentIndex = 0;
+    sendTeensyCommand(0x01, 2);
+    TEENSY_SERIAL.write(state.currentMode);
+    TEENSY_SERIAL.write(state.currentIndex);
+    TEENSY_SERIAL.write(0xFE);
+    
+    server.send(200, "application/json", "{\"status\":\"ok\"}");
+  } else if (upload.status == UPLOAD_FILE_ABORTED) {
+    Serial.println("Upload aborted");
+    server.send(500, "application/json", "{\"error\":\"Upload aborted\"}");
+  }
 }
 
 void handleLiveFrame() {

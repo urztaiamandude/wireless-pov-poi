@@ -5,9 +5,19 @@ This directory contains example images and pattern configurations for the POV PO
 ## Image Guidelines
 
 ### Size Requirements
-- **Width**: 31 pixels (matches LED count)
-- **Height**: Up to 64 pixels recommended
+- **Width**: 31 pixels (matches LED count) - **automatically converted**
+- **Height**: Up to 64 pixels recommended (automatically adjusted)
 - **Format**: JPG, PNG, GIF (non-animated)
+
+### Automatic Conversion
+The system automatically converts images to POV-compatible format:
+
+- **Web Interface**: Uses JavaScript Canvas API to resize images client-side before upload
+- **Android App**: Uses Android Bitmap API to resize images before upload  
+- **Python Script**: Use `image_converter.py` to pre-convert images
+- **Teensy Processing**: Final image processing and storage handled by Teensy 4.1
+
+Images of any size are automatically resized to 31 pixels wide while maintaining aspect ratio. Heights exceeding 64 pixels are cropped.
 
 ### Design Tips
 - Use high contrast colors
@@ -17,6 +27,18 @@ This directory contains example images and pattern configurations for the POV PO
 - Consider viewing angle of spinning poi
 
 ## Creating POV Images
+
+### Automatic Conversion (Recommended)
+
+The system automatically converts images when you upload them:
+
+1. **Web Interface**: Simply select any image and click upload - automatic client-side conversion
+2. **Android App**: Use the `uploadImage(bitmap)` method - automatic conversion before upload
+3. **Python Script**: Run `python image_converter.py your_image.jpg` for pre-conversion
+
+### Manual Conversion
+
+If you prefer to prepare images manually:
 
 ### Using Image Editor (GIMP, Photoshop, etc.)
 

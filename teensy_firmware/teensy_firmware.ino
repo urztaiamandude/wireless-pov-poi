@@ -77,7 +77,7 @@ bool displaying = false;
 CRGB liveBuffer[DISPLAY_LEDS];
 
 // Serial command buffer
-#define CMD_BUFFER_SIZE 256
+#define CMD_BUFFER_SIZE 6144  // Large enough for 31x64 RGB image + protocol overhead
 uint8_t cmdBuffer[CMD_BUFFER_SIZE];
 uint16_t cmdBufferIndex = 0;
 
@@ -172,12 +172,13 @@ void processSerialCommands() {
       
       // Prevent buffer overflow
       if (cmdBufferIndex >= CMD_BUFFER_SIZE) {
+        Serial.println("WARNING: Command buffer overflow, resetting");
         cmdBufferIndex = 0;
         continue;
       }
       
-      // Check if we have a complete command
-      if (cmdBufferIndex >= 3 && byte == 0xFE) {
+      // Check if we have end marker (commands vary in length)
+      if (byte == 0xFE && cmdBufferIndex >= 4) {
         parseCommand();
         cmdBufferIndex = 0;
       }
@@ -189,7 +190,11 @@ void parseCommand() {
   if (cmdBuffer[0] != 0xFF) return;
   
   uint8_t cmd = cmdBuffer[1];
-  uint16_t dataLen = cmdBuffer[2];
+  
+  // Note: dataLen interpretation depends on command type
+  // For image command (0x02), bytes 2-3 are 16-bit length
+  // For other commands, byte 2 is 8-bit length
+  uint16_t dataLen = cmdBuffer[2];  // Used for simple commands
   
   Serial.print("Command received: 0x");
   Serial.println(cmd, HEX);
@@ -205,7 +210,7 @@ void parseCommand() {
       sendAck(cmd);
       break;
       
-    case 0x02:  // Upload image
+    case 0x02:  // Upload image (uses 16-bit length in bytes 2-3)
       receiveImage();
       sendAck(cmd);
       break;
@@ -253,31 +258,111 @@ void parseCommand() {
 }
 
 void receiveImage() {
-  uint8_t imgIndex = cmdBuffer[3];
-  uint8_t width = cmdBuffer[4];
-  uint8_t height = cmdBuffer[5];
+  // Parse image header from command buffer
+  // Protocol: 0xFF 0x02 dataLen_high dataLen_low width height [RGB data...] 0xFE
+  uint16_t dataLen = (cmdBuffer[2] << 8) | cmdBuffer[3];
+  uint8_t srcWidth = cmdBuffer[4];
+  uint8_t srcHeight = cmdBuffer[5];
   
-  if (imgIndex >= MAX_IMAGES) return;
+  // Always store uploaded images in slot 0 (most recent upload)
+  // This simplifies the web/app interface - they don't need to manage slots
+  uint8_t imgIndex = 0;
   
-  Serial.print("Receiving image ");
-  Serial.print(imgIndex);
-  Serial.print(" size: ");
-  Serial.print(width);
+  // Calculate expected data size
+  uint16_t expectedBytes = 6 + srcWidth * srcHeight * 3 + 1; // header + pixels + end marker
+  
+  if (imgIndex >= MAX_IMAGES) {
+    Serial.println("Error: Invalid image index");
+    return;
+  }
+  
+  if (cmdBufferIndex < expectedBytes) {
+    Serial.print("Warning: Incomplete image data. Expected ");
+    Serial.print(expectedBytes);
+    Serial.print(", got ");
+    Serial.println(cmdBufferIndex);
+    // Continue anyway with what we have
+  }
+  
+  Serial.print("Receiving image, source size: ");
+  Serial.print(srcWidth);
   Serial.print("x");
-  Serial.println(height);
+  Serial.print(srcHeight);
+  Serial.print(" (buffer has ");
+  Serial.print(cmdBufferIndex);
+  Serial.println(" bytes)");
   
-  images[imgIndex].width = width;
-  images[imgIndex].height = height;
-  images[imgIndex].active = true;
-  
-  // Receive pixel data (simplified - actual implementation would receive full data)
-  // For now, create a test pattern
-  for (int x = 0; x < width && x < IMAGE_WIDTH; x++) {
-    for (int y = 0; y < height && y < 64; y++) {
-      uint8_t hue = (x * 255 / width + y * 255 / height) / 2;
-      images[imgIndex].pixels[x][y] = CHSV(hue, 255, 255);
+  // If image is already 31 pixels wide, use it directly
+  if (srcWidth == IMAGE_WIDTH && srcHeight <= 64) {
+    Serial.println("Image is already POV-compatible size");
+    images[imgIndex].width = srcWidth;
+    images[imgIndex].height = srcHeight;
+    images[imgIndex].active = true;
+    
+    // Read pixel data directly
+    uint16_t pixelCount = srcWidth * srcHeight;
+    for (uint16_t i = 0; i < pixelCount; i++) {
+      uint16_t bufferPos = 6 + i * 3;
+      // Ensure we have all 3 bytes for this pixel
+      if (bufferPos + 2 < cmdBufferIndex - 1) { // -1 for end marker
+        uint8_t x = i % srcWidth;
+        uint8_t y = i / srcWidth;
+        images[imgIndex].pixels[x][y] = CRGB(
+          cmdBuffer[bufferPos],
+          cmdBuffer[bufferPos + 1],
+          cmdBuffer[bufferPos + 2]
+        );
+      } else {
+        // Fill remaining with black if data is incomplete
+        uint8_t x = i % srcWidth;
+        uint8_t y = i / srcWidth;
+        images[imgIndex].pixels[x][y] = CRGB::Black;
+      }
+    }
+  } else {
+    // Image needs conversion - resize to 31 pixels wide
+    Serial.println("Converting image to POV format (31 pixels wide)");
+    
+    // Calculate target height maintaining aspect ratio
+    uint8_t targetHeight = (uint16_t)srcHeight * IMAGE_WIDTH / srcWidth;
+    if (targetHeight > 64) targetHeight = 64;
+    if (targetHeight < 1) targetHeight = 1;
+    
+    Serial.print("Target size: ");
+    Serial.print(IMAGE_WIDTH);
+    Serial.print("x");
+    Serial.println(targetHeight);
+    
+    images[imgIndex].width = IMAGE_WIDTH;
+    images[imgIndex].height = targetHeight;
+    images[imgIndex].active = true;
+    
+    // Perform nearest-neighbor resize
+    for (uint8_t ty = 0; ty < targetHeight; ty++) {
+      for (uint8_t tx = 0; tx < IMAGE_WIDTH; tx++) {
+        // Map target pixel to source pixel
+        uint8_t sx = (uint16_t)tx * srcWidth / IMAGE_WIDTH;
+        uint8_t sy = (uint16_t)ty * srcHeight / targetHeight;
+        
+        // Get source pixel index
+        uint16_t srcIndex = sy * srcWidth + sx;
+        uint16_t bufferPos = 6 + srcIndex * 3;
+        
+        // Read and store pixel (with bounds checking)
+        if (bufferPos + 2 < cmdBufferIndex - 1) { // -1 for end marker
+          images[imgIndex].pixels[tx][ty] = CRGB(
+            cmdBuffer[bufferPos],
+            cmdBuffer[bufferPos + 1],
+            cmdBuffer[bufferPos + 2]
+          );
+        } else {
+          images[imgIndex].pixels[tx][ty] = CRGB::Black;
+        }
+      }
     }
   }
+  
+  Serial.println("Image received and processed successfully");
 }
 
 void receivePattern() {
