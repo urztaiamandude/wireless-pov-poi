@@ -212,23 +212,20 @@ class POVPoiAPI(private val baseUrl: String = "http://192.168.4.1") {
         val resized = Bitmap.createScaledBitmap(bitmap, targetWidth, targetHeight, false)
         
         try {
-            // Extract RGB data
-            val outputStream = ByteArrayOutputStream()
+            // Pre-allocate byte array for efficiency
+            val rgbData = ByteArray(targetWidth * targetHeight * 3)
             val pixels = IntArray(targetWidth * targetHeight)
             resized.getPixels(pixels, 0, targetWidth, 0, 0, targetWidth, targetHeight)
             
             // Convert to RGB bytes (remove alpha channel)
+            var byteIndex = 0
             for (pixel in pixels) {
-                val r = (pixel shr 16) and 0xFF
-                val g = (pixel shr 8) and 0xFF
-                val b = pixel and 0xFF
-                
-                outputStream.write(r)
-                outputStream.write(g)
-                outputStream.write(b)
+                rgbData[byteIndex++] = ((pixel shr 16) and 0xFF).toByte()  // R
+                rgbData[byteIndex++] = ((pixel shr 8) and 0xFF).toByte()   // G
+                rgbData[byteIndex++] = (pixel and 0xFF).toByte()           // B
             }
             
-            return outputStream.toByteArray()
+            return rgbData
         } finally {
             // Ensure bitmap is recycled even if an exception occurs
             resized.recycle()

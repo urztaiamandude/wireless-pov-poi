@@ -172,12 +172,13 @@ void processSerialCommands() {
       
       // Prevent buffer overflow
       if (cmdBufferIndex >= CMD_BUFFER_SIZE) {
+        Serial.println("WARNING: Command buffer overflow, resetting");
         cmdBufferIndex = 0;
         continue;
       }
       
-      // Check if we have a complete command
-      if (cmdBufferIndex >= 3 && byte == 0xFE) {
+      // Check if we have end marker (commands vary in length)
+      if (byte == 0xFE && cmdBufferIndex >= 4) {
         parseCommand();
         cmdBufferIndex = 0;
       }
@@ -253,20 +254,33 @@ void parseCommand() {
 }
 
 void receiveImage() {
-  // Parse image header
+  // Parse image header from command buffer
+  // Protocol: 0xFF 0x02 dataLen_high dataLen_low width height [RGB data...] 0xFE
   uint16_t dataLen = (cmdBuffer[2] << 8) | cmdBuffer[3];
   uint8_t srcWidth = cmdBuffer[4];
   uint8_t srcHeight = cmdBuffer[5];
   uint8_t imgIndex = 0;  // Always use slot 0 for uploaded images
   
-  if (imgIndex >= MAX_IMAGES) return;
+  // Calculate expected data size
+  uint16_t expectedBytes = 6 + srcWidth * srcHeight * 3 + 1; // header + pixels + end marker
+  
+  if (imgIndex >= MAX_IMAGES) {
+    Serial.println("Error: Invalid image index");
+    return;
+  }
+  
+  if (cmdBufferIndex < expectedBytes) {
+    Serial.printf("Warning: Incomplete image data. Expected %d, got %d\n", 
+                  expectedBytes, cmdBufferIndex);
+    // Continue anyway with what we have
+  }
   
   Serial.print("Receiving image, source size: ");
   Serial.print(srcWidth);
   Serial.print("x");
   Serial.print(srcHeight);
-  Serial.print(" (");
-  Serial.print(dataLen);
+  Serial.print(" (buffer has ");
+  Serial.print(cmdBufferIndex);
   Serial.println(" bytes)");
   
   // If image is already 31 pixels wide, use it directly
@@ -280,7 +294,8 @@ void receiveImage() {
     uint16_t pixelCount = srcWidth * srcHeight;
     for (uint16_t i = 0; i < pixelCount; i++) {
       uint16_t bufferPos = 6 + i * 3;
-      if (bufferPos + 2 < cmdBufferIndex) {
+      // Ensure we have all 3 bytes for this pixel
+      if (bufferPos + 2 < cmdBufferIndex - 1) { // -1 for end marker
         uint8_t x = i % srcWidth;
         uint8_t y = i / srcWidth;
         images[imgIndex].pixels[x][y] = CRGB(
@@ -288,6 +303,11 @@ void receiveImage() {
           cmdBuffer[bufferPos + 1],
           cmdBuffer[bufferPos + 2]
         );
+      } else {
+        // Fill remaining with black if data is incomplete
+        uint8_t x = i % srcWidth;
+        uint8_t y = i / srcWidth;
+        images[imgIndex].pixels[x][y] = CRGB::Black;
       }
     }
   } else {
@@ -320,7 +340,7 @@ void receiveImage() {
         uint16_t bufferPos = 6 + srcIndex * 3;
         
         // Read and store pixel (with bounds checking)
-        if (bufferPos + 2 < cmdBufferIndex) {
+        if (bufferPos + 2 < cmdBufferIndex - 1) { // -1 for end marker
           images[imgIndex].pixels[tx][ty] = CRGB(
             cmdBuffer[bufferPos],
             cmdBuffer[bufferPos + 1],

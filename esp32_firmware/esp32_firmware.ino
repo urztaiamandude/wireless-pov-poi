@@ -794,17 +794,19 @@ void handleUploadImage() {
     Serial.printf("Detected image: %dx%d (%d bytes)\n", imageWidth, imageHeight, actualSize);
     
     // Send image data to Teensy for processing
-    // Teensy will handle any needed conversion/resizing
-    sendTeensyCommand(0x02, (actualSize >> 8) & 0xFF);
-    TEENSY_SERIAL.write(actualSize & 0xFF);
-    TEENSY_SERIAL.write(imageWidth);
-    TEENSY_SERIAL.write(imageHeight);
+    // Protocol: 0xFF 0x02 dataLen_high dataLen_low width height [RGB data...] 0xFE
+    TEENSY_SERIAL.write(0xFF);  // Start marker
+    TEENSY_SERIAL.write(0x02);  // Upload Image command
+    TEENSY_SERIAL.write((actualSize >> 8) & 0xFF);  // Data length high byte
+    TEENSY_SERIAL.write(actualSize & 0xFF);  // Data length low byte
+    TEENSY_SERIAL.write(imageWidth);  // Image width
+    TEENSY_SERIAL.write(imageHeight);  // Image height
     
     // Send pixel data
     for (uint16_t i = 0; i < actualSize && i < bufferIndex; i++) {
       TEENSY_SERIAL.write(imageBuffer[i]);
     }
-    TEENSY_SERIAL.write(0xFE);
+    TEENSY_SERIAL.write(0xFE);  // End marker
     
     Serial.println("Image forwarded to Teensy");
     
