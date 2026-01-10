@@ -18,6 +18,13 @@ This directory contains example images and pattern configurations for the POV PO
 
 ## Creating POV Images
 
+### Using Online Image Converter
+
+For a quick and easy conversion, you can use the POISonic online image converter:
+- **POISonic Image Converter**: [https://web.archive.org/web/20210509110926/https://www.orchardelica.com/poisonic/poi_page.html](https://web.archive.org/web/20210509110926/https://www.orchardelica.com/poisonic/poi_page.html)
+
+This tool can help you convert regular images to POV-compatible formats directly in your browser.
+
 ### Using Image Editor (GIMP, Photoshop, etc.)
 
 1. Create new image: 31 × 64 pixels

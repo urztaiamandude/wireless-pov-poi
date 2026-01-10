@@ -94,6 +94,9 @@ def print_usage():
     print("  - Maintain aspect ratio (max 64 pixels high)")
     print("  - Enhance contrast for better visibility")
     print("  - Save as PNG format")
+    print()
+    print("Alternative: Use the POISonic online converter:")
+    print("  https://web.archive.org/web/20210509110926/https://www.orchardelica.com/poisonic/poi_page.html")
 
 def main():
     """Main function"""

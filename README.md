@@ -119,6 +119,12 @@ For best results with persistence of vision:
 - Simple graphics better than complex photos
 - Higher frame rates produce smoother images
 
+### Image Conversion Tools
+
+To prepare images for POV display, you can use:
+- **Python Image Converter**: Use the included `examples/image_converter.py` script
+- **POISonic Online Converter**: [https://web.archive.org/web/20210509110926/https://www.orchardelica.com/poisonic/poi_page.html](https://web.archive.org/web/20210509110926/https://www.orchardelica.com/poisonic/poi_page.html) - Browser-based image converter tool
+
 ## Customization
 
 ### Change WiFi Credentials
