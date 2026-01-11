@@ -44,7 +44,29 @@ The POV POI system requires images to be 31 pixels wide (matching the LED strip)
 
 **Code Location:** `examples/android_app/POVPoiAPI.kt` - `convertBitmapToPOVFormat()`
 
-### 3. Python Script (Pre-conversion)
+### 3. Python GUI Converter (Recommended for Desktop)
+
+**Process:**
+1. User runs `python image_converter_gui.py`
+2. Select image(s) through file browser
+3. Preview before/after conversion in real-time
+4. Adjust settings (width, height, contrast)
+5. PIL/Pillow library resizes image with settings
+6. Save converted image(s) to chosen location
+7. User uploads pre-converted image to device
+
+**Advantages:**
+- User-friendly visual interface
+- Real-time preview of conversion
+- Before/after comparison
+- Adjustable conversion settings
+- Batch conversion support
+- Cross-platform (Windows, Mac, Linux)
+- Helpful error messages with installation guidance
+
+**Code Location:** `examples/image_converter_gui.py`
+
+### 4. Python Script (Command-Line Pre-conversion)
 
 **Process:**
 1. User runs `python image_converter.py input.jpg`
@@ -56,14 +78,15 @@ The POV POI system requires images to be 31 pixels wide (matching the LED strip)
 7. User uploads pre-converted image
 
 **Advantages:**
-- Batch processing support
-- Visual preview of converted image
+- Command-line automation
+- Scriptable for batch processing
 - Contrast enhancement for better visibility
-- No processing during upload
+- No GUI dependencies
+- Fast for single images
 
 **Code Location:** `examples/image_converter.py`
 
-### 4. Teensy Processing (Final Stage)
+### 5. Teensy Processing (Final Stage)
 
 **Process:**
 1. Teensy receives image data from ESP32
@@ -104,6 +127,23 @@ The POV POI system requires images to be 31 pixels wide (matching the LED strip)
 
 ## Testing Image Conversion
 
+### Test GUI Converter
+
+Install dependencies and run the GUI:
+```bash
+cd examples
+pip install -r requirements.txt
+python3 image_converter_gui.py
+```
+
+**GUI Testing Steps:**
+1. Click "Select Image" and choose a test image
+2. Verify before/after previews display correctly
+3. Adjust settings (width, max height, contrast)
+4. Check that preview updates in real-time
+5. Click "Convert & Save" and verify output file
+6. Test "Select Multiple" for batch conversion
+
 ### Run Automated Tests
 
 Test the Python converter:
@@ -116,7 +156,14 @@ Expected output: 8/8 tests passed
 
 ### Test Individual Images
 
-Convert a single image:
+**Using GUI (Recommended):**
+```bash
+cd examples
+python3 image_converter_gui.py
+```
+Then select your image through the interface.
+
+**Using Command-Line:**
 ```bash
 cd examples
 python3 image_converter.py ../path/to/your/image.jpg

@@ -120,11 +120,34 @@ For best results with persistence of vision:
 - Simple graphics better than complex photos
 - Higher frame rates produce smoother images
 
-### Image Conversion Tools
+## Image Conversion
 
-To prepare images for POV display, you can use:
-- **Python Image Converter**: Use the included `examples/image_converter.py` script
-- **POISonic Online Converter**: [https://web.archive.org/web/20210509110926/https://www.orchardelica.com/poisonic/poi_page.html](https://web.archive.org/web/20210509110926/https://www.orchardelica.com/poisonic/poi_page.html) - Browser-based image converter tool
+Convert images to POV-compatible format (31 pixels wide):
+
+### Option 1: GUI Converter (Recommended for Desktop)
+```bash
+cd examples
+pip install -r requirements.txt
+python image_converter_gui.py
+```
+
+**Features:**
+- Visual interface with before/after preview
+- Adjust conversion settings in real-time
+- Single image or batch conversion support
+- Cross-platform (Windows, Mac, Linux)
+
+### Option 2: Command-Line Converter
+```bash
+cd examples
+python image_converter.py your_image.jpg
+```
+
+### Option 3: Web Interface (No Installation)
+Upload directly through the POV device's web interface at http://192.168.4.1 - images are automatically converted
+
+### Option 4: Online Tool
+- **POISonic Online Converter**: [https://web.archive.org/web/20210509110926/https://www.orchardelica.com/poisonic/poi_page.html](https://web.archive.org/web/20210509110926/https://www.orchardelica.com/poisonic/poi_page.html) - Browser-based converter
 
 ## Customization
 
