@@ -274,26 +274,31 @@ class POVPoiAPI(private val baseUrl: String = "http://192.168.4.1") {
      * @return Bitmap with enhanced contrast
      */
     private fun enhanceContrast(bitmap: Bitmap, factor: Float): Bitmap {
-        val cm = android.graphics.ColorMatrix()
-        cm.set(
-            floatArrayOf(
-                factor, 0f, 0f, 0f, 0f,
-                0f, factor, 0f, 0f, 0f,
-                0f, 0f, factor, 0f, 0f,
-                0f, 0f, 0f, 1f, 0f
-            )
-        )
-        
-        val paint = android.graphics.Paint()
-        paint.colorFilter = android.graphics.ColorMatrixColorFilter(cm)
-        
-        val result = Bitmap.createBitmap(
-            bitmap.width, 
-            bitmap.height, 
-            bitmap.config ?: Bitmap.Config.ARGB_8888
-        )
-        val canvas = android.graphics.Canvas(result)
-        canvas.drawBitmap(bitmap, 0f, 0f, paint)
+        val width = bitmap.width
+        val height = bitmap.height
+
+        // Always use ARGB_8888 to ensure consistent channel depth
+        val result = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+
+        val pixels = IntArray(width * height)
+        bitmap.getPixels(pixels, 0, width, 0, 0, width, height)
+
+        for (i in pixels.indices) {
+            val color = pixels[i]
+            val a = android.graphics.Color.alpha(color)
+            var r = (android.graphics.Color.red(color) * factor).toInt()
+            var g = (android.graphics.Color.green(color) * factor).toInt()
+            var b = (android.graphics.Color.blue(color) * factor).toInt()
+
+            // Clamp each channel to the valid RGB range [0, 255]
+            r = r.coerceIn(0, 255)
+            g = g.coerceIn(0, 255)
+            b = b.coerceIn(0, 255)
+
+            pixels[i] = android.graphics.Color.argb(a, r, g, b)
+        }
+
+        result.setPixels(pixels, 0, width, 0, 0, width, height)
         
         return result
     }
