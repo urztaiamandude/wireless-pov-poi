@@ -10,6 +10,10 @@ import os
 import sys
 from threading import Thread
 
+# Configuration constants
+MIN_IMAGE_WIDTH_FOR_SCALING = 50  # Minimum width to trigger upscaling in preview
+CONTRAST_ENHANCEMENT_FACTOR = 2.0  # Factor for contrast enhancement
+
 # Check for PIL/Pillow with helpful error handling
 try:
     from PIL import Image, ImageTk, ImageEnhance
@@ -410,7 +414,7 @@ class POVImageConverterGUI:
         # Calculate display size
         img_width, img_height = image.size
         
-        if scale_up and img_width < 50:
+        if scale_up and img_width < MIN_IMAGE_WIDTH_FOR_SCALING:
             # Scale up small images for better visibility
             scale_factor = min(
                 canvas_width // img_width,
@@ -485,7 +489,7 @@ class POVImageConverterGUI:
             # Enhance contrast if requested
             if enhance_contrast:
                 enhancer = ImageEnhance.Contrast(img)
-                img = enhancer.enhance(2.0)
+                img = enhancer.enhance(CONTRAST_ENHANCEMENT_FACTOR)
             
             # Store converted image
             self.converted_image = img

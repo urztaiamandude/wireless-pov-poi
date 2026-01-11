@@ -154,7 +154,7 @@ def test_error_handling():
             os.path.join(tmpdir, "output.png")
         )
         
-        if result == False:
+        if not result:
             print("  ✓ Non-existent file handled correctly")
         else:
             print("❌ FAILED: Should return False for non-existent file")
