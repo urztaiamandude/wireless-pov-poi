@@ -85,6 +85,17 @@ class ImageConverterActivity : AppCompatActivity() {
         }
     }
     
+    // Request read media images permission (for Android 13+)
+    private val requestReadMediaImagesLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            pickImageLauncher.launch("image/*")
+        } else {
+            Toast.makeText(this, "Permission required to access images", Toast.LENGTH_SHORT).show()
+        }
+    }
+    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_image_converter)
@@ -126,6 +137,16 @@ class ImageConverterActivity : AppCompatActivity() {
     
     private fun setupListeners() {
         btnGallery.setOnClickListener {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                val permissionStatus = ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.READ_MEDIA_IMAGES
+                )
+                if (permissionStatus != PackageManager.PERMISSION_GRANTED) {
+                    requestReadMediaImagesLauncher.launch(Manifest.permission.READ_MEDIA_IMAGES)
+                    return@setOnClickListener
+                }
+            }
             pickImageLauncher.launch("image/*")
         }
         
@@ -184,20 +205,40 @@ class ImageConverterActivity : AppCompatActivity() {
     }
     
     private fun openCamera() {
-        // Create temporary file for photo
-        val photoFile = File.createTempFile(
-            "POV_${System.currentTimeMillis()}",
-            ".jpg",
-            cacheDir
-        )
-        
-        photoUri = FileProvider.getUriForFile(
-            this,
-            "${applicationContext.packageName}.provider",
-            photoFile
-        )
-        
-        takePictureLauncher.launch(photoUri)
+        try {
+            // Create temporary file for photo
+            val photoFile = File.createTempFile(
+                "POV_${System.currentTimeMillis()}",
+                ".jpg",
+                cacheDir
+            )
+            
+            // Ensure the file was actually created
+            if (!photoFile.exists()) {
+                Toast.makeText(this, "Unable to create image file for camera", Toast.LENGTH_SHORT).show()
+                return
+            }
+            
+            val authority = "${applicationContext.packageName}.provider"
+            
+            // Get a content URI for the temporary file
+            val uri = FileProvider.getUriForFile(
+                this,
+                authority,
+                photoFile
+            )
+            
+            // Basic validation of the URI before using it
+            if (uri.scheme.isNullOrEmpty()) {
+                Toast.makeText(this, "Invalid image URI for camera", Toast.LENGTH_SHORT).show()
+                return
+            }
+            
+            photoUri = uri
+            takePictureLauncher.launch(photoUri)
+        } catch (e: Exception) {
+            Toast.makeText(this, "Unable to open camera: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
     }
     
     private fun loadImage(uri: Uri) {
@@ -274,22 +315,31 @@ class ImageConverterActivity : AppCompatActivity() {
     }
     
     private fun enhanceContrast(bitmap: Bitmap, factor: Float): Bitmap {
-        val cm = ColorMatrix()
-        cm.set(
-            floatArrayOf(
-                factor, 0f, 0f, 0f, 0f,
-                0f, factor, 0f, 0f, 0f,
-                0f, 0f, factor, 0f, 0f,
-                0f, 0f, 0f, 1f, 0f
-            )
-        )
-        
-        val paint = Paint()
-        paint.colorFilter = ColorMatrixColorFilter(cm)
-        
-        val result = Bitmap.createBitmap(bitmap.width, bitmap.height, bitmap.config ?: Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(result)
-        canvas.drawBitmap(bitmap, 0f, 0f, paint)
+        val width = bitmap.width
+        val height = bitmap.height
+
+        // Always use ARGB_8888 to ensure consistent channel depth
+        val result = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+
+        val pixels = IntArray(width * height)
+        bitmap.getPixels(pixels, 0, width, 0, 0, width, height)
+
+        for (i in pixels.indices) {
+            val color = pixels[i]
+            val a = Color.alpha(color)
+            var r = (Color.red(color) * factor).toInt()
+            var g = (Color.green(color) * factor).toInt()
+            var b = (Color.blue(color) * factor).toInt()
+
+            // Clamp each channel to the valid RGB range [0, 255]
+            r = r.coerceIn(0, 255)
+            g = g.coerceIn(0, 255)
+            b = b.coerceIn(0, 255)
+
+            pixels[i] = Color.argb(a, r, g, b)
+        }
+
+        result.setPixels(pixels, 0, width, 0, 0, width, height)
         
         return result
     }
