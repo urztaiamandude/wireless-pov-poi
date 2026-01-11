@@ -1,13 +1,14 @@
 # Android App Example for POV POI Control
 
-This is a simple example Android app for controlling the wireless POV POI system.
+This is a complete Android app for controlling the wireless POV POI system with advanced image conversion capabilities.
 
 ## Overview
 
-This example demonstrates how to build an Android app that communicates with the POV POI system using the REST API.
+This example demonstrates how to build an Android app that communicates with the POV POI system using the REST API. The app includes a dedicated Image Converter Activity for converting photos to POV-compatible format.
 
 ## Features
 
+### Main Controller
 - Connect to POV POI WiFi
 - Display system status
 - Control display modes
@@ -15,33 +16,36 @@ This example demonstrates how to build an Android app that communicates with the
 - Send pattern configurations
 - Live drawing mode
 
+### Image Converter (NEW!)
+- **Gallery picker** - Select images from your photo library
+- **Camera support** - Take new photos directly
+- **Real-time preview** - See before and after conversion
+- **Adjustable settings** - Configure width, height, and contrast
+- **Save to gallery** - Save converted images to device
+- **Direct upload** - Send images to POV device
+- **Contrast enhancement** - Improve visibility for POV display
+
 ## Prerequisites
 
 - Android Studio
 - Android SDK (API 21+)
 - Kotlin support
 - Device with WiFi capability
+- Camera (optional, for photo capture)
 
 ## Project Structure
 
 ```
-app/
-├── src/
-│   └── main/
-│       ├── java/com/example/povpoi/
-│       │   ├── MainActivity.kt
-│       │   ├── POVPoiAPI.kt
-│       │   ├── PatternFragment.kt
-│       │   └── LiveDrawFragment.kt
-│       ├── res/
-│       │   ├── layout/
-│       │   │   ├── activity_main.xml
-│       │   │   └── fragment_pattern.xml
-│       │   └── values/
-│       │       ├── strings.xml
-│       │       └── colors.xml
-│       └── AndroidManifest.xml
-└── build.gradle
+android_app/
+├── MainActivity.kt              # Main control interface
+├── ImageConverterActivity.kt    # Image converter (NEW!)
+├── POVPoiAPI.kt                 # API client with enhanced conversion
+├── AndroidManifest.xml          # Permissions and activities
+├── build.gradle                 # Dependencies
+├── activity_image_converter.xml # Image converter layout (NEW!)
+└── res/
+    └── xml/
+        └── file_paths.xml       # FileProvider configuration
 ```
 
 ## Setup Instructions
@@ -56,44 +60,124 @@ app/
 
 ### 2. Add Dependencies
 
-Add to `app/build.gradle`:
+See the included `build.gradle` file for complete dependencies including:
 
 ```gradle
 dependencies {
-    implementation 'androidx.core:core-ktx:1.9.0'
+    // AndroidX Core
+    implementation 'androidx.core:core-ktx:1.12.0'
     implementation 'androidx.appcompat:appcompat:1.6.1'
-    implementation 'com.google.android.material:material:1.9.0'
-    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    implementation 'com.google.android.material:material:1.11.0'
     
-    // Network
-    implementation 'com.squareup.okhttp3:okhttp:4.11.0'
-    implementation 'com.google.code.gson:gson:2.10.1'
+    // Lifecycle components
+    implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0'
+    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.7.0'
     
     // Coroutines
-    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.1'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
     
-    // ViewModel
-    implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.6.1'
-    implementation 'androidx.lifecycle:lifecycle-livedata-ktx:2.6.1'
+    // Networking
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+    
+    // Activity Result APIs
+    implementation 'androidx.activity:activity-ktx:1.8.2'
 }
 ```
 
 ### 3. Add Permissions
 
-Add to `AndroidManifest.xml`:
+See the included `AndroidManifest.xml` file. Key permissions include:
 
 ```xml
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     
+    <!-- Network permissions -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     
-    <application
-        ...>
-        ...
+    <!-- Storage permissions -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
+    
+    <!-- Camera permission -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    
+    <!-- For Android 13+ -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    
+    <application ...>
+        <activity android:name=".MainActivity" ... />
+        <activity android:name=".ImageConverterActivity" ... />
+        
+        <!-- FileProvider for camera photos -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.provider"
+            ... />
     </application>
 </manifest>
+```
+
+## Using the Image Converter
+
+### Opening the Image Converter
+
+From MainActivity:
+```kotlin
+binding.imageConverterButton.setOnClickListener {
+    startActivity(Intent(this, ImageConverterActivity::class.java))
+}
+```
+
+### Image Conversion Features
+
+1. **Select Source**
+   - Gallery: Choose existing photos
+   - Camera: Take new photos
+
+2. **Adjust Settings**
+   - Width: 10-100 pixels (default: 31px)
+   - Max Height: 10-128 pixels (default: 64px)
+   - Contrast Enhancement: Toggle on/off
+
+3. **Convert & Preview**
+   - See original and converted side-by-side
+   - Converted image scaled up 10x for visibility
+
+4. **Actions**
+   - **Save**: Save to device gallery
+   - **Upload**: Send directly to POV device
+   - **Share**: Share with other apps
+
+### Conversion Algorithm
+
+The app uses nearest-neighbor interpolation for crisp pixels:
+
+```kotlin
+fun convertBitmapToPOVFormat(
+    bitmap: Bitmap,
+    targetWidth: Int = 31,
+    maxHeight: Int = 64,
+    enhanceContrast: Boolean = true
+): Bitmap {
+    // Calculate dimensions maintaining aspect ratio
+    val aspectRatio = bitmap.height.toFloat() / bitmap.width.toFloat()
+    var targetHeight = (targetWidth * aspectRatio).toInt()
+    if (targetHeight > maxHeight) targetHeight = maxHeight
+    
+    // Resize with nearest neighbor
+    val resized = Bitmap.createScaledBitmap(
+        bitmap, targetWidth, targetHeight, false
+    )
+    
+    // Optional contrast enhancement
+    return if (enhanceContrast) {
+        enhanceContrast(resized, 2.0f)
+    } else {
+        resized
+    }
+}
 ```
 
 ## Code Examples
@@ -154,6 +238,30 @@ api.setMode(2, 0)
 // Set brightness to 75%
 val api = POVPoiAPI()
 api.setBrightness(192)
+```
+
+### Uploading Images
+
+```kotlin
+// Upload image from bitmap
+lifecycleScope.launch {
+    val success = api.uploadImage(bitmap)
+    if (success) {
+        Toast.makeText(this, "Upload successful!", Toast.LENGTH_SHORT).show()
+    }
+}
+```
+
+### Converting Images
+
+```kotlin
+// Convert with custom settings
+val convertedBitmap = api.convertBitmapToPOVFormatEnhanced(
+    bitmap = originalBitmap,
+    targetWidth = 31,
+    maxHeight = 64,
+    enhanceContrast = true
+)
 ```
 
 ### Live Drawing
@@ -218,8 +326,48 @@ lifecycleScope.launch {
 
 ## Troubleshooting
 
+### App Issues
+
 **App can't connect:**
 - Verify device is connected to POV-POI-WiFi
+- Check IP address is 192.168.4.1
+- Ensure ESP32 is powered and running
+- Check network permissions in manifest
+
+**Image Converter issues:**
+- **Camera not working**: Check camera permission granted
+- **Can't save images**: Check storage permission (Android 9 and below)
+- **Upload fails**: Verify WiFi connection to POV POI device
+
+**Slow response:**
+- WiFi signal strength
+- Serial communication bottleneck
+- Reduce update frequency
+
+**Patterns not changing:**
+- Check API call syntax
+- Verify mode is set correctly
+- Monitor serial output on ESP32
+
+### Permissions
+
+The app requires runtime permissions on Android 6.0+:
+- Camera (for taking photos)
+- Storage (Android 9 and below, for saving images)
+- Media Images (Android 13+, for gallery access)
+
+Handle permission requests:
+```kotlin
+// Request camera permission
+if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+    != PackageManager.PERMISSION_GRANTED) {
+    ActivityCompat.requestPermissions(
+        this,
+        arrayOf(Manifest.permission.CAMERA),
+        CAMERA_PERMISSION_REQUEST
+    )
+}
+```
 - Check IP address is 192.168.4.1
 - Ensure ESP32 is powered and running
 - Check network permissions in manifest
