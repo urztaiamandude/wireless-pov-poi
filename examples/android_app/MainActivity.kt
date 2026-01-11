@@ -29,6 +29,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var gradientBtn: Button
     private lateinit var sparkleBtn: Button
     
+    // Image converter button
+    private lateinit var imageConverterBtn: Button
+    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -56,6 +59,7 @@ class MainActivity : AppCompatActivity() {
         waveBtn = findViewById(R.id.waveBtn)
         gradientBtn = findViewById(R.id.gradientBtn)
         sparkleBtn = findViewById(R.id.sparkleBtn)
+        imageConverterBtn = findViewById(R.id.imageConverterBtn)
         
         // Setup mode spinner
         val modes = arrayOf("Idle", "Image", "Pattern", "Sequence", "Live")
@@ -113,6 +117,11 @@ class MainActivity : AppCompatActivity() {
         waveBtn.setOnClickListener { setPattern(POVPoiAPI.PATTERN_WAVE) }
         gradientBtn.setOnClickListener { setPattern(POVPoiAPI.PATTERN_GRADIENT) }
         sparkleBtn.setOnClickListener { setPattern(POVPoiAPI.PATTERN_SPARKLE) }
+        
+        // Image converter button
+        imageConverterBtn.setOnClickListener {
+            startActivity(Intent(this, ImageConverterActivity::class.java))
+        }
     }
     
     private fun startStatusUpdates() {

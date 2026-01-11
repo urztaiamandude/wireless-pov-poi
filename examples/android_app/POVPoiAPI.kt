@@ -233,6 +233,72 @@ class POVPoiAPI(private val baseUrl: String = "http://192.168.4.1") {
     }
     
     /**
+     * Convert bitmap to POV-compatible format with enhanced options
+     * Resizes to specified width, maintains aspect ratio, max specified height
+     * @param bitmap Source bitmap
+     * @param targetWidth Target width in pixels (default 31)
+     * @param maxHeight Maximum height in pixels (default 64)
+     * @param enhanceContrast Apply contrast enhancement (default true)
+     * @return Bitmap in POV format
+     */
+    fun convertBitmapToPOVFormatEnhanced(
+        bitmap: Bitmap,
+        targetWidth: Int = 31,
+        maxHeight: Int = 64,
+        enhanceContrast: Boolean = true
+    ): Bitmap {
+        // Calculate new dimensions
+        val aspectRatio = bitmap.height.toFloat() / bitmap.width.toFloat()
+        var targetHeight = (targetWidth * aspectRatio).toInt()
+        
+        if (targetHeight > maxHeight) targetHeight = maxHeight
+        if (targetHeight < 1) targetHeight = 1
+        
+        // Resize with nearest neighbor (no filtering for crisp pixels)
+        val resized = Bitmap.createScaledBitmap(
+            bitmap, targetWidth, targetHeight, false
+        )
+        
+        // Enhance contrast if requested
+        return if (enhanceContrast) {
+            enhanceContrast(resized, 2.0f)
+        } else {
+            resized
+        }
+    }
+    
+    /**
+     * Enhance contrast of a bitmap
+     * @param bitmap Source bitmap
+     * @param factor Contrast factor (1.0 = no change, 2.0 = double contrast)
+     * @return Bitmap with enhanced contrast
+     */
+    private fun enhanceContrast(bitmap: Bitmap, factor: Float): Bitmap {
+        val cm = android.graphics.ColorMatrix()
+        cm.set(
+            floatArrayOf(
+                factor, 0f, 0f, 0f, 0f,
+                0f, factor, 0f, 0f, 0f,
+                0f, 0f, factor, 0f, 0f,
+                0f, 0f, 0f, 1f, 0f
+            )
+        )
+        
+        val paint = android.graphics.Paint()
+        paint.colorFilter = android.graphics.ColorMatrixColorFilter(cm)
+        
+        val result = Bitmap.createBitmap(
+            bitmap.width, 
+            bitmap.height, 
+            bitmap.config ?: Bitmap.Config.ARGB_8888
+        )
+        val canvas = android.graphics.Canvas(result)
+        canvas.drawBitmap(bitmap, 0f, 0f, paint)
+        
+        return result
+    }
+    
+    /**
      * Send live frame data
      * @param pixels List of 31 RGB colors
      * @return true if successful

@@ -128,6 +128,10 @@ void setupWebServer() {
     handleUploadImage);
   server.on("/api/live", HTTP_POST, handleLiveFrame);
   
+  // PWA support
+  server.on("/manifest.json", HTTP_GET, handleManifest);
+  server.on("/sw.js", HTTP_GET, handleServiceWorker);
+  
   // Static files
   server.on("/style.css", HTTP_GET, []() {
     sendFile("/style.css", "text/css");
@@ -148,7 +152,13 @@ void handleRoot() {
 <html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#667eea">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="POV POI">
+    <link rel="manifest" href="/manifest.json">
     <title>POV POI Controller</title>
     <style>
         * {
@@ -287,17 +297,143 @@ void handleRoot() {
             background: #000;
             cursor: crosshair;
         }
-        @media (max-width: 600px) {
+        
+        /* Mobile-first responsive design */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            
+            .container {
+                border-radius: 12px;
+            }
+            
             h1 {
                 font-size: 1.8em;
             }
+            
+            h2 {
+                font-size: 1.3em;
+            }
+            
+            .header {
+                padding: 20px;
+            }
+            
             .content {
                 padding: 15px;
             }
+            
+            .section {
+                padding: 15px;
+                margin-bottom: 15px;
+            }
+            
+            button {
+                width: 100%;
+                margin: 5px 0;
+                padding: 15px;
+                font-size: 16px;
+                min-height: 44px;
+                touch-action: manipulation;
+            }
+            
+            input[type="range"] {
+                width: 100%;
+                height: 40px;
+                -webkit-appearance: none;
+                appearance: none;
+            }
+            
+            input[type="range"]::-webkit-slider-thumb {
+                -webkit-appearance: none;
+                width: 32px;
+                height: 32px;
+                border-radius: 50%;
+                background: #667eea;
+                cursor: pointer;
+            }
+            
+            input[type="range"]::-moz-range-thumb {
+                width: 32px;
+                height: 32px;
+                border-radius: 50%;
+                background: #667eea;
+                cursor: pointer;
+                border: none;
+            }
+            
+            input[type="file"] {
+                width: 100%;
+                padding: 15px;
+                font-size: 16px;
+            }
+            
+            select {
+                font-size: 16px;
+                min-height: 44px;
+            }
+            
+            .pattern-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 8px;
+            }
+            
+            .pattern-btn {
+                padding: 15px;
+                font-size: 14px;
+            }
+            
+            .color-picker-group {
+                flex-direction: column;
+            }
+            
+            input[type="color"] {
+                height: 60px;
+            }
+            
+            .live-canvas {
+                height: 150px;
+            }
+            
+            .status {
+                font-size: 14px;
+            }
+        }
+        
+        /* Improve touch targets */
+        button, input, select {
+            min-height: 44px;
+        }
+        
+        /* Better contrast for readability */
+        body {
+            font-size: 16px;
+            line-height: 1.6;
+        }
+        
+        /* PWA Install Button */
+        #installButton {
+            display: none;
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 15px 25px;
+            border-radius: 50px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            cursor: pointer;
+            font-weight: bold;
         }
     </style>
 </head>
 <body>
+    <!-- PWA Install Button -->
+    <button id="installButton">📱 Install App</button>
+    
     <div class="container">
         <div class="header">
             <h1>🎨 POV POI Controller</h1>
@@ -628,7 +764,33 @@ void handleRoot() {
                 reader.readAsDataURL(file);
             });
         }
-            }
+        
+        // PWA Install Prompt
+        let deferredPrompt;
+        
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            
+            const installButton = document.getElementById('installButton');
+            installButton.style.display = 'block';
+            
+            installButton.addEventListener('click', async () => {
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    const { outcome } = await deferredPrompt.userChoice;
+                    console.log(`User response: ${outcome}`);
+                    deferredPrompt = null;
+                    installButton.style.display = 'none';
+                }
+            });
+        });
+        
+        // Service Worker Registration
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js')
+                .then(reg => console.log('Service Worker registered'))
+                .catch(err => console.log('Service Worker registration failed'));
         }
     </script>
 </body>
@@ -846,6 +1008,81 @@ void handleLiveFrame() {
   } else {
     server.send(400, "application/json", "{\"error\":\"No data\"}");
   }
+}
+
+void handleManifest() {
+  String manifest = R"rawliteral({
+  "name": "POV POI Control",
+  "short_name": "POV POI",
+  "description": "Wireless POV POI Control Interface",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#667eea",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='40' fill='%23667eea'/%3E%3Ctext x='50' y='65' font-size='50' text-anchor='middle' fill='white'%3E🎨%3C/text%3E%3C/svg%3E",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='40' fill='%23667eea'/%3E%3Ctext x='50' y='65' font-size='50' text-anchor='middle' fill='white'%3E🎨%3C/text%3E%3C/svg%3E",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+})rawliteral";
+  
+  server.send(200, "application/json", manifest);
+}
+
+void handleServiceWorker() {
+  String sw = R"rawliteral(
+const CACHE_NAME = 'pov-poi-v1';
+const urlsToCache = [
+  '/',
+  '/manifest.json'
+];
+
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then((cache) => {
+        return cache.addAll(urlsToCache);
+      })
+  );
+});
+
+self.addEventListener('fetch', (event) => {
+  event.respondWith(
+    caches.match(event.request)
+      .then((response) => {
+        if (response) {
+          return response;
+        }
+        return fetch(event.request);
+      })
+  );
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => {
+          if (cacheName !== CACHE_NAME) {
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    })
+  );
+});
+)rawliteral";
+  
+  server.send(200, "application/javascript", sw);
 }
 
 void handleNotFound() {

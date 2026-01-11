@@ -380,11 +380,17 @@ void receiveImage() {
 
 ## Future Enhancements
 
+### Completed Features ✓
+- [x] Android app with advanced image conversion
+- [x] Image preview before upload (Android app)
+- [x] Brightness/contrast adjustment (Android app)
+- [x] Mobile-responsive web interface
+- [x] PWA support for installable web app
+- [x] Touch-optimized controls for mobile
+
 ### Planned Features
 - [ ] iOS app with image conversion
 - [ ] Bulk image upload and conversion
-- [ ] Image preview before upload
-- [ ] Brightness/contrast adjustment in web interface
 - [ ] Image rotation and flip options
 - [ ] Color palette optimization
 - [ ] Dithering for better grayscale images
@@ -397,11 +403,64 @@ void receiveImage() {
 - Image compression for storage
 - Multiple image slots
 
+## Mobile-Friendly Features
+
+### Android App Image Converter
+
+The Android app now includes a dedicated Image Converter Activity with:
+
+**Features:**
+- Gallery and camera image selection
+- Real-time before/after preview
+- Adjustable conversion settings:
+  - Width: 10-100 pixels (default: 31px)
+  - Max Height: 10-128 pixels (default: 64px)
+  - Contrast enhancement toggle
+- Save converted images to device gallery
+- Direct upload to POV device
+- Enhanced contrast for better POV visibility
+
+**Usage:**
+1. Open Image Converter from main menu
+2. Select image from gallery or take photo
+3. Adjust conversion settings
+4. Click "Convert Image"
+5. Save or upload the converted image
+
+See [Android App README](../examples/android_app/README.md) for details.
+
+### Mobile Web Interface
+
+The web interface is now fully mobile-responsive with:
+
+**Mobile Features:**
+- Touch-optimized controls (44px minimum touch targets)
+- Responsive layouts for phones and tablets
+- Larger buttons and sliders for touch
+- PWA support - install as native app
+- Offline functionality with service worker
+- Optimized image upload for mobile
+
+**PWA Installation:**
+1. Open http://192.168.4.1 in mobile browser
+2. Click "Install App" button (if supported)
+3. Or use browser's "Add to Home Screen"
+4. App works offline for basic controls
+
+**Mobile Optimizations:**
+- CSS optimized for small screens
+- Touch-friendly sliders (32px thumbs)
+- Pattern buttons in 2-column grid
+- Larger text for readability
+- No pinch-to-zoom needed
+
 ## References
 
 - [Image Converter Source](../examples/image_converter.py)
 - [Test Suite](../examples/test_image_converter.py)
+- [Android App](../examples/android_app/)
 - [Android API](../examples/android_app/POVPoiAPI.kt)
+- [Android Image Converter](../examples/android_app/ImageConverterActivity.kt)
 - [ESP32 Firmware](../esp32_firmware/esp32_firmware.ino)
 - [Teensy Firmware](../teensy_firmware/teensy_firmware.ino)
 

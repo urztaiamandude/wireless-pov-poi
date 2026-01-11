@@ -78,7 +78,7 @@ See [docs/WIRING.md](docs/WIRING.md) for detailed wiring instructions.
 
 ## Web Interface
 
-The web portal provides a modern, responsive interface with:
+The web portal provides a modern, **mobile-responsive** interface with:
 - Display mode selection (Idle, Image, Pattern, Sequence, Live)
 - System controls (brightness and frame rate sliders)
 - Quick pattern buttons (Rainbow, Wave, Gradient, Sparkle)
@@ -86,15 +86,34 @@ The web portal provides a modern, responsive interface with:
 - **Image upload with automatic conversion** (any size → 31px wide)
 - Live drawing canvas for real-time control
 - Real-time status display
+- **PWA support** - Install as native app on mobile devices
+- **Touch-optimized controls** for mobile use
 
 ## Mobile App Support
+
+### Android App (Included!)
+
+A complete Android app with advanced features:
+- **Image Converter Activity** - Dedicated UI for image conversion
+  - Gallery and camera image selection
+  - Real-time before/after preview
+  - Adjustable conversion settings (width, height, contrast)
+  - Save to device gallery
+  - Direct upload to POV device
+- Pattern and mode control
+- Brightness and frame rate adjustment
+- Status monitoring
+
+See [Android App README](examples/android_app/README.md) for setup and usage.
+
+### REST API
 
 The system includes a complete REST API for building mobile apps:
 - Status monitoring
 - Mode control
 - Brightness adjustment
 - Pattern configuration
-- Image upload
+- Image upload with automatic conversion
 - Live frame updates
 
 See [API Documentation](docs/API.md) for detailed endpoint information and example code for Android and iOS.
