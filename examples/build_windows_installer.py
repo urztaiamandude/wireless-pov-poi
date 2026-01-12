@@ -155,7 +155,14 @@ def verify_output():
     """Verify that the executable was created successfully"""
     print("Verifying output...")
     
-    exe_path = Path("dist/POV_POI_Image_Converter.exe")
+    # Import executable name from setup if available
+    try:
+        import setup
+        exe_name = setup.EXE_NAME
+    except (ImportError, AttributeError):
+        exe_name = "POV_POI_Image_Converter"
+    
+    exe_path = Path(f"dist/{exe_name}.exe")
     
     if exe_path.exists():
         size_mb = exe_path.stat().st_size / (1024 * 1024)

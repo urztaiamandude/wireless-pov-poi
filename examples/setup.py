@@ -10,7 +10,7 @@ VERSION = "1.0.0"
 AUTHOR = "POV POI Contributors"
 DESCRIPTION = "GUI tool for converting images to POV-compatible format"
 
-# Main script to bundle
+# Main script to bundle (expected to be in the same directory as this setup.py)
 MAIN_SCRIPT = "image_converter_gui.py"
 
 # Output executable name (without .exe extension)

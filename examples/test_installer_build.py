@@ -150,18 +150,20 @@ def test_requirements_file():
     """Test that installer_requirements.txt exists and is valid"""
     print("\n=== Test 6: Requirements File ===")
     
-    req_file = "installer_requirements.txt"
-    if not os.path.exists(req_file):
-        print(f"❌ FAILED: {req_file} not found")
+    # Use constant for requirements filename
+    REQUIREMENTS_FILE = "installer_requirements.txt"
+    
+    if not os.path.exists(REQUIREMENTS_FILE):
+        print(f"❌ FAILED: {REQUIREMENTS_FILE} not found")
         return False
     
-    with open(req_file, 'r') as f:
+    with open(REQUIREMENTS_FILE, 'r') as f:
         content = f.read()
         if 'pyinstaller' not in content.lower():
             print(f"❌ FAILED: pyinstaller not in requirements")
             return False
     
-    print(f"✓ {req_file} exists and contains pyinstaller")
+    print(f"✓ {REQUIREMENTS_FILE} exists and contains pyinstaller")
     return True
 
 def main():
