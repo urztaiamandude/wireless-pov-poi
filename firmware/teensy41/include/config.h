@@ -33,7 +33,4 @@
 #define SD_CACHE_SIZE 2  // Number of images to cache in RAM
 #define SD_FILE_MAGIC 0x504F5631  // "POV1" in hex
 
-// SD Card Performance Settings
-#define SD_CONFIG SdioConfig(FIFO_SDIO)  // Use SDIO with FIFO for best performance
-
 #endif // CONFIG_H

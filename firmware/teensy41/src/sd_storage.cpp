@@ -10,8 +10,9 @@ bool SDStorageManager::begin() {
     DEBUG_SERIAL.println("Initializing SD card...");
     #endif
     
-    // Try to initialize SD card with SDIO
-    if (!sd.begin(SD_CONFIG)) {
+    // Try to initialize SD card with SDIO (Teensy 4.1 built-in)
+    // Using SdioConfig with FIFO for best performance
+    if (!sd.begin(SdioConfig(FIFO_SDIO))) {
         #if DEBUG_ENABLED
         DEBUG_SERIAL.println("SD card initialization failed!");
         if (sd.card()->errorCode()) {
