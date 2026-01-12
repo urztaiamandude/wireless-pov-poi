@@ -5,6 +5,10 @@
 #include "config.h"
 #include "led_driver.h"
 
+// Forward declaration
+class SDStorageManager;
+enum SDError;
+
 class POVEngine {
 public:
     POVEngine(LEDDriver& ledDriver);
@@ -17,6 +21,9 @@ public:
     
     // Load image data for POV display
     void loadImageData(const uint8_t* data, size_t width, size_t height);
+    
+    // Load image from SD card
+    SDError loadImageFromSD(const char* filename, SDStorageManager* sdStorage);
     
     // Set rotation speed (RPM)
     void setRotationSpeed(float rpm);

@@ -1,4 +1,5 @@
 #include "pov_engine.h"
+#include "sd_storage.h"
 #include <new>
 
 POVEngine::POVEngine(LEDDriver& ledDriver) 
@@ -70,6 +71,69 @@ void POVEngine::loadImageData(const uint8_t* data, size_t width, size_t height) 
         imageWidth = 0;
         imageHeight = 0;
     }
+}
+
+SDError POVEngine::loadImageFromSD(const char* filename, SDStorageManager* sdStorage) {
+    if (!sdStorage || !sdStorage->isInitialized()) {
+        return SD_ERROR_NOT_INITIALIZED;
+    }
+    
+    #if DEBUG_ENABLED
+    DEBUG_SERIAL.print("Loading image from SD: ");
+    DEBUG_SERIAL.println(filename);
+    #endif
+    
+    // Get image info first to allocate proper buffer
+    size_t width, height, fileSize;
+    SDError error = sdStorage->getImageInfo(filename, width, height, fileSize);
+    
+    if (error != SD_OK) {
+        return error;
+    }
+    
+    // Free existing buffer if any
+    if (imageBuffer) {
+        delete[] imageBuffer;
+        imageBuffer = nullptr;
+    }
+    
+    // Allocate buffer for image data
+    size_t bufferSize = width * height * 3;
+    imageBuffer = new (std::nothrow) uint8_t[bufferSize];
+    
+    if (!imageBuffer) {
+        #if DEBUG_ENABLED
+        DEBUG_SERIAL.println("ERROR: Failed to allocate image buffer");
+        #endif
+        imageWidth = 0;
+        imageHeight = 0;
+        return SD_ERROR_OUT_OF_MEMORY;
+    }
+    
+    // Load image data from SD card
+    size_t loadedWidth, loadedHeight;
+    error = sdStorage->loadImage(filename, imageBuffer, bufferSize, loadedWidth, loadedHeight);
+    
+    if (error == SD_OK) {
+        imageWidth = loadedWidth;
+        imageHeight = loadedHeight;
+        
+        #if DEBUG_ENABLED
+        DEBUG_SERIAL.println("Image loaded from SD successfully");
+        #endif
+    } else {
+        // Clean up on error
+        delete[] imageBuffer;
+        imageBuffer = nullptr;
+        imageWidth = 0;
+        imageHeight = 0;
+        
+        #if DEBUG_ENABLED
+        DEBUG_SERIAL.println("ERROR: Failed to load image from SD");
+        #endif
+    }
+    
+    return error;
 }
 
 void POVEngine::setRotationSpeed(float rpm) {
