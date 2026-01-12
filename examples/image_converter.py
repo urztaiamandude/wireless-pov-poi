@@ -54,6 +54,11 @@ def convert_image_for_pov(input_path, output_path=None, width=31, max_height=64,
         print(f"Resizing to {width}x{new_height}")
         img = img.resize((width, new_height), Image.NEAREST)
         
+        # Flip vertically so bottom of image is at LED 1 (closest to board)
+        # and top of image is at LED 31 (farthest from board)
+        print("Flipping image vertically for correct POV orientation")
+        img = img.transpose(Image.FLIP_TOP_BOTTOM)
+        
         # Enhance contrast if requested
         if enhance_contrast:
             print("Enhancing contrast")

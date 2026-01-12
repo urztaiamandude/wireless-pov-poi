@@ -733,9 +733,24 @@ void handleRoot() {
                             ctx.imageSmoothingEnabled = false; // Nearest neighbor
                             ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
                             
-                            // Get image data
+                            // Flip vertically so bottom of image is at LED 1 (closest to board)
+                            // and top of image is at LED 31 (farthest from board)
                             const imageData = ctx.getImageData(0, 0, targetWidth, targetHeight);
-                            const pixels = imageData.data;
+                            const flippedData = ctx.createImageData(targetWidth, targetHeight);
+                            
+                            // Flip the image data vertically
+                            for (let y = 0; y < targetHeight; y++) {
+                                for (let x = 0; x < targetWidth; x++) {
+                                    const srcIndex = (y * targetWidth + x) * 4;
+                                    const dstIndex = ((targetHeight - 1 - y) * targetWidth + x) * 4;
+                                    flippedData.data[dstIndex] = imageData.data[srcIndex];
+                                    flippedData.data[dstIndex + 1] = imageData.data[srcIndex + 1];
+                                    flippedData.data[dstIndex + 2] = imageData.data[srcIndex + 2];
+                                    flippedData.data[dstIndex + 3] = imageData.data[srcIndex + 3];
+                                }
+                            }
+                            
+                            const pixels = flippedData.data;
                             
                             // Convert to RGB array (remove alpha channel)
                             const rgbData = new Uint8Array(targetWidth * targetHeight * 3);
