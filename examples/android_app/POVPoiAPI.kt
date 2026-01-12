@@ -217,6 +217,9 @@ class POVPoiAPI(private val baseUrl: String = "http://192.168.4.1") {
         matrix.preScale(1.0f, -1.0f)
         val flipped = Bitmap.createBitmap(resized, 0, 0, targetWidth, targetHeight, matrix, false)
         
+        // Recycle resized immediately after creating flipped
+        resized.recycle()
+        
         try {
             // Pre-allocate byte array for efficiency
             val rgbData = ByteArray(targetWidth * targetHeight * 3)
@@ -233,8 +236,7 @@ class POVPoiAPI(private val baseUrl: String = "http://192.168.4.1") {
             
             return rgbData
         } finally {
-            // Ensure bitmaps are recycled even if an exception occurs
-            resized.recycle()
+            // Ensure flipped bitmap is recycled even if an exception occurs
             flipped.recycle()
         }
     }
@@ -261,23 +263,37 @@ class POVPoiAPI(private val baseUrl: String = "http://192.168.4.1") {
         if (targetHeight > maxHeight) targetHeight = maxHeight
         if (targetHeight < 1) targetHeight = 1
         
-        // Resize with nearest neighbor (no filtering for crisp pixels)
-        val resized = Bitmap.createScaledBitmap(
-            bitmap, targetWidth, targetHeight, false
-        )
+        var resized: Bitmap? = null
+        var flipped: Bitmap? = null
         
-        // Flip vertically so bottom of image is at LED 1 (closest to board)
-        // and top of image is at LED 31 (farthest from board)
-        val matrix = android.graphics.Matrix()
-        matrix.preScale(1.0f, -1.0f)
-        val flipped = Bitmap.createBitmap(resized, 0, 0, targetWidth, targetHeight, matrix, false)
-        resized.recycle() // Clean up intermediate bitmap
-        
-        // Enhance contrast if requested
-        return if (enhanceContrast) {
-            enhanceContrast(flipped, 2.0f)
-        } else {
-            flipped
+        try {
+            // Resize with nearest neighbor (no filtering for crisp pixels)
+            resized = Bitmap.createScaledBitmap(
+                bitmap, targetWidth, targetHeight, false
+            )
+            
+            // Flip vertically so bottom of image is at LED 1 (closest to board)
+            // and top of image is at LED 31 (farthest from board)
+            val matrix = android.graphics.Matrix()
+            matrix.preScale(1.0f, -1.0f)
+            flipped = Bitmap.createBitmap(resized, 0, 0, targetWidth, targetHeight, matrix, false)
+            
+            // Enhance contrast if requested
+            val result = if (enhanceContrast) {
+                enhanceContrast(flipped, 2.0f)
+            } else {
+                flipped
+            }
+            
+            // If we created a new bitmap for contrast, recycle the flipped one
+            if (result !== flipped) {
+                flipped.recycle()
+            }
+            
+            return result
+        } finally {
+            // Clean up intermediate bitmap
+            resized?.recycle()
         }
     }
     

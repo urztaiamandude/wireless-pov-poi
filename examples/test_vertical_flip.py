@@ -25,7 +25,7 @@ def create_gradient_image(width, height, filename):
         # Calculate grayscale value (0 at top, 255 at bottom)
         gray = int(255 * y / (height - 1))
         color = (gray, gray, gray)
-        draw.line([(0, y), (width, y)], fill=color)
+        draw.line([(0, y), (width - 1, y)], fill=color)
     
     img.save(filename)
     return filename
