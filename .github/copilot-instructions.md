@@ -76,8 +76,9 @@ User → Web Interface → ESP32 (WiFi/HTTP) → Serial → Teensy → FastLED �
 #### FastLED Usage (Teensy)
 ```cpp
 // Efficient pattern: minimize calls to show()
-for (int i = 0; i < NUM_LEDS; i++) {
-    leds[i] = CRGB::Red;  // Set all pixels
+// Note: LED 0 is used for level shifting, display uses LEDs 1-31
+for (int i = 1; i < NUM_LEDS; i++) {
+    leds[i] = CRGB::Red;  // Set display pixels
 }
 FastLED.show();  // Single update
 
