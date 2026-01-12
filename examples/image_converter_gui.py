@@ -177,7 +177,7 @@ class POVImageConverterGUI:
         
         self.after_label = tk.Label(
             after_frame,
-            text="POV Format (31px wide)",
+            text="POV Format (31px high)",
             font=("Arial", 9),
             fg="#7f8c8d"
         )
