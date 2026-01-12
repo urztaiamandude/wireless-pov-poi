@@ -34,6 +34,47 @@ python image_converter_gui.py
 4. Click "Convert & Save" to save the POV-compatible image
 5. Upload to your POV device via web interface
 
+## Windows Executable (No Python Required)
+
+For Windows users who don't want to install Python, a standalone executable is available.
+
+### For End Users
+
+**Download and run the pre-built executable** (when available from releases):
+
+1. Download `POV_POI_Image_Converter.exe` from the [Releases page](../../releases)
+2. Double-click the file to run (no installation needed!)
+3. First launch may take 5-10 seconds (extraction)
+4. Use the GUI just like the Python version above
+
+**Note**: Windows Defender may show a warning (false positive). Click "More info" → "Run anyway"
+
+### For Developers
+
+**Build your own Windows executable:**
+
+See [BUILD_INSTALLER.md](BUILD_INSTALLER.md) for comprehensive instructions.
+
+**Quick build:**
+```bash
+cd examples
+pip install -r installer_requirements.txt
+python build_windows_installer.py
+```
+
+The executable will be created at `examples/dist/POV_POI_Image_Converter.exe`
+
+**Key points:**
+- Single file executable (~15-20 MB)
+- No Python installation required for end users
+- All functionality of Python version included
+- Can be distributed freely
+
+**Distribution:**
+- Upload to GitHub Releases
+- Share directly via cloud storage
+- No installation required by users
+
 ## Command-Line Image Converter
 
 For automated/batch processing via command line:
