@@ -110,10 +110,17 @@ The POV POI system requires images to be 31 pixels wide (matching the LED strip)
 - **Height:** 1-64 pixels (automatically calculated)
 - **Aspect Ratio:** Maintained from source image
 
+### LED Orientation
+- **LED 1** (closest to board/handle): Displays **bottom** of image
+- **LED 31** (farthest from board): Displays **top** of image
+- **Reason:** When poi are held vertically (handle down, LEDs up) and moved horizontally, the image scrolls naturally in correct orientation
+- **Implementation:** Images are automatically flipped vertically during conversion
+
 ### Algorithm
 - **Method:** Nearest-neighbor interpolation
+- **Vertical Flip:** Applied after resizing for correct POV orientation
 - **Reason:** Preserves crisp pixels for LED display
-- **Result:** Sharp, clear images on POV display
+- **Result:** Sharp, clear images on POV display with natural scrolling
 
 ### Color Space
 - **Format:** RGB (24-bit color)
@@ -282,9 +289,12 @@ async function convertImageToPOVFormat(file) {
     ctx.imageSmoothingEnabled = false; // Nearest neighbor
     ctx.drawImage(img, 0, 0, 31, canvas.height);
     
-    // Extract RGB data
+    // Flip vertically for correct POV orientation
     const imageData = ctx.getImageData(0, 0, 31, canvas.height);
-    return convertToRGB(imageData);
+    const flipped = flipVertically(imageData);
+    
+    // Extract RGB data
+    return convertToRGB(flipped);
 }
 ```
 
@@ -301,9 +311,16 @@ private fun convertBitmapToPOVFormat(bitmap: Bitmap): ByteArray {
         bitmap, targetWidth, targetHeight, false
     )
     
+    // Flip vertically for correct POV orientation
+    val matrix = Matrix()
+    matrix.preScale(1.0f, -1.0f)
+    val flipped = Bitmap.createBitmap(
+        resized, 0, 0, targetWidth, targetHeight, matrix, false
+    )
+    
     // Extract RGB bytes
     val pixels = IntArray(targetWidth * targetHeight)
-    resized.getPixels(pixels, 0, targetWidth, 0, 0, 
+    flipped.getPixels(pixels, 0, targetWidth, 0, 0, 
                       targetWidth, targetHeight)
     
     return extractRGBBytes(pixels)
@@ -325,6 +342,9 @@ def convert_image_for_pov(input_path, output_path=None,
     
     # Resize with nearest neighbor
     img = img.resize((width, new_height), Image.NEAREST)
+    
+    # Flip vertically for correct POV orientation
+    img = img.transpose(Image.FLIP_TOP_BOTTOM)
     
     # Save result
     img.save(output_path, 'PNG')

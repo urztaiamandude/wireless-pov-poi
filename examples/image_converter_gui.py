@@ -486,6 +486,10 @@ class POVImageConverterGUI:
             # Resize with nearest neighbor for crisp pixels
             img = img.resize((width, new_height), Image.NEAREST)
             
+            # Flip vertically so bottom of image is at LED 1 (closest to board)
+            # and top of image is at LED 31 (farthest from board)
+            img = img.transpose(Image.FLIP_TOP_BOTTOM)
+            
             # Enhance contrast if requested
             if enhance_contrast:
                 enhancer = ImageEnhance.Contrast(img)

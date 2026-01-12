@@ -83,11 +83,19 @@ The web portal provides a modern, **mobile-responsive** interface with:
 - System controls (brightness and frame rate sliders)
 - Quick pattern buttons (Rainbow, Wave, Gradient, Sparkle)
 - Color picker for custom pattern colors
-- **Image upload with automatic conversion** (any size → 31px wide)
+- **Image upload with automatic conversion** (any size → 31px wide, vertically flipped for correct orientation)
 - Live drawing canvas for real-time control
 - Real-time status display
 - **PWA support** - Install as native app on mobile devices
 - **Touch-optimized controls** for mobile use
+
+### Image Orientation
+
+Images are automatically oriented correctly for POV display:
+- **LED 1** (closest to board/handle) displays the **bottom** of the image
+- **LED 31** (farthest from board) displays the **top** of the image
+- When poi are held vertically and moved horizontally, images scroll naturally in correct orientation
+- All conversion tools (Python, Android, Web) automatically flip images vertically during conversion
 
 ## Mobile App Support
 
