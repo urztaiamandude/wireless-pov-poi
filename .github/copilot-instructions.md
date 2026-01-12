@@ -293,8 +293,8 @@ Detailed explanation if needed
 - `platformio.ini`: Build configuration
 
 ### Firmware Entry Points
-- `teensy_firmware/teensy_firmware.ino`: Teensy main code (~443 lines)
-- `esp32_firmware/esp32_firmware.ino`: ESP32 main code (~744 lines)
+- `teensy_firmware/teensy_firmware.ino`: Teensy main code file
+- `esp32_firmware/esp32_firmware.ino`: ESP32 main code file
 
 ### Important Directories
 - `docs/`: All documentation files
