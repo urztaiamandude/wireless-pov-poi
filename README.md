@@ -83,7 +83,7 @@ The web portal provides a modern, **mobile-responsive** interface with:
 - System controls (brightness and frame rate sliders)
 - Quick pattern buttons (Rainbow, Wave, Gradient, Sparkle)
 - Color picker for custom pattern colors
-- **Image upload with automatic conversion** (any size → 31px wide, vertically flipped for correct orientation)
+- **Image upload with automatic conversion** (any size → 31px high, vertically flipped for correct orientation)
 - Live drawing canvas for real-time control
 - Real-time status display
 - **PWA support** - Install as native app on mobile devices

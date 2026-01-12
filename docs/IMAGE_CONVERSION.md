@@ -90,7 +90,7 @@ The POV POI system requires images to be 31 pixels wide (matching the LED strip)
 
 **Process:**
 1. Teensy receives image data from ESP32
-2. If image is already 31px wide: store directly
+2. If image is already 31px high: store directly
 3. If image needs conversion: perform nearest-neighbor resize
 4. Store in LED display buffer
 5. Ready for POV display

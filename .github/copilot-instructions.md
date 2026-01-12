@@ -316,7 +316,7 @@ Detailed explanation if needed
 - **ESP32 handles user interaction**: Web server and API should be responsive
 - **Serial protocol is binary**: Not human-readable, but efficient
 - **LED 0 is special**: Used for level shifting, not part of display
-- **Images are 31px wide**: LED 1-31 used for POV display (0 is level shifter)
+- **Images are 31px high**: LED 1-31 used for POV display (0 is level shifter)
 - **Test on hardware**: Simulator cannot replicate POV effects
 - **Mobile-first design**: Most users will control via phone
 - **Power matters**: Full brightness on all LEDs draws significant current
