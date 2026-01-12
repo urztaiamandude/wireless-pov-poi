@@ -1,11 +1,8 @@
 #!/usr/bin/env python3
 """
 PyInstaller setup configuration for POV POI Image Converter
-Creates a standalone Windows executable with all dependencies bundled
+Configuration module used by build_windows_installer.py
 """
-
-from PyInstaller.utils.hooks import collect_data_files, collect_submodules
-import os
 
 # Application metadata
 APP_NAME = "POV POI Image Converter"
@@ -16,79 +13,117 @@ DESCRIPTION = "GUI tool for converting images to POV-compatible format"
 # Main script to bundle
 MAIN_SCRIPT = "image_converter_gui.py"
 
+# Output executable name (without .exe extension)
+EXE_NAME = "POV_POI_Image_Converter"
+
 # PyInstaller configuration
-a = Analysis(
-    [MAIN_SCRIPT],
-    pathex=[],
-    binaries=[],
-    datas=[
-        # Include image_converter.py module
-        ('image_converter.py', '.'),
+CONFIG = {
+    # Basic options
+    "onefile": True,              # Bundle as single executable
+    "windowed": True,             # Hide console window for GUI
+    "name": EXE_NAME,             # Output executable name
+    
+    # Data files to include
+    "add_data": [
+        "image_converter.py",     # Converter module (required)
     ],
-    hiddenimports=[
+    
+    # Hidden imports (modules not auto-detected)
+    "hidden_imports": [
         # PIL/Pillow modules
-        'PIL',
-        'PIL.Image',
-        'PIL.ImageTk',
-        'PIL.ImageEnhance',
-        'PIL._imagingtk',
-        'PIL._tkinter_finder',
+        "PIL",
+        "PIL.Image",
+        "PIL.ImageTk", 
+        "PIL.ImageEnhance",
+        "PIL._imagingtk",
+        "PIL._tkinter_finder",
         # Tkinter modules
-        'tkinter',
-        'tkinter.filedialog',
-        'tkinter.messagebox',
-        'tkinter.ttk',
+        "tkinter",
+        "tkinter.filedialog",
+        "tkinter.messagebox",
+        "tkinter.ttk",
     ],
-    hookspath=[],
-    hooksconfig={},
-    runtime_hooks=[],
-    excludes=[
-        # Exclude unnecessary modules to reduce size
-        'matplotlib',
-        'numpy',
-        'scipy',
-        'pandas',
-        'PyQt5',
-        'PyQt6',
-        'PySide2',
-        'PySide6',
+    
+    # Modules to exclude (reduce size)
+    "exclude_modules": [
+        "matplotlib",
+        "numpy",
+        "scipy",
+        "pandas",
+        "PyQt5",
+        "PyQt6",
+        "PySide2",
+        "PySide6",
     ],
-    win_no_prefer_redirects=False,
-    win_private_assemblies=False,
-    cipher=None,
-    noarchive=False,
-)
+    
+    # Optional features
+    "icon": None,                 # Path to .ico file (None = use default)
+    "version_info": None,         # Path to version info file (optional)
+    "upx": True,                  # Use UPX compression
+}
 
-pyz = PYZ(a.pure, a.zipped_data, cipher=None)
+def get_pyinstaller_args():
+    """
+    Generate PyInstaller command-line arguments from configuration
+    Returns list of arguments suitable for subprocess call
+    """
+    args = []
+    
+    # Basic flags
+    if CONFIG["onefile"]:
+        args.append("--onefile")
+    
+    if CONFIG["windowed"]:
+        args.append("--windowed")
+    
+    # Name
+    if CONFIG["name"]:
+        args.append(f"--name={CONFIG['name']}")
+    
+    # Data files
+    for data_file in CONFIG["add_data"]:
+        # Use platform-specific separator
+        import os
+        if os.name == 'nt':  # Windows
+            args.append(f"--add-data={data_file};.")
+        else:  # Unix/Linux/Mac
+            args.append(f"--add-data={data_file}:.")
+    
+    # Hidden imports
+    for hidden_import in CONFIG["hidden_imports"]:
+        args.append(f"--hidden-import={hidden_import}")
+    
+    # Exclude modules
+    for exclude_module in CONFIG["exclude_modules"]:
+        args.append(f"--exclude-module={exclude_module}")
+    
+    # Optional icon
+    if CONFIG["icon"]:
+        args.append(f"--icon={CONFIG['icon']}")
+    
+    # Optional version info
+    if CONFIG["version_info"]:
+        args.append(f"--version-file={CONFIG['version_info']}")
+    
+    # UPX compression
+    if not CONFIG["upx"]:
+        args.append("--noupx")
+    
+    return args
 
-exe = EXE(
-    pyz,
-    a.scripts,
-    a.binaries,
-    a.zipfiles,
-    a.datas,
-    [],
-    name='POV_POI_Image_Converter',
-    debug=False,
-    bootloader_ignore_signals=False,
-    strip=False,
-    upx=True,
-    upx_exclude=[],
-    runtime_tmpdir=None,
-    console=False,  # Hide console window for GUI application
-    disable_windowed_traceback=False,
-    argv_emulation=False,
-    target_arch=None,
-    codesign_identity=None,
-    entitlements_file=None,
-    version='file_version_info.txt',  # Optional: add version info
-    icon=None,  # Optional: add custom icon file
-)
-
-# Application information
-app = BUNDLE(
-    exe,
-    name=f'{APP_NAME}.app',
-    icon=None,
-    bundle_identifier=None,
-)
+if __name__ == "__main__":
+    # Display configuration when run directly
+    print("PyInstaller Configuration for POV POI Image Converter")
+    print("=" * 60)
+    print(f"\nApplication: {APP_NAME}")
+    print(f"Version: {VERSION}")
+    print(f"Main Script: {MAIN_SCRIPT}")
+    print(f"Output Name: {EXE_NAME}.exe")
+    print(f"\nConfiguration:")
+    for key, value in CONFIG.items():
+        print(f"  {key}: {value}")
+    print(f"\nPyInstaller arguments:")
+    args = get_pyinstaller_args()
+    for arg in args:
+        print(f"  {arg}")
+    print(f"  {MAIN_SCRIPT}")

@@ -105,33 +105,39 @@ def build_executable():
     """Run PyInstaller to build the executable"""
     print_header("Building Windows Executable")
     
-    # PyInstaller command with all options
-    cmd = [
-        sys.executable, "-m", "PyInstaller",
-        "--onefile",                          # Single executable file
-        "--windowed",                         # Hide console window
-        "--name=POV_POI_Image_Converter",    # Executable name
+    # Import configuration
+    try:
+        import setup
+        print(f"Using configuration from setup.py")
+        print(f"  Application: {setup.APP_NAME} v{setup.VERSION}")
+        print(f"  Output: {setup.EXE_NAME}.exe\n")
         
-        # Add data files
-        "--add-data=image_converter.py;.",   # Include converter module (Windows syntax)
-        
-        # Hidden imports
-        "--hidden-import=PIL",
-        "--hidden-import=PIL.Image",
-        "--hidden-import=PIL.ImageTk",
-        "--hidden-import=PIL.ImageEnhance",
-        "--hidden-import=PIL._imagingtk",
-        "--hidden-import=PIL._tkinter_finder",
-        
-        # Exclude unnecessary modules
-        "--exclude-module=matplotlib",
-        "--exclude-module=numpy",
-        "--exclude-module=scipy",
-        "--exclude-module=pandas",
-        
-        # Main script
-        "image_converter_gui.py"
-    ]
+        # Get PyInstaller arguments from configuration
+        pyinstaller_args = setup.get_pyinstaller_args()
+        main_script = setup.MAIN_SCRIPT
+    except ImportError:
+        print("Warning: Could not import setup.py, using default configuration")
+        # Fallback to manual configuration
+        pyinstaller_args = [
+            "--onefile",
+            "--windowed",
+            "--name=POV_POI_Image_Converter",
+            "--add-data=image_converter.py;.",
+            "--hidden-import=PIL",
+            "--hidden-import=PIL.Image",
+            "--hidden-import=PIL.ImageTk",
+            "--hidden-import=PIL.ImageEnhance",
+            "--hidden-import=PIL._imagingtk",
+            "--hidden-import=PIL._tkinter_finder",
+            "--exclude-module=matplotlib",
+            "--exclude-module=numpy",
+            "--exclude-module=scipy",
+            "--exclude-module=pandas",
+        ]
+        main_script = "image_converter_gui.py"
+    
+    # Build full command
+    cmd = [sys.executable, "-m", "PyInstaller"] + pyinstaller_args + [main_script]
     
     print("Running PyInstaller...")
     print(f"Command: {' '.join(cmd)}\n")

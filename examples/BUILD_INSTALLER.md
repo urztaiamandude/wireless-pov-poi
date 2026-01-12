@@ -47,6 +47,21 @@ That's it! The executable will be created in `examples/dist/POV_POI_Image_Conver
 
 ## Building the Installer
 
+### Configuration File
+
+The build process uses `setup.py` as a centralized configuration file that contains:
+- Application metadata (name, version)
+- PyInstaller options (onefile, windowed, etc.)
+- Hidden imports for PIL/Pillow and tkinter
+- Modules to exclude for size optimization
+
+You can view the configuration by running:
+```bash
+python setup.py
+```
+
+To modify the build configuration, edit `setup.py` and adjust the `CONFIG` dictionary.
+
 ### Step 1: Install Runtime Dependencies
 
 First, install the required libraries for the application:
