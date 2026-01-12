@@ -64,3 +64,4 @@ docs/latex/
 
 # Temporary test files
 /tmp/
+*.spec
