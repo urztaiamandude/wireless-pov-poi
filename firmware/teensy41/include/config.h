@@ -26,4 +26,11 @@
 #define DEBUG_SERIAL Serial
 #define DEBUG_BAUD 115200
 
+// SD Card Configuration
+#define SD_CARD_ENABLED true
+#define SD_CS_PIN BUILTIN_SDCARD  // Teensy 4.1 built-in SD slot
+#define SD_IMAGE_DIR "/images"
+#define SD_CACHE_SIZE 2  // Number of images to cache in RAM
+#define SD_FILE_MAGIC 0x504F5631  // "POV1" in hex
+
 #endif // CONFIG_H
