@@ -75,7 +75,47 @@ The PlatformIO version is an **optional** modular implementation for advanced us
 - ✅ ~~Mode and index management~~ **COMPLETED**
 - ⚠️ Integration testing with ESP32 (~4-8 hours work)
 
-**Total Effort to Complete**: ~4-8 hours (testing only)
+#### What Integration Testing Involves
+
+The integration testing validates that the PlatformIO Teensy firmware works correctly with the ESP32 firmware through end-to-end testing:
+
+**Hardware Required:**
+- Teensy 4.1 board with PlatformIO firmware uploaded
+- ESP32 board with WiFi firmware
+- APA102 LED strip (32 LEDs)
+- Power supply
+- Physical wiring connections
+
+**Tests to Perform:**
+1. **Web Interface Communication**
+   - Connect to ESP32 WiFi access point (POV-POI-WiFi)
+   - Access web interface at http://192.168.4.1
+   - Verify serial communication between ESP32 and Teensy
+
+2. **Feature Validation**
+   - Test brightness slider (0-255)
+   - Test frame rate slider (10-120 FPS)
+   - Test mode selection (Idle, Image, Pattern, Live)
+   - Test all 4 pattern types (rainbow, wave, gradient, sparkle)
+   - Test image upload and display
+   - Test live drawing mode
+   - Verify POV display accuracy with LEDs
+
+3. **Error Handling**
+   - Test invalid commands
+   - Test partial data transmission
+   - Verify graceful error recovery
+
+**Can This Be Done in Codespace?**
+❌ **No** - Integration testing requires physical hardware:
+- Cannot emulate Teensy 4.1 or ESP32 microcontrollers
+- Cannot test actual LED display and POV effects
+- Cannot validate WiFi connectivity and serial communication
+- Cannot verify timing-critical operations
+
+**Alternative:** The code can be compiled and analyzed in codespace using PlatformIO, but actual hardware validation must be performed on physical devices.
+
+**Total Effort to Complete**: ~4-8 hours (testing only, requires hardware)
 
 **Impact**: None - Arduino firmware has all features. PlatformIO firmware is now feature-complete pending hardware testing.
 
