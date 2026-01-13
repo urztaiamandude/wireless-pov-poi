@@ -464,7 +464,7 @@ void receiveSequence() {
 
 void receiveLiveFrame() {
   // Receive live frame data for immediate display
-  for (int i = 0; i < DISPLAY_LEDS && (6 + i * 3) < CMD_BUFFER_SIZE; i++) {
+  for (int i = 0; i < DISPLAY_LEDS && (5 + i * 3) < CMD_BUFFER_SIZE; i++) {
     liveBuffer[i] = CRGB(cmdBuffer[3 + i * 3], cmdBuffer[4 + i * 3], cmdBuffer[5 + i * 3]);
   }
 }
@@ -891,7 +891,7 @@ void listSDImages() {
   for (int i = 0; i < count; i++) {
     uint8_t nameLen = strlen(filenames[i]);
     ESP32_SERIAL.write(nameLen);
-    ESP32_SERIAL.write((uint8_t*)filenames[i], nameLen);
+    ESP32_SERIAL.write(filenames[i], nameLen);
   }
   
   ESP32_SERIAL.write(0xFE);
