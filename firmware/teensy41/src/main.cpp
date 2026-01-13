@@ -88,18 +88,35 @@ void loop() {
     if (esp32.available()) {
         uint8_t buffer[2048];  // Increased buffer for larger messages
         size_t bytesRead = 0;
-        MessageType msgType;
         
-        if (esp32.readMessage(buffer, sizeof(buffer), bytesRead, msgType)) {
+        // Try reading simple protocol first (ESP32 sends 0xFF marker)
+        uint8_t simpleCommand = 0;
+        if (esp32.readSimpleMessage(buffer, sizeof(buffer), bytesRead, simpleCommand)) {
             #if DEBUG_ENABLED
-            DEBUG_SERIAL.print("Received ");
+            DEBUG_SERIAL.print("Received simple command: 0x");
+            DEBUG_SERIAL.print(simpleCommand, HEX);
+            DEBUG_SERIAL.print(", ");
             DEBUG_SERIAL.print(bytesRead);
-            DEBUG_SERIAL.print(" bytes from ESP32, type: 0x");
-            DEBUG_SERIAL.println((uint8_t)msgType, HEX);
+            DEBUG_SERIAL.println(" bytes");
             #endif
             
-            // Process message based on type
-            esp32.processMessage(msgType, buffer, bytesRead);
+            // Process simple protocol command
+            esp32.processSimpleCommand(simpleCommand, buffer, bytesRead);
+        } else {
+            // Fall back to structured protocol
+            MessageType msgType;
+            if (esp32.readMessage(buffer, sizeof(buffer), bytesRead, msgType)) {
+                #if DEBUG_ENABLED
+                DEBUG_SERIAL.print("Received structured message, type: 0x");
+                DEBUG_SERIAL.print((uint8_t)msgType, HEX);
+                DEBUG_SERIAL.print(", ");
+                DEBUG_SERIAL.print(bytesRead);
+                DEBUG_SERIAL.println(" bytes");
+                #endif
+                
+                // Process message based on type
+                esp32.processMessage(msgType, buffer, bytesRead);
+            }
         }
     }
     

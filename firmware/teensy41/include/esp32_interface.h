@@ -47,8 +47,11 @@ public:
     // Check if data is available from ESP32
     bool available();
     
-    // Read incoming message from ESP32
+    // Read incoming message from ESP32 (structured protocol with checksums)
     bool readMessage(uint8_t* buffer, size_t maxLen, size_t& bytesRead, MessageType& msgType);
+    
+    // Read incoming message from ESP32 (simple protocol: 0xFF CMD LEN DATA... 0xFE)
+    bool readSimpleMessage(uint8_t* buffer, size_t maxLen, size_t& bytesRead, uint8_t& command);
     
     // Send message to ESP32
     bool sendMessage(MessageType type, const uint8_t* data, size_t len);
@@ -64,6 +67,9 @@ public:
     
     // Process incoming messages (determines type and routes accordingly)
     bool processMessage(MessageType type, const uint8_t* data, size_t len);
+    
+    // Process incoming simple protocol command
+    bool processSimpleCommand(uint8_t command, const uint8_t* data, size_t len);
 
 private:
     HardwareSerial& serial;
@@ -79,6 +85,11 @@ private:
     
     // Image data handler
     bool handleImageData(const uint8_t* data, size_t len);
+    
+    // Simple protocol handlers
+    bool handleSimpleImageUpload(const uint8_t* data, size_t len);
+    bool handleSimplePatternUpload(const uint8_t* data, size_t len);
+    bool handleSimpleLiveFrame(const uint8_t* data, size_t len);
     
     // SD card message handlers
     bool handleSDSaveImage(const uint8_t* data, size_t len);

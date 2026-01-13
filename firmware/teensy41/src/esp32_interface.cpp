@@ -114,6 +114,89 @@ void ESP32Interface::sendNack() {
     sendMessage(MSG_NACK, nullptr, 0);
 }
 
+bool ESP32Interface::readSimpleMessage(uint8_t* buffer, size_t maxLen, size_t& bytesRead, uint8_t& command) {
+    bytesRead = 0;
+    command = 0;
+    
+    if (!available() || maxLen < 4) {
+        return false;
+    }
+    
+    // Simple message format: [0xFF][CMD][LEN][DATA...][0xFE]
+    // Wait for start marker
+    uint8_t marker = serial.read();
+    if (marker != 0xFF) {
+        return false;
+    }
+    
+    if (serial.available() < 2) {
+        return false;
+    }
+    
+    command = serial.read();
+    uint8_t dataLen = serial.read();
+    
+    // Special handling for image upload command (0x02) which uses 16-bit length
+    uint16_t actualDataLen = dataLen;
+    if (command == 0x02 && serial.available() >= 1) {
+        uint8_t dataLenLow = serial.read();
+        actualDataLen = (dataLen << 8) | dataLenLow;
+        // For image command, dataLen in buffer position matters for parseCommand compatibility
+        if (maxLen >= 2) {
+            buffer[0] = dataLen;      // high byte
+            buffer[1] = dataLenLow;   // low byte
+            bytesRead = 2;
+        }
+    }
+    
+    // Validate data length
+    if (actualDataLen + bytesRead > maxLen) {
+        #if DEBUG_ENABLED
+        DEBUG_SERIAL.print("ERROR: Data length ");
+        DEBUG_SERIAL.print(actualDataLen);
+        DEBUG_SERIAL.println(" exceeds buffer size");
+        #endif
+        return false;
+    }
+    
+    // Read data bytes
+    uint32_t timeout = millis() + 1000;
+    uint16_t idx = bytesRead;
+    while (idx < actualDataLen + bytesRead && millis() < timeout) {
+        if (serial.available()) {
+            buffer[idx++] = serial.read();
+        }
+    }
+    
+    if (idx != actualDataLen + bytesRead) {
+        #if DEBUG_ENABLED
+        DEBUG_SERIAL.println("ERROR: Timeout reading data");
+        #endif
+        return false;
+    }
+    
+    bytesRead = idx;
+    
+    // Read end marker 0xFE
+    timeout = millis() + 100;
+    while (!serial.available() && millis() < timeout) {
+        // Wait for end marker
+    }
+    
+    if (serial.available()) {
+        uint8_t endMarker = serial.read();
+        if (endMarker != 0xFE) {
+            #if DEBUG_ENABLED
+            DEBUG_SERIAL.print("WARNING: Expected end marker 0xFE, got 0x");
+            DEBUG_SERIAL.println(endMarker, HEX);
+            #endif
+            // Continue anyway - data is already read
+        }
+    }
+    
+    return true;
+}
+
 bool ESP32Interface::processCommand(uint8_t command, const uint8_t* data, size_t len) {
     #if DEBUG_ENABLED
     DEBUG_SERIAL.print("Received command: 0x");
@@ -247,6 +330,93 @@ bool ESP32Interface::processMessage(MessageType type, const uint8_t* data, size_
         default:
             #if DEBUG_ENABLED
             DEBUG_SERIAL.println("Unknown message type");
+            #endif
+            return false;
+    }
+}
+
+bool ESP32Interface::processSimpleCommand(uint8_t command, const uint8_t* data, size_t len) {
+    #if DEBUG_ENABLED
+    DEBUG_SERIAL.print("Processing simple command: 0x");
+    DEBUG_SERIAL.print(command, HEX);
+    DEBUG_SERIAL.print(", data length: ");
+    DEBUG_SERIAL.println(len);
+    #endif
+    
+    switch (command) {
+        case 0x01:  // Set mode (data: mode, index)
+            if (len >= 2 && povEngine) {
+                uint8_t mode = data[0];
+                uint8_t index = data[1];
+                #if DEBUG_ENABLED
+                DEBUG_SERIAL.print("Set mode: ");
+                DEBUG_SERIAL.print(mode);
+                DEBUG_SERIAL.print(", index: ");
+                DEBUG_SERIAL.println(index);
+                #endif
+                povEngine->setMode(mode);
+                // Note: index handling would need to be added to POV engine
+                return true;
+            }
+            return false;
+            
+        case 0x02:  // Upload image
+            return handleSimpleImageUpload(data, len);
+            
+        case 0x03:  // Upload pattern
+            return handleSimplePatternUpload(data, len);
+            
+        case 0x05:  // Live frame data
+            return handleSimpleLiveFrame(data, len);
+            
+        case 0x06:  // Set brightness (data: brightness)
+            if (len >= 1 && ledDriver) {
+                uint8_t brightness = data[0];
+                #if DEBUG_ENABLED
+                DEBUG_SERIAL.print("Set brightness: ");
+                DEBUG_SERIAL.println(brightness);
+                #endif
+                ledDriver->setBrightness(brightness);
+                return true;
+            }
+            return false;
+            
+        case 0x07:  // Set frame rate (data: frame_delay_ms)
+            if (len >= 1) {
+                uint8_t frameDelay = data[0];
+                #if DEBUG_ENABLED
+                DEBUG_SERIAL.print("Set frame delay: ");
+                DEBUG_SERIAL.print(frameDelay);
+                DEBUG_SERIAL.println(" ms");
+                #endif
+                // Frame rate handling would need to be added to POV engine
+                return true;
+            }
+            return false;
+            
+        case 0x10:  // Status request
+            #if DEBUG_ENABLED
+            DEBUG_SERIAL.println("Status request");
+            #endif
+            // Send status response
+            // Format: 0xFF 0xBB mode index 0xFE
+            serial.write(0xFF);
+            serial.write(0xBB);
+            if (povEngine) {
+                // Would need getter methods in POV engine
+                serial.write(0);  // mode placeholder
+                serial.write(0);  // index placeholder
+            } else {
+                serial.write(0);
+                serial.write(0);
+            }
+            serial.write(0xFE);
+            return true;
+            
+        default:
+            #if DEBUG_ENABLED
+            DEBUG_SERIAL.print("Unknown simple command: 0x");
+            DEBUG_SERIAL.println(command, HEX);
             #endif
             return false;
     }
@@ -497,4 +667,125 @@ uint8_t ESP32Interface::calculateChecksum(const uint8_t* data, size_t len) {
 
 bool ESP32Interface::verifyChecksum(const uint8_t* data, size_t len, uint8_t checksum) {
     return calculateChecksum(data, len) == checksum;
+}
+
+bool ESP32Interface::handleSimpleImageUpload(const uint8_t* data, size_t len) {
+    if (!povEngine) {
+        #if DEBUG_ENABLED
+        DEBUG_SERIAL.println("ERROR: POV engine not available");
+        #endif
+        return false;
+    }
+    
+    // Data format from ESP32: [dataLen_high][dataLen_low][width][height][RGB_data...]
+    // Note: First 2 bytes were already read into buffer during readSimpleMessage
+    if (len < 4) {
+        #if DEBUG_ENABLED
+        DEBUG_SERIAL.println("ERROR: Image data too short");
+        #endif
+        return false;
+    }
+    
+    uint16_t width = data[2];
+    uint16_t height = data[3];
+    const uint8_t* imageData = data + 4;
+    size_t imageDataLen = len - 4;
+    
+    size_t expectedSize = width * height * 3;
+    if (imageDataLen != expectedSize) {
+        #if DEBUG_ENABLED
+        DEBUG_SERIAL.print("ERROR: Image size mismatch. Expected: ");
+        DEBUG_SERIAL.print(expectedSize);
+        DEBUG_SERIAL.print(", Got: ");
+        DEBUG_SERIAL.println(imageDataLen);
+        #endif
+        return false;
+    }
+    
+    #if DEBUG_ENABLED
+    DEBUG_SERIAL.print("Loading image: ");
+    DEBUG_SERIAL.print(width);
+    DEBUG_SERIAL.print("x");
+    DEBUG_SERIAL.println(height);
+    #endif
+    
+    povEngine->loadImageData(imageData, width, height);
+    povEngine->setEnabled(true);
+    
+    return true;
+}
+
+bool ESP32Interface::handleSimplePatternUpload(const uint8_t* data, size_t len) {
+    // Data format: [index][type][r1][g1][b1][r2][g2][b2][speed]
+    if (len < 9) {
+        #if DEBUG_ENABLED
+        DEBUG_SERIAL.println("ERROR: Pattern data too short");
+        #endif
+        return false;
+    }
+    
+    uint8_t index = data[0];
+    uint8_t type = data[1];
+    uint8_t r1 = data[2];
+    uint8_t g1 = data[3];
+    uint8_t b1 = data[4];
+    uint8_t r2 = data[5];
+    uint8_t g2 = data[6];
+    uint8_t b2 = data[7];
+    uint8_t speed = data[8];
+    
+    #if DEBUG_ENABLED
+    DEBUG_SERIAL.print("Pattern upload - type: ");
+    DEBUG_SERIAL.print(type);
+    DEBUG_SERIAL.print(", colors: RGB(");
+    DEBUG_SERIAL.print(r1); DEBUG_SERIAL.print(",");
+    DEBUG_SERIAL.print(g1); DEBUG_SERIAL.print(",");
+    DEBUG_SERIAL.print(b1); DEBUG_SERIAL.print(") to RGB(");
+    DEBUG_SERIAL.print(r2); DEBUG_SERIAL.print(",");
+    DEBUG_SERIAL.print(g2); DEBUG_SERIAL.print(",");
+    DEBUG_SERIAL.print(b2); DEBUG_SERIAL.println(")");
+    #endif
+    
+    // Pattern generation would need to be implemented in POV engine
+    // For now, just acknowledge receipt
+    // TODO: Implement pattern generation in POV engine
+    
+    return true;
+}
+
+bool ESP32Interface::handleSimpleLiveFrame(const uint8_t* data, size_t len) {
+    if (!ledDriver) {
+        #if DEBUG_ENABLED
+        DEBUG_SERIAL.println("ERROR: LED driver not available");
+        #endif
+        return false;
+    }
+    
+    // Data format: 31 LEDs * 3 bytes (RGB) = 93 bytes
+    size_t expectedSize = 31 * 3;
+    if (len < expectedSize) {
+        #if DEBUG_ENABLED
+        DEBUG_SERIAL.print("ERROR: Live frame data too short. Expected: ");
+        DEBUG_SERIAL.print(expectedSize);
+        DEBUG_SERIAL.print(", Got: ");
+        DEBUG_SERIAL.println(len);
+        #endif
+        return false;
+    }
+    
+    #if DEBUG_ENABLED
+    DEBUG_SERIAL.println("Live frame received");
+    #endif
+    
+    // Set LED pixels (skip LED 0 which is for level shifting)
+    for (int i = 0; i < 31 && i * 3 + 2 < len; i++) {
+        uint8_t r = data[i * 3];
+        uint8_t g = data[i * 3 + 1];
+        uint8_t b = data[i * 3 + 2];
+        ledDriver->setPixel(i + 1, r, g, b);  // +1 to skip LED 0
+    }
+    
+    ledDriver->show();
+    
+    return true;
 }
