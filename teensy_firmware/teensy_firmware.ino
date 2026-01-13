@@ -47,6 +47,7 @@
   #define SD_IMAGE_DIR "/poi_images"
   #define MAX_FILENAME_LEN 32
   #define MAX_SD_FILES 10
+  #define MAX_FILEPATH_LEN 64
 #endif
 
 // LED Array
@@ -464,7 +465,8 @@ void receiveSequence() {
 
 void receiveLiveFrame() {
   // Receive live frame data for immediate display
-  for (int i = 0; i < DISPLAY_LEDS && (5 + i * 3) < CMD_BUFFER_SIZE; i++) {
+  // Each LED needs 3 bytes (RGB), starting at cmdBuffer[3]
+  for (int i = 0; i < DISPLAY_LEDS && (3 + (i + 1) * 3 - 1) < CMD_BUFFER_SIZE; i++) {
     liveBuffer[i] = CRGB(cmdBuffer[3 + i * 3], cmdBuffer[4 + i * 3], cmdBuffer[5 + i * 3]);
   }
 }
@@ -731,7 +733,7 @@ void saveImageToSD() {
   }
   
   // Build full path
-  char filepath[64];
+  char filepath[MAX_FILEPATH_LEN];
   snprintf(filepath, sizeof(filepath), "%s/%s.pov", SD_IMAGE_DIR, filename);
   
   Serial.print("Saving image to: ");
@@ -791,7 +793,7 @@ void loadImageFromSD() {
   }
   
   // Build full path
-  char filepath[64];
+  char filepath[MAX_FILEPATH_LEN];
   snprintf(filepath, sizeof(filepath), "%s/%s.pov", SD_IMAGE_DIR, filename);
   
   Serial.print("Loading image from: ");
@@ -913,7 +915,7 @@ void deleteSDImage() {
   filename[filenameLen] = '\0';
   
   // Build full path
-  char filepath[64];
+  char filepath[MAX_FILEPATH_LEN];
   snprintf(filepath, sizeof(filepath), "%s/%s.pov", SD_IMAGE_DIR, filename);
   
   Serial.print("Deleting image: ");
