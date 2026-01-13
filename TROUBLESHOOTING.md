@@ -1,6 +1,6 @@
 # Troubleshooting Guide
 
-Comprehensive solutions for common issues with the wireless POV POI system.
+Comprehensive solutions for common issues with the Nebula Poi.
 
 ## Table of Contents
 
@@ -436,15 +436,15 @@ Comprehensive solutions for common issues with the wireless POV POI system.
 
 **Teensy Monitor Should Show:**
 ```
-Teensy 4.1 POV POI Initializing...
-Teensy 4.1 POV POI Ready!
+Teensy 4.1 Nebula Poi Initializing...
+Teensy 4.1 Nebula Poi Ready!
 Command received: 0x01
 Mode set to: 2
 ```
 
 **ESP32 Monitor Should Show:**
 ```
-ESP32 POV POI Controller Starting...
+ESP32 Nebula Poi Controller Starting...
 SPIFFS Mounted
 AP IP address: 192.168.4.1
 Web server started

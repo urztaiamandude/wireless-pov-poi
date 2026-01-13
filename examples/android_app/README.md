@@ -1,15 +1,15 @@
-# Android App Example for POV POI Control
+# Android App Example for Nebula Poi Control
 
-This is a complete Android app for controlling the wireless POV POI system with advanced image conversion capabilities.
+This is a complete Android app for controlling the Nebula Poi with advanced image conversion capabilities.
 
 ## Overview
 
-This example demonstrates how to build an Android app that communicates with the POV POI system using the REST API. The app includes a dedicated Image Converter Activity for converting photos to POV-compatible format.
+This example demonstrates how to build an Android app that communicates with the Nebula Poi using the REST API. The app includes a dedicated Image Converter Activity for converting photos to POV-compatible format.
 
 ## Features
 
 ### Main Controller
-- Connect to POV POI WiFi
+- Connect to Nebula Poi WiFi
 - Display system status
 - Control display modes
 - Adjust brightness and frame rate
@@ -206,7 +206,7 @@ Features:
 
 ## Usage
 
-### Connecting to POV POI
+### Connecting to Nebula Poi
 
 1. Install app on Android device
 2. Connect device to "POV-POI-WiFi" network
@@ -337,7 +337,7 @@ lifecycleScope.launch {
 **Image Converter issues:**
 - **Camera not working**: Check camera permission granted
 - **Can't save images**: Check storage permission (Android 9 and below)
-- **Upload fails**: Verify WiFi connection to POV POI device
+- **Upload fails**: Verify WiFi connection to device
 
 **Slow response:**
 - WiFi signal strength

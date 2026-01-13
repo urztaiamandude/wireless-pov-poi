@@ -1,6 +1,6 @@
-# Wireless POV POI System
+# Nebula Poi
 
-A complete wireless persistence of vision (POV) LED poi system featuring Teensy 4.1 and ESP32 with web-based control interface.
+A wireless persistence of vision (POV) LED poi system featuring Teensy 4.1 and ESP32 with web-based control interface.
 
 ## Overview
 
@@ -146,7 +146,7 @@ A complete, ready-to-build Android Studio project with advanced features:
 1. Open `POVPoiApp/` in Android Studio
 2. Build and run on your Android device
 3. Connect to POV-POI-WiFi network
-4. Start controlling your POV POI!
+4. Start controlling your Nebula Poi!
 
 See [Android App README](POVPoiApp/README.md) for complete setup and usage instructions.
 

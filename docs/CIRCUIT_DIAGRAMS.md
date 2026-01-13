@@ -1,6 +1,6 @@
 # Circuit Diagrams and Wiring Guide
 
-A comprehensive visual guide for wiring the Wireless POV POI system with Teensy 4.1, ESP32, and APA102 LED strip.
+A comprehensive visual guide for wiring the Nebula Poi with Teensy 4.1, ESP32, and APA102 LED strip.
 
 ## Table of Contents
 
@@ -22,7 +22,7 @@ A comprehensive visual guide for wiring the Wireless POV POI system with Teensy 
 
 ```
 ┌────────────────────────────────────────────────────────────────────┐
-│                  WIRELESS POV POI SYSTEM OVERVIEW                   │
+│                     NEBULA POI OVERVIEW                          │
 └────────────────────────────────────────────────────────────────────┘
 
                         USER DEVICE
@@ -364,7 +364,7 @@ Refer to diagrams above for breadboard arrangement showing Teensy 4.1, ESP32, an
 
 ### Serial Communication Test
 1. Program both devices with firmware
-2. Monitor Teensy serial: "POV POI System Initialized"
+2. Monitor Teensy serial: "Nebula Poi Initialized"
 3. Monitor ESP32 serial: "WiFi AP started"
 4. Verify communication working
 
@@ -488,7 +488,7 @@ After completing wiring:
 
 **Document Version**: 1.0  
 **Last Updated**: 2024  
-**Applies to**: Wireless POV POI System v1.0+
+**Applies to**: Nebula Poi v1.0+
 
 ---
 

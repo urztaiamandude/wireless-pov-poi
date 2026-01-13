@@ -169,7 +169,7 @@ def test_requirements_file():
 def main():
     """Run all tests"""
     print("=" * 70)
-    print("  POV POI Image Converter - Installer Build Tests")
+    print("  Nebula Poi Image Converter - Installer Build Tests")
     print("=" * 70)
     
     tests = [

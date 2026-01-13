@@ -1,8 +1,8 @@
 @echo off
-REM Quick Start Script for POV POI Android App (Windows)
+REM Quick Start Script for Nebula Poi Android App (Windows)
 
 echo ==========================================
-echo POV POI Android App - Quick Start
+echo Nebula Poi Android App - Quick Start
 echo ==========================================
 echo.
 

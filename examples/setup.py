@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-PyInstaller setup configuration for POV POI Image Converter
+PyInstaller setup configuration for Nebula Poi Image Converter
 Configuration module used by build_windows_installer.py
 """
 
 # Application metadata
-APP_NAME = "POV POI Image Converter"
+APP_NAME = "Nebula Poi Image Converter"
 VERSION = "1.0.0"
-AUTHOR = "POV POI Contributors"
+AUTHOR = "Nebula Poi Contributors"
 DESCRIPTION = "GUI tool for converting images to POV-compatible format"
 
 # Main script to bundle (expected to be in the same directory as this setup.py)
@@ -113,7 +113,7 @@ def get_pyinstaller_args():
 
 if __name__ == "__main__":
     # Display configuration when run directly
-    print("PyInstaller Configuration for POV POI Image Converter")
+    print("PyInstaller Configuration for Nebula Poi Image Converter")
     print("=" * 60)
     print(f"\nApplication: {APP_NAME}")
     print(f"Version: {VERSION}")

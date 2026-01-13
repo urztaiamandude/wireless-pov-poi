@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-POV POI Image Converter - GUI Version
+Nebula Poi Image Converter - GUI Version
 User-friendly interface for converting images to POV format
 """
 
@@ -45,7 +45,7 @@ except ImportError:
 class POVImageConverterGUI:
     def __init__(self, root):
         self.root = root
-        self.root.title("POV POI Image Converter")
+        self.root.title("Nebula Poi Image Converter")
         self.root.geometry("900x700")
         self.root.resizable(True, True)
         
@@ -77,7 +77,7 @@ class POVImageConverterGUI:
         
         title_label = tk.Label(
             header_frame,
-            text="POV POI Image Converter",
+            text="Nebula Poi Image Converter",
             font=("Arial", 18, "bold"),
             bg="#2c3e50",
             fg="white"

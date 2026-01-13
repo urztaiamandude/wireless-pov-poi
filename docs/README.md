@@ -1,4 +1,4 @@
-# Wireless POV POI System
+# Nebula Poi
 
 A complete persistence of vision (POV) LED poi system using Teensy 4.1 and ESP32 with wireless control via web interface and mobile app support.
 

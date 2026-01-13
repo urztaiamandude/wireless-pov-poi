@@ -1,6 +1,6 @@
-# POV POI Controller - Android App
+# Nebula Poi Controller - Android App
 
-A complete Android application for controlling the Wireless POV POI system with advanced image conversion capabilities.
+A complete Android application for controlling the Nebula Poi with advanced image conversion capabilities.
 
 ## Features
 
@@ -75,11 +75,11 @@ If prompted:
 
 2. Launch the emulator and run the app
 
-## Connecting to POV POI Device
+## Connecting to Nebula Poi Device
 
 ### Hardware Setup
 
-1. Power on your POV POI device
+1. Power on your Nebula Poi
 2. Wait for ESP32 to create WiFi access point
 
 ### WiFi Connection
@@ -89,7 +89,7 @@ If prompted:
    - Connect to network: **POV-POI-WiFi**
    - Enter password: **povpoi123**
 
-2. Launch the POV POI Controller app
+2. Launch the Nebula Poi Controller app
 
 3. The app will automatically connect to `http://192.168.4.1`
 
@@ -354,7 +354,7 @@ For issues, questions, or contributions:
 
 ## License
 
-This project is open source and available under the same license as the main POV POI project.
+This project is open source and available under the same license as the main Nebula Poi project.
 
 ## Credits
 
@@ -367,4 +367,4 @@ Built with:
 
 ---
 
-**Enjoy controlling your POV POI system!** 🎨✨
+**Enjoy controlling your Nebula Poi!** 🎨✨

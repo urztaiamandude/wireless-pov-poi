@@ -1,6 +1,6 @@
 # Android App Quick Start Guide
 
-Get the POV POI Controller Android app running in under 10 minutes!
+Get the Nebula Poi Controller Android app running in under 10 minutes!
 
 ## Prerequisites
 
@@ -97,16 +97,16 @@ double-click: open_android_app.bat
 ### Verify Installation
 
 The app should open showing:
-- App title: "POV POI Controller"
+- App title: "Nebula Poi Controller"
 - Status card showing "Disconnected"
 - Control sliders
 - Pattern buttons
 
-## Step 5: Connect to POV POI Device
+## Step 5: Connect to Nebula Poi Device
 
 ### Power On POV Device
 
-1. Ensure your POV POI hardware is powered on
+1. Ensure your Nebula Poi hardware is powered on
 2. Wait ~10 seconds for ESP32 to start WiFi
 
 ### Connect to WiFi
@@ -119,7 +119,7 @@ The app should open showing:
 
 ### Verify in App
 
-1. Return to POV POI Controller app
+1. Return to Nebula Poi Controller app
 2. Tap **Refresh Status** button
 3. Status should change to "Connected"
 4. Mode will display current mode
@@ -228,12 +228,12 @@ The app should open showing:
 
 You should now have:
 - ✓ Android Studio installed and configured
-- ✓ POV POI Controller app built and running
+- ✓ Nebula Poi Controller app built and running
 - ✓ App connected to your POV device
 - ✓ Pattern control working
 - ✓ Image converter functional
 
-Enjoy controlling your POV POI system from your Android device! 🎨✨
+Enjoy controlling your Nebula Poi from your Android device! 🎨✨
 
 ---
 

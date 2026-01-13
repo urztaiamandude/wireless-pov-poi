@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Dependency installer for POV POI Image Converter
+Dependency installer for Nebula Poi Image Converter
 """
 
 import subprocess
@@ -9,7 +9,7 @@ import os
 
 def install_dependencies():
     """Install required packages"""
-    print("Installing dependencies for POV POI Image Converter...")
+    print("Installing dependencies for Nebula Poi Image Converter...")
     print("-" * 60)
     
     # Get the directory where this script is located

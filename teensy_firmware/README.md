@@ -1,6 +1,6 @@
 # Teensy 4.1 Firmware - Arduino IDE Version
 
-This is the **recommended firmware** for the Wireless POV POI system. It provides a complete, single-file implementation that's easy to understand and modify.
+This is the **recommended firmware** for the Nebula Poi. It provides a complete, single-file implementation that's easy to understand and modify.
 
 ## Features
 
@@ -138,8 +138,8 @@ The `displaySequence()` function handles:
 Connect to USB Serial at 115200 baud to see debug output:
 
 ```
-Teensy 4.1 POV POI Initializing...
-Teensy 4.1 POV POI Ready!
+Teensy 4.1 Nebula Poi Initializing...
+Teensy 4.1 Nebula Poi Ready!
 Commands: IMAGE, PATTERN, SEQUENCE, LIVE, STATUS
 ```
 

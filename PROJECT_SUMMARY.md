@@ -1,4 +1,4 @@
-# Project Summary - Wireless POV POI System
+# Project Summary - Nebula Poi
 
 ## Overview
 
@@ -282,7 +282,7 @@ See [QUICKSTART.md](QUICKSTART.md) for detailed step-by-step instructions.
 
 ## Conclusion
 
-This project delivers a complete, professional-quality wireless POV POI system that is:
+This project delivers a complete, professional-quality Nebula Poi that is:
 - **Easy to build** - 30-minute setup
 - **Easy to use** - Intuitive web interface
 - **Easy to customize** - Well-documented code
