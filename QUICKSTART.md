@@ -224,12 +224,18 @@ Now that your system is working:
    - Upload via web interface
    - Test POV effect by spinning
 
-3. **Read Full Documentation**
+3. **Try the Android App**
+   - Build the Android app from `POVPoiApp/`
+   - Control POV device from your phone
+   - Convert and upload images on the go
+   - See [Android Quick Start](POVPoiApp/QUICKSTART.md)
+
+4. **Read Full Documentation**
    - [Complete Guide](docs/README.md)
    - [API Documentation](docs/API.md)
    - [Wiring Details](docs/WIRING.md)
 
-4. **Build Your POI**
+5. **Build Your POI**
    - Design physical housing
    - Add handle and mounting
    - Consider battery power

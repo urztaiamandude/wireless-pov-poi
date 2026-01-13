@@ -127,18 +127,30 @@ Images are automatically oriented correctly for POV display:
 
 ### Android App (Included!)
 
-A complete Android app with advanced features:
+A complete, ready-to-build Android Studio project with advanced features:
+- **Complete Android Studio Project** - Full project structure in `POVPoiApp/`
+  - Open directly in Android Studio
+  - All dependencies configured
+  - Ready to build and deploy
 - **Image Converter Activity** - Dedicated UI for image conversion
   - Gallery and camera image selection
   - Real-time before/after preview
   - Adjustable conversion settings (width, height, contrast)
   - Save to device gallery
   - Direct upload to POV device
-- Pattern and mode control
-- Brightness and frame rate adjustment
-- Status monitoring
+- **Pattern and mode control** - Quick access to patterns and display modes
+- **Brightness and frame rate adjustment** - Real-time control sliders
+- **Status monitoring** - Connection and mode display
 
-See [Android App README](examples/android_app/README.md) for setup and usage.
+**Quick Start:**
+1. Open `POVPoiApp/` in Android Studio
+2. Build and run on your Android device
+3. Connect to POV-POI-WiFi network
+4. Start controlling your POV POI!
+
+See [Android App README](POVPoiApp/README.md) for complete setup and usage instructions.
+
+**Example Files:** The `examples/android_app/` directory contains individual example files for reference.
 
 ### REST API
 
