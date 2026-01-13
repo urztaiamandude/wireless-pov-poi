@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# Quick Start Script for POV POI Android App
+# Quick Start Script for Nebula Poi Android App
 # This script helps you get started with the Android app
 
 echo "=========================================="
-echo "POV POI Android App - Quick Start"
+echo "Nebula Poi Android App - Quick Start"
 echo "=========================================="
 echo ""
 

@@ -1,5 +1,5 @@
 /*
- * Wireless POV POI - Teensy 4.1 Firmware
+ * Nebula Poi - Teensy 4.1 Firmware
  * 
  * This firmware controls a 32 LED APA102 strip for POV (Persistence of Vision) display.
  * LED 0 is used for level shifting, LEDs 1-31 are used for display.
@@ -109,7 +109,7 @@ void setup() {
   // Initialize Serial for debugging
   Serial.begin(115200);
   while (!Serial && millis() < 3000);
-  Serial.println("Teensy 4.1 POV POI Initializing...");
+  Serial.println("Teensy 4.1 Nebula Poi Initializing...");
   
   // Initialize ESP32 Serial
   ESP32_SERIAL.begin(SERIAL_BAUD);
@@ -131,7 +131,7 @@ void setup() {
   // Startup animation
   startupAnimation();
   
-  Serial.println("Teensy 4.1 POV POI Ready!");
+  Serial.println("Teensy 4.1 Nebula Poi Ready!");
   Serial.println("Commands: IMAGE, PATTERN, SEQUENCE, LIVE, STATUS");
   #ifdef SD_SUPPORT
     Serial.println("SD Card support: ENABLED");

@@ -1,9 +1,9 @@
 #!/bin/bash
-# Verification script for Wireless POV POI setup
+# Verification script for Nebula Poi setup
 # This script checks that all necessary components are installed
 
 echo "=========================================="
-echo "Wireless POV POI Setup Verification"
+echo "Nebula Poi Setup Verification"
 echo "=========================================="
 echo ""
 

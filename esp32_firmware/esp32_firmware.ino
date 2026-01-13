@@ -1,8 +1,8 @@
 /*
- * Wireless POV POI - ESP32 Firmware
+ * Nebula Poi - ESP32 Firmware
  * 
  * This firmware creates a WiFi Access Point with a web portal for controlling
- * the POV POI system. It communicates with the Teensy 4.1 via Serial to send
+ * the Nebula Poi. It communicates with the Teensy 4.1 via Serial to send
  * images, patterns, and sequences.
  * 
  * Features:
@@ -43,7 +43,7 @@ void setup() {
   // Initialize Serial for debugging
   Serial.begin(115200);
   delay(1000);
-  Serial.println("\n\nESP32 POV POI Controller Starting...");
+  Serial.println("\n\nESP32 Nebula Poi Controller Starting...");
   
   // Initialize Teensy Serial
   TEENSY_SERIAL.begin(SERIAL_BAUD, SERIAL_8N1, 16, 17);  // RX=16, TX=17
@@ -73,7 +73,7 @@ void setup() {
   state.frameRate = 50;
   state.connected = false;
   
-  Serial.println("ESP32 POV POI Controller Ready!");
+  Serial.println("ESP32 Nebula Poi Controller Ready!");
   Serial.print("IP Address: ");
   Serial.println(WiFi.softAPIP());
 }
@@ -157,9 +157,9 @@ void handleRoot() {
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="POV POI">
+    <meta name="apple-mobile-web-app-title" content="Nebula Poi">
     <link rel="manifest" href="/manifest.json">
-    <title>POV POI Controller</title>
+    <title>Nebula Poi Controller</title>
     <style>
         * {
             margin: 0;
@@ -436,7 +436,7 @@ void handleRoot() {
     
     <div class="container">
         <div class="header">
-            <h1>🎨 POV POI Controller</h1>
+            <h1>🎨 Nebula Poi Controller</h1>
             <div class="status">
                 <div>Status: <span id="connection-status">Connecting...</span></div>
                 <div>Mode: <span id="mode-status">Idle</span></div>
@@ -1027,9 +1027,9 @@ void handleLiveFrame() {
 
 void handleManifest() {
   String manifest = R"rawliteral({
-  "name": "POV POI Control",
-  "short_name": "POV POI",
-  "description": "Wireless POV POI Control Interface",
+  "name": "Nebula Poi Control",
+  "short_name": "Nebula Poi",
+  "description": "Wireless Nebula Poi Control Interface",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
