@@ -337,7 +337,7 @@ lifecycleScope.launch {
 **Image Converter issues:**
 - **Camera not working**: Check camera permission granted
 - **Can't save images**: Check storage permission (Android 9 and below)
-- **Upload fails**: Verify WiFi connection to POV POI device
+- **Upload fails**: Verify WiFi connection to device
 
 **Slow response:**
 - WiFi signal strength

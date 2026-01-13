@@ -255,12 +255,12 @@ ArchitecturesInstallIn64BitMode=x64
 Source: "dist\POV_POI_Image_Converter.exe"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
-Name: "{group}\POV POI Image Converter"; Filename: "{app}\POV_POI_Image_Converter.exe"
-Name: "{group}\Uninstall POV POI Image Converter"; Filename: "{uninstallexe}"
-Name: "{autodesktop}\POV POI Image Converter"; Filename: "{app}\POV_POI_Image_Converter.exe"
+Name: "{group}\Nebula Poi Image Converter"; Filename: "{app}\POV_POI_Image_Converter.exe"
+Name: "{group}\Uninstall Nebula Poi Image Converter"; Filename: "{uninstallexe}"
+Name: "{autodesktop}\Nebula Poi Image Converter"; Filename: "{app}\POV_POI_Image_Converter.exe"
 
 [Run]
-Filename: "{app}\POV_POI_Image_Converter.exe"; Description: "Launch POV POI Image Converter"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\POV_POI_Image_Converter.exe"; Description: "Launch Nebula Poi Image Converter"; Flags: nowait postinstall skipifsilent
 ```
 
 ### Build the Installer
@@ -525,4 +525,4 @@ If you encounter issues:
 
 ---
 
-**Built with ❤️ by the POV POI community**
+**Built with ❤️ by the Nebula Poi community**
