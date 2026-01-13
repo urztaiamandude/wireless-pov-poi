@@ -31,6 +31,11 @@
 #define COLOR_ORDER BGR
 #define DISPLAY_LEDS 31  // LEDs 1-31 used for display (LED 0 for level shifting)
 
+// Audio Input Configuration (for music reactive patterns)
+#define AUDIO_PIN A0         // Analog microphone input
+#define AUDIO_SAMPLES 64     // Samples for averaging
+#define AUDIO_NOISE_FLOOR 50 // Minimum threshold to filter noise
+
 // Communication
 #define SERIAL_BAUD 115200
 #define ESP32_SERIAL Serial1
@@ -39,7 +44,7 @@
 #define MAX_IMAGES 10
 #define IMAGE_WIDTH 31
 #define IMAGE_HEIGHT 64
-#define MAX_PATTERNS 5
+#define MAX_PATTERNS 16  // 0-15: rainbow, wave, gradient, sparkle, fire, comet, breathing, strobe, meteor, wipe, plasma, music VU, music pulse, music rainbow, music center, music sparkle
 #define MAX_SEQUENCES 5
 
 #ifdef SD_SUPPORT
@@ -171,12 +176,36 @@ void initStorage() {
     sequences[i].loop = false;
   }
   
-  // Initialize with default pattern
+  // Initialize with default patterns
   patterns[0].active = true;
   patterns[0].type = 0;  // Rainbow
   patterns[0].color1 = CRGB::Red;
   patterns[0].color2 = CRGB::Blue;
   patterns[0].speed = 50;
+  
+  patterns[1].active = true;
+  patterns[1].type = 4;  // Fire
+  patterns[1].color1 = CRGB::OrangeRed;
+  patterns[1].color2 = CRGB::Yellow;
+  patterns[1].speed = 120;
+  
+  patterns[2].active = true;
+  patterns[2].type = 5;  // Comet
+  patterns[2].color1 = CRGB::Cyan;
+  patterns[2].color2 = CRGB::Blue;
+  patterns[2].speed = 80;
+  
+  patterns[3].active = true;
+  patterns[3].type = 6;  // Breathing
+  patterns[3].color1 = CRGB::Purple;
+  patterns[3].color2 = CRGB::Black;
+  patterns[3].speed = 60;
+  
+  patterns[4].active = true;
+  patterns[4].type = 10;  // Plasma
+  patterns[4].color1 = CRGB::Green;
+  patterns[4].color2 = CRGB::Magenta;
+  patterns[4].speed = 40;
 }
 
 void startupAnimation() {
@@ -310,6 +339,10 @@ void parseCommand() {
       
     case 0x23:  // Delete image from SD
       deleteSDImage();
+      break;
+      
+    case 0x30:  // Pattern preset commands (save/load/list/delete)
+      handlePatternSDCommand();
       break;
     #endif
       
@@ -554,6 +587,328 @@ void displayPattern() {
         leds[random8(1, NUM_LEDS)] = pat.color1;
       }
       fadeToBlackBy(leds, NUM_LEDS, 20);
+      break;
+      
+    case 4:  // Fire - heat rises from LED 1 upward
+      {
+        static uint8_t heat[NUM_LEDS];
+        // Cool down every cell
+        for (int i = 1; i < NUM_LEDS; i++) {
+          heat[i] = qsub8(heat[i], random8(0, ((55 * 10) / DISPLAY_LEDS) + 2));
+        }
+        // Heat rises - drift heat upward
+        for (int i = NUM_LEDS - 1; i >= 2; i--) {
+          heat[i] = (heat[i - 1] + heat[i - 2] + heat[i - 2]) / 3;
+        }
+        // Random ignition at the bottom
+        if (random8() < pat.speed) {
+          int y = random8(1, 4);
+          heat[y] = qadd8(heat[y], random8(160, 255));
+        }
+        // Map heat to colors
+        for (int i = 1; i < NUM_LEDS; i++) {
+          leds[i] = HeatColor(heat[i]);
+        }
+      }
+      break;
+      
+    case 5:  // Comet - single bright head with fading tail
+      {
+        static uint8_t cometPos = 1;
+        static uint8_t direction = 1;
+        fadeToBlackBy(leds, NUM_LEDS, 60);  // Fade creates tail
+        cometPos += direction;
+        if (cometPos >= NUM_LEDS - 1 || cometPos <= 1) {
+          direction = -direction;
+        }
+        leds[cometPos] = pat.color1;
+        leds[cometPos - direction] = pat.color1;
+        leds[cometPos - direction].nscale8(128);
+      }
+      break;
+      
+    case 6:  // Breathing - smooth pulse on/off
+      {
+        uint8_t breath = beatsin8(pat.speed / 4, 20, 255);
+        for (int i = 1; i < NUM_LEDS; i++) {
+          leds[i] = pat.color1;
+          leds[i].nscale8(breath);
+        }
+      }
+      break;
+      
+    case 7:  // Strobe - quick flashes
+      {
+        static bool strobeOn = false;
+        static uint32_t lastStrobe = 0;
+        uint32_t strobeDelay = map(pat.speed, 1, 255, 100, 10);
+        if (patternTime - lastStrobe > strobeDelay) {
+          strobeOn = !strobeOn;
+          lastStrobe = patternTime;
+        }
+        for (int i = 1; i < NUM_LEDS; i++) {
+          leds[i] = strobeOn ? pat.color1 : CRGB::Black;
+        }
+      }
+      break;
+      
+    case 8:  // Meteor - falling with random decay
+      {
+        static uint8_t meteorPos = NUM_LEDS - 1;
+        // Fade all LEDs randomly for sparkly tail
+        for (int i = 1; i < NUM_LEDS; i++) {
+          if (random8() < 80) {
+            leds[i].fadeToBlackBy(64);
+          }
+        }
+        // Draw meteor head
+        for (int i = 0; i < 4; i++) {
+          if (meteorPos - i >= 1 && meteorPos - i < NUM_LEDS) {
+            leds[meteorPos - i] = pat.color1;
+            leds[meteorPos - i].nscale8(255 - (i * 60));
+          }
+        }
+        meteorPos--;
+        if (meteorPos < 1) meteorPos = NUM_LEDS - 1;
+      }
+      break;
+      
+    case 9:  // Color Wipe - progressive fill then clear
+      {
+        static uint8_t wipePos = 1;
+        static bool filling = true;
+        leds[wipePos] = filling ? pat.color1 : CRGB::Black;
+        wipePos++;
+        if (wipePos >= NUM_LEDS) {
+          wipePos = 1;
+          filling = !filling;
+        }
+      }
+      break;
+      
+    case 10:  // Plasma - organic color mixing
+      for (int i = 1; i < NUM_LEDS; i++) {
+        uint8_t hue = sin8(i * 10 + patternTime * pat.speed / 20) + 
+                      sin8(i * 15 - patternTime * pat.speed / 15) +
+                      sin8(patternTime * pat.speed / 10);
+        leds[i] = CHSV(hue, 255, 255);
+      }
+      break;
+      
+    case 11:  // Music Reactive - VU meter style with beat detection
+      {
+        static uint16_t audioSamples[AUDIO_SAMPLES];
+        static uint8_t sampleIndex = 0;
+        static uint8_t peakLevel = 0;
+        static uint8_t peakDecay = 0;
+        static uint8_t beatHue = 0;
+        
+        // Read audio sample
+        uint16_t rawSample = analogRead(AUDIO_PIN);
+        audioSamples[sampleIndex] = rawSample;
+        sampleIndex = (sampleIndex + 1) % AUDIO_SAMPLES;
+        
+        // Calculate average and peak
+        uint32_t sum = 0;
+        uint16_t maxVal = 0;
+        for (int i = 0; i < AUDIO_SAMPLES; i++) {
+          sum += audioSamples[i];
+          if (audioSamples[i] > maxVal) maxVal = audioSamples[i];
+        }
+        uint16_t avg = sum / AUDIO_SAMPLES;
+        
+        // Calculate audio level (0-255)
+        int16_t level = abs((int16_t)rawSample - (int16_t)avg);
+        level = constrain(level - AUDIO_NOISE_FLOOR, 0, 512);
+        uint8_t audioLevel = map(level, 0, 512, 0, 255);
+        
+        // Beat detection - sudden increase in level
+        if (audioLevel > peakLevel + 30) {
+          beatHue += 32;  // Shift color on beat
+        }
+        
+        // Update peak with decay
+        if (audioLevel > peakLevel) {
+          peakLevel = audioLevel;
+          peakDecay = 0;
+        } else {
+          peakDecay++;
+          if (peakDecay > 5) {
+            peakLevel = qsub8(peakLevel, 3);
+          }
+        }
+        
+        // Map audio level to number of LEDs to light
+        uint8_t ledsToLight = map(audioLevel, 0, 255, 0, DISPLAY_LEDS);
+        
+        // Draw VU meter with color gradient
+        for (int i = 1; i < NUM_LEDS; i++) {
+          uint8_t ledIndex = i - 1;  // 0-30 for display
+          if (ledIndex < ledsToLight) {
+            // Gradient from green to yellow to red based on position
+            uint8_t hue;
+            if (ledIndex < DISPLAY_LEDS / 3) {
+              hue = 96;  // Green
+            } else if (ledIndex < 2 * DISPLAY_LEDS / 3) {
+              hue = 64;  // Yellow
+            } else {
+              hue = 0;   // Red
+            }
+            // Add beat color shift
+            hue = (hue + beatHue) % 256;
+            leds[i] = CHSV(hue, 255, 255);
+          } else {
+            leds[i].fadeToBlackBy(50);  // Smooth fade
+          }
+        }
+        
+        // Draw peak indicator
+        uint8_t peakPos = map(peakLevel, 0, 255, 1, NUM_LEDS - 1);
+        if (peakPos >= 1 && peakPos < NUM_LEDS) {
+          leds[peakPos] = CRGB::White;
+        }
+      }
+      break;
+      
+    case 12:  // Music Pulse - whole strip pulses with beat
+      {
+        static uint16_t audioSamples[AUDIO_SAMPLES];
+        static uint8_t sampleIndex = 0;
+        static uint8_t pulseVal = 0;
+        static uint8_t lastLevel = 0;
+        
+        // Read audio sample
+        uint16_t rawSample = analogRead(AUDIO_PIN);
+        audioSamples[sampleIndex] = rawSample;
+        sampleIndex = (sampleIndex + 1) % AUDIO_SAMPLES;
+        
+        // Calculate average
+        uint32_t sum = 0;
+        for (int i = 0; i < AUDIO_SAMPLES; i++) sum += audioSamples[i];
+        uint16_t avg = sum / AUDIO_SAMPLES;
+        
+        // Calculate audio level
+        int16_t level = abs((int16_t)rawSample - (int16_t)avg);
+        level = constrain(level - AUDIO_NOISE_FLOOR, 0, 512);
+        uint8_t audioLevel = map(level, 0, 512, 0, 255);
+        
+        // Beat detection - pulse up on beat
+        if (audioLevel > lastLevel + 20 && audioLevel > 100) {
+          pulseVal = 255;
+        }
+        lastLevel = audioLevel;
+        
+        // Apply pulse to all LEDs
+        for (int i = 1; i < NUM_LEDS; i++) {
+          leds[i] = pat.color1;
+          leds[i].nscale8(pulseVal);
+        }
+        
+        // Decay pulse
+        pulseVal = scale8(pulseVal, 220);
+      }
+      break;
+      
+    case 13:  // Music Rainbow - audio controls rainbow speed
+      {
+        static uint16_t audioSamples[AUDIO_SAMPLES];
+        static uint8_t sampleIndex = 0;
+        static uint16_t rainbowOffset = 0;
+        
+        // Read audio sample
+        uint16_t rawSample = analogRead(AUDIO_PIN);
+        audioSamples[sampleIndex] = rawSample;
+        sampleIndex = (sampleIndex + 1) % AUDIO_SAMPLES;
+        
+        // Calculate average
+        uint32_t sum = 0;
+        for (int i = 0; i < AUDIO_SAMPLES; i++) sum += audioSamples[i];
+        uint16_t avg = sum / AUDIO_SAMPLES;
+        
+        // Calculate audio level
+        int16_t level = abs((int16_t)rawSample - (int16_t)avg);
+        level = constrain(level - AUDIO_NOISE_FLOOR, 0, 512);
+        uint8_t audioLevel = map(level, 0, 512, 0, 255);
+        
+        // Audio level controls rainbow speed
+        rainbowOffset += map(audioLevel, 0, 255, 1, 20);
+        
+        // Draw rainbow with audio-controlled speed
+        for (int i = 1; i < NUM_LEDS; i++) {
+          uint8_t hue = (rainbowOffset / 4 + i * 255 / DISPLAY_LEDS) % 256;
+          uint8_t brightness = constrain(audioLevel + 50, 50, 255);
+          leds[i] = CHSV(hue, 255, brightness);
+        }
+      }
+      break;
+      
+    case 14:  // Music Center - expands from center based on audio
+      {
+        static uint16_t audioSamples[AUDIO_SAMPLES];
+        static uint8_t sampleIndex = 0;
+        
+        // Read audio sample
+        uint16_t rawSample = analogRead(AUDIO_PIN);
+        audioSamples[sampleIndex] = rawSample;
+        sampleIndex = (sampleIndex + 1) % AUDIO_SAMPLES;
+        
+        // Calculate average
+        uint32_t sum = 0;
+        for (int i = 0; i < AUDIO_SAMPLES; i++) sum += audioSamples[i];
+        uint16_t avg = sum / AUDIO_SAMPLES;
+        
+        // Calculate audio level
+        int16_t level = abs((int16_t)rawSample - (int16_t)avg);
+        level = constrain(level - AUDIO_NOISE_FLOOR, 0, 512);
+        uint8_t audioLevel = map(level, 0, 512, 0, 255);
+        
+        // Map level to expansion from center
+        uint8_t expansion = map(audioLevel, 0, 255, 0, DISPLAY_LEDS / 2);
+        uint8_t center = NUM_LEDS / 2;
+        
+        // Fade all first
+        fadeToBlackBy(leds, NUM_LEDS, 80);
+        
+        // Draw expanding from center
+        for (int i = 0; i <= expansion; i++) {
+          uint8_t hue = patternTime * pat.speed / 20 + i * 10;
+          if (center + i < NUM_LEDS) leds[center + i] = CHSV(hue, 255, 255);
+          if (center - i >= 1) leds[center - i] = CHSV(hue, 255, 255);
+        }
+      }
+      break;
+      
+    case 15:  // Music Sparkle - sparkles intensity based on audio
+      {
+        static uint16_t audioSamples[AUDIO_SAMPLES];
+        static uint8_t sampleIndex = 0;
+        
+        // Read audio sample
+        uint16_t rawSample = analogRead(AUDIO_PIN);
+        audioSamples[sampleIndex] = rawSample;
+        sampleIndex = (sampleIndex + 1) % AUDIO_SAMPLES;
+        
+        // Calculate average
+        uint32_t sum = 0;
+        for (int i = 0; i < AUDIO_SAMPLES; i++) sum += audioSamples[i];
+        uint16_t avg = sum / AUDIO_SAMPLES;
+        
+        // Calculate audio level
+        int16_t level = abs((int16_t)rawSample - (int16_t)avg);
+        level = constrain(level - AUDIO_NOISE_FLOOR, 0, 512);
+        uint8_t audioLevel = map(level, 0, 512, 0, 255);
+        
+        // Fade existing
+        fadeToBlackBy(leds, NUM_LEDS, 40);
+        
+        // Add sparkles based on audio - more audio = more sparkles
+        uint8_t numSparkles = map(audioLevel, 0, 255, 0, 8);
+        for (int s = 0; s < numSparkles; s++) {
+          uint8_t pos = random8(1, NUM_LEDS);
+          uint8_t hue = patternTime * 2 + random8(64);  // Shifting colors
+          leds[pos] = CHSV(hue, 255, 255);
+        }
+      }
       break;
       
     default:
@@ -927,6 +1282,215 @@ void deleteSDImage() {
   } else {
     Serial.println("Failed to delete image");
     sendAck(0x23);
+  }
+}
+
+// ==================== PATTERN PRESET FUNCTIONS ====================
+#define SD_PATTERN_DIR "/poi_patterns"
+#define PATTERN_FILE_MAGIC 0x50415431  // "PAT1" in hex
+
+void savePatternPreset(const char* presetName) {
+  // Save all active patterns to a preset file
+  
+  // Create pattern directory if it doesn't exist
+  if (!SD.exists(SD_PATTERN_DIR)) {
+    SD.mkdir(SD_PATTERN_DIR);
+  }
+  
+  // Build full path
+  char filepath[MAX_FILEPATH_LEN];
+  snprintf(filepath, sizeof(filepath), "%s/%s.pat", SD_PATTERN_DIR, presetName);
+  
+  Serial.print("Saving pattern preset to: ");
+  Serial.println(filepath);
+  
+  // Open file for writing
+  File file = SD.open(filepath, FILE_WRITE);
+  if (!file) {
+    Serial.println("Failed to create pattern file");
+    return;
+  }
+  
+  // Write magic number
+  uint32_t magic = PATTERN_FILE_MAGIC;
+  file.write((uint8_t*)&magic, sizeof(magic));
+  
+  // Write number of patterns
+  file.write(MAX_PATTERNS);
+  
+  // Write each pattern
+  for (int i = 0; i < MAX_PATTERNS; i++) {
+    Pattern& pat = patterns[i];
+    file.write(pat.active ? 1 : 0);
+    file.write(pat.type);
+    file.write(pat.color1.r);
+    file.write(pat.color1.g);
+    file.write(pat.color1.b);
+    file.write(pat.color2.r);
+    file.write(pat.color2.g);
+    file.write(pat.color2.b);
+    file.write(pat.speed);
+  }
+  
+  file.close();
+  Serial.println("Pattern preset saved successfully");
+}
+
+bool loadPatternPreset(const char* presetName) {
+  // Load patterns from a preset file
+  
+  // Build full path
+  char filepath[MAX_FILEPATH_LEN];
+  snprintf(filepath, sizeof(filepath), "%s/%s.pat", SD_PATTERN_DIR, presetName);
+  
+  Serial.print("Loading pattern preset from: ");
+  Serial.println(filepath);
+  
+  // Open file for reading
+  File file = SD.open(filepath, FILE_READ);
+  if (!file) {
+    Serial.println("Failed to open pattern file");
+    return false;
+  }
+  
+  // Read and verify magic number
+  uint32_t magic = 0;
+  file.read((uint8_t*)&magic, sizeof(magic));
+  if (magic != PATTERN_FILE_MAGIC) {
+    Serial.println("Invalid pattern file format");
+    file.close();
+    return false;
+  }
+  
+  // Read number of patterns
+  uint8_t patCount = file.read();
+  
+  // Read each pattern (up to our MAX_PATTERNS)
+  for (int i = 0; i < patCount && i < MAX_PATTERNS; i++) {
+    Pattern& pat = patterns[i];
+    pat.active = file.read() != 0;
+    pat.type = file.read();
+    pat.color1.r = file.read();
+    pat.color1.g = file.read();
+    pat.color1.b = file.read();
+    pat.color2.r = file.read();
+    pat.color2.g = file.read();
+    pat.color2.b = file.read();
+    pat.speed = file.read();
+  }
+  
+  file.close();
+  Serial.println("Pattern preset loaded successfully");
+  return true;
+}
+
+void listPatternPresets() {
+  // List all pattern preset files on SD card
+  
+  if (!SD.exists(SD_PATTERN_DIR)) {
+    Serial.println("No pattern presets directory");
+    ESP32_SERIAL.write(0xCC);
+    ESP32_SERIAL.write((uint8_t)0);
+    ESP32_SERIAL.write(0xFE);
+    return;
+  }
+  
+  File root = SD.open(SD_PATTERN_DIR);
+  if (!root) {
+    Serial.println("Failed to open pattern directory");
+    return;
+  }
+  
+  char filenames[MAX_SD_FILES][MAX_FILENAME_LEN];
+  int count = 0;
+  
+  while (count < MAX_SD_FILES) {
+    File entry = root.openNextFile();
+    if (!entry) break;
+    
+    String name = entry.name();
+    if (name.endsWith(".pat")) {
+      // Remove extension and store
+      name = name.substring(0, name.length() - 4);
+      strncpy(filenames[count], name.c_str(), MAX_FILENAME_LEN - 1);
+      filenames[count][MAX_FILENAME_LEN - 1] = '\0';
+      count++;
+      Serial.print("Found preset: ");
+      Serial.println(filenames[count - 1]);
+    }
+    entry.close();
+  }
+  root.close();
+  
+  Serial.print("Total pattern presets: ");
+  Serial.println(count);
+  
+  // Send list to ESP32
+  ESP32_SERIAL.write(0xCD);  // Pattern list response
+  ESP32_SERIAL.write(count);
+  
+  for (int i = 0; i < count; i++) {
+    uint8_t nameLen = strlen(filenames[i]);
+    ESP32_SERIAL.write(nameLen);
+    ESP32_SERIAL.write(filenames[i], nameLen);
+  }
+  
+  ESP32_SERIAL.write(0xFE);
+}
+
+void handlePatternSDCommand() {
+  // Protocol for pattern commands:
+  // Save: 0xFF 0x30 len 0x01 name_len [name] 0xFE
+  // Load: 0xFF 0x30 len 0x02 name_len [name] 0xFE
+  // List: 0xFF 0x30 len 0x03 0xFE
+  // Delete: 0xFF 0x30 len 0x04 name_len [name] 0xFE
+  
+  uint8_t subCmd = cmdBuffer[3];
+  
+  switch (subCmd) {
+    case 0x01: {  // Save
+      uint8_t nameLen = cmdBuffer[4];
+      if (nameLen > 0 && nameLen < MAX_FILENAME_LEN) {
+        char name[MAX_FILENAME_LEN];
+        memcpy(name, &cmdBuffer[5], nameLen);
+        name[nameLen] = '\0';
+        savePatternPreset(name);
+      }
+      sendAck(0x30);
+      break;
+    }
+    case 0x02: {  // Load
+      uint8_t nameLen = cmdBuffer[4];
+      if (nameLen > 0 && nameLen < MAX_FILENAME_LEN) {
+        char name[MAX_FILENAME_LEN];
+        memcpy(name, &cmdBuffer[5], nameLen);
+        name[nameLen] = '\0';
+        loadPatternPreset(name);
+      }
+      sendAck(0x30);
+      break;
+    }
+    case 0x03:  // List
+      listPatternPresets();
+      break;
+    case 0x04: {  // Delete
+      uint8_t nameLen = cmdBuffer[4];
+      if (nameLen > 0 && nameLen < MAX_FILENAME_LEN) {
+        char name[MAX_FILENAME_LEN];
+        memcpy(name, &cmdBuffer[5], nameLen);
+        name[nameLen] = '\0';
+        char filepath[MAX_FILEPATH_LEN];
+        snprintf(filepath, sizeof(filepath), "%s/%s.pat", SD_PATTERN_DIR, name);
+        SD.remove(filepath);
+        Serial.print("Deleted pattern preset: ");
+        Serial.println(name);
+      }
+      sendAck(0x30);
+      break;
+    }
+    default:
+      Serial.println("Unknown pattern SD command");
+      sendAck(0x30);
   }
 }
 
