@@ -474,13 +474,38 @@ void handleRoot() {
             
             <!-- Patterns -->
             <div class="section">
-                <h2>Quick Patterns</h2>
+                <h2>Visual Patterns</h2>
                 <div class="pattern-grid">
                     <button class="pattern-btn" onclick="setPattern(0)">🌈 Rainbow</button>
                     <button class="pattern-btn" onclick="setPattern(1)">🌊 Wave</button>
                     <button class="pattern-btn" onclick="setPattern(2)">🎨 Gradient</button>
                     <button class="pattern-btn" onclick="setPattern(3)">✨ Sparkle</button>
+                    <button class="pattern-btn" onclick="setPattern(4)">🔥 Fire</button>
+                    <button class="pattern-btn" onclick="setPattern(5)">☄️ Comet</button>
+                    <button class="pattern-btn" onclick="setPattern(6)">💨 Breathing</button>
+                    <button class="pattern-btn" onclick="setPattern(7)">⚡ Strobe</button>
+                    <button class="pattern-btn" onclick="setPattern(8)">🌠 Meteor</button>
+                    <button class="pattern-btn" onclick="setPattern(9)">🖌️ Wipe</button>
+                    <button class="pattern-btn" onclick="setPattern(10)">🌀 Plasma</button>
                 </div>
+            </div>
+            
+            <!-- Audio Reactive Patterns -->
+            <div class="section">
+                <h2>🎵 Audio Reactive</h2>
+                <p style="font-size: 12px; color: #666; margin-bottom: 10px;">Requires microphone on Teensy pin A0</p>
+                <div class="pattern-grid">
+                    <button class="pattern-btn" onclick="setPattern(11)" style="background: linear-gradient(135deg, #00ff88 0%, #ff0088 100%); color: white; border: none;">📊 VU Meter</button>
+                    <button class="pattern-btn" onclick="setPattern(12)" style="background: linear-gradient(135deg, #ff0088 0%, #00ff88 100%); color: white; border: none;">💓 Pulse</button>
+                    <button class="pattern-btn" onclick="setPattern(13)" style="background: linear-gradient(135deg, #ff0000 0%, #00ff00 50%, #0000ff 100%); color: white; border: none;">🌈 Audio Rainbow</button>
+                    <button class="pattern-btn" onclick="setPattern(14)" style="background: linear-gradient(135deg, #8800ff 0%, #ff8800 100%); color: white; border: none;">🎯 Center Burst</button>
+                    <button class="pattern-btn" onclick="setPattern(15)" style="background: linear-gradient(135deg, #ffff00 0%, #ff00ff 100%); color: white; border: none;">✨ Audio Sparkle</button>
+                </div>
+            </div>
+            
+            <!-- Pattern Settings -->
+            <div class="section">
+                <h2>Pattern Settings</h2>
                 <div class="color-picker-group">
                     <div class="color-picker">
                         <label>Color 1:</label>
@@ -490,6 +515,10 @@ void handleRoot() {
                         <label>Color 2:</label>
                         <input type="color" id="color2" value="#0000ff">
                     </div>
+                </div>
+                <div class="control-group" style="margin-top: 10px;">
+                    <label for="pattern-speed">Pattern Speed: <span id="speed-value">50</span></label>
+                    <input type="range" id="pattern-speed" min="1" max="255" value="50" oninput="updateSpeed(this.value)">
                 </div>
             </div>
             
@@ -638,6 +667,7 @@ void handleRoot() {
             currentPattern = type;
             const color1 = document.getElementById('color1').value;
             const color2 = document.getElementById('color2').value;
+            const speed = document.getElementById('pattern-speed').value;
             
             await fetch('/api/pattern', {
                 method: 'POST',
@@ -647,13 +677,21 @@ void handleRoot() {
                     type: type,
                     color1: hexToRgb(color1),
                     color2: hexToRgb(color2),
-                    speed: 50
+                    speed: parseInt(speed)
                 })
             });
             
             // Switch to pattern mode
             document.getElementById('mode-select').value = '2';
             await changeMode();
+        }
+        
+        function updateSpeed(value) {
+            document.getElementById('speed-value').textContent = value;
+            // If currently in pattern mode, update the pattern with new speed
+            if (currentMode === 2) {
+                setPattern(currentPattern);
+            }
         }
         
         function hexToRgb(hex) {
