@@ -57,6 +57,26 @@ Get your wireless POV POI system up and running in 30 minutes!
 
 ✅ **Checkpoint**: All software installed
 
+### Step 1.5: Choose Your Firmware (1 minute)
+
+This project offers two firmware options for Teensy 4.1:
+
+#### Option A: Arduino IDE Firmware (Recommended)
+- ✅ **Location**: `teensy_firmware/teensy_firmware.ino`
+- ✅ Single-file, easy to understand
+- ✅ All features including sequences and SD card support
+- ✅ **This guide uses this version**
+
+#### Option B: PlatformIO Firmware (Advanced)
+- 📁 **Location**: `firmware/teensy41/`
+- ⚙️ Modular architecture
+- ⚠️ Some features still in development
+- 📖 See [FIRMWARE_ARCHITECTURE.md](FIRMWARE_ARCHITECTURE.md) for details
+
+**For this Quick Start, we'll use Option A (Arduino IDE firmware)**
+
+✅ **Checkpoint**: Firmware option selected
+
 ### Step 2: Wire the Hardware (15 minutes)
 
 #### Power Connections

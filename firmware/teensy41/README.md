@@ -1,6 +1,24 @@
-# Teensy 4.1 Firmware
+# Teensy 4.1 Firmware - PlatformIO Version
 
-This directory contains the firmware for the Teensy 4.1 microcontroller that drives the POV poi system.
+⚠️ **Status**: Advanced/Development Version - Some features still in progress
+
+This directory contains a **modular PlatformIO-based** firmware for the Teensy 4.1 microcontroller. This version is designed for advanced users who need a professional, maintainable codebase.
+
+## 🚦 Implementation Status
+
+### ✅ Fully Implemented
+- **SD Card Storage**: High-speed SDIO storage for POV images
+- **LED Driver**: APA102 LED control with FastLED
+- **POV Engine**: Persistence of vision rendering
+- **Serial Protocol**: Message format and checksum validation
+
+### ⚠️ Partially Implemented
+- **ESP32 Command Processing**: Basic structure in place, needs completion
+- **Display Mode Switching**: Framework exists, needs integration testing
+- **Sequence Playback**: Not yet implemented in this version
+
+### 📋 Recommended Action
+**For immediate use**, we recommend the Arduino IDE firmware (`teensy_firmware/teensy_firmware.ino`) which has all features fully implemented. See [FIRMWARE_ARCHITECTURE.md](../../FIRMWARE_ARCHITECTURE.md) for comparison.
 
 ## Overview
 
@@ -8,7 +26,7 @@ The firmware manages:
 - **APA102 LED Control**: High-speed LED strip driving for smooth POV display
 - **ESP32 Communication**: Serial interface for receiving image data and commands
 - **POV Engine**: Persistence of vision display rendering based on rotation
-- **SD Card Storage**: High-speed SDIO storage for POV images (NEW)
+- **SD Card Storage**: High-speed SDIO storage for POV images
 
 ## Hardware Requirements
 

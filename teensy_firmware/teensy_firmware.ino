@@ -9,9 +9,19 @@
  * - Teensy 4.1
  * - APA102 LED Strip (32 LEDs)
  * - ESP32 connected via Serial1 (RX1=0, TX1=1)
+ * - Optional: microSD card in Teensy 4.1 built-in slot (for SD_SUPPORT)
  */
 
 #include <FastLED.h>
+
+// SD Card Support - Uncomment to enable SD card features
+// Requires microSD card in Teensy 4.1's built-in SD card slot
+//#define SD_SUPPORT
+
+#ifdef SD_SUPPORT
+  #include <SD.h>
+  #include <SPI.h>
+#endif
 
 // LED Configuration
 #define NUM_LEDS 32
@@ -28,8 +38,17 @@
 // Display Configuration
 #define MAX_IMAGES 10
 #define IMAGE_WIDTH 31
+#define IMAGE_HEIGHT 64
 #define MAX_PATTERNS 5
 #define MAX_SEQUENCES 5
+
+#ifdef SD_SUPPORT
+  // SD Card Configuration
+  #define SD_IMAGE_DIR "/poi_images"
+  #define MAX_FILENAME_LEN 32
+  #define MAX_SD_FILES 10
+  #define MAX_FILEPATH_LEN 64
+#endif
 
 // LED Array
 CRGB leds[NUM_LEDS];
@@ -38,7 +57,7 @@ CRGB leds[NUM_LEDS];
 struct POVImage {
   uint8_t width;
   uint8_t height;
-  CRGB pixels[IMAGE_WIDTH][64];  // Max 31x64 image
+  CRGB pixels[IMAGE_WIDTH][IMAGE_HEIGHT];  // Max 31x64 image
   bool active;
 };
 
@@ -73,6 +92,11 @@ uint32_t frameDelay = 20;  // 50 FPS default
 uint8_t currentColumn = 0;
 bool displaying = false;
 
+// Sequence state tracking
+uint8_t currentSequenceItem = 0;
+uint32_t sequenceStartTime = 0;
+bool sequencePlaying = false;
+
 // Live mode buffer
 CRGB liveBuffer[DISPLAY_LEDS];
 
@@ -99,11 +123,21 @@ void setup() {
   // Initialize storage
   initStorage();
   
+  // Initialize SD card (if enabled)
+  #ifdef SD_SUPPORT
+    initSDCard();
+  #endif
+  
   // Startup animation
   startupAnimation();
   
   Serial.println("Teensy 4.1 POV POI Ready!");
   Serial.println("Commands: IMAGE, PATTERN, SEQUENCE, LIVE, STATUS");
+  #ifdef SD_SUPPORT
+    Serial.println("SD Card support: ENABLED");
+  #else
+    Serial.println("SD Card support: DISABLED");
+  #endif
 }
 
 void loop() {
@@ -202,8 +236,18 @@ void parseCommand() {
   switch (cmd) {
     case 0x01:  // Set mode
       if (dataLen >= 2) {
-        currentMode = cmdBuffer[3];
-        currentIndex = cmdBuffer[4];
+        uint8_t newMode = cmdBuffer[3];
+        uint8_t newIndex = cmdBuffer[4];
+        
+        // Reset sequence state when changing modes
+        if (newMode != currentMode || newIndex != currentIndex) {
+          sequencePlaying = false;
+          currentSequenceItem = 0;
+          sequenceStartTime = 0;
+        }
+        
+        currentMode = newMode;
+        currentIndex = newIndex;
         Serial.print("Mode set to: ");
         Serial.println(currentMode);
       }
@@ -250,6 +294,24 @@ void parseCommand() {
     case 0x10:  // Status request
       sendStatus();
       break;
+      
+    #ifdef SD_SUPPORT
+    case 0x20:  // Save image to SD
+      saveImageToSD();
+      break;
+      
+    case 0x21:  // Load image from SD
+      loadImageFromSD();
+      break;
+      
+    case 0x22:  // List SD images
+      listSDImages();
+      break;
+      
+    case 0x23:  // Delete image from SD
+      deleteSDImage();
+      break;
+    #endif
       
     default:
       Serial.println("Unknown command");
@@ -403,7 +465,8 @@ void receiveSequence() {
 
 void receiveLiveFrame() {
   // Receive live frame data for immediate display
-  for (int i = 0; i < DISPLAY_LEDS && (6 + i * 3) < CMD_BUFFER_SIZE; i++) {
+  // Each LED needs 3 bytes (RGB), starting at cmdBuffer[3]
+  for (int i = 0; i < DISPLAY_LEDS && (3 + (i + 1) * 3 - 1) < CMD_BUFFER_SIZE; i++) {
     liveBuffer[i] = CRGB(cmdBuffer[3 + i * 3], cmdBuffer[4 + i * 3], cmdBuffer[5 + i * 3]);
   }
 }
@@ -500,9 +563,90 @@ void displayPattern() {
 }
 
 void displaySequence() {
-  // Sequence handling would cycle through multiple images/patterns
-  // Simplified for now
-  displayPattern();
+  // Get current sequence
+  if (currentIndex >= MAX_SEQUENCES || !sequences[currentIndex].active) {
+    FastLED.clear();
+    return;
+  }
+  
+  Sequence& seq = sequences[currentIndex];
+  
+  // Check if sequence has items
+  if (seq.count == 0) {
+    FastLED.clear();
+    return;
+  }
+  
+  // Initialize sequence playback on first call or mode switch
+  if (!sequencePlaying) {
+    currentSequenceItem = 0;
+    sequenceStartTime = millis();
+    sequencePlaying = true;
+    Serial.print("Starting sequence ");
+    Serial.print(currentIndex);
+    Serial.print(", items: ");
+    Serial.println(seq.count);
+  }
+  
+  // Check if current item duration has elapsed
+  uint32_t elapsedTime = millis() - sequenceStartTime;
+  if (elapsedTime >= seq.durations[currentSequenceItem]) {
+    // Move to next item
+    currentSequenceItem++;
+    sequenceStartTime = millis();
+    
+    Serial.print("Sequence item ");
+    Serial.print(currentSequenceItem);
+    Serial.print(" of ");
+    Serial.println(seq.count);
+    
+    // Check if sequence is complete
+    if (currentSequenceItem >= seq.count) {
+      if (seq.loop) {
+        // Loop back to start
+        currentSequenceItem = 0;
+        Serial.println("Sequence looping...");
+      } else {
+        // Sequence complete, stop playing
+        sequencePlaying = false;
+        currentSequenceItem = seq.count - 1;  // Stay on last item
+        Serial.println("Sequence complete");
+      }
+    }
+  }
+  
+  // Get the current item index
+  uint8_t itemIndex = seq.items[currentSequenceItem];
+  
+  // Determine if item is an image or pattern (MSB indicates type)
+  // Bit 7: 0 = image, 1 = pattern
+  bool isPattern = (itemIndex & 0x80) != 0;
+  uint8_t actualIndex = itemIndex & 0x7F;  // Remove type bit
+  
+  // Display current item
+  if (isPattern) {
+    // Display pattern
+    if (actualIndex < MAX_PATTERNS && patterns[actualIndex].active) {
+      // Temporarily set currentIndex for pattern display
+      uint8_t savedIndex = currentIndex;
+      currentIndex = actualIndex;
+      displayPattern();
+      currentIndex = savedIndex;
+    } else {
+      FastLED.clear();
+    }
+  } else {
+    // Display image
+    if (actualIndex < MAX_IMAGES && images[actualIndex].active) {
+      // Temporarily set currentIndex for image display
+      uint8_t savedIndex = currentIndex;
+      currentIndex = actualIndex;
+      displayImage();
+      currentIndex = savedIndex;
+    } else {
+      FastLED.clear();
+    }
+  }
 }
 
 void displayLive() {
@@ -526,3 +670,264 @@ void sendStatus() {
   ESP32_SERIAL.write(currentIndex);
   ESP32_SERIAL.write(0xFE);
 }
+
+// ==================== SD CARD FUNCTIONS ====================
+#ifdef SD_SUPPORT
+
+void initSDCard() {
+  Serial.print("Initializing SD card...");
+  
+  if (!SD.begin(BUILTIN_SDCARD)) {
+    Serial.println("Failed!");
+    Serial.println("Check that SD card is inserted");
+    return;
+  }
+  
+  Serial.println("OK");
+  
+  // Create image directory if it doesn't exist
+  if (!SD.exists(SD_IMAGE_DIR)) {
+    Serial.print("Creating directory: ");
+    Serial.println(SD_IMAGE_DIR);
+    SD.mkdir(SD_IMAGE_DIR);
+  }
+  
+  // Print card info (with error handling)
+  Serial.print("SD Card Type: ");
+  if (SD.card) {
+    switch (SD.card.type()) {
+      case 0: Serial.println("UNKNOWN"); break;
+      case 1: Serial.println("SD1"); break;
+      case 2: Serial.println("SD2"); break;
+      case 3: Serial.println("SDHC/SDXC"); break;
+      default: Serial.println("ERROR"); break;
+    }
+  } else {
+    Serial.println("ERROR: Cannot read card type");
+  }
+}
+
+void saveImageToSD() {
+  // Protocol: 0xFF 0x20 len filename_len [filename] img_index 0xFE
+  // Save the specified image slot to SD card with given filename
+  
+  uint8_t filenameLen = cmdBuffer[3];
+  if (filenameLen == 0 || filenameLen > MAX_FILENAME_LEN) {
+    Serial.println("Invalid filename length");
+    sendAck(0x20);
+    return;
+  }
+  
+  // Extract filename
+  char filename[MAX_FILENAME_LEN + 1];
+  memcpy(filename, &cmdBuffer[4], filenameLen);
+  filename[filenameLen] = '\0';
+  
+  // Get image index
+  uint8_t imgIndex = cmdBuffer[4 + filenameLen];
+  
+  if (imgIndex >= MAX_IMAGES || !images[imgIndex].active) {
+    Serial.println("Invalid image index");
+    sendAck(0x20);
+    return;
+  }
+  
+  // Build full path
+  char filepath[MAX_FILEPATH_LEN];
+  snprintf(filepath, sizeof(filepath), "%s/%s.pov", SD_IMAGE_DIR, filename);
+  
+  Serial.print("Saving image to: ");
+  Serial.println(filepath);
+  
+  // Open file for writing
+  File file = SD.open(filepath, FILE_WRITE);
+  if (!file) {
+    Serial.println("Failed to create file");
+    sendAck(0x20);
+    return;
+  }
+  
+  POVImage& img = images[imgIndex];
+  
+  // Write header: width (1 byte), height (1 byte)
+  file.write(img.width);
+  file.write(img.height);
+  
+  // Write pixel data (RGB, row by row)
+  for (int x = 0; x < img.width; x++) {
+    for (int y = 0; y < img.height; y++) {
+      file.write(img.pixels[x][y].r);
+      file.write(img.pixels[x][y].g);
+      file.write(img.pixels[x][y].b);
+    }
+  }
+  
+  file.close();
+  Serial.println("Image saved successfully");
+  sendAck(0x20);
+}
+
+void loadImageFromSD() {
+  // Protocol: 0xFF 0x21 len filename_len [filename] img_index 0xFE
+  // Load image from SD card into specified image slot
+  
+  uint8_t filenameLen = cmdBuffer[3];
+  if (filenameLen == 0 || filenameLen > MAX_FILENAME_LEN) {
+    Serial.println("Invalid filename length");
+    sendAck(0x21);
+    return;
+  }
+  
+  // Extract filename
+  char filename[MAX_FILENAME_LEN + 1];
+  memcpy(filename, &cmdBuffer[4], filenameLen);
+  filename[filenameLen] = '\0';
+  
+  // Get image index
+  uint8_t imgIndex = cmdBuffer[4 + filenameLen];
+  
+  if (imgIndex >= MAX_IMAGES) {
+    Serial.println("Invalid image index");
+    sendAck(0x21);
+    return;
+  }
+  
+  // Build full path
+  char filepath[MAX_FILEPATH_LEN];
+  snprintf(filepath, sizeof(filepath), "%s/%s.pov", SD_IMAGE_DIR, filename);
+  
+  Serial.print("Loading image from: ");
+  Serial.println(filepath);
+  
+  // Open file for reading
+  File file = SD.open(filepath, FILE_READ);
+  if (!file) {
+    Serial.println("Failed to open file");
+    sendAck(0x21);
+    return;
+  }
+  
+  // Read header
+  uint8_t width = file.read();
+  uint8_t height = file.read();
+  
+  if (width > IMAGE_WIDTH || height > IMAGE_HEIGHT) {
+    Serial.println("Image dimensions too large");
+    file.close();
+    sendAck(0x21);
+    return;
+  }
+  
+  // Set image properties
+  images[imgIndex].width = width;
+  images[imgIndex].height = height;
+  images[imgIndex].active = true;
+  
+  // Read pixel data
+  for (int x = 0; x < width; x++) {
+    for (int y = 0; y < height; y++) {
+      images[imgIndex].pixels[x][y].r = file.read();
+      images[imgIndex].pixels[x][y].g = file.read();
+      images[imgIndex].pixels[x][y].b = file.read();
+    }
+  }
+  
+  file.close();
+  Serial.print("Image loaded successfully (");
+  Serial.print(width);
+  Serial.print("x");
+  Serial.print(height);
+  Serial.println(")");
+  sendAck(0x21);
+}
+
+void listSDImages() {
+  // Protocol: 0xFF 0x22 len 0xFE
+  // Response: 0xFF 0xCC count [name1_len name1 ...] 0xFE
+  
+  Serial.println("Listing SD images...");
+  
+  File dir = SD.open(SD_IMAGE_DIR);
+  if (!dir) {
+    Serial.println("Failed to open directory");
+    // Send empty list
+    ESP32_SERIAL.write(0xFF);
+    ESP32_SERIAL.write(0xCC);  // List response
+    ESP32_SERIAL.write(0);     // Count = 0
+    ESP32_SERIAL.write(0xFE);
+    return;
+  }
+  
+  // Count .pov files
+  uint8_t count = 0;
+  char filenames[MAX_SD_FILES][MAX_FILENAME_LEN];  // Store up to MAX_SD_FILES filenames
+  
+  File entry;
+  while ((entry = dir.openNextFile()) && count < MAX_SD_FILES) {
+    if (!entry.isDirectory()) {
+      const char* name = entry.name();
+      // Check if file ends with .pov
+      int len = strlen(name);
+      if (len > 4 && strcmp(name + len - 4, ".pov") == 0) {
+        // Copy filename without extension
+        int nameLen = len - 4;
+        if (nameLen > MAX_FILENAME_LEN - 1) nameLen = MAX_FILENAME_LEN - 1;
+        strncpy(filenames[count], name, nameLen);
+        filenames[count][nameLen] = '\0';
+        count++;
+      }
+    }
+    entry.close();
+  }
+  dir.close();
+  
+  Serial.print("Found ");
+  Serial.print(count);
+  Serial.println(" images");
+  
+  // Send response
+  ESP32_SERIAL.write(0xFF);
+  ESP32_SERIAL.write(0xCC);  // List response
+  ESP32_SERIAL.write(count);
+  
+  for (int i = 0; i < count; i++) {
+    uint8_t nameLen = strlen(filenames[i]);
+    ESP32_SERIAL.write(nameLen);
+    ESP32_SERIAL.write(filenames[i], nameLen);
+  }
+  
+  ESP32_SERIAL.write(0xFE);
+}
+
+void deleteSDImage() {
+  // Protocol: 0xFF 0x23 len filename_len [filename] 0xFE
+  
+  uint8_t filenameLen = cmdBuffer[3];
+  if (filenameLen == 0 || filenameLen > MAX_FILENAME_LEN) {
+    Serial.println("Invalid filename length");
+    sendAck(0x23);
+    return;
+  }
+  
+  // Extract filename
+  char filename[MAX_FILENAME_LEN + 1];
+  memcpy(filename, &cmdBuffer[4], filenameLen);
+  filename[filenameLen] = '\0';
+  
+  // Build full path
+  char filepath[MAX_FILEPATH_LEN];
+  snprintf(filepath, sizeof(filepath), "%s/%s.pov", SD_IMAGE_DIR, filename);
+  
+  Serial.print("Deleting image: ");
+  Serial.println(filepath);
+  
+  if (SD.remove(filepath)) {
+    Serial.println("Image deleted successfully");
+    sendAck(0x23);
+  } else {
+    Serial.println("Failed to delete image");
+    sendAck(0x23);
+  }
+}
+
+#endif  // SD_SUPPORT

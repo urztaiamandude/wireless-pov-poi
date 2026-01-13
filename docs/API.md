@@ -354,8 +354,116 @@ All messages follow this structure:
 | 0x06 | Set Brightness | ESP32→Teensy | Adjust brightness |
 | 0x07 | Set Frame Rate | ESP32→Teensy | Adjust frame rate |
 | 0x10 | Status Request | ESP32→Teensy | Request status |
+| 0x20 | Save to SD | ESP32→Teensy | Save image to SD card (v2.0+) |
+| 0x21 | Load from SD | ESP32→Teensy | Load image from SD card (v2.0+) |
+| 0x22 | List SD Images | ESP32→Teensy | List stored images (v2.0+) |
+| 0x23 | Delete from SD | ESP32→Teensy | Delete image from SD (v2.0+) |
 | 0xAA | Acknowledge | Teensy→ESP32 | Command received |
 | 0xBB | Status Response | Teensy→ESP32 | Status data |
+| 0xCC | List Response | Teensy→ESP32 | SD image list (v2.0+) |
+
+**Note:** Commands 0x20-0x23 require SD card support to be enabled in Teensy firmware (uncomment `#define SD_SUPPORT`).
+
+### SD Card Commands (v2.0+)
+
+#### Save Image to SD (0x20)
+
+Saves an image from RAM to SD card for persistent storage.
+
+**Format:**
+```
+0xFF 0x20 [LEN] [FILENAME_LEN] [FILENAME...] [IMG_INDEX] 0xFE
+```
+
+**Fields:**
+- `FILENAME_LEN`: Length of filename (1 byte)
+- `FILENAME`: Filename without extension (max 32 chars)
+- `IMG_INDEX`: Image slot to save (0-9)
+
+**Response:** ACK (0xAA)
+
+**Example:** Save image slot 0 as "heart"
+```
+0xFF 0x20 0x07 0x05 'h' 'e' 'a' 'r' 't' 0x00 0xFE
+```
+
+#### Load Image from SD (0x21)
+
+Loads a stored image from SD card into RAM.
+
+**Format:**
+```
+0xFF 0x21 [LEN] [FILENAME_LEN] [FILENAME...] [IMG_INDEX] 0xFE
+```
+
+**Fields:**
+- `FILENAME_LEN`: Length of filename (1 byte)
+- `FILENAME`: Filename without extension (max 32 chars)
+- `IMG_INDEX`: Target image slot (0-9)
+
+**Response:** ACK (0xAA)
+
+**Example:** Load "heart" into slot 0
+```
+0xFF 0x21 0x07 0x05 'h' 'e' 'a' 'r' 't' 0x00 0xFE
+```
+
+#### List SD Images (0x22)
+
+Lists all stored images on SD card.
+
+**Format:**
+```
+0xFF 0x22 0x00 0xFE
+```
+
+**Response:** List response (0xCC)
+```
+0xFF 0xCC [COUNT] [NAME1_LEN] [NAME1...] [NAME2_LEN] [NAME2...] ... 0xFE
+```
+
+**Fields:**
+- `COUNT`: Number of images found
+- For each image:
+  - `NAMEX_LEN`: Length of filename
+  - `NAMEX`: Filename without extension
+
+**Example Response:** Two images "heart" and "star"
+```
+0xFF 0xCC 0x02 0x05 'h' 'e' 'a' 'r' 't' 0x04 's' 't' 'a' 'r' 0xFE
+```
+
+#### Delete Image from SD (0x23)
+
+Deletes an image file from SD card.
+
+**Format:**
+```
+0xFF 0x23 [LEN] [FILENAME_LEN] [FILENAME...] 0xFE
+```
+
+**Fields:**
+- `FILENAME_LEN`: Length of filename (1 byte)
+- `FILENAME`: Filename without extension (max 32 chars)
+
+**Response:** ACK (0xAA)
+
+**Example:** Delete "heart"
+```
+0xFF 0x23 0x06 0x05 'h' 'e' 'a' 'r' 't' 0xFE
+```
+
+### SD Card File Format
+
+Images are stored as `.pov` files with this structure:
+
+```
+[WIDTH:1] [HEIGHT:1] [RGB_DATA...]
+```
+
+- Width: 1 byte (max 31)
+- Height: 1 byte (max 64)
+- RGB Data: width × height × 3 bytes (R, G, B values)
 
 ### Example: Set Mode Command
 
