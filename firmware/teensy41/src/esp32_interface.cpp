@@ -377,7 +377,8 @@ bool ESP32Interface::processSimpleCommand(uint8_t command, const uint8_t* data, 
                 DEBUG_SERIAL.println(index);
                 #endif
                 povEngine->setMode(mode);
-                // Note: index handling would need to be added to POV engine
+                povEngine->setModeIndex(index);
+                povEngine->setEnabled(true);
                 return true;
             }
             return false;
@@ -404,14 +405,14 @@ bool ESP32Interface::processSimpleCommand(uint8_t command, const uint8_t* data, 
             return false;
             
         case 0x07:  // Set frame rate (data: frame_delay_ms)
-            if (len >= 1) {
+            if (len >= 1 && povEngine) {
                 uint8_t frameDelay = data[0];
                 #if DEBUG_ENABLED
                 DEBUG_SERIAL.print("Set frame delay: ");
                 DEBUG_SERIAL.print(frameDelay);
                 DEBUG_SERIAL.println(" ms");
                 #endif
-                // Frame rate handling would need to be added to POV engine
+                povEngine->setFrameDelay(frameDelay);
                 return true;
             }
             return false;
@@ -747,6 +748,13 @@ bool ESP32Interface::handleSimplePatternUpload(const uint8_t* data, size_t len) 
         return false;
     }
     
+    if (!povEngine) {
+        #if DEBUG_ENABLED
+        DEBUG_SERIAL.println("ERROR: POV engine not available");
+        #endif
+        return false;
+    }
+    
     uint8_t index = data[0];
     uint8_t type = data[1];
     uint8_t r1 = data[2];
@@ -758,7 +766,9 @@ bool ESP32Interface::handleSimplePatternUpload(const uint8_t* data, size_t len) 
     uint8_t speed = data[8];
     
     #if DEBUG_ENABLED
-    DEBUG_SERIAL.print("Pattern upload - type: ");
+    DEBUG_SERIAL.print("Pattern upload - index: ");
+    DEBUG_SERIAL.print(index);
+    DEBUG_SERIAL.print(", type: ");
     DEBUG_SERIAL.print(type);
     DEBUG_SERIAL.print(", colors: RGB(");
     DEBUG_SERIAL.print(r1); DEBUG_SERIAL.print(",");
@@ -766,12 +776,24 @@ bool ESP32Interface::handleSimplePatternUpload(const uint8_t* data, size_t len) 
     DEBUG_SERIAL.print(b1); DEBUG_SERIAL.print(") to RGB(");
     DEBUG_SERIAL.print(r2); DEBUG_SERIAL.print(",");
     DEBUG_SERIAL.print(g2); DEBUG_SERIAL.print(",");
-    DEBUG_SERIAL.print(b2); DEBUG_SERIAL.println(")");
+    DEBUG_SERIAL.print(b2); DEBUG_SERIAL.print("), speed: ");
+    DEBUG_SERIAL.println(speed);
     #endif
     
-    // Pattern generation would need to be implemented in POV engine
-    // For now, just acknowledge receipt
-    // TODO: Implement pattern generation in POV engine
+    // Create pattern structure
+    Pattern pattern;
+    pattern.type = type;
+    pattern.r1 = r1;
+    pattern.g1 = g1;
+    pattern.b1 = b1;
+    pattern.r2 = r2;
+    pattern.g2 = g2;
+    pattern.b2 = b2;
+    pattern.speed = speed;
+    pattern.active = true;
+    
+    // Load pattern into POV engine
+    povEngine->loadPattern(index, pattern);
     
     return true;
 }

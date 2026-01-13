@@ -10,8 +10,25 @@ POVEngine::POVEngine(LEDDriver& ledDriver)
       currentAngle(0),
       rotationSpeed(0.0),
       displayMode(0),
+      modeIndex(0),
       enabled(false),
-      lastUpdateTime(0) {
+      lastUpdateTime(0),
+      lastFrameTime(0),
+      frameDelay(16),  // Default ~60 FPS
+      patternTime(0) {
+    
+    // Initialize pattern storage
+    for (int i = 0; i < 5; i++) {
+        patterns[i].active = false;
+        patterns[i].type = 0;
+        patterns[i].speed = 50;
+        patterns[i].r1 = 255;
+        patterns[i].g1 = 0;
+        patterns[i].b1 = 0;
+        patterns[i].r2 = 0;
+        patterns[i].g2 = 0;
+        patterns[i].b2 = 255;
+    }
 }
 
 void POVEngine::begin() {
@@ -21,14 +38,20 @@ void POVEngine::begin() {
 }
 
 void POVEngine::update() {
-    if (!enabled || !imageBuffer) {
+    // Check frame delay timing
+    unsigned long currentTime = millis();
+    if (currentTime - lastFrameTime < frameDelay) {
+        return;  // Not time for next frame yet
+    }
+    lastFrameTime = currentTime;
+    
+    if (!enabled) {
         return;
     }
     
     // Update current angle based on rotation speed and time
     // This is a simulation for now - in real hardware, this would be
     // driven by accelerometer
-    unsigned long currentTime = millis();
     if (lastUpdateTime > 0 && rotationSpeed > 0) {
         float deltaTime = (currentTime - lastUpdateTime) / 1000.0; // seconds
         float degreesPerSecond = rotationSpeed * 6.0; // RPM to degrees/sec
@@ -37,9 +60,36 @@ void POVEngine::update() {
     }
     lastUpdateTime = currentTime;
     
-    // Render the current column based on angle
-    uint16_t column = getColumnForAngle(currentAngle);
-    renderColumn(column);
+    // Render based on display mode
+    switch (displayMode) {
+        case 0:  // Idle mode - clear display
+            leds.clear();
+            leds.show();
+            break;
+            
+        case 1:  // Image mode
+            if (imageBuffer) {
+                uint16_t column = getColumnForAngle(currentAngle);
+                renderColumn(column);
+            }
+            break;
+            
+        case 2:  // Pattern mode
+            renderPattern();
+            break;
+            
+        case 3:  // Sequence mode
+            // TODO: Implement sequence support
+            break;
+            
+        case 4:  // Live mode - handled externally
+            break;
+            
+        default:
+            leds.clear();
+            leds.show();
+            break;
+    }
 }
 
 void POVEngine::loadImageData(const uint8_t* data, size_t width, size_t height) {
@@ -142,6 +192,20 @@ void POVEngine::setRotationSpeed(float rpm) {
 
 void POVEngine::setMode(uint8_t mode) {
     displayMode = mode;
+    
+    #if DEBUG_ENABLED
+    DEBUG_SERIAL.print("Display mode set to: ");
+    DEBUG_SERIAL.println(mode);
+    #endif
+}
+
+void POVEngine::setModeIndex(uint8_t index) {
+    modeIndex = index;
+    
+    #if DEBUG_ENABLED
+    DEBUG_SERIAL.print("Mode index set to: ");
+    DEBUG_SERIAL.println(index);
+    #endif
 }
 
 void POVEngine::setEnabled(bool en) {
@@ -151,6 +215,41 @@ void POVEngine::setEnabled(bool en) {
         leds.clear();
         leds.show();
     }
+}
+
+void POVEngine::loadPattern(uint8_t index, const Pattern& pattern) {
+    if (index < 5) {
+        patterns[index] = pattern;
+        patterns[index].active = true;
+        
+        #if DEBUG_ENABLED
+        DEBUG_SERIAL.print("Pattern ");
+        DEBUG_SERIAL.print(index);
+        DEBUG_SERIAL.print(" loaded, type: ");
+        DEBUG_SERIAL.println(pattern.type);
+        #endif
+    }
+}
+
+void POVEngine::setPattern(uint8_t index) {
+    if (index < 5) {
+        modeIndex = index;
+        
+        #if DEBUG_ENABLED
+        DEBUG_SERIAL.print("Pattern index set to: ");
+        DEBUG_SERIAL.println(index);
+        #endif
+    }
+}
+
+void POVEngine::setFrameDelay(uint8_t delayMs) {
+    frameDelay = delayMs;
+    
+    #if DEBUG_ENABLED
+    DEBUG_SERIAL.print("Frame delay set to: ");
+    DEBUG_SERIAL.print(delayMs);
+    DEBUG_SERIAL.println(" ms");
+    #endif
 }
 
 uint16_t POVEngine::getColumnForAngle(uint16_t angle) {
@@ -168,13 +267,136 @@ void POVEngine::renderColumn(uint16_t column) {
     }
     
     // Render column of pixels to LED strip
-    for (uint16_t y = 0; y < imageHeight && y < leds.getNumLEDs(); y++) {
+    // LED 0 is for level shifting, LEDs 1-31 are for display
+    for (uint16_t y = 0; y < imageHeight && y < leds.getNumLEDs() - 1; y++) {
         size_t pixelIndex = (y * imageWidth + column) * 3;
         uint8_t r = imageBuffer[pixelIndex];
         uint8_t g = imageBuffer[pixelIndex + 1];
         uint8_t b = imageBuffer[pixelIndex + 2];
-        leds.setPixel(y, r, g, b);
+        leds.setPixel(y + 1, r, g, b);  // +1 to skip LED 0
     }
     
     leds.show();
+}
+
+void POVEngine::renderPattern() {
+    if (modeIndex >= 5 || !patterns[modeIndex].active) {
+        leds.clear();
+        leds.show();
+        return;
+    }
+    
+    const Pattern& pattern = patterns[modeIndex];
+    patternTime++;
+    
+    switch (pattern.type) {
+        case PATTERN_RAINBOW:
+            renderRainbowPattern(pattern);
+            break;
+            
+        case PATTERN_WAVE:
+            renderWavePattern(pattern);
+            break;
+            
+        case PATTERN_GRADIENT:
+            renderGradientPattern(pattern);
+            break;
+            
+        case PATTERN_SPARKLE:
+            renderSparklePattern(pattern);
+            break;
+            
+        default:
+            leds.clear();
+            break;
+    }
+    
+    leds.show();
+}
+
+void POVEngine::renderRainbowPattern(const Pattern& pattern) {
+    // Rainbow pattern - rotating hue across LEDs
+    for (uint16_t i = 1; i < leds.getNumLEDs(); i++) {
+        // Calculate hue based on position and time
+        uint8_t hue = (patternTime * pattern.speed / 10 + i * 255 / (leds.getNumLEDs() - 1)) % 256;
+        
+        // Convert HSV to RGB (simplified)
+        uint8_t sector = hue / 43;  // 0-5
+        uint8_t offset = (hue % 43) * 6;  // 0-255
+        
+        uint8_t r, g, b;
+        switch (sector) {
+            case 0:  // Red to yellow
+                r = 255; g = offset; b = 0;
+                break;
+            case 1:  // Yellow to green
+                r = 255 - offset; g = 255; b = 0;
+                break;
+            case 2:  // Green to cyan
+                r = 0; g = 255; b = offset;
+                break;
+            case 3:  // Cyan to blue
+                r = 0; g = 255 - offset; b = 255;
+                break;
+            case 4:  // Blue to magenta
+                r = offset; g = 0; b = 255;
+                break;
+            default:  // Magenta to red
+                r = 255; g = 0; b = 255 - offset;
+                break;
+        }
+        
+        leds.setPixel(i, r, g, b);
+    }
+}
+
+void POVEngine::renderWavePattern(const Pattern& pattern) {
+    // Wave pattern - animated sine wave
+    for (uint16_t i = 1; i < leds.getNumLEDs(); i++) {
+        // Calculate brightness using sine wave approximation
+        float angle = (patternTime * pattern.speed / 10.0 + i * 255.0 / (leds.getNumLEDs() - 1)) * 0.0245; // Convert to radians
+        float sinValue = sin(angle);
+        uint8_t brightness = (uint8_t)((sinValue + 1.0) * 127.5);  // Convert -1..1 to 0..255
+        
+        // Apply brightness to color1
+        uint8_t r = (pattern.r1 * brightness) / 255;
+        uint8_t g = (pattern.g1 * brightness) / 255;
+        uint8_t b = (pattern.b1 * brightness) / 255;
+        
+        leds.setPixel(i, r, g, b);
+    }
+}
+
+void POVEngine::renderGradientPattern(const Pattern& pattern) {
+    // Gradient pattern - smooth transition between two colors
+    for (uint16_t i = 1; i < leds.getNumLEDs(); i++) {
+        // Calculate blend factor (0-255)
+        uint8_t blend = (i * 255) / (leds.getNumLEDs() - 1);
+        
+        // Blend between color1 and color2
+        uint8_t r = pattern.r1 + ((pattern.r2 - pattern.r1) * blend) / 255;
+        uint8_t g = pattern.g1 + ((pattern.g2 - pattern.g1) * blend) / 255;
+        uint8_t b = pattern.b1 + ((pattern.b2 - pattern.b1) * blend) / 255;
+        
+        leds.setPixel(i, r, g, b);
+    }
+}
+
+void POVEngine::renderSparklePattern(const Pattern& pattern) {
+    // Sparkle pattern - random sparkles that fade
+    // Fade all LEDs
+    for (uint16_t i = 1; i < leds.getNumLEDs(); i++) {
+        uint8_t r, g, b;
+        leds.getPixel(i, r, g, b);
+        r = (r * 230) / 255;  // Fade to ~90%
+        g = (g * 230) / 255;
+        b = (b * 230) / 255;
+        leds.setPixel(i, r, g, b);
+    }
+    
+    // Add random sparkles based on speed
+    if (random(256) < pattern.speed) {
+        uint16_t led = random(1, leds.getNumLEDs());
+        leds.setPixel(led, pattern.r1, pattern.g1, pattern.b1);
+    }
 }
