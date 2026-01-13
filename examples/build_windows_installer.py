@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Automated build script for POV POI Image Converter Windows executable
+Automated build script for Nebula Poi Image Converter Windows executable
 Handles dependency installation, cleanup, and PyInstaller execution
 """
 
@@ -193,7 +193,7 @@ def print_success_message():
 
 def main():
     """Main build process"""
-    print_header("POV POI Image Converter - Windows Build Script")
+    print_header("Nebula Poi Image Converter - Windows Build Script")
     
     # Check Python version
     if not check_python_version():

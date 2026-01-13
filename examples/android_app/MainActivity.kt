@@ -8,8 +8,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 
 /**
- * Main Activity for POV POI Controller App
- * Provides UI for controlling the POV POI system
+ * Main Activity for Nebula Poi Controller App
+ * Provides UI for controlling the Nebula Poi
  */
 class MainActivity : AppCompatActivity() {
     

@@ -12,8 +12,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * POV POI API Client
- * Provides methods to communicate with the POV POI system via REST API
+ * Nebula Poi API Client
+ * Provides methods to communicate with the Nebula Poi via REST API
  */
 class POVPoiAPI(private val baseUrl: String = "http://192.168.4.1") {
     

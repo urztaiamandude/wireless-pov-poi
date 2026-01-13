@@ -22,7 +22,7 @@ import java.io.File
 import java.io.OutputStream
 
 /**
- * Image Converter Activity for POV POI System
+ * Image Converter Activity for Nebula Poi
  * Provides dedicated UI for converting images to POV-compatible format
  */
 class ImageConverterActivity : AppCompatActivity() {
