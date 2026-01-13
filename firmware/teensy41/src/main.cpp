@@ -62,6 +62,9 @@ void setup() {
     // Set POV engine reference in ESP32 interface
     esp32.setPOVEngine(&povEngine);
     
+    // Set LED driver reference in ESP32 interface
+    esp32.setLEDDriver(&ledDriver);
+    
     // Startup animation
     ledDriver.clear();
     for (int i = 0; i < ledDriver.getNumLEDs(); i++) {

@@ -1,9 +1,10 @@
 #include "esp32_interface.h"
 #include "sd_storage.h"
 #include "pov_engine.h"
+#include "led_driver.h"
 
 ESP32Interface::ESP32Interface() 
-    : serial(ESP32_SERIAL), sdStorage(nullptr), povEngine(nullptr) {
+    : serial(ESP32_SERIAL), sdStorage(nullptr), povEngine(nullptr), ledDriver(nullptr) {
 }
 
 void ESP32Interface::begin() {
@@ -22,6 +23,10 @@ void ESP32Interface::setSDStorage(SDStorageManager* sd) {
 
 void ESP32Interface::setPOVEngine(POVEngine* pov) {
     povEngine = pov;
+}
+
+void ESP32Interface::setLEDDriver(LEDDriver* led) {
+    ledDriver = led;
 }
 
 bool ESP32Interface::available() {
@@ -110,13 +115,102 @@ void ESP32Interface::sendNack() {
 }
 
 bool ESP32Interface::processCommand(uint8_t command, const uint8_t* data, size_t len) {
-    // Command processing will be implemented based on specific requirements
     #if DEBUG_ENABLED
     DEBUG_SERIAL.print("Received command: 0x");
-    DEBUG_SERIAL.println(command, HEX);
+    DEBUG_SERIAL.print(command, HEX);
+    DEBUG_SERIAL.print(", data length: ");
+    DEBUG_SERIAL.println(len);
     #endif
     
-    return true;
+    if (!povEngine) {
+        #if DEBUG_ENABLED
+        DEBUG_SERIAL.println("ERROR: POV engine not initialized");
+        #endif
+        sendNack();
+        return false;
+    }
+    
+    switch (command) {
+        case CMD_PLAY:
+            // Start/resume POV display
+            #if DEBUG_ENABLED
+            DEBUG_SERIAL.println("Command: PLAY");
+            #endif
+            povEngine->setEnabled(true);
+            sendAck();
+            return true;
+            
+        case CMD_PAUSE:
+            // Pause POV display
+            #if DEBUG_ENABLED
+            DEBUG_SERIAL.println("Command: PAUSE");
+            #endif
+            povEngine->setEnabled(false);
+            sendAck();
+            return true;
+            
+        case CMD_STOP:
+            // Stop POV display and clear
+            #if DEBUG_ENABLED
+            DEBUG_SERIAL.println("Command: STOP");
+            #endif
+            povEngine->setEnabled(false);
+            // Clear LEDs through the engine
+            sendAck();
+            return true;
+            
+        case CMD_SET_BRIGHTNESS:
+            // Set LED brightness (data[0] = brightness 0-255)
+            if (len >= 1) {
+                uint8_t brightness = data[0];
+                #if DEBUG_ENABLED
+                DEBUG_SERIAL.print("Command: SET_BRIGHTNESS = ");
+                DEBUG_SERIAL.println(brightness);
+                #endif
+                if (ledDriver) {
+                    ledDriver->setBrightness(brightness);
+                    sendAck();
+                    return true;
+                } else {
+                    #if DEBUG_ENABLED
+                    DEBUG_SERIAL.println("ERROR: LED driver not initialized");
+                    #endif
+                    sendNack();
+                    return false;
+                }
+            }
+            #if DEBUG_ENABLED
+            DEBUG_SERIAL.println("ERROR: Insufficient data for SET_BRIGHTNESS");
+            #endif
+            sendNack();
+            return false;
+            
+        case CMD_SET_MODE:
+            // Set display mode (data[0] = mode)
+            if (len >= 1) {
+                uint8_t mode = data[0];
+                #if DEBUG_ENABLED
+                DEBUG_SERIAL.print("Command: SET_MODE = ");
+                DEBUG_SERIAL.println(mode);
+                #endif
+                povEngine->setMode(mode);
+                sendAck();
+                return true;
+            }
+            #if DEBUG_ENABLED
+            DEBUG_SERIAL.println("ERROR: Insufficient data for SET_MODE");
+            #endif
+            sendNack();
+            return false;
+            
+        default:
+            #if DEBUG_ENABLED
+            DEBUG_SERIAL.print("Unknown command: 0x");
+            DEBUG_SERIAL.println(command, HEX);
+            #endif
+            sendNack();
+            return false;
+    }
 }
 
 bool ESP32Interface::processMessage(MessageType type, const uint8_t* data, size_t len) {
@@ -126,6 +220,9 @@ bool ESP32Interface::processMessage(MessageType type, const uint8_t* data, size_
     #endif
     
     switch (type) {
+        case MSG_IMAGE_DATA:
+            return handleImageData(data, len);
+        
         case MSG_SD_SAVE_IMAGE:
             return handleSDSaveImage(data, len);
         
@@ -153,6 +250,59 @@ bool ESP32Interface::processMessage(MessageType type, const uint8_t* data, size_
             #endif
             return false;
     }
+}
+
+bool ESP32Interface::handleImageData(const uint8_t* data, size_t len) {
+    if (!povEngine) {
+        #if DEBUG_ENABLED
+        DEBUG_SERIAL.println("ERROR: POV engine not available");
+        #endif
+        sendNack();
+        return false;
+    }
+    
+    // Message format: [width:2][height:2][image_data]
+    if (len < 4) {
+        #if DEBUG_ENABLED
+        DEBUG_SERIAL.println("ERROR: Image data message too short");
+        #endif
+        sendNack();
+        return false;
+    }
+    
+    // Extract dimensions
+    uint16_t width = (data[0] << 8) | data[1];
+    uint16_t height = (data[2] << 8) | data[3];
+    
+    // Extract image data
+    const uint8_t* imageData = data + 4;
+    size_t imageDataLen = len - 4;
+    
+    // Verify data size
+    size_t expectedSize = width * height * 3; // RGB data
+    if (imageDataLen != expectedSize) {
+        #if DEBUG_ENABLED
+        DEBUG_SERIAL.print("ERROR: Image data size mismatch. Expected: ");
+        DEBUG_SERIAL.print(expectedSize);
+        DEBUG_SERIAL.print(", Got: ");
+        DEBUG_SERIAL.println(imageDataLen);
+        #endif
+        sendNack();
+        return false;
+    }
+    
+    // Load image data into POV engine
+    povEngine->loadImageData(imageData, width, height);
+    
+    #if DEBUG_ENABLED
+    DEBUG_SERIAL.print("Image data loaded: ");
+    DEBUG_SERIAL.print(width);
+    DEBUG_SERIAL.print("x");
+    DEBUG_SERIAL.println(height);
+    #endif
+    
+    sendAck();
+    return true;
 }
 
 bool ESP32Interface::handleSDSaveImage(const uint8_t* data, size_t len) {

@@ -7,6 +7,7 @@
 // Forward declarations
 class SDStorageManager;
 class POVEngine;
+class LEDDriver;
 
 // Message types for communication protocol
 enum MessageType {
@@ -38,9 +39,10 @@ public:
     // Initialize serial communication with ESP32
     void begin();
     
-    // Set references to SD storage and POV engine for command processing
+    // Set references to SD storage, POV engine, and LED driver for command processing
     void setSDStorage(SDStorageManager* sd);
     void setPOVEngine(POVEngine* pov);
+    void setLEDDriver(LEDDriver* led);
     
     // Check if data is available from ESP32
     bool available();
@@ -67,12 +69,16 @@ private:
     HardwareSerial& serial;
     SDStorageManager* sdStorage;
     POVEngine* povEngine;
+    LEDDriver* ledDriver;
     
     // Calculate checksum for message
     uint8_t calculateChecksum(const uint8_t* data, size_t len);
     
     // Verify message checksum
     bool verifyChecksum(const uint8_t* data, size_t len, uint8_t checksum);
+    
+    // Image data handler
+    bool handleImageData(const uint8_t* data, size_t len);
     
     // SD card message handlers
     bool handleSDSaveImage(const uint8_t* data, size_t len);
