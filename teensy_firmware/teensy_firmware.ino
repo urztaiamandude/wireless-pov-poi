@@ -38,6 +38,7 @@
 // Display Configuration
 #define MAX_IMAGES 10
 #define IMAGE_WIDTH 31
+#define IMAGE_HEIGHT 64
 #define MAX_PATTERNS 5
 #define MAX_SEQUENCES 5
 
@@ -45,6 +46,7 @@
   // SD Card Configuration
   #define SD_IMAGE_DIR "/poi_images"
   #define MAX_FILENAME_LEN 32
+  #define MAX_SD_FILES 10
 #endif
 
 // LED Array
@@ -54,7 +56,7 @@ CRGB leds[NUM_LEDS];
 struct POVImage {
   uint8_t width;
   uint8_t height;
-  CRGB pixels[IMAGE_WIDTH][64];  // Max 31x64 image
+  CRGB pixels[IMAGE_WIDTH][IMAGE_HEIGHT];  // Max 31x64 image
   bool active;
 };
 
@@ -688,13 +690,18 @@ void initSDCard() {
     SD.mkdir(SD_IMAGE_DIR);
   }
   
-  // Print card info
+  // Print card info (with error handling)
   Serial.print("SD Card Type: ");
-  switch (SD.card.type()) {
-    case 0: Serial.println("UNKNOWN"); break;
-    case 1: Serial.println("SD1"); break;
-    case 2: Serial.println("SD2"); break;
-    case 3: Serial.println("SDHC/SDXC"); break;
+  if (SD.card) {
+    switch (SD.card.type()) {
+      case 0: Serial.println("UNKNOWN"); break;
+      case 1: Serial.println("SD1"); break;
+      case 2: Serial.println("SD2"); break;
+      case 3: Serial.println("SDHC/SDXC"); break;
+      default: Serial.println("ERROR"); break;
+    }
+  } else {
+    Serial.println("ERROR: Cannot read card type");
   }
 }
 
@@ -802,7 +809,7 @@ void loadImageFromSD() {
   uint8_t width = file.read();
   uint8_t height = file.read();
   
-  if (width > IMAGE_WIDTH || height > 64) {
+  if (width > IMAGE_WIDTH || height > IMAGE_HEIGHT) {
     Serial.println("Image dimensions too large");
     file.close();
     sendAck(0x21);
@@ -851,10 +858,10 @@ void listSDImages() {
   
   // Count .pov files
   uint8_t count = 0;
-  char filenames[10][MAX_FILENAME_LEN];  // Store up to 10 filenames
+  char filenames[MAX_SD_FILES][MAX_FILENAME_LEN];  // Store up to MAX_SD_FILES filenames
   
   File entry;
-  while ((entry = dir.openNextFile()) && count < 10) {
+  while ((entry = dir.openNextFile()) && count < MAX_SD_FILES) {
     if (!entry.isDirectory()) {
       const char* name = entry.name();
       // Check if file ends with .pov
