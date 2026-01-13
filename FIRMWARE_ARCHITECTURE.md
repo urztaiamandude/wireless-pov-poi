@@ -104,25 +104,30 @@ firmware/teensy41/
 3. Run `pio run --target upload`
 
 **Current Status:**
+**Current Status:**
 - ✅ SD card storage fully implemented
 - ✅ LED driver complete
 - ✅ POV engine functional
-- ⚠️ ESP32 command processing needs completion
-- ⚠️ Integration testing in progress
+- ✅ ESP32 command processing complete
+- ✅ Pattern generation implemented (4 types)
+- ✅ Frame rate control implemented
+- ✅ Mode management improved
+- ⚠️ Integration testing needs hardware validation
+- ⚠️ Live drawing needs testing
 
 ## 🔄 Feature Parity Comparison
 
 | Feature | Arduino IDE | PlatformIO | Notes |
 |---------|-------------|------------|-------|
 | Image Display | ✅ | ✅ | 31x64 max |
-| Pattern Generation | ✅ | ✅ | 4+ patterns |
-| Sequence Playback | ✅ | ⚠️ | PIO in development |
-| Live Drawing | ✅ | ⚠️ | PIO in development |
+| Pattern Generation | ✅ | ✅ | 4 patterns (rainbow, wave, gradient, sparkle) |
+| Sequence Playback | ✅ | ⚠️ | PIO framework in place |
+| Live Drawing | ✅ | ✅ | Implemented, needs testing |
 | Brightness Control | ✅ | ✅ | 0-255 range |
-| Frame Rate Control | ✅ | ✅ | 10-120 FPS |
+| Frame Rate Control | ✅ | ✅ | 10-120 FPS, dynamic adjustment |
 | SD Card Support | ✅ (v2.0+) | ✅ | PIO uses SDIO |
-| Serial Protocol | ✅ | ⚠️ | PIO partially complete |
-| Web Interface Compatible | ✅ | ⚠️ | Full/Partial |
+| Serial Protocol | ✅ | ✅ | Both simple and structured protocols |
+| Web Interface Compatible | ✅ | ✅ | Command processing complete |
 
 Legend: ✅ Complete | ⚠️ Partial/In Development | ❌ Not Available
 

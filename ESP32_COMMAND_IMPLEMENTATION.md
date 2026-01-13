@@ -96,7 +96,7 @@ ESP32 → [0xFF][CMD][LEN][DATA...][0xFE] → Teensy
 
 ## Features Implemented
 
-### ✅ Completed
+### ✅ Completed (January 2026 Update)
 
 1. **Command Processing**
    - All 5 structured protocol commands (PLAY, PAUSE, STOP, SET_BRIGHTNESS, SET_MODE)
@@ -106,7 +106,7 @@ ESP32 → [0xFF][CMD][LEN][DATA...][0xFE] → Teensy
 2. **Image Handling**
    - Direct image upload via simple protocol
    - Image data validation (width × height × 3 bytes)
-   - Integration with POV engine
+   - Full integration with POV engine
 
 3. **Brightness Control**
    - Direct LED driver control
@@ -120,19 +120,31 @@ ESP32 → [0xFF][CMD][LEN][DATA...][0xFE] → Teensy
    - Status request handling
    - Response format: [0xFF][0xBB][mode][index][0xFE]
 
-### ⚠️ Partial / TODO
+6. **Pattern Generation** ✅ **NEW**
+   - Pattern upload handler fully implemented
+   - Pattern generation in POV engine complete
+   - 4 pattern types: Rainbow, Wave, Gradient, Sparkle
+   - Pattern storage (5 patterns)
+   - Real-time pattern rendering
 
-1. **Pattern Generation**
-   - Pattern upload handler implemented
-   - Pattern generation in POV engine needs implementation
-   - Currently just acknowledges receipt of pattern data
-
-2. **Frame Rate Control**
+7. **Frame Rate Control** ✅ **NEW**
    - Command handler implemented
-   - Integration with POV engine frame timing needs implementation
+   - Full integration with POV engine frame timing
+   - Dynamic adjustment (10-120 FPS)
+   - Frame delay applied in rendering loop
 
-3. **Display Mode Management**
-   - Mode setting implemented
+8. **Display Mode Management** ✅ **NEW**
+   - Mode setting fully implemented
+   - Index parameter handling complete
+   - Support for selecting specific patterns/images
+   - Proper mode switching (Idle, Image, Pattern, Sequence, Live)
+
+### ⚠️ Needs Testing
+
+1. **Integration Testing**
+   - End-to-end testing with ESP32 and web interface
+   - Pattern display validation
+   - Frame rate adjustment verification
    - Index parameter handling needs POV engine support
 
 ## Testing Recommendations
