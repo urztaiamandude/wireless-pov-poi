@@ -1,10 +1,10 @@
 # Image Conversion Guide
 
-This guide explains how images are automatically converted to POV-compatible format in the Wireless POV POI system.
+This guide explains how images are automatically converted to POV-compatible format in the Nebula Poi.
 
 ## Overview
 
-The POV POI system requires images to be 31 pixels wide (matching the LED strip). Images uploaded through any interface are **automatically converted** to this format.
+The Nebula Poi requires images to be 31 pixels wide (matching the LED strip). Images uploaded through any interface are **automatically converted** to this format.
 
 ## Conversion Flow
 

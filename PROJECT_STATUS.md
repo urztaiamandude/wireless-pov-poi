@@ -1,4 +1,4 @@
-# Project Status - Wireless POV POI System
+# Project Status - Nebula Poi
 
 **Last Updated**: January 13, 2026  
 **Version**: 1.0.0  
@@ -10,7 +10,7 @@
 
 🎉 **The project is complete and ready for production use!**
 
-Users can build and deploy the Wireless POV POI System today using the Arduino IDE firmware. All documented features work perfectly with no limitations.
+Users can build and deploy the Nebula Poi today using the Arduino IDE firmware. All documented features work perfectly with no limitations.
 
 ---
 
@@ -192,7 +192,7 @@ MIT License - Open source, free to use and modify
 
 ## Conclusion
 
-✅ **The Wireless POV POI System is production-ready!**
+✅ **The Nebula Poi is production-ready!**
 
 Build it today and start creating stunning POV light displays. All core features are complete and fully functional using the Arduino IDE firmware.
 

@@ -1,6 +1,6 @@
-# Contributing to Wireless POV POI
+# Contributing to Nebula Poi
 
-Thank you for your interest in contributing to the Wireless POV POI project! This document provides guidelines for contributions.
+Thank you for your interest in contributing to the Nebula Poi project! This document provides guidelines for contributions.
 
 ## Ways to Contribute
 
@@ -277,4 +277,4 @@ If you have questions about contributing:
 
 ---
 
-**Thank you for contributing to Wireless POV POI!** Every contribution, no matter how small, helps make the project better. 🎨✨
+**Thank you for contributing to Nebula Poi!** Every contribution, no matter how small, helps make the project better. 🎨✨

@@ -1,6 +1,6 @@
 # Quick Start Guide
 
-Get your wireless POV POI system up and running in 30 minutes!
+Get your Nebula Poi up and running in 30 minutes!
 
 ## What You'll Need
 
@@ -119,8 +119,8 @@ Teensy Pin 0 (RX1) → ESP32 GPIO 17 (TX2)
 
 **Expected Output** (Serial Monitor at 115200 baud):
 ```
-Teensy 4.1 POV POI Initializing...
-Teensy 4.1 POV POI Ready!
+Teensy 4.1 Nebula Poi Initializing...
+Teensy 4.1 Nebula Poi Ready!
 Commands: IMAGE, PATTERN, SEQUENCE, LIVE, STATUS
 ```
 
@@ -139,12 +139,12 @@ Commands: IMAGE, PATTERN, SEQUENCE, LIVE, STATUS
 
 **Expected Output** (Serial Monitor at 115200 baud):
 ```
-ESP32 POV POI Controller Starting...
+ESP32 Nebula Poi Controller Starting...
 SPIFFS Mounted
 Starting Access Point...
 AP IP address: 192.168.4.1
 Web server started
-ESP32 POV POI Controller Ready!
+ESP32 Nebula Poi Controller Ready!
 ```
 
 ✅ **Checkpoint**: ESP32 programmed and WiFi AP started
@@ -269,7 +269,7 @@ If you encounter issues:
 
 ## Congratulations! 🎉
 
-Your wireless POV POI system is ready! Start creating amazing light displays!
+Your Nebula Poi is ready! Start creating amazing light displays!
 
 ---
 

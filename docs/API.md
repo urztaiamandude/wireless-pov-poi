@@ -1,6 +1,6 @@
 # API Documentation
 
-This document describes the REST API provided by the ESP32 web server for controlling the wireless POV POI system.
+This document describes the REST API provided by the ESP32 web server for controlling the Nebula Poi.
 
 ## Base URL
 

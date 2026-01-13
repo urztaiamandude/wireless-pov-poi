@@ -2,7 +2,7 @@
 
 ## What Was Created
 
-This document summarizes the complete Android Studio project that was created for the Wireless POV POI system.
+This document summarizes the complete Android Studio project that was created for the Nebula Poi.
 
 ## Project Structure
 
@@ -79,7 +79,7 @@ Complete image conversion tool with:
   - Upload directly to POV device
   - Share with other apps
 
-### 3. POV POI API Client (POVPoiAPI.kt)
+### 3. Nebula Poi API Client (POVPoiAPI.kt)
 
 Complete REST API implementation:
 - **Status Monitoring**: GET `/api/status`
@@ -336,7 +336,7 @@ Potential additions to consider:
 
 ## Conclusion
 
-A complete, production-ready Android Studio project has been created for the Wireless POV POI system. The project includes:
+A complete, production-ready Android Studio project has been created for the Nebula Poi. The project includes:
 
 - ✅ Full source code for main controller and image converter
 - ✅ Complete UI with Material Design

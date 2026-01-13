@@ -7,7 +7,7 @@
 
 ## Executive Summary
 
-The **Wireless POV POI System is complete and production-ready** using the Arduino IDE firmware implementation. The remaining work pertains **only to the optional PlatformIO firmware variant**, which provides a more modular architecture for advanced users. Users can build and deploy the system today without any limitations using the Arduino IDE firmware.
+The **Nebula Poi is complete and production-ready** using the Arduino IDE firmware implementation. The remaining work pertains **only to the optional PlatformIO firmware variant**, which provides a more modular architecture for advanced users. Users can build and deploy the system today without any limitations using the Arduino IDE firmware.
 
 ---
 
@@ -411,7 +411,7 @@ All other "TODO" references found were:
 
 ## Conclusion
 
-The Wireless POV POI System is **production-ready and fully functional** using the Arduino IDE firmware. All documented features work perfectly, and users can build and deploy the system immediately. The remaining work is entirely optional and pertains only to the PlatformIO firmware variant, which is an advanced alternative implementation for users who prefer a modular architecture.
+The Nebula Poi is **production-ready and fully functional** using the Arduino IDE firmware. All documented features work perfectly, and users can build and deploy the system immediately. The remaining work is entirely optional and pertains only to the PlatformIO firmware variant, which is an advanced alternative implementation for users who prefer a modular architecture.
 
 **Recommendation**: Document the project as complete, with the Arduino firmware as the recommended production path and the PlatformIO firmware clearly marked as an optional advanced variant still in development.
 

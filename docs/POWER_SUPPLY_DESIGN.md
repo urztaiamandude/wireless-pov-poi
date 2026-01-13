@@ -1,6 +1,6 @@
 # Power Supply Design Guide
 
-Comprehensive power supply design guide for the Wireless POV POI system with Teensy 4.1, ESP32, and APA102 LEDs.
+Comprehensive power supply design guide for the Nebula Poi with Teensy 4.1, ESP32, and APA102 LEDs.
 
 ## Table of Contents
 
@@ -672,7 +672,7 @@ Runtime (hours)
 
 ```
 ┌─────────────────────────────────────────┐
-│  POV POI Power Distribution Board v1.0  │
+│  Nebula Poi Power Distribution Board v1.0  │
 │                                         │
 │  [Input Terminal]                       │
 │   +5V ○     ○ GND                       │
@@ -1106,7 +1106,7 @@ ESP32             85°C            Reduce WiFi TX power
 
 ## Conclusion
 
-This guide provides four complete power supply design options for the Wireless POV POI system:
+This guide provides four complete power supply design options for the Nebula Poi:
 
 1. **Single Supply** - Simple, inexpensive, good for testing
 2. **Three Regulators** - Isolated domains, low noise
@@ -1130,7 +1130,7 @@ Choose based on your application:
 
 **Document Version**: 1.0  
 **Last Updated**: 2024  
-**Applies to**: Wireless POV POI System v1.0+
+**Applies to**: Nebula Poi v1.0+
 
 ---
 
