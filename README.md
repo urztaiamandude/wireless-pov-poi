@@ -30,6 +30,25 @@ This system creates stunning POV light displays using a 32 LED APA102 strip cont
 - **REST API** - Complete API for mobile app integration (Android/iOS)
 - **mDNS Support** - Access via `http://povpoi.local`
 
+## Firmware Architecture
+
+This project offers **two firmware implementations** for Teensy 4.1:
+
+1. **Arduino IDE Firmware** (`teensy_firmware/`) - **Recommended for most users**
+   - Single-file, easy to understand
+   - Complete features including sequences and SD card support
+   - Quick setup with Arduino IDE
+   - Best for beginners and quick deployment
+
+2. **PlatformIO Firmware** (`firmware/teensy41/`) - **For advanced users**
+   - Modular architecture with separate modules
+   - Professional build system
+   - Advanced SD card integration
+   - Better for large-scale customization
+   - ⚠️ Command processing partially implemented
+
+**👉 See [FIRMWARE_ARCHITECTURE.md](FIRMWARE_ARCHITECTURE.md) for detailed comparison and selection guide**
+
 ## Quick Start
 
 ### 1. Hardware Setup
@@ -52,7 +71,7 @@ See [docs/WIRING.md](docs/WIRING.md) for detailed wiring instructions.
 - FastLED library (via Arduino Library Manager)
 
 **Program the Teensy 4.1:**
-1. Open `teensy_firmware/teensy_firmware.ino`
+1. Open `teensy_firmware/teensy_firmware.ino` (recommended) or use PlatformIO version
 2. Select Board: Teensy 4.1
 3. Select USB Type: Serial
 4. Upload the firmware
