@@ -6,12 +6,12 @@ This is the **recommended firmware** for the Nebula Poi. It provides a complete,
 
 ✅ **Complete Implementation**
 - Image display (31x64 pixels max)
-- Pattern generation (rainbow, wave, gradient, sparkle)
+- Pattern generation (rainbow, wave, gradient, sparkle, fire, comet, breathing, strobe, meteor, wipe, plasma, music reactive)
 - Sequence playback with timing and looping
 - Live drawing mode
 - Brightness control (0-255)
 - Frame rate adjustment (10-120 FPS)
-- SD card support (optional, v2.0+)
+- SD card support with pattern presets (optional, v2.0+)
 
 ✅ **Easy to Use**
 - Single `.ino` file (~530 lines)
@@ -130,6 +130,48 @@ The `displaySequence()` function handles:
 - Advancing to the next item automatically
 - Looping back to start (if enabled)
 - Stopping at end (if loop disabled)
+
+## Built-in Patterns
+
+| Type | Name | Description |
+|------|------|-------------|
+| 0 | Rainbow | Rotating rainbow colors along strip |
+| 1 | Wave | Single color with sine-wave brightness |
+| 2 | Gradient | Blend between color1 and color2 |
+| 3 | Sparkle | Random twinkling pixels |
+| 4 | Fire | Heat-based fire simulation rising upward |
+| 5 | Comet | Bouncing bright head with fading tail |
+| 6 | Breathing | Smooth pulsing brightness |
+| 7 | Strobe | Quick on/off flashes |
+| 8 | Meteor | Falling particle with random sparkle decay |
+| 9 | Color Wipe | Progressive fill then clear |
+| 10 | Plasma | Organic multi-frequency color mixing |
+
+### Audio Reactive Patterns (require microphone on A0)
+
+| Type | Name | Description |
+|------|------|-------------|
+| 11 | Music VU | Classic VU meter with peak indicator and beat color shift |
+| 12 | Music Pulse | Whole strip pulses with bass beats |
+| 13 | Music Rainbow | Rainbow speed controlled by audio intensity |
+| 14 | Music Center | Expands from center based on audio level |
+| 15 | Music Sparkle | Sparkle intensity follows audio |
+
+**Music Pattern Requirements:**
+- Connect electret microphone module to pin A0
+- Recommended: MAX9814 or similar amplified mic module
+- All audio patterns respond to sound levels with various effects
+
+**Pattern Structure:**
+```cpp
+struct Pattern {
+  uint8_t type;     // Pattern type (0-10)
+  CRGB color1;      // Primary color
+  CRGB color2;      // Secondary color (for gradient)
+  uint8_t speed;    // Animation speed (1-255)
+  bool active;
+};
+```
 
 ## Development
 
