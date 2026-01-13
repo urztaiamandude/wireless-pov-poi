@@ -4,7 +4,7 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    POV POI Image Converter                      │
+│                  Nebula Poi Image Converter                      │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
 │  [Select Image]  [Select Multiple]    File: example.jpg        │
@@ -219,7 +219,7 @@ Currently, the application uses standard OS file dialog shortcuts:
 ```
 $ cd examples
 $ python install_dependencies.py
-Installing dependencies for POV POI Image Converter...
+Installing dependencies for Nebula Poi Image Converter...
 ✓ Dependencies installed successfully!
 
 $ python image_converter_gui.py

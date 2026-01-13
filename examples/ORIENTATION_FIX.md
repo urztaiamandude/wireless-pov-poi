@@ -28,7 +28,7 @@ The converted image (31x62 pixels) is vertically flipped:
 ## LED Mapping
 
 ```
-POV POI Physical Layout:
+Nebula Poi Physical Layout:
 
 LED 31 (farthest) ─────┐  ← Shows "TOP" (red text)
 LED 30            ─────┤

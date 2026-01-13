@@ -1,6 +1,6 @@
-# Building Windows Executable for POV POI Image Converter
+# Building Windows Executable for Nebula Poi Image Converter
 
-This guide explains how to create a standalone Windows executable (.exe) for the POV POI Image Converter GUI, allowing Windows users to run the application without installing Python.
+This guide explains how to create a standalone Windows executable (.exe) for the Nebula Poi Image Converter GUI, allowing Windows users to run the application without installing Python.
 
 ## Table of Contents
 
@@ -106,7 +106,7 @@ The script will:
 
 ```
 ======================================================================
-  POV POI Image Converter - Windows Build Script
+  Nebula Poi Image Converter - Windows Build Script
 ======================================================================
 
 Checking Python version...
@@ -241,10 +241,10 @@ Create `installer_script.iss`:
 
 ```iss
 [Setup]
-AppName=POV POI Image Converter
+AppName=Nebula Poi Image Converter
 AppVersion=1.0.0
-DefaultDirName={autopf}\POV POI Image Converter
-DefaultGroupName=POV POI Image Converter
+DefaultDirName={autopf}\Nebula Poi Image Converter
+DefaultGroupName=Nebula Poi Image Converter
 OutputDir=installer_output
 OutputBaseFilename=POV_POI_Image_Converter_Setup
 Compression=lzma
