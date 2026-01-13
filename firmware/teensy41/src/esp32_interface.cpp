@@ -129,7 +129,16 @@ bool ESP32Interface::readSimpleMessage(uint8_t* buffer, size_t maxLen, size_t& b
         return false;
     }
     
+    // Wait for CMD and LEN bytes with timeout
+    uint32_t timeout = millis() + 100;
+    while (serial.available() < 2 && millis() < timeout) {
+        // Wait for next bytes
+    }
+    
     if (serial.available() < 2) {
+        #if DEBUG_ENABLED
+        DEBUG_SERIAL.println("ERROR: Timeout waiting for CMD and LEN");
+        #endif
         return false;
     }
     
@@ -138,10 +147,23 @@ bool ESP32Interface::readSimpleMessage(uint8_t* buffer, size_t maxLen, size_t& b
     
     // Special handling for image upload command (0x02) which uses 16-bit length
     uint16_t actualDataLen = dataLen;
-    if (command == 0x02 && serial.available() >= 1) {
+    if (command == 0x02) {
+        // Wait for low byte with timeout
+        timeout = millis() + 100;
+        while (serial.available() < 1 && millis() < timeout) {
+            // Wait for low byte
+        }
+        
+        if (serial.available() < 1) {
+            #if DEBUG_ENABLED
+            DEBUG_SERIAL.println("ERROR: Timeout waiting for length low byte");
+            #endif
+            return false;
+        }
+        
         uint8_t dataLenLow = serial.read();
         actualDataLen = (dataLen << 8) | dataLenLow;
-        // For image command, dataLen in buffer position matters for parseCommand compatibility
+        // For image command, store length bytes in buffer for compatibility
         if (maxLen >= 2) {
             buffer[0] = dataLen;      // high byte
             buffer[1] = dataLenLow;   // low byte
@@ -159,10 +181,10 @@ bool ESP32Interface::readSimpleMessage(uint8_t* buffer, size_t maxLen, size_t& b
         return false;
     }
     
-    // Read data bytes
-    uint32_t timeout = millis() + 1000;
+    // Read data bytes with timeout
+    uint32_t dataTimeout = millis() + 1000;
     uint16_t idx = bytesRead;
-    while (idx < actualDataLen + bytesRead && millis() < timeout) {
+    while (idx < actualDataLen + bytesRead && millis() < dataTimeout) {
         if (serial.available()) {
             buffer[idx++] = serial.read();
         }
@@ -686,8 +708,9 @@ bool ESP32Interface::handleSimpleImageUpload(const uint8_t* data, size_t len) {
         return false;
     }
     
-    uint16_t width = data[2];
-    uint16_t height = data[3];
+    // Width and height are single bytes (max 255x255)
+    uint8_t width = data[2];
+    uint8_t height = data[3];
     const uint8_t* imageData = data + 4;
     size_t imageDataLen = len - 4;
     
@@ -762,7 +785,9 @@ bool ESP32Interface::handleSimpleLiveFrame(const uint8_t* data, size_t len) {
     }
     
     // Data format: 31 LEDs * 3 bytes (RGB) = 93 bytes
-    size_t expectedSize = 31 * 3;
+    // Note: LED 0 is reserved for level shifting, so we use LEDs 1-31
+    const uint8_t displayLEDCount = NUM_LEDS - 1;  // 31 display LEDs
+    size_t expectedSize = displayLEDCount * 3;
     if (len < expectedSize) {
         #if DEBUG_ENABLED
         DEBUG_SERIAL.print("ERROR: Live frame data too short. Expected: ");
@@ -778,11 +803,11 @@ bool ESP32Interface::handleSimpleLiveFrame(const uint8_t* data, size_t len) {
     #endif
     
     // Set LED pixels (skip LED 0 which is for level shifting)
-    for (int i = 0; i < 31 && i * 3 + 2 < len; i++) {
+    for (uint8_t i = 0; i < displayLEDCount && i * 3 + 2 < len; i++) {
         uint8_t r = data[i * 3];
         uint8_t g = data[i * 3 + 1];
         uint8_t b = data[i * 3 + 2];
-        ledDriver->setPixel(i + 1, r, g, b);  // +1 to skip LED 0
+        ledDriver->setPixel(i + 1, r, g, b);  // +1 to skip LED 0 (level shifter)
     }
     
     ledDriver->show();
