@@ -106,9 +106,21 @@ The Nebula Poi requires images to be 31 pixels wide (matching the LED strip). Im
 ## Conversion Specifications
 
 ### Target Dimensions
-- **Width:** 31 pixels (fixed)
-- **Height:** 1-64 pixels (automatically calculated)
-- **Aspect Ratio:** Maintained from source image
+- **Width:** 1-100 pixels (manually adjustable, default 31)
+- **Height:** 1-200 pixels (manually adjustable, default 64 max)
+- **Aspect Ratio:** Maintained from source image (optional lock)
+
+### Image Controls (New)
+All conversion interfaces now support:
+- **Manual Width/Height:** Set exact dimensions instead of auto-calculation
+- **Aspect Ratio Lock:** Maintain original proportions when changing one dimension
+- **Horizontal Flip:** Mirror image left-to-right
+- **Vertical Flip:** Skip automatic POV flip for already-flipped images
+
+These controls are available in:
+- Web interface (192.168.4.1)
+- Python GUI converter
+- Android app
 
 ### LED Orientation
 - **LED 1** (closest to board/handle): Displays **bottom** of image
@@ -146,8 +158,12 @@ python3 image_converter_gui.py
 **GUI Testing Steps:**
 1. Click "Select Image" and choose a test image
 2. Verify before/after previews display correctly
-3. Adjust settings (width, max height, contrast)
+3. Adjust settings:
+   - Width and height (with aspect ratio lock)
+   - Flip vertical/horizontal options
+   - Contrast enhancement
 4. Check that preview updates in real-time
+5. Test aspect ratio lock by changing width or height
 5. Click "Convert & Save" and verify output file
 6. Test "Select Multiple" for batch conversion
 

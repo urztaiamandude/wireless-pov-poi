@@ -37,6 +37,9 @@ class ImageConverterActivity : AppCompatActivity() {
     private lateinit var sliderWidth: Slider
     private lateinit var sliderMaxHeight: Slider
     private lateinit var switchContrast: SwitchMaterial
+    private lateinit var switchAspectRatioLock: SwitchMaterial
+    private lateinit var switchFlipVertical: SwitchMaterial
+    private lateinit var switchFlipHorizontal: SwitchMaterial
     private lateinit var tvWidth: TextView
     private lateinit var tvMaxHeight: TextView
     private lateinit var tvStatus: TextView
@@ -44,6 +47,7 @@ class ImageConverterActivity : AppCompatActivity() {
     private var originalBitmap: Bitmap? = null
     private var convertedBitmap: Bitmap? = null
     private val povPoiAPI = POVPoiAPI()
+    private var originalAspectRatio: Float = 1.0f
     
     private var photoUri: Uri? = null
     
@@ -121,6 +125,9 @@ class ImageConverterActivity : AppCompatActivity() {
         sliderWidth = findViewById(R.id.sliderWidth)
         sliderMaxHeight = findViewById(R.id.sliderMaxHeight)
         switchContrast = findViewById(R.id.switchContrast)
+        switchAspectRatioLock = findViewById(R.id.switchAspectRatioLock)
+        switchFlipVertical = findViewById(R.id.switchFlipVertical)
+        switchFlipHorizontal = findViewById(R.id.switchFlipHorizontal)
         tvWidth = findViewById(R.id.tvWidth)
         tvMaxHeight = findViewById(R.id.tvMaxHeight)
         tvStatus = findViewById(R.id.tvStatus)
@@ -181,12 +188,20 @@ class ImageConverterActivity : AppCompatActivity() {
         }
         
         // Slider listeners
-        sliderWidth.addOnChangeListener { _, value, _ ->
+        sliderWidth.addOnChangeListener { _, value, fromUser ->
             tvWidth.text = "Width: ${value.toInt()} pixels"
+            if (fromUser && switchAspectRatioLock.isChecked && originalAspectRatio > 0) {
+                val newHeight = (value * originalAspectRatio).toInt()
+                sliderMaxHeight.value = newHeight.coerceIn(10f, 128f)
+            }
         }
         
-        sliderMaxHeight.addOnChangeListener { _, value, _ ->
+        sliderMaxHeight.addOnChangeListener { _, value, fromUser ->
             tvMaxHeight.text = "Max Height: ${value.toInt()} pixels"
+            if (fromUser && switchAspectRatioLock.isChecked && originalAspectRatio > 0) {
+                val newWidth = (value / originalAspectRatio).toInt()
+                sliderWidth.value = newWidth.coerceIn(10f, 100f)
+            }
         }
     }
     
@@ -248,6 +263,16 @@ class ImageConverterActivity : AppCompatActivity() {
             inputStream?.close()
             
             if (originalBitmap != null) {
+                // Calculate and store original aspect ratio
+                originalAspectRatio = originalBitmap!!.height.toFloat() / originalBitmap!!.width.toFloat()
+                
+                // Update dimensions if aspect ratio lock is on
+                if (switchAspectRatioLock.isChecked) {
+                    val currentWidth = sliderWidth.value.toInt()
+                    val newHeight = (currentWidth * originalAspectRatio).toInt()
+                    sliderMaxHeight.value = newHeight.coerceIn(10f, 128f)
+                }
+                
                 imgOriginal.setImageBitmap(originalBitmap)
                 btnConvert.isEnabled = true
                 updateStatus("Image loaded. Click 'Convert Image' to process.")
@@ -265,12 +290,16 @@ class ImageConverterActivity : AppCompatActivity() {
                 val targetWidth = sliderWidth.value.toInt()
                 val maxHeight = sliderMaxHeight.value.toInt()
                 val enhanceContrast = switchContrast.isChecked
+                val flipVertical = switchFlipVertical.isChecked
+                val flipHorizontal = switchFlipHorizontal.isChecked
                 
                 convertedBitmap = convertBitmapToPOVFormat(
                     bitmap,
                     targetWidth,
                     maxHeight,
-                    enhanceContrast
+                    enhanceContrast,
+                    flipVertical,
+                    flipHorizontal
                 )
                 
                 updatePreviews()
@@ -292,7 +321,9 @@ class ImageConverterActivity : AppCompatActivity() {
         bitmap: Bitmap,
         targetWidth: Int = 31,
         maxHeight: Int = 64,
-        enhanceContrast: Boolean = true
+        enhanceContrast: Boolean = true,
+        flipVertical: Boolean = false,
+        flipHorizontal: Boolean = false
     ): Bitmap {
         // Calculate new dimensions
         val aspectRatio = bitmap.height.toFloat() / bitmap.width.toFloat()
@@ -302,9 +333,27 @@ class ImageConverterActivity : AppCompatActivity() {
         if (targetHeight < 1) targetHeight = 1
         
         // Resize with nearest neighbor (no filtering for crisp pixels)
-        val resized = Bitmap.createScaledBitmap(
+        var resized = Bitmap.createScaledBitmap(
             bitmap, targetWidth, targetHeight, false
         )
+        
+        // Apply horizontal flip if requested
+        if (flipHorizontal) {
+            val matrix = Matrix()
+            matrix.preScale(-1.0f, 1.0f)
+            resized = Bitmap.createBitmap(resized, 0, 0, resized.width, resized.height, matrix, false)
+        }
+        
+        // Apply vertical flip
+        // Note: POV format normally needs vertical flip for correct display
+        // If user wants "flip vertical", we skip the automatic flip
+        if (!flipVertical) {
+            // Flip vertically so bottom of image is at LED 1 (closest to board)
+            // and top of image is at LED 31 (farthest from board)
+            val matrix = Matrix()
+            matrix.preScale(1.0f, -1.0f)
+            resized = Bitmap.createBitmap(resized, 0, 0, resized.width, resized.height, matrix, false)
+        }
         
         // Enhance contrast if requested
         return if (enhanceContrast) {

@@ -12,11 +12,13 @@ This system creates stunning POV light displays using a 32 LED APA102 strip cont
 - **Teensy 4.1** - High-performance main controller for LED display and POV rendering
 - **ESP32** - WiFi co-processor for wireless communication and web interface
 - **APA102 LED Strip** - 32 addressable RGB LEDs (31 for display, 1 for level shifting)
+- **MAX9814 Microphone** (optional) - For music-reactive pattern modes
 - Serial communication (115200 baud) between Teensy and ESP32
 
 ### Display Capabilities
 - **POV Image Display** - Upload and display custom images with persistence of vision
-- **Animated Patterns** - Built-in patterns including rainbow, wave, gradient, and sparkle
+- **Animated Patterns** - Built-in patterns including rainbow, wave, gradient, sparkle, fire, comet, and more
+- **Music-Reactive Patterns** - Sound-responsive effects (VU meter, pulse, audio rainbow) - requires microphone
 - **Sequences** - Chain multiple images and patterns together
 - **Live Mode** - Real-time drawing and control from web interface
 - **Adjustable Settings** - Control brightness (0-255) and frame rate (10-120 FPS)
