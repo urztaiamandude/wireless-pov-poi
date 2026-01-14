@@ -45,7 +45,7 @@ The wireless POV poi repository is **production-ready** for its primary use case
 ## 🟠 Top 5 Medium Priority Issues
 
 1. **README Pattern Count Incomplete** - Only partial pattern list shown
-2. **Music Pattern Requirements Unclear** - Microphone optional status not clear
+2. **Music Pattern Requirements Documentation Unclear** - Microphone optional status not clear (NOTE: Music-reactive patterns ARE implemented, just docs unclear about optional microphone)
 3. **Image Flip Parameter Confusing** - Double negative logic in Python tool
 4. **SD Card Directory Structure Undocumented** - Missing pattern preset info
 5. **TODO in PlatformIO Firmware** - Sequence support not implemented
@@ -85,7 +85,7 @@ The repository has many strengths:
 - [ ] Add LED 0 level shifter warnings
 - [ ] Create SERIAL_PROTOCOL.md
 - [ ] Update README with complete pattern list
-- [ ] Clarify music pattern requirements
+- [ ] Clarify music pattern microphone requirements (patterns ARE implemented, microphone is optional)
 
 ### Phase 2: Code Quality (4-8 hours)
 - [ ] Add input validation to web endpoints
