@@ -169,6 +169,38 @@
                         android:text="Enhance Contrast"
                         android:checked="true"
                         android:layout_marginTop="8dp" />
+                    
+                    <!-- Aspect Ratio Lock -->
+                    <com.google.android.material.switchmaterial.SwitchMaterial
+                        android:id="@+id/switchAspectRatioLock"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Lock Aspect Ratio"
+                        android:checked="true"
+                        android:layout_marginTop="8dp" />
+                    
+                    <!-- Flip Options -->
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Flip Options"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:layout_marginTop="12dp" />
+                    
+                    <com.google.android.material.switchmaterial.SwitchMaterial
+                        android:id="@+id/switchFlipVertical"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Flip Vertical"
+                        android:layout_marginTop="4dp" />
+                    
+                    <com.google.android.material.switchmaterial.SwitchMaterial
+                        android:id="@+id/switchFlipHorizontal"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Flip Horizontal"
+                        android:layout_marginTop="4dp" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 

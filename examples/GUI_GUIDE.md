@@ -27,6 +27,11 @@
 │  │  Width:        [31  ▼] pixels (default: 31)             │  │
 │  │  Max Height:   [64  ▼] pixels (default: 64)             │  │
 │  │  ☑ Enhance Contrast (recommended for better visibility) │  │
+│  │  ☑ Lock Aspect Ratio                                    │  │
+│  │                                                           │  │
+│  │  Flip Options:                                           │  │
+│  │  ☐ Flip Vertical                                         │  │
+│  │  ☐ Flip Horizontal                                       │  │
 │  │                                                           │  │
 │  └───────────────────────────────────────────────────────────┘  │
 │                                                                 │
@@ -51,9 +56,12 @@
 - Real-time preview updates when settings change
 
 ### 3. Conversion Settings
-- **Width**: Target width in pixels (default: 31 for POV system)
-- **Max Height**: Maximum height in pixels (default: 64)
+- **Width**: Target width in pixels (1-100, default: 31 for POV system)
+- **Max Height**: Maximum height in pixels (1-200, default: 64)
 - **Enhance Contrast**: Toggle contrast enhancement for better visibility
+- **Lock Aspect Ratio**: When checked, changing width automatically updates height (and vice versa) to maintain original proportions
+- **Flip Vertical**: Skip the automatic vertical flip (useful for pre-flipped images)
+- **Flip Horizontal**: Mirror the image left-to-right
 
 ### 4. Action Buttons
 - **Convert & Save**: Convert current image and save to chosen location

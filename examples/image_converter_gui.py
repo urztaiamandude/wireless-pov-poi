@@ -55,11 +55,15 @@ class POVImageConverterGUI:
         self.original_image = None
         self.converted_image = None
         self.preview_scale = 10  # Scale factor for preview display
+        self.original_aspect_ratio = 1.0  # Store original aspect ratio
         
         # Settings variables
         self.width_var = tk.IntVar(value=31)
         self.height_var = tk.IntVar(value=64)
         self.contrast_var = tk.BooleanVar(value=True)
+        self.aspect_ratio_lock_var = tk.BooleanVar(value=True)
+        self.flip_vertical_var = tk.BooleanVar(value=False)
+        self.flip_horizontal_var = tk.BooleanVar(value=False)
         
         # Setup UI
         self.setup_ui()
@@ -212,9 +216,10 @@ class POVImageConverterGUI:
             textvariable=self.width_var,
             width=10,
             font=("Arial", 10),
-            command=self.on_settings_change
+            command=lambda: self.on_dimension_change('width')
         )
         width_spinbox.pack(side=tk.LEFT, padx=(0, 5))
+        width_spinbox.bind('<KeyRelease>', lambda e: self.on_dimension_change('width'))
         
         tk.Label(
             width_frame,
@@ -242,9 +247,10 @@ class POVImageConverterGUI:
             textvariable=self.height_var,
             width=10,
             font=("Arial", 10),
-            command=self.on_settings_change
+            command=lambda: self.on_dimension_change('height')
         )
         height_spinbox.pack(side=tk.LEFT, padx=(0, 5))
+        height_spinbox.bind('<KeyRelease>', lambda e: self.on_dimension_change('height'))
         
         tk.Label(
             height_frame,
@@ -262,6 +268,43 @@ class POVImageConverterGUI:
             command=self.on_settings_change
         )
         contrast_check.pack(anchor="w")
+        
+        # Aspect ratio lock checkbox
+        aspect_lock_check = tk.Checkbutton(
+            settings_frame,
+            text="Lock Aspect Ratio",
+            variable=self.aspect_ratio_lock_var,
+            font=("Arial", 10)
+        )
+        aspect_lock_check.pack(anchor="w", pady=(5, 0))
+        
+        # Flip options frame
+        flip_frame = tk.Frame(settings_frame)
+        flip_frame.pack(fill=tk.X, pady=(10, 0))
+        
+        tk.Label(
+            flip_frame,
+            text="Flip Options:",
+            font=("Arial", 10, "bold")
+        ).pack(anchor="w")
+        
+        flip_vertical_check = tk.Checkbutton(
+            flip_frame,
+            text="Flip Vertical",
+            variable=self.flip_vertical_var,
+            font=("Arial", 10),
+            command=self.on_settings_change
+        )
+        flip_vertical_check.pack(anchor="w")
+        
+        flip_horizontal_check = tk.Checkbutton(
+            flip_frame,
+            text="Flip Horizontal",
+            variable=self.flip_horizontal_var,
+            font=("Arial", 10),
+            command=self.on_settings_change
+        )
+        flip_horizontal_check.pack(anchor="w")
         
         # Action buttons frame
         action_frame = tk.Frame(main_frame)
@@ -373,6 +416,16 @@ class POVImageConverterGUI:
             self.original_image = Image.open(filepath)
             orig_width, orig_height = self.original_image.size
             
+            # Store original aspect ratio for aspect ratio lock
+            self.original_aspect_ratio = orig_height / orig_width
+            
+            # Update dimensions if aspect ratio lock is on
+            if self.aspect_ratio_lock_var.get():
+                current_width = self.width_var.get()
+                new_height = int(round(current_width * self.original_aspect_ratio))
+                new_height = max(1, min(200, new_height))  # Clamp to valid range
+                self.height_var.set(new_height)
+            
             # Update before label
             self.before_label.config(
                 text=f"Original: {orig_width}x{orig_height}px"
@@ -474,6 +527,8 @@ class POVImageConverterGUI:
             width = self.width_var.get()
             max_height = self.height_var.get()
             enhance_contrast = self.contrast_var.get()
+            flip_vertical = self.flip_vertical_var.get()
+            flip_horizontal = self.flip_horizontal_var.get()
             
             # Calculate new height maintaining aspect ratio
             aspect_ratio = img.height / img.width
@@ -486,9 +541,17 @@ class POVImageConverterGUI:
             # Resize with nearest neighbor for crisp pixels
             img = img.resize((width, new_height), Image.NEAREST)
             
-            # Flip vertically so bottom of image is at LED 1 (closest to board)
-            # and top of image is at LED 31 (farthest from board)
-            img = img.transpose(Image.FLIP_TOP_BOTTOM)
+            # Apply horizontal flip if requested
+            if flip_horizontal:
+                img = img.transpose(Image.FLIP_LEFT_RIGHT)
+            
+            # Apply vertical flip
+            # Note: POV format always needs vertical flip for correct display
+            # If user wants "flip vertical", we skip the automatic flip
+            if not flip_vertical:
+                # Flip vertically so bottom of image is at LED 1 (closest to board)
+                # and top of image is at LED 31 (farthest from board)
+                img = img.transpose(Image.FLIP_TOP_BOTTOM)
             
             # Enhance contrast if requested
             if enhance_contrast:
@@ -516,6 +579,32 @@ class POVImageConverterGUI:
                 f"Failed to convert image:\n{str(e)}"
             )
             self.update_status("Error converting image")
+    
+    def on_dimension_change(self, changed_field):
+        """Handle dimension changes with aspect ratio lock"""
+        if not self.aspect_ratio_lock_var.get() or self.original_aspect_ratio == 1.0:
+            # Just update preview if not locked or no image loaded
+            if self.original_image:
+                self.update_preview()
+            return
+        
+        try:
+            if changed_field == 'width':
+                new_width = self.width_var.get()
+                new_height = int(round(new_width * self.original_aspect_ratio))
+                new_height = max(1, min(200, new_height))  # Clamp to valid range
+                self.height_var.set(new_height)
+            elif changed_field == 'height':
+                new_height = self.height_var.get()
+                new_width = int(round(new_height / self.original_aspect_ratio))
+                new_width = max(1, min(100, new_width))  # Clamp to valid range
+                self.width_var.set(new_width)
+        except (ValueError, ZeroDivisionError):
+            pass  # Ignore invalid values during typing
+        
+        # Update preview
+        if self.original_image:
+            self.update_preview()
     
     def on_settings_change(self):
         """Handle settings change"""
@@ -553,7 +642,9 @@ class POVImageConverterGUI:
                 output_path,
                 width=self.width_var.get(),
                 max_height=self.height_var.get(),
-                enhance_contrast=self.contrast_var.get()
+                enhance_contrast=self.contrast_var.get(),
+                flip_vertical=self.flip_vertical_var.get(),
+                flip_horizontal=self.flip_horizontal_var.get()
             )
             
             if success:
@@ -636,7 +727,9 @@ class POVImageConverterGUI:
                         output_path,
                         width=self.width_var.get(),
                         max_height=self.height_var.get(),
-                        enhance_contrast=self.contrast_var.get()
+                        enhance_contrast=self.contrast_var.get(),
+                        flip_vertical=self.flip_vertical_var.get(),
+                        flip_horizontal=self.flip_horizontal_var.get()
                     )
                     
                     if success:

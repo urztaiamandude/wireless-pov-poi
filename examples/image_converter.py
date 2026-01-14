@@ -14,7 +14,7 @@ except ImportError:
 import sys
 import os
 
-def convert_image_for_pov(input_path, output_path=None, width=31, max_height=64, enhance_contrast=True):
+def convert_image_for_pov(input_path, output_path=None, width=31, max_height=64, enhance_contrast=True, flip_vertical=False, flip_horizontal=False):
     """
     Convert an image to POV-compatible format
     
@@ -24,6 +24,8 @@ def convert_image_for_pov(input_path, output_path=None, width=31, max_height=64,
         width: Target width in pixels (default 31 for POV system)
         max_height: Maximum height in pixels (default 64)
         enhance_contrast: Whether to enhance contrast (default True)
+        flip_vertical: Flip image vertically (skips default POV flip if True)
+        flip_horizontal: Flip image horizontally
     """
     
     if not os.path.exists(input_path):
@@ -54,10 +56,21 @@ def convert_image_for_pov(input_path, output_path=None, width=31, max_height=64,
         print(f"Resizing to {width}x{new_height}")
         img = img.resize((width, new_height), Image.NEAREST)
         
-        # Flip vertically so bottom of image is at LED 1 (closest to board)
-        # and top of image is at LED 31 (farthest from board)
-        print("Flipping image vertically for correct POV orientation")
-        img = img.transpose(Image.FLIP_TOP_BOTTOM)
+        # Apply horizontal flip if requested
+        if flip_horizontal:
+            print("Flipping image horizontally")
+            img = img.transpose(Image.FLIP_LEFT_RIGHT)
+        
+        # Apply vertical flip
+        # Note: POV format normally needs vertical flip for correct display
+        # If user wants "flip vertical", we skip the automatic flip
+        if not flip_vertical:
+            # Flip vertically so bottom of image is at LED 1 (closest to board)
+            # and top of image is at LED 31 (farthest from board)
+            print("Flipping image vertically for correct POV orientation")
+            img = img.transpose(Image.FLIP_TOP_BOTTOM)
+        else:
+            print("Skipping default vertical flip (user requested flip)")
         
         # Enhance contrast if requested
         if enhance_contrast:

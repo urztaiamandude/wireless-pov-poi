@@ -219,7 +219,7 @@ void handleRoot() {
             font-weight: 600;
             color: #333;
         }
-        select, input[type="range"], input[type="file"], button {
+        select, input[type="range"], input[type="file"], input[type="number"], button {
             width: 100%;
             padding: 12px;
             border: 2px solid #ddd;
@@ -227,7 +227,7 @@ void handleRoot() {
             font-size: 16px;
             transition: all 0.3s;
         }
-        select:focus, input[type="file"]:focus {
+        select:focus, input[type="file"]:focus, input[type="number"]:focus {
             outline: none;
             border-color: #667eea;
         }
@@ -528,7 +528,35 @@ void handleRoot() {
                 <div class="control-group">
                     <label for="image-upload">Select Image:</label>
                     <input type="file" id="image-upload" accept="image/*">
-                    <button onclick="uploadImage()" style="margin-top: 10px;">Upload & Display</button>
+                </div>
+                <div class="control-group">
+                    <label style="display: flex; align-items: center; gap: 10px;">
+                        <input type="checkbox" id="aspect-ratio-lock" checked style="width: auto; margin: 0;">
+                        Lock Aspect Ratio
+                    </label>
+                </div>
+                <div class="control-group" style="display: flex; gap: 10px;">
+                    <div style="flex: 1;">
+                        <label for="image-width">Width (px):</label>
+                        <input type="number" id="image-width" min="1" max="100" value="31" style="width: 100%; padding: 8px;" oninput="updateImageDimensions('width')">
+                    </div>
+                    <div style="flex: 1;">
+                        <label for="image-height">Height (px):</label>
+                        <input type="number" id="image-height" min="1" max="200" value="64" style="width: 100%; padding: 8px;" oninput="updateImageDimensions('height')">
+                    </div>
+                </div>
+                <div class="control-group" style="display: flex; gap: 15px;">
+                    <label style="display: flex; align-items: center; gap: 5px;">
+                        <input type="checkbox" id="flip-vertical" style="width: auto; margin: 0;">
+                        Flip Vertical
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 5px;">
+                        <input type="checkbox" id="flip-horizontal" style="width: auto; margin: 0;">
+                        Flip Horizontal
+                    </label>
+                </div>
+                <div class="control-group">
+                    <button onclick="uploadImage()" style="margin-top: 5px;">Upload & Display</button>
                 </div>
             </div>
             
@@ -544,10 +572,52 @@ void handleRoot() {
     <script>
         let currentMode = 2;
         let currentPattern = 0;
+        let originalImageAspectRatio = 1.0;
         
         // Initialize
         updateStatus();
         setInterval(updateStatus, 2000);
+        
+        // Image upload file listener to calculate aspect ratio
+        document.getElementById('image-upload').addEventListener('change', function(e) {
+            if (e.target.files.length > 0) {
+                const file = e.target.files[0];
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const img = new Image();
+                    img.onload = function() {
+                        originalImageAspectRatio = img.height / img.width;
+                        // Update height based on current width and new aspect ratio if lock is on
+                        if (document.getElementById('aspect-ratio-lock').checked) {
+                            const width = parseInt(document.getElementById('image-width').value);
+                            const newHeight = Math.round(width * originalImageAspectRatio);
+                            document.getElementById('image-height').value = Math.min(200, Math.max(1, newHeight));
+                        }
+                    };
+                    img.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+        
+        // Function to handle dimension changes with aspect ratio lock
+        function updateImageDimensions(changedField) {
+            const aspectLock = document.getElementById('aspect-ratio-lock').checked;
+            if (!aspectLock) return;
+            
+            const widthInput = document.getElementById('image-width');
+            const heightInput = document.getElementById('image-height');
+            
+            if (changedField === 'width') {
+                const newWidth = parseInt(widthInput.value) || 31;
+                const newHeight = Math.round(newWidth * originalImageAspectRatio);
+                heightInput.value = Math.min(200, Math.max(1, newHeight));
+            } else if (changedField === 'height') {
+                const newHeight = parseInt(heightInput.value) || 64;
+                const newWidth = Math.round(newHeight / originalImageAspectRatio);
+                widthInput.value = Math.min(100, Math.max(1, newWidth));
+            }
+        }
         
         // Live canvas setup
         const canvas = document.getElementById('live-canvas');
@@ -751,44 +821,65 @@ void handleRoot() {
                             const canvas = document.createElement('canvas');
                             const ctx = canvas.getContext('2d');
                             
-                            // Calculate dimensions (31 pixels wide, maintain aspect ratio)
-                            const targetWidth = 31;
-                            const aspectRatio = img.height / img.width;
-                            let targetHeight = Math.round(targetWidth * aspectRatio);
+                            // Get user-specified dimensions
+                            const targetWidth = parseInt(document.getElementById('image-width').value) || 31;
+                            const targetHeight = parseInt(document.getElementById('image-height').value) || 64;
                             
-                            // Limit height to 64 pixels
-                            if (targetHeight > 64) {
-                                targetHeight = 64;
-                            }
-                            if (targetHeight < 1) {
-                                targetHeight = 1;
+                            // Get flip options
+                            const flipVertical = document.getElementById('flip-vertical').checked;
+                            const flipHorizontal = document.getElementById('flip-horizontal').checked;
+                            
+                            // Validate dimensions
+                            if (targetWidth < 1 || targetWidth > 100 || targetHeight < 1 || targetHeight > 200) {
+                                reject(new Error('Invalid dimensions. Width: 1-100, Height: 1-200'));
+                                return;
                             }
                             
                             canvas.width = targetWidth;
                             canvas.height = targetHeight;
                             
+                            // Apply transformations
+                            ctx.save();
+                            
+                            // Handle horizontal flip
+                            if (flipHorizontal) {
+                                ctx.translate(targetWidth, 0);
+                                ctx.scale(-1, 1);
+                            }
+                            
                             // Draw and resize image
                             ctx.imageSmoothingEnabled = false; // Nearest neighbor
                             ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+                            ctx.restore();
                             
-                            // Flip vertically so bottom of image is at LED 1 (closest to board)
-                            // and top of image is at LED 31 (farthest from board)
-                            const imageData = ctx.getImageData(0, 0, targetWidth, targetHeight);
-                            const flippedData = ctx.createImageData(targetWidth, targetHeight);
+                            // Get image data
+                            let imageData = ctx.getImageData(0, 0, targetWidth, targetHeight);
                             
-                            // Flip the image data vertically
-                            for (let y = 0; y < targetHeight; y++) {
-                                for (let x = 0; x < targetWidth; x++) {
-                                    const srcIndex = (y * targetWidth + x) * 4;
-                                    const dstIndex = ((targetHeight - 1 - y) * targetWidth + x) * 4;
-                                    flippedData.data[dstIndex] = imageData.data[srcIndex];
-                                    flippedData.data[dstIndex + 1] = imageData.data[srcIndex + 1];
-                                    flippedData.data[dstIndex + 2] = imageData.data[srcIndex + 2];
-                                    flippedData.data[dstIndex + 3] = imageData.data[srcIndex + 3];
+                            // Apply vertical flip if requested (in addition to the POV flip)
+                            // Note: POV format always needs vertical flip for correct display
+                            // If user wants "flip vertical", we skip the automatic flip
+                            const applyPOVFlip = !flipVertical;
+                            
+                            if (applyPOVFlip) {
+                                // Flip vertically so bottom of image is at LED 1 (closest to board)
+                                // and top of image is at LED 31 (farthest from board)
+                                const flippedData = ctx.createImageData(targetWidth, targetHeight);
+                                
+                                // Flip the image data vertically
+                                for (let y = 0; y < targetHeight; y++) {
+                                    for (let x = 0; x < targetWidth; x++) {
+                                        const srcIndex = (y * targetWidth + x) * 4;
+                                        const dstIndex = ((targetHeight - 1 - y) * targetWidth + x) * 4;
+                                        flippedData.data[dstIndex] = imageData.data[srcIndex];
+                                        flippedData.data[dstIndex + 1] = imageData.data[srcIndex + 1];
+                                        flippedData.data[dstIndex + 2] = imageData.data[srcIndex + 2];
+                                        flippedData.data[dstIndex + 3] = imageData.data[srcIndex + 3];
+                                    }
                                 }
+                                imageData = flippedData;
                             }
                             
-                            const pixels = flippedData.data;
+                            const pixels = imageData.data;
                             
                             // Convert to RGB array (remove alpha channel)
                             const rgbData = new Uint8Array(targetWidth * targetHeight * 3);
