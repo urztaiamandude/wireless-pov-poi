@@ -25,8 +25,11 @@
 │                   │         └────────────────────┘
 │  Pin 1 (TX1) ────┼──┐
 │  Pin 0 (RX1) ◄───┼──┼─┐
-│                   │  │ │
-└───────────────────┘  │ │
+│                   │  │ │      ┌──────────────────┐
+│  Pin A0 ◄────────┼──┼─┼─────►│  MAX9814 (Opt.)  │
+│  3.3V ───────────┼──┼─┼─────►│  Microphone      │
+│  GND ────────────┼──┼─┼─────►│  For Audio       │
+└───────────────────┘  │ │      └──────────────────┘
                        │ │
                        │ │
 ┌──────────────────┐   │ │
@@ -63,6 +66,8 @@
 | Pin 13 | SPI SCK (Clock) | APA102 CLOCK (CI) | LED clock signal |
 | Pin 0 | UART RX1 | ESP32 GPIO17 (TX2) | Serial receive from ESP32 |
 | Pin 1 | UART TX1 | ESP32 GPIO16 (RX2) | Serial transmit to ESP32 |
+| Pin A0 | Analog Input | MAX9814 OUT (optional) | Audio input for music-reactive patterns |
+| 3.3V | Power Output | MAX9814 VCC (optional) | Power for microphone module |
 | GND | Ground | Common Ground | Shared with ESP32 and LEDs |
 | VIN | Power Input | 5V Power Supply | 5V input (or USB power) |
 
@@ -174,6 +179,60 @@ Power Supply GND ──┬── Teensy GND
 ```
 
 ## Optional Components
+
+### Audio Input for Music Reactive Patterns
+
+For music-reactive pattern modes (VU Meter, Pulse, Audio Rainbow, Center Burst, Audio Sparkle), you'll need to add a microphone module:
+
+**Recommended Hardware: MAX9814 Microphone Module**
+
+The MAX9814 is an ideal choice because it:
+- Provides automatic gain control (AGC)
+- Outputs 3.3V compatible analog signal
+- Has built-in amplification (40-60dB gain)
+- Low noise floor
+- Frequency response: 20Hz - 20kHz
+
+**Wiring:**
+```
+┌──────────────────┐
+│   MAX9814        │
+│   Microphone     │
+│                  │
+│  VCC ────────────┼──── 3.3V (Teensy 3.3V output)
+│  GND ────────────┼──── GND (Common ground)
+│  OUT ────────────┼──── Teensy Pin A0 (Analog input)
+│  GAIN ───────────┼──── Leave floating or connect to GND/VCC
+│  AR (Attack/Rel) │      (see module datasheet for gain selection)
+└──────────────────┘
+```
+
+**Pin Connections:**
+
+| MAX9814 Pin | Function | Connects To | Notes |
+|-------------|----------|-------------|-------|
+| VCC | Power | Teensy 3.3V pin | **Use 3.3V, NOT 5V** |
+| GND | Ground | Common Ground | Shared ground rail |
+| OUT | Audio Signal | Teensy Pin A0 | Analog audio output |
+| GAIN | Gain Select | Float/GND/VCC | Optional: Controls mic sensitivity |
+| AR | Attack/Release | Optional | Optional: Adjust AGC response |
+
+**Alternative Microphone Options:**
+- **Electret Microphone with Amplifier** - Cheaper but requires manual gain tuning
+- **MEMS Microphone (I2S)** - Digital option, requires code changes
+- **Sparkfun Sound Detector** - Similar to MAX9814, also works well
+
+**Configuration Notes:**
+1. Position microphone to face sound source
+2. Avoid placing near spinning components (mechanical noise)
+3. Calibrate sensitivity by testing patterns at different volumes
+4. The analog input range is 0-3.3V (Teensy ADC reads 0-1023)
+5. Audio patterns sample at high frequency (~1kHz) for responsiveness
+
+**Purchasing:**
+- Adafruit: MAX9814 Microphone Amplifier Module
+- Amazon/AliExpress: "MAX9814 microphone module"
+- SparkFun: Sound Detector module
 
 ### Logic Level Shifter
 If you experience signal issues:
