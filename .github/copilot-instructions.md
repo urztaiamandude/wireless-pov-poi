@@ -2,103 +2,131 @@
 
 ## Architecture Overview
 
-Wireless POV LED poi system with dual-microcontroller design:
+Dual-microcontroller wireless POV LED poi system:
 ```
-User → Web Interface → ESP32 (WiFi AP @ 192.168.4.1) → Serial (115200 baud) → Teensy 4.1 → FastLED → APA102 LEDs
+User → Web/App → ESP32 (WiFi AP @ 192.168.4.1) → Serial (115200 baud) → Teensy 4.1 → FastLED → APA102 LEDs
 ```
 
-**Critical LED Detail**: LED 0 is for level shifting; display uses LEDs 1-31 (31 pixels). Always iterate from index 1:
+**⚠️ Critical LED Rule**: LED 0 is level-shifter only; LEDs 1-31 are display pixels. Always iterate from index 1:
 ```cpp
-for (int i = 1; i < NUM_LEDS; i++) { leds[i] = color; }  // NOT from 0!
+for (int i = 1; i < NUM_LEDS; i++) { leds[i] = color; }  // NEVER start from 0!
 ```
 
 ## Project Structure
 
-| Directory | Purpose | When to Use |
-|-----------|---------|-------------|
-| `teensy_firmware/` | Arduino IDE firmware (single file) | **Most users** - simpler setup, complete features |
-| `firmware/teensy41/` | PlatformIO modular firmware | Advanced users needing new features in development |
-| `esp32_firmware/` | WiFi controller & web server | Always needed |
-| `examples/` | Python image tools | Image conversion, GUI tools |
-| `POVPoiApp/` | Android companion app | Mobile control |
-| `docs/` | API & wiring reference | `API.md`, `WIRING.md` |
+| Directory | Purpose | Status |
+|-----------|---------|--------|
+| `teensy_firmware/` | Single-file Arduino IDE firmware | **Production-ready** - use for deployment |
+| `firmware/teensy41/` | PlatformIO modular firmware | ⚠️ Incomplete - see note below |
+| `esp32_firmware/` | WiFi AP + web server + REST API | Production-ready |
+| `examples/` | Python image tools, GUI, tests | Complete with pytest suite |
+| `POVPoiApp/` | Android Kotlin app | Full Android Studio project |
+| `docs/` | `API.md`, `WIRING.md` | Reference documentation |
+
+**PlatformIO firmware gaps** (`firmware/teensy41/`): Missing full command handler parity with `teensy_firmware.ino`. The `esp32_interface.cpp` processes simple/structured protocols but sequence playback (mode 3) and some SD commands aren't fully wired. Use `teensy_firmware/` for production.
 
 ## Build Commands
 
 ```bash
-# PlatformIO
-pio run -e teensy41 && pio run -e esp32    # Build both firmwares
-pio run -e teensy41 -t upload              # Upload to Teensy
+# Build both firmwares (root platformio.ini)
+pio run -e teensy41 -e esp32
 
-# Python tools
-cd examples && pip install -r requirements.txt
-pytest test_*.py                            # Run tests
+# Python tests
+cd examples && pip install Pillow && pytest test_*.py -v
 
-# Android app
-cd POVPoiApp && ./gradlew assembleDebug    # Build APK
+# Android APK
+cd POVPoiApp && ./gradlew assembleDebug
 ```
 
-## SD Card Storage
+## REST API Quick Reference
 
-SD card provides persistent storage for custom content (alternative to wireless transfer):
-- **Location**: Teensy 4.1 built-in SD slot
-- **Enable**: Uncomment `#define SD_SUPPORT` in `teensy_firmware.ino`
-- **Directory**: `/poi_images/` for user content
-- **Format**: FAT32, files named `image_XX.pov` or `pattern_XX.pov`
+Base URL: `http://192.168.4.1` (or `http://povpoi.local` via mDNS)
 
-## Pattern System
-
-Patterns are defined in `displayPattern()` using FastLED. Types: 0=Rainbow, 1=Wave, 2=Gradient, 3=Sparkle, 4=Fire, 5=Comet, 6=Breathing, 7=Strobe, 8=Meteor, 9=Wipe, 10=Plasma, 11=Music VU, 12=Music Pulse, 13=Music Rainbow, 14=Music Center, 15=Music Sparkle
-
-```cpp
-// Pattern structure
-struct Pattern {
-  uint8_t type;     // Pattern type ID
-  CRGB color1;      // Primary color
-  CRGB color2;      // Secondary color (gradients)
-  uint8_t speed;    // Animation speed (1-255)
-  bool active;
-};
-
-// Adding a new pattern - add case in displayPattern() switch
-case 12:  // Your new pattern
-  for (int i = 1; i < NUM_LEDS; i++) {
-    leds[i] = CHSV(hue, 255, 255);  // Your effect logic
-  }
-  break;
-```
-
-**Music Pattern**: Requires analog microphone on pin A0 (MAX9814 recommended).
-
-**SD Pattern Presets**: With `SD_SUPPORT` enabled, patterns can be saved/loaded:
-- Save: `savePatternPreset("mypreset")` → `/poi_patterns/mypreset.pat`
-- Load: `loadPatternPreset("mypreset")`
-- List: `listPatternPresets()`
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/status` | GET | Returns `{mode, index, brightness, framerate, connected}` |
+| `/api/mode` | POST | Set mode & index: `{"mode": 2, "index": 0}` |
+| `/api/brightness` | POST | `{"brightness": 128}` (0-255) |
+| `/api/framerate` | POST | `{"framerate": 60}` (10-120) |
+| `/api/image` | POST | Multipart upload, auto-converts to 31px wide |
+| `/api/pattern` | POST | `{"type": 0, "color1": "#FF0000", "speed": 50}` |
+| `/api/live` | POST | Raw RGB frame for live mode |
 
 ## Serial Protocol (ESP32 ↔ Teensy)
 
-Binary format: `[TYPE:1][LEN_H:1][LEN_L:1][DATA:LEN][CHECKSUM:1]`
-- See [esp32_interface.cpp](firmware/teensy41/src/esp32_interface.cpp) for implementation
-- Always validate checksums, handle partial reads with timeout
+Simple protocol: `[0xFF][CMD][LEN][DATA...][0xFE]`
+Structured protocol: `[TYPE:1][LEN_H:1][LEN_L:1][DATA:LEN][CHECKSUM:1]`
+
+Command codes in `teensy_firmware.ino`: 0x01=Mode, 0x02=Image, 0x03=Pattern, 0x05=LiveFrame, 0x06=Brightness, 0x07=FrameRate, 0x10=Status
+
+## Adding New Patterns
+
+Patterns defined in `displayPattern()` switch. Types 0-15 exist (Rainbow→Music Sparkle). To add:
+```cpp
+// In teensy_firmware.ino displayPattern()
+case 16:  // New pattern
+  for (int i = 1; i < NUM_LEDS; i++) {  // Start from 1!
+    leds[i] = CHSV(hue + i * 8, 255, 255);
+  }
+  break;
+```
+Update `MAX_PATTERNS` constant and ESP32 web interface pattern buttons.
+
+## Music-Reactive Patterns (Types 11-15)
+
+Requires MAX9814 microphone module on **Teensy pin A0**:
+```
+MAX9814 VDD  → 3.3V
+MAX9814 GND  → GND
+MAX9814 OUT  → Teensy A0
+MAX9814 GAIN → Leave floating (60dB) or GND (50dB)
+```
+Audio config in `teensy_firmware.ino`: `AUDIO_PIN A0`, `AUDIO_SAMPLES 64`, `AUDIO_NOISE_FLOOR 50`
+
+## Image Conversion Flow
+
+All converters (Python/Web/Android) must flip vertically for correct POV display:
+```python
+img = img.transpose(Image.FLIP_TOP_BOTTOM)  # Required!
+```
+Target size: 31 pixels wide (matches DISPLAY_LEDS), max 64 pixels tall.
+
+## Testing
+
+Python tests in `examples/` use pytest with Pillow-generated test images:
+```bash
+cd examples && pytest test_*.py -v
+```
+
+**Key test files:**
+- `test_image_converter.py` - Conversion, resizing, aspect ratio
+- `test_vertical_flip.py` - POV orientation validation
+- `test_error_handling.py` - Invalid inputs, missing files
+
+**Common test failures:**
+- Missing Pillow: `pip install Pillow`
+- Wrong working directory: must run from `examples/`
+- Image dimension assertions: check 31px width, ≤64px height
 
 ## Key Constraints
 
 - **Display modes**: 0=Idle, 1=Image, 2=Pattern, 3=Sequence, 4=Live
-- **Valid ranges**: brightness 0-255, FPS 10-120, image max 31×64px
+- **Ranges**: brightness 0-255, FPS 10-120, image max 31×64px
 - **WiFi**: SSID `POV-POI-WiFi`, password `povpoi123`, IP `192.168.4.1`
-- **Teensy loop is time-critical**: No blocking calls, minimize `FastLED.show()` calls
-- **Image flip**: Always `img.transpose(Image.FLIP_TOP_BOTTOM)` for correct POV orientation
+- **Performance**: Teensy loop is time-critical - no blocking calls
+- **Power**: Full brightness LEDs draw 2-3A
+
+## SD Card (Optional)
+
+Enable: Uncomment `#define SD_SUPPORT` in `teensy_firmware.ino`
+- Uses Teensy 4.1 built-in SD slot (FAT32)
+- Directories: `/poi_images/`, `/poi_patterns/`
+- Commands: 0x20-0x23 (save/load/list/delete)
 
 ## Style Conventions
 
-- C++: `camelCase` functions, `UPPER_CASE` constants, iterate LEDs from index 1
-- Python: PEP 8 with type hints, use Pillow for images
-- Web: Vanilla JS (ES6+), mobile-first responsive
+- **C++**: `camelCase` functions, `UPPER_CASE` constants, LED loops from index 1
+- **Python**: PEP 8, type hints, Pillow for images
+- **Kotlin**: Standard Android conventions, coroutines for async
+- **Web**: Vanilla ES6+ JS, mobile-first responsive
 
-## Common Gotchas
-
-- LED 0 is NOT for display (level shifter) - always start loops at index 1
-- Serial is binary protocol, not human-readable text
-- Images need vertical flip for correct POV orientation
-- Full brightness draws 2-3A - size power supply accordingly
-- SD card must be FAT32 formatted
