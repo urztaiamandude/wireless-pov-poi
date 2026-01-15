@@ -81,7 +81,8 @@ See [docs/WIRING.md](docs/WIRING.md) for detailed wiring instructions.
 **Alternative: Build HEX file for Teensy Loader**
 - Use Sketch > Export Compiled Binary in Arduino IDE
 - Or use the provided build scripts: `./scripts/build_teensy_hex.sh` (Linux/Mac) or `scripts\build_teensy_hex.bat` (Windows)
-- See [Building HEX Files Guide](docs/BUILDING_HEX.md) for detailed instructions
+- **Quick Guide**: See [QUICK_HEX_GUIDE.md](QUICK_HEX_GUIDE.md) for fast start
+- **Detailed Guide**: See [Building HEX Files](docs/BUILDING_HEX.md) for complete instructions
 
 **Program the ESP32:**
 1. Open `esp32_firmware/esp32_firmware.ino`
