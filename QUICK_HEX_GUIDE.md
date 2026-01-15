@@ -28,30 +28,42 @@ teensy_firmware.ino  →  [Compile]  →  firmware.hex  →  [Teensy Loader]  �
 4. **Press** the white button on your Teensy board
 5. **Done** - it auto-programs!
 
-## 🔧 Alternative: PlatformIO Build
+## 🔧 Alternative: CLI Compilation
 
-### Linux/Mac:
+### Arduino CLI (Recommended CLI Method):
 ```bash
-./scripts/build_teensy_hex.sh
-```
+# Linux/Mac
+./scripts/build_arduino_cli.sh
 
-### Windows:
-```cmd
+# Windows
+scripts\build_arduino_cli.bat
+```
+Output: `teensy_firmware/build/teensy_firmware.ino.hex`
+
+### PlatformIO CLI:
+```bash
+# Linux/Mac
+./scripts/build_teensy_hex.sh
+
+# Windows
 scripts\build_teensy_hex.bat
 ```
-
 Output: `build_output/teensy41_firmware.hex`
 
 ## 📚 Need More Help?
 
-See the detailed guide: [docs/BUILDING_HEX.md](docs/BUILDING_HEX.md)
+- **CLI Compilation**: [docs/CLI_COMPILATION.md](docs/CLI_COMPILATION.md) - Complete CLI guide
+- **Detailed Guide**: [docs/BUILDING_HEX.md](docs/BUILDING_HEX.md) - All methods
 
 ## ⚠️ Prerequisites
 
-### For Arduino IDE Method:
-- Arduino IDE 1.8.x or 2.x
-- Teensyduino addon: https://www.pjrc.com/teensy/td_download.html
-- FastLED library (via Library Manager)
+### For Arduino CLI Method:
+- Arduino CLI: https://arduino.github.io/arduino-cli/
+```bash
+# Install Arduino CLI, then:
+./scripts/build_arduino_cli.sh  # Linux/Mac
+scripts\build_arduino_cli.bat   # Windows
+```
 
 ### For PlatformIO Method:
 ```bash

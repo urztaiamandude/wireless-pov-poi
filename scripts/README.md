@@ -4,7 +4,41 @@ This directory contains scripts for building the Teensy 4.1 firmware into HEX fo
 
 ## Available Scripts
 
-### `build_teensy_hex.sh` (Linux/Mac)
+### Arduino CLI Scripts (Recommended for CLI)
+
+#### `build_arduino_cli.sh` (Linux/Mac)
+Bash script to compile Teensy firmware using Arduino CLI.
+
+**Usage:**
+```bash
+./scripts/build_arduino_cli.sh
+```
+
+**Prerequisites:**
+- Arduino CLI: https://arduino.github.io/arduino-cli/
+- Auto-installs Teensy platform and FastLED library on first run
+
+**Output:**
+- `teensy_firmware/build/teensy_firmware.ino.hex`
+
+#### `build_arduino_cli.bat` (Windows)
+Batch script to compile Teensy firmware using Arduino CLI.
+
+**Usage:**
+```cmd
+scripts\build_arduino_cli.bat
+```
+
+**Prerequisites:**
+- Arduino CLI: https://github.com/arduino/arduino-cli/releases
+- Auto-installs Teensy platform and FastLED library on first run
+
+**Output:**
+- `teensy_firmware\build\teensy_firmware.ino.hex`
+
+### PlatformIO Scripts (Advanced)
+
+#### `build_teensy_hex.sh` (Linux/Mac)
 Bash script to compile Teensy firmware to HEX format using PlatformIO.
 
 **Usage:**
@@ -15,7 +49,10 @@ Bash script to compile Teensy firmware to HEX format using PlatformIO.
 **Prerequisites:**
 - PlatformIO installed: `pip install platformio`
 
-### `build_teensy_hex.bat` (Windows)
+**Output:**
+- `build_output/teensy41_firmware.hex`
+
+#### `build_teensy_hex.bat` (Windows)
 Batch script to compile Teensy firmware to HEX format using PlatformIO.
 
 **Usage:**
@@ -26,21 +63,43 @@ scripts\build_teensy_hex.bat
 **Prerequisites:**
 - PlatformIO installed: `pip install platformio`
 
-### `post_build_teensy.py`
+**Output:**
+- `build_output\teensy41_firmware.hex`
+
+### Supporting Scripts
+
+#### `post_build_teensy.py`
 PlatformIO post-build script that automatically:
 - Copies the generated HEX file to `build_output/teensy41_firmware.hex`
 - Displays instructions for loading with Teensy Loader
 
 This script is called automatically by PlatformIO during the build process.
 
-## Output
+## Quick Start
 
-After building, the HEX file will be located at:
-```
-build_output/teensy41_firmware.hex
+### For CLI Compilation (Easiest)
+
+**Arduino CLI Method:**
+```bash
+# Install Arduino CLI first
+# Linux: curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | sh
+# Mac: brew install arduino-cli
+# Windows: winget install ArduinoSA.CLI
+
+# Then build
+./scripts/build_arduino_cli.sh      # Linux/Mac
+scripts\build_arduino_cli.bat       # Windows
 ```
 
-This file can be loaded directly into the Teensy Loader application.
+**PlatformIO Method:**
+```bash
+# Install PlatformIO first
+pip install platformio
+
+# Then build
+./scripts/build_teensy_hex.sh       # Linux/Mac
+scripts\build_teensy_hex.bat        # Windows
+```
 
 ## Alternative: Arduino IDE Method
 
@@ -52,21 +111,50 @@ The easiest way to generate a HEX file is using Arduino IDE:
 4. Go to **Sketch > Export Compiled Binary**
 5. The HEX file will be created in the `teensy_firmware` directory
 
-See [docs/BUILDING_HEX.md](../docs/BUILDING_HEX.md) for detailed instructions.
+## Comparison
+
+| Feature | Arduino CLI | PlatformIO | Arduino IDE |
+|---------|-------------|------------|-------------|
+| Setup | Auto-installs deps | Requires pip | Manual install |
+| Speed | Fast | Faster (cached) | Medium |
+| Automation | ✅ Yes | ✅ Yes | ❌ GUI only |
+| Output | `teensy_firmware/build/` | `build_output/` | `teensy_firmware/` |
+| Best For | CLI users | CI/CD, pros | Beginners |
 
 ## Troubleshooting
 
-If the PlatformIO build scripts fail:
-- Ensure PlatformIO is installed: `pio --version`
-- Try cleaning first: `pio run -e teensy41 --target clean`
-- Check internet connection (PlatformIO needs to download platform packages on first run)
+### Arduino CLI Issues
 
-For the Arduino IDE method, ensure:
-- Teensyduino is installed: https://www.pjrc.com/teensy/td_download.html
-- FastLED library is installed via Library Manager
+**"arduino-cli not found"**
+- Install from: https://arduino.github.io/arduino-cli/
+- Or use package manager (brew, winget)
+
+**"Platform not found"**
+- Script auto-installs on first run
+- Or manually: `arduino-cli core install teensy:avr`
+
+### PlatformIO Issues
+
+**"pio not found"**
+- Install: `pip install platformio`
+- Verify: `pio --version`
+
+**"Platform download failed"**
+- Try: `pio run -e teensy41 --target clean`
+- Check internet connection
+
+### Arduino IDE Issues
+
+**"Teensy board not found"**
+- Install Teensyduino: https://www.pjrc.com/teensy/td_download.html
+- Restart Arduino IDE
+
+**"FastLED library not found"**
+- Install via Library Manager: Sketch > Include Library > Manage Libraries
 
 ## More Information
 
 For complete documentation on building and loading HEX files, see:
-- [Building HEX Files Guide](../docs/BUILDING_HEX.md)
-- [Main README](../README.md)
+- **[CLI Compilation Guide](../docs/CLI_COMPILATION.md)** - Complete CLI reference
+- **[Building HEX Files Guide](../docs/BUILDING_HEX.md)** - All methods
+- **[Main README](../README.md)** - Project overview
