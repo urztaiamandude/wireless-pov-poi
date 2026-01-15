@@ -2,6 +2,11 @@
 REM Build script for compiling Teensy 4.1 firmware using Arduino CLI
 REM Generates HEX file for Teensy Loader
 
+REM Configuration
+set TEENSY_FQBN=teensy:avr:teensy41:usb=serial,speed=600,opt=o2std
+set SOURCE_FILE=teensy_firmware\teensy_firmware.ino
+set OUTPUT_DIR=teensy_firmware\build
+
 echo ======================================================
 echo Building Teensy 4.1 Firmware with Arduino CLI
 echo ======================================================
@@ -50,13 +55,16 @@ if %ERRORLEVEL% NEQ 0 (
 echo.
 
 REM Create output directory
-if not exist teensy_firmware\build mkdir teensy_firmware\build
+if not exist %OUTPUT_DIR% mkdir %OUTPUT_DIR%
 
 echo Compiling firmware...
 echo.
 
 REM Compile the firmware
-arduino-cli compile --fqbn teensy:avr:teensy41:usb=serial,speed=600,opt=o2std teensy_firmware\teensy_firmware.ino --output-dir teensy_firmware\build
+arduino-cli compile ^
+  --fqbn %TEENSY_FQBN% ^
+  %SOURCE_FILE% ^
+  --output-dir %OUTPUT_DIR%
 
 echo.
 echo ======================================================

@@ -4,6 +4,11 @@
 
 set -e  # Exit on error
 
+# Configuration
+TEENSY_FQBN="teensy:avr:teensy41:usb=serial,speed=600,opt=o2std"
+SOURCE_FILE="teensy_firmware/teensy_firmware.ino"
+OUTPUT_DIR="teensy_firmware/build"
+
 echo "======================================================"
 echo "Building Teensy 4.1 Firmware with Arduino CLI"
 echo "======================================================"
@@ -56,16 +61,16 @@ fi
 echo ""
 
 # Create output directory
-mkdir -p teensy_firmware/build
+mkdir -p "$OUTPUT_DIR"
 
 echo "Compiling firmware..."
 echo ""
 
 # Compile the firmware
 arduino-cli compile \
-  --fqbn teensy:avr:teensy41:usb=serial,speed=600,opt=o2std \
-  teensy_firmware/teensy_firmware.ino \
-  --output-dir teensy_firmware/build
+  --fqbn "$TEENSY_FQBN" \
+  "$SOURCE_FILE" \
+  --output-dir "$OUTPUT_DIR"
 
 echo ""
 echo "======================================================"

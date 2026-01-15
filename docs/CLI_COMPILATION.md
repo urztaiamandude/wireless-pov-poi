@@ -223,7 +223,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       
       - name: Install Arduino CLI
         run: |
@@ -246,7 +246,7 @@ jobs:
             --output-dir teensy_firmware/build
       
       - name: Upload Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: teensy-firmware-hex
           path: teensy_firmware/build/teensy_firmware.ino.hex
@@ -262,10 +262,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.x'
       
@@ -276,7 +276,7 @@ jobs:
         run: pio run -e teensy41
       
       - name: Upload Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: teensy-firmware-hex
           path: build_output/teensy41_firmware.hex
