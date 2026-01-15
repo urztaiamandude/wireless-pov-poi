@@ -6,6 +6,16 @@
 *.map
 *.lst
 
+# Build output directory (but allow committed HEX files in docs)
+build_output/
+
+# Arduino CLI build directory
+teensy_firmware/build/
+esp32_firmware/build/
+
+# PlatformIO source symlink (helper for building)
+src/
+
 # Temporary files
 *~
 *.swp

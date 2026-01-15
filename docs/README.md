@@ -102,12 +102,23 @@ GND             →   GND
 
 ### Programming the Teensy 4.1
 
+#### Option 1: Direct Upload via Arduino IDE
 1. Open `teensy_firmware/teensy_firmware.ino` in Arduino IDE
 2. Select **Tools > Board > Teensy 4.1**
 3. Select **Tools > USB Type > Serial**
 4. Select **Tools > CPU Speed > 600 MHz**
 5. Click Upload button
 6. Press button on Teensy if required
+
+#### Option 2: Build HEX File for Teensy Loader
+If you prefer to use the Teensy Loader application:
+1. Open `teensy_firmware/teensy_firmware.ino` in Arduino IDE
+2. Select **Tools > Board > Teensy 4.1** and **Tools > USB Type > Serial**
+3. Go to **Sketch > Export Compiled Binary** (or Ctrl+Alt+S)
+4. Open Teensy Loader and load the generated `.hex` file
+5. Press the button on your Teensy to program it
+
+See [BUILDING_HEX.md](BUILDING_HEX.md) for detailed instructions on building and loading HEX files.
 
 ### Programming the ESP32
 

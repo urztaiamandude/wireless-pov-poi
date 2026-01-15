@@ -78,6 +78,13 @@ See [docs/WIRING.md](docs/WIRING.md) for detailed wiring instructions.
 3. Select USB Type: Serial
 4. Upload the firmware
 
+**Alternative: Build HEX file for Teensy Loader**
+- Use Sketch > Export Compiled Binary in Arduino IDE
+- Or use CLI build scripts: `./scripts/build_arduino_cli.sh` or `./scripts/build_teensy_hex.sh` (Linux/Mac)
+- **Quick Guide**: See [QUICK_HEX_GUIDE.md](QUICK_HEX_GUIDE.md) for fast start
+- **CLI Guide**: See [CLI Compilation](docs/CLI_COMPILATION.md) for command-line builds
+- **Detailed Guide**: See [Building HEX Files](docs/BUILDING_HEX.md) for complete instructions
+
 **Program the ESP32:**
 1. Open `esp32_firmware/esp32_firmware.ino`
 2. Select Board: ESP32 Dev Module
