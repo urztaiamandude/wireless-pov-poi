@@ -19,6 +19,24 @@
 #include <FS.h>
 #include <SPIFFS.h>
 
+// Forward declarations for PlatformIO compilation
+void setupWiFi();
+void setupWebServer();
+void checkTeensyConnection();
+void handleRoot();
+void handleStatus();
+void handleSetMode();
+void handleSetBrightness();
+void handleSetFrameRate();
+void handleUploadPattern();
+void handleUploadImage();
+void handleLiveFrame();
+void handleManifest();
+void handleServiceWorker();
+void handleNotFound();
+void sendFile(const char* path, const char* contentType);
+void sendTeensyCommand(uint8_t cmd, uint8_t dataLen);
+
 // WiFi Configuration
 const char* ssid = "POV-POI-WiFi";
 const char* password = "povpoi123";
