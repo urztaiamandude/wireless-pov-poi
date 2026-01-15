@@ -4,10 +4,10 @@
 #include <Arduino.h>
 #include "config.h"
 #include "led_driver.h"
+#include "sd_storage.h"
 
 // Forward declaration
 class SDStorageManager;
-enum SDError;
 
 // Pattern types
 enum PatternType {

@@ -427,11 +427,11 @@ bool ESP32Interface::processSimpleCommand(uint8_t command, const uint8_t* data, 
             serial.write(0xBB);
             if (povEngine) {
                 // Would need getter methods in POV engine
-                serial.write(0);  // mode placeholder
-                serial.write(0);  // index placeholder
+                serial.write((uint8_t)0);  // mode placeholder
+                serial.write((uint8_t)0);  // index placeholder
             } else {
-                serial.write(0);
-                serial.write(0);
+                serial.write((uint8_t)0);
+                serial.write((uint8_t)0);
             }
             serial.write(0xFE);
             return true;

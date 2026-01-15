@@ -28,6 +28,9 @@ public:
     // Get LED count
     uint16_t getNumLEDs() const { return NUM_LEDS; }
     
+    // Get a pixel color
+    void getPixel(uint16_t index, uint8_t& r, uint8_t& g, uint8_t& b);
+    
     // Direct access to LED array
     CRGB* getLEDs() { return leds; }
 

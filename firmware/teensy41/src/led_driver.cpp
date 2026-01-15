@@ -41,3 +41,13 @@ void LEDDriver::setBrightness(uint8_t newBrightness) {
     brightness = newBrightness;
     FastLED.setBrightness(brightness);
 }
+
+void LEDDriver::getPixel(uint16_t index, uint8_t& r, uint8_t& g, uint8_t& b) {
+    if (index < NUM_LEDS) {
+        r = leds[index].r;
+        g = leds[index].g;
+        b = leds[index].b;
+    } else {
+        r = g = b = 0;
+    }
+}
