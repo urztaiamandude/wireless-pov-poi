@@ -110,6 +110,7 @@ See [docs/WIRING.md](docs/WIRING.md) for detailed wiring instructions.
 - **[Wiring Diagram](docs/WIRING.md)** - Hardware connections and assembly guide
 - **[API Documentation](docs/API.md)** - REST API reference for mobile app development
 - **[Image Conversion Guide](docs/IMAGE_CONVERSION.md)** - How automatic image conversion works
+- **[Testing Guide](TESTING.md)** - Testing tools, environment setup, and test procedures
 
 ## Web Interface
 
