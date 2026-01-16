@@ -112,6 +112,8 @@ Thank you for your interest in contributing to the Nebula Poi project! This docu
 
 ## Testing Requirements
 
+**📖 See [TESTING.md](TESTING.md) for complete testing tools and procedures.**
+
 Before submitting:
 
 ### Hardware Testing
