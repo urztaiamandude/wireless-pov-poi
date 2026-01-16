@@ -10,6 +10,73 @@ The project uses different testing approaches for different components:
 - **C++ Firmware**: PlatformIO static analysis with cppcheck and clangtidy
 - **Hardware Integration**: Manual testing with physical devices
 
+## Platform Support
+
+### Operating Systems
+
+All testing tools support **multiple operating systems**:
+
+| Platform | Python Tests | Firmware Build | Hardware Testing |
+|----------|-------------|----------------|------------------|
+| **Linux** | ✅ Fully supported | ✅ Fully supported | ✅ Fully supported |
+| **macOS** | ✅ Fully supported | ✅ Fully supported | ✅ Fully supported |
+| **Windows** | ✅ Fully supported | ✅ Fully supported | ✅ Fully supported |
+
+**Development Environment Used:**
+- Primary development and CI testing: **Linux (Ubuntu 20.04+)**
+- Fully tested on: Windows 10/11, macOS 10.15+
+- All commands work cross-platform with minor syntax adjustments
+
+### Virtual Environment
+
+**Python Virtual Environment - RECOMMENDED**
+
+Using a Python virtual environment is **strongly recommended** but not required:
+
+**Why use a virtual environment?**
+- ✅ Isolates project dependencies from system Python
+- ✅ Prevents version conflicts with other projects
+- ✅ Easy to reproduce exact testing environment
+- ✅ Safe to experiment without affecting system
+
+**Setup (recommended):**
+
+```bash
+# Linux/macOS
+cd wireless-pov-poi
+python3 -m venv venv
+source venv/bin/activate
+
+# Windows
+cd wireless-pov-poi
+python -m venv venv
+venv\Scripts\activate
+
+# Install dependencies in virtual environment
+pip install -r examples/requirements.txt
+pip install pytest
+```
+
+**Without virtual environment:**
+
+You can also install dependencies globally (not recommended for production):
+
+```bash
+# Linux/macOS (may require sudo)
+pip3 install --user Pillow pytest
+
+# Windows
+pip install Pillow pytest
+```
+
+**Verify your environment:**
+
+```bash
+python --version  # Should be 3.7+
+pip list | grep -i pillow  # Should show Pillow installed
+pytest --version  # Should show pytest installed
+```
+
 ## Python Testing Environment
 
 ### Required Tools
@@ -315,15 +382,7 @@ pip install platformio
 
 - Python 3.7+
 - pip package manager
-- Virtual environment (recommended)
-
-**Setup virtual environment:**
-```bash
-python -m venv venv
-source venv/bin/activate  # Linux/Mac
-venv\Scripts\activate     # Windows
-pip install -r examples/requirements.txt
-```
+- Virtual environment (recommended - see [Platform Support](#platform-support) section above)
 
 ### IDE Recommendations
 
