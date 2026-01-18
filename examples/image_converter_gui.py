@@ -576,13 +576,6 @@ class POVImageConverterGUI:
                 f"Failed to convert image:\n{str(e)}"
             )
             self.update_status("Error converting image")
-            
-        except Exception as e:
-            messagebox.showerror(
-                "Error Converting Image",
-                f"Failed to convert image:\n{str(e)}"
-            )
-            self.update_status("Error converting image")
     
     def on_dimension_change(self, changed_field):
         """Handle dimension changes with aspect ratio lock"""
