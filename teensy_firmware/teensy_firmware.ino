@@ -72,17 +72,18 @@ struct POVImage {
 
 // Pattern structure
 // Pattern types (0-15):
-//   0=rainbow, 1=wave, 2=gradient, 3=sparkle, 4=fire, 5=comet,
-//   6=breathing, 7=strobe, 8=meteor, 9=wipe, 10=plasma,
-//   11=music VU, 12=music pulse, 13=music rainbow, 14=music center, 15=music sparkle
+//   Basic:  0=rainbow, 1=wave, 2=gradient, 3=sparkle, 4=fire, 5=comet
+//           6=breathing, 7=strobe, 8=meteor, 9=wipe, 10=plasma
+//   Music:  11=VU meter, 12=pulse, 13=rainbow, 14=center, 15=sparkle
 struct Pattern {
-  uint8_t type;  // Pattern type (0-15), see types above
-  CRGB color1;   // Primary color for pattern
-  CRGB color2;   // Secondary color for pattern
-  uint8_t speed; // Animation speed (1-255): higher = faster animation
-                 // Typical values: 20-40 slow, 50-80 medium, 100+ fast
-                 // For strobe: controls flash rate; for sparkle: controls sparkle density
-  bool active;   // Whether this pattern slot is in use
+  uint8_t type;   // Pattern type (0-15), see types above
+  CRGB color1;    // Primary color for pattern
+  CRGB color2;    // Secondary color for pattern
+  uint8_t speed;  // Animation speed (1-255): higher = faster animation
+                  //   Typical: 20-40 slow, 50-80 medium, 100+ fast
+                  //   For strobe: controls flash rate
+                  //   For sparkle: controls sparkle density
+  bool active;    // Whether this pattern slot is in use
 };
 
 // Sequence structure
