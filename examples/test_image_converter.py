@@ -2,6 +2,10 @@
 """
 Test script for POV Image Converter
 Creates test images and validates conversion functionality
+
+NOTE: The POV display uses LEDs as the VERTICAL axis:
+- HEIGHT is FIXED at 31 pixels (matching 31 display LEDs)
+- WIDTH is calculated to maintain aspect ratio
 """
 
 import os
@@ -28,7 +32,7 @@ def create_test_image(width, height, color, filename):
     return filename
 
 def test_basic_conversion():
-    """Test basic image conversion"""
+    """Test basic image conversion - HEIGHT should be fixed at 31"""
     print("\n=== Test 1: Basic Conversion ===")
     
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -38,8 +42,8 @@ def test_basic_conversion():
         
         output_img = os.path.join(tmpdir, "test_output.png")
         
-        # Convert image
-        success = convert_image_for_pov(test_img, output_img, width=31, max_height=64)
+        # Convert image - HEIGHT is fixed at 31
+        success = convert_image_for_pov(test_img, output_img, height=31, max_width=200)
         
         if not success:
             print("❌ FAILED: Conversion returned False")
@@ -50,21 +54,17 @@ def test_basic_conversion():
             print("❌ FAILED: Output file not created")
             return False
         
-        # Verify dimensions
+        # Verify dimensions - HEIGHT should be 31 (fixed)
         result = Image.open(output_img)
-        if result.width != 31:
-            print(f"❌ FAILED: Expected width 31, got {result.width}")
-            return False
-        
-        if result.height > 64:
-            print(f"❌ FAILED: Height {result.height} exceeds max 64")
+        if result.height != 31:
+            print(f"❌ FAILED: Expected height 31, got {result.height}")
             return False
         
         print(f"✓ PASSED: Output is {result.width}x{result.height}")
         return True
 
 def test_large_image():
-    """Test conversion of large image"""
+    """Test conversion of large image - HEIGHT fixed at 31"""
     print("\n=== Test 2: Large Image Conversion ===")
     
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -74,41 +74,37 @@ def test_large_image():
         
         output_img = os.path.join(tmpdir, "large_output.png")
         
-        # Convert image
+        # Convert image - HEIGHT is fixed at 31
         success = convert_image_for_pov(test_img, output_img)
         
         if not success:
             print("❌ FAILED: Conversion returned False")
             return False
         
-        # Verify dimensions
+        # Verify dimensions - HEIGHT should be 31 (fixed)
         result = Image.open(output_img)
-        if result.width != 31:
-            print(f"❌ FAILED: Expected width 31, got {result.width}")
-            return False
-        
-        if result.height > 64:
-            print(f"❌ FAILED: Height {result.height} exceeds max 64")
+        if result.height != 31:
+            print(f"❌ FAILED: Expected height 31, got {result.height}")
             return False
         
         print(f"✓ PASSED: Large image converted to {result.width}x{result.height}")
         return True
 
 def test_aspect_ratio():
-    """Test that aspect ratio is maintained"""
+    """Test that aspect ratio is maintained (WIDTH calculated from fixed HEIGHT)"""
     print("\n=== Test 3: Aspect Ratio Preservation ===")
     
     # Maximum acceptable aspect ratio difference
     ASPECT_RATIO_TOLERANCE = 0.2
     
     with tempfile.TemporaryDirectory() as tmpdir:
-        # Create tall image
-        test_img = os.path.join(tmpdir, "tall_test.png")
-        create_test_image(100, 200, (0, 0, 255), test_img)
+        # Create wide image (width > height)
+        test_img = os.path.join(tmpdir, "wide_test.png")
+        create_test_image(200, 100, (0, 0, 255), test_img)
         
-        output_img = os.path.join(tmpdir, "tall_output.png")
+        output_img = os.path.join(tmpdir, "wide_output.png")
         
-        # Convert image
+        # Convert image - HEIGHT is fixed, WIDTH is calculated
         success = convert_image_for_pov(test_img, output_img)
         
         if not success:
@@ -119,8 +115,8 @@ def test_aspect_ratio():
         result = Image.open(output_img)
         original = Image.open(test_img)
         
-        original_ratio = original.height / original.width
-        result_ratio = result.height / result.width
+        original_ratio = original.width / original.height  # Should be 2.0
+        result_ratio = result.width / result.height
         
         # Allow small difference due to rounding
         if abs(original_ratio - result_ratio) > ASPECT_RATIO_TOLERANCE:
@@ -131,34 +127,36 @@ def test_aspect_ratio():
         print(f"✓ PASSED: Aspect ratio preserved ({result_ratio:.2f})")
         return True
 
-def test_height_limiting():
-    """Test that very tall images are limited to 64 pixels"""
-    print("\n=== Test 4: Height Limiting ===")
+def test_width_limiting():
+    """Test that very wide images have width limited by max_width"""
+    print("\n=== Test 4: Width Limiting ===")
     
     with tempfile.TemporaryDirectory() as tmpdir:
-        # Create very tall image (31:100 ratio)
-        test_img = os.path.join(tmpdir, "very_tall_test.png")
-        create_test_image(31, 200, (255, 0, 255), test_img)
+        # Create very wide image (31 height, very wide)
+        test_img = os.path.join(tmpdir, "very_wide_test.png")
+        create_test_image(1000, 31, (255, 0, 255), test_img)
         
-        output_img = os.path.join(tmpdir, "very_tall_output.png")
+        output_img = os.path.join(tmpdir, "very_wide_output.png")
         
-        # Convert image
-        success = convert_image_for_pov(test_img, output_img, max_height=64)
+        # Convert image with max_width limit
+        success = convert_image_for_pov(test_img, output_img, max_width=100)
         
         if not success:
             print("❌ FAILED: Conversion returned False")
             return False
         
-        # Verify height is limited
+        # Verify width is limited
         result = Image.open(output_img)
-        if result.height > 64:
-            print(f"❌ FAILED: Height {result.height} exceeds max 64")
+        if result.width > 100:
+            print(f"❌ FAILED: Width {result.width} exceeds max 100")
             return False
         
-        if result.height != 64:
-            print(f"⚠ WARNING: Expected height to be limited to 64, got {result.height}")
+        # Height should still be 31 (fixed)
+        if result.height != 31:
+            print(f"❌ FAILED: Expected height 31, got {result.height}")
+            return False
         
-        print(f"✓ PASSED: Height limited to {result.height}")
+        print(f"✓ PASSED: Width limited to {result.width}, height is {result.height}")
         return True
 
 def test_rgb_conversion():
@@ -223,7 +221,7 @@ def test_different_formats():
             img = Image.new('RGB', (100, 100), color=(128, 128, 128))
             img.save(test_img, format=fmt)
             
-            # Convert
+            # Convert - HEIGHT is fixed at 31
             success = convert_image_for_pov(test_img, output_img)
             
             if not success:
@@ -231,8 +229,8 @@ def test_different_formats():
                 all_passed = False
             else:
                 result = Image.open(output_img)
-                if result.width != 31:
-                    print(f"❌ FAILED: {fmt} output has wrong width")
+                if result.height != 31:
+                    print(f"❌ FAILED: {fmt} output has wrong height (expected 31, got {result.height})")
                     all_passed = False
                 else:
                     print(f"  ✓ {fmt} format converted successfully")
@@ -279,7 +277,7 @@ def run_all_tests():
         ("Basic Conversion", test_basic_conversion),
         ("Large Image", test_large_image),
         ("Aspect Ratio", test_aspect_ratio),
-        ("Height Limiting", test_height_limiting),
+        ("Width Limiting", test_width_limiting),
         ("RGB Conversion", test_rgb_conversion),
         ("Invalid File", test_invalid_file),
         ("Format Support", test_different_formats),

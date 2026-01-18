@@ -45,9 +45,11 @@
 #define ESP32_SERIAL Serial1
 
 // Display Configuration
+// NOTE: IMAGE_HEIGHT = DISPLAY_LEDS = 31 (fixed, matches physical LEDs)
+//       IMAGE_MAX_WIDTH = variable (calculated from aspect ratio)
 #define MAX_IMAGES 10
-#define IMAGE_WIDTH 31
-#define IMAGE_HEIGHT 64
+#define IMAGE_HEIGHT 31         // Fixed: matches DISPLAY_LEDS (one pixel per LED)
+#define IMAGE_MAX_WIDTH 200     // Maximum width for stored images
 #define MAX_PATTERNS 16  // 0-15: rainbow, wave, gradient, sparkle, fire, comet, breathing, strobe, meteor, wipe, plasma, music VU, music pulse, music rainbow, music center, music sparkle
 #define MAX_SEQUENCES 5
 

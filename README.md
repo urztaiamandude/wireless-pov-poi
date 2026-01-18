@@ -120,7 +120,7 @@ The web portal provides a modern, **mobile-responsive** interface with:
 - System controls (brightness and frame rate sliders)
 - Quick pattern buttons (Rainbow, Wave, Gradient, Sparkle)
 - Color picker for custom pattern colors
-- **Image upload with automatic conversion** (any size → 31px high, vertically flipped for correct orientation)
+- **Image upload with automatic conversion** (any size → 31px HIGH, width calculated from aspect ratio)
 - Live drawing canvas for real-time control
 - Real-time status display
 - **PWA support** - Install as native app on mobile devices
@@ -128,11 +128,13 @@ The web portal provides a modern, **mobile-responsive** interface with:
 
 ### Image Orientation
 
-Images are automatically oriented correctly for POV display:
-- **LED 1** (closest to board/handle) displays the **bottom** of the image
-- **LED 31** (farthest from board) displays the **top** of the image
-- When poi are held vertically and moved horizontally, images scroll naturally in correct orientation
-- All conversion tools (Python, Android, Web) automatically flip images vertically during conversion
+The LED strip forms the VERTICAL axis of the POV display:
+- **HEIGHT is FIXED at 31 pixels** - One pixel per display LED
+- **WIDTH is CALCULATED** - Based on original image aspect ratio
+- **LED 1** (bottom of strip) displays the **bottom** of the image
+- **LED 31** (top of strip) displays the **top** of the image
+- **No flip needed** - The LED arrangement maps directly to image pixels
+- When poi are spun, images scroll naturally in correct orientation
 
 ## Mobile App Support
 
@@ -179,8 +181,8 @@ See [API Documentation](docs/API.md) for detailed endpoint information and examp
 
 - **LED Controller**: Teensy 4.1 @ 600 MHz
 - **WiFi Module**: ESP32 (2.4 GHz)
-- **LED Strip**: APA102 (32 LEDs)
-- **Display Resolution**: 31 pixels × 64 pixels max
+- **LED Strip**: APA102 (32 LEDs, 31 for display + 1 for level shifting)
+- **Display Resolution**: HEIGHT = 31 pixels (fixed), WIDTH = variable
 - **Frame Rate**: 10-120 FPS (adjustable)
 - **Brightness**: 0-255 (adjustable)
 - **Serial Baudrate**: 115200 bps
@@ -198,7 +200,7 @@ For best results with persistence of vision:
 
 ## Image Conversion
 
-Convert images to POV-compatible format (31 pixels wide):
+Convert images to POV-compatible format (31 pixels HIGH):
 
 ### Option 1: GUI Converter (Recommended for Desktop)
 ```bash

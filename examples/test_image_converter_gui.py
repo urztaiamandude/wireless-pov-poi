@@ -2,6 +2,10 @@
 """
 Test script for GUI image converter
 Tests the core functionality without requiring tkinter display
+
+NOTE: The POV display uses LEDs as the VERTICAL axis:
+- HEIGHT is FIXED at 31 pixels (matching 31 display LEDs)
+- WIDTH is calculated to maintain aspect ratio
 """
 
 import os
@@ -37,11 +41,12 @@ def test_gui_conversion_logic():
         output_img = os.path.join(tmpdir, "test_output.png")
         
         # Test with GUI default settings
+        # HEIGHT is fixed at 31, WIDTH is calculated
         success = convert_image_for_pov(
             test_img, 
             output_img, 
-            width=31, 
-            max_height=64, 
+            height=31, 
+            max_width=200, 
             enhance_contrast=True
         )
         
@@ -49,14 +54,10 @@ def test_gui_conversion_logic():
             print("❌ FAILED: Conversion returned False")
             return False
         
-        # Verify output
+        # Verify output - HEIGHT should be 31 (fixed)
         result = Image.open(output_img)
-        if result.width != 31:
-            print(f"❌ FAILED: Expected width 31, got {result.width}")
-            return False
-        
-        if result.height > 64:
-            print(f"❌ FAILED: Height {result.height} exceeds max 64")
+        if result.height != 31:
+            print(f"❌ FAILED: Expected height 31, got {result.height}")
             return False
         
         print(f"✓ PASSED: GUI conversion logic works correctly ({result.width}x{result.height})")
@@ -84,11 +85,12 @@ def test_batch_conversion():
             base_name = os.path.splitext(filename)[0]
             output_path = os.path.join(output_dir, f"{base_name}_pov.png")
             
+            # HEIGHT is fixed at 31, WIDTH is calculated
             success = convert_image_for_pov(
                 test_file,
                 output_path,
-                width=31,
-                max_height=64,
+                height=31,
+                max_width=200,
                 enhance_contrast=True
             )
             
@@ -110,11 +112,11 @@ def test_different_settings():
         test_img = os.path.join(tmpdir, "test.png")
         create_test_image(100, 100, (100, 150, 200), test_img)
         
-        # Test different width settings
+        # Test different settings (HEIGHT is always fixed)
         test_cases = [
-            {"width": 31, "max_height": 64, "enhance_contrast": True, "name": "default"},
-            {"width": 20, "max_height": 64, "enhance_contrast": False, "name": "custom width"},
-            {"width": 31, "max_height": 40, "enhance_contrast": True, "name": "limited height"},
+            {"height": 31, "max_width": 200, "enhance_contrast": True, "name": "default"},
+            {"height": 20, "max_width": 200, "enhance_contrast": False, "name": "custom height"},
+            {"height": 31, "max_width": 50, "enhance_contrast": True, "name": "limited width"},
         ]
         
         all_passed = True
@@ -123,18 +125,18 @@ def test_different_settings():
             success = convert_image_for_pov(
                 test_img,
                 output,
-                width=settings["width"],
-                max_height=settings["max_height"],
+                height=settings["height"],
+                max_width=settings["max_width"],
                 enhance_contrast=settings["enhance_contrast"]
             )
             
             if success:
                 result = Image.open(output)
-                if result.width != settings["width"]:
-                    print(f"❌ FAILED: {settings['name']} - wrong width")
+                if result.height != settings["height"]:
+                    print(f"❌ FAILED: {settings['name']} - wrong height (expected {settings['height']}, got {result.height})")
                     all_passed = False
                 else:
-                    print(f"  ✓ {settings['name']} setting works")
+                    print(f"  ✓ {settings['name']} setting works ({result.width}x{result.height})")
             else:
                 print(f"❌ FAILED: {settings['name']} conversion failed")
                 all_passed = False

@@ -1,7 +1,14 @@
 #!/usr/bin/env python3
 """
 POV Image Converter
-Converts regular images to POV-compatible format (31 pixels wide)
+Converts regular images to POV-compatible format.
+
+IMPORTANT: The LED strip forms the VERTICAL axis of the display.
+- HEIGHT is FIXED at 31 pixels (matching 31 display LEDs)
+- WIDTH is calculated to maintain aspect ratio
+- LED 1 (bottom of strip) = bottom of image
+- LED 31 (top of strip) = top of image
+- No vertical flip is needed - the LED arrangement maps directly to image pixels
 """
 
 try:
@@ -14,22 +21,29 @@ except ImportError:
 import sys
 import os
 
-def convert_image_for_pov(input_path, output_path=None, width=31, max_height=64, 
-                         enhance_contrast=True, skip_pov_flip=False, flip_horizontal=False):
+# The number of display LEDs determines the fixed HEIGHT of POV images
+POV_HEIGHT = 31  # LEDs 1-31 are used for display (LED 0 is level shifter)
+
+def convert_image_for_pov(input_path, output_path=None, height=31, max_width=200, 
+                         enhance_contrast=True, flip_horizontal=False):
     """
     Convert an image to POV-compatible format
+    
+    The LED strip forms the VERTICAL axis, so:
+    - HEIGHT is FIXED at 31 pixels (one pixel per display LED)
+    - WIDTH is calculated to maintain aspect ratio
     
     Args:
         input_path: Path to input image
         output_path: Path to save converted image (optional)
-        width: Target width in pixels (default 31 for POV system)
-        max_height: Maximum height in pixels (default 64)
+        height: Target height in pixels (default 31, matching display LEDs)
+        max_width: Maximum width in pixels (default 200)
         enhance_contrast: Whether to enhance contrast (default True)
-        skip_pov_flip: Skip the automatic vertical flip for POV display (default False).
-                       By default, images are flipped vertically so the bottom of the 
-                       image appears at LED 1 (closest to board) and top at LED 31.
-                       Set to True if your image is already pre-flipped.
         flip_horizontal: Flip image horizontally (default False)
+    
+    Note: No vertical flip is applied because the LED arrangement already
+    maps correctly: LED 1 (bottom) displays bottom of image, LED 31 (top)
+    displays top of image.
     """
     
     if not os.path.exists(input_path):
@@ -47,33 +61,30 @@ def convert_image_for_pov(input_path, output_path=None, width=31, max_height=64,
             print(f"Converting from {img.mode} to RGB")
             img = img.convert('RGB')
         
-        # Calculate new height maintaining aspect ratio
-        aspect_ratio = img.height / img.width
-        new_height = int(width * aspect_ratio)
+        # Calculate new width maintaining aspect ratio
+        # HEIGHT is fixed (31 LEDs), WIDTH is calculated
+        aspect_ratio = img.width / img.height
+        new_width = int(height * aspect_ratio)
         
-        # Limit height
-        if new_height > max_height:
-            new_height = max_height
-            print(f"Height limited to {max_height} pixels")
+        # Limit width
+        if new_width > max_width:
+            new_width = max_width
+            print(f"Width limited to {max_width} pixels")
+        
+        if new_width < 1:
+            new_width = 1
         
         # Resize with nearest neighbor for crisp pixels
-        print(f"Resizing to {width}x{new_height}")
-        img = img.resize((width, new_height), Image.NEAREST)
+        print(f"Resizing to {new_width}x{height}")
+        img = img.resize((new_width, height), Image.NEAREST)
         
         # Apply horizontal flip if requested
         if flip_horizontal:
             print("Flipping image horizontally")
             img = img.transpose(Image.FLIP_LEFT_RIGHT)
         
-        # Apply vertical flip for POV display
-        # POV format needs vertical flip: bottom of image → LED 1, top → LED 31
-        if not skip_pov_flip:
-            # Flip vertically so bottom of image is at LED 1 (closest to board)
-            # and top of image is at LED 31 (farthest from board)
-            print("Flipping image vertically for correct POV orientation")
-            img = img.transpose(Image.FLIP_TOP_BOTTOM)
-        else:
-            print("Skipping POV vertical flip (image pre-flipped)")
+        # No vertical flip needed - LED 1 is bottom, LED 31 is top
+        # This maps directly to image coordinates (y=0 is top, but LED 1 shows row 0)
         
         # Enhance contrast if requested
         if enhance_contrast:
@@ -111,10 +122,14 @@ def print_usage():
     print("  python image_converter.py photo.jpg pov_photo.png")
     print()
     print("The script will:")
-    print("  - Resize image to 31 pixels wide")
-    print("  - Maintain aspect ratio (max 64 pixels high)")
+    print("  - Resize image to 31 pixels HIGH (matching 31 display LEDs)")
+    print("  - Calculate width to maintain aspect ratio")
     print("  - Enhance contrast for better visibility")
     print("  - Save as PNG format")
+    print()
+    print("Note: The LED strip forms the VERTICAL axis of the display.")
+    print("  - HEIGHT is fixed at 31 pixels (one per LED)")
+    print("  - WIDTH is calculated based on aspect ratio")
     print()
     print("Alternative: Use the POISonic online converter:")
     print("  https://web.archive.org/web/20210509110926/https://www.orchardelica.com/poisonic/poi_page.html")

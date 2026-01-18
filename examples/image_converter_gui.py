@@ -58,11 +58,11 @@ class POVImageConverterGUI:
         self.original_aspect_ratio = 1.0  # Store original aspect ratio
         
         # Settings variables
-        self.width_var = tk.IntVar(value=31)
-        self.height_var = tk.IntVar(value=64)
+        # NOTE: HEIGHT is FIXED at 31 (matching display LEDs), WIDTH is calculated
+        self.height_var = tk.IntVar(value=31)  # Fixed: matches 31 display LEDs
+        self.max_width_var = tk.IntVar(value=200)  # Max width limit
         self.contrast_var = tk.BooleanVar(value=True)
         self.aspect_ratio_lock_var = tk.BooleanVar(value=True)
-        self.skip_pov_flip_var = tk.BooleanVar(value=False)
         self.flip_horizontal_var = tk.BooleanVar(value=False)
         
         # Setup UI
@@ -197,44 +197,13 @@ class POVImageConverterGUI:
         )
         settings_frame.pack(fill=tk.X, pady=(0, 15))
         
-        # Width setting
-        width_frame = tk.Frame(settings_frame)
-        width_frame.pack(fill=tk.X, pady=(0, 10))
-        
-        tk.Label(
-            width_frame,
-            text="Width:",
-            font=("Arial", 10),
-            width=12,
-            anchor="w"
-        ).pack(side=tk.LEFT)
-        
-        width_spinbox = tk.Spinbox(
-            width_frame,
-            from_=1,
-            to=100,
-            textvariable=self.width_var,
-            width=10,
-            font=("Arial", 10),
-            command=lambda: self.on_dimension_change('width')
-        )
-        width_spinbox.pack(side=tk.LEFT, padx=(0, 5))
-        width_spinbox.bind('<KeyRelease>', lambda e: self.on_dimension_change('width'))
-        
-        tk.Label(
-            width_frame,
-            text="pixels (default: 31)",
-            font=("Arial", 9),
-            fg="#7f8c8d"
-        ).pack(side=tk.LEFT)
-        
-        # Max height setting
+        # Height setting (FIXED - matches display LEDs)
         height_frame = tk.Frame(settings_frame)
         height_frame.pack(fill=tk.X, pady=(0, 10))
         
         tk.Label(
             height_frame,
-            text="Max Height:",
+            text="Height:",
             font=("Arial", 10),
             width=12,
             anchor="w"
@@ -243,7 +212,7 @@ class POVImageConverterGUI:
         height_spinbox = tk.Spinbox(
             height_frame,
             from_=1,
-            to=200,
+            to=100,
             textvariable=self.height_var,
             width=10,
             font=("Arial", 10),
@@ -254,7 +223,38 @@ class POVImageConverterGUI:
         
         tk.Label(
             height_frame,
-            text="pixels (default: 64)",
+            text="pixels (FIXED: 31 = display LEDs)",
+            font=("Arial", 9),
+            fg="#e74c3c"
+        ).pack(side=tk.LEFT)
+        
+        # Max width setting (calculated based on aspect ratio)
+        width_frame = tk.Frame(settings_frame)
+        width_frame.pack(fill=tk.X, pady=(0, 10))
+        
+        tk.Label(
+            width_frame,
+            text="Max Width:",
+            font=("Arial", 10),
+            width=12,
+            anchor="w"
+        ).pack(side=tk.LEFT)
+        
+        width_spinbox = tk.Spinbox(
+            width_frame,
+            from_=1,
+            to=500,
+            textvariable=self.max_width_var,
+            width=10,
+            font=("Arial", 10),
+            command=lambda: self.on_dimension_change('width')
+        )
+        width_spinbox.pack(side=tk.LEFT, padx=(0, 5))
+        width_spinbox.bind('<KeyRelease>', lambda e: self.on_dimension_change('width'))
+        
+        tk.Label(
+            width_frame,
+            text="pixels (calculated from aspect ratio)",
             font=("Arial", 9),
             fg="#7f8c8d"
         ).pack(side=tk.LEFT)
@@ -288,15 +288,6 @@ class POVImageConverterGUI:
             font=("Arial", 10, "bold")
         ).pack(anchor="w")
         
-        skip_pov_flip_check = tk.Checkbutton(
-            flip_frame,
-            text="Skip POV Flip (image pre-flipped)",
-            variable=self.skip_pov_flip_var,
-            font=("Arial", 10),
-            command=self.on_settings_change
-        )
-        skip_pov_flip_check.pack(anchor="w")
-        
         flip_horizontal_check = tk.Checkbutton(
             flip_frame,
             text="Flip Horizontal",
@@ -305,6 +296,14 @@ class POVImageConverterGUI:
             command=self.on_settings_change
         )
         flip_horizontal_check.pack(anchor="w")
+        
+        # Info label about LED orientation
+        tk.Label(
+            flip_frame,
+            text="(No vertical flip needed - LEDs map directly to image)",
+            font=("Arial", 8),
+            fg="#7f8c8d"
+        ).pack(anchor="w")
         
         # Action buttons frame
         action_frame = tk.Frame(main_frame)
@@ -524,33 +523,32 @@ class POVImageConverterGUI:
                 img = img.convert('RGB')
             
             # Get settings
-            width = self.width_var.get()
-            max_height = self.height_var.get()
+            # HEIGHT is FIXED (matches display LEDs), WIDTH is calculated
+            height = self.height_var.get()
+            max_width = self.max_width_var.get()
             enhance_contrast = self.contrast_var.get()
-            skip_pov_flip = self.skip_pov_flip_var.get()
             flip_horizontal = self.flip_horizontal_var.get()
             
-            # Calculate new height maintaining aspect ratio
-            aspect_ratio = img.height / img.width
-            new_height = int(width * aspect_ratio)
+            # Calculate new width maintaining aspect ratio
+            # HEIGHT is fixed at 31 (display LEDs), WIDTH is calculated
+            aspect_ratio = img.width / img.height
+            new_width = int(height * aspect_ratio)
             
-            # Limit height
-            if new_height > max_height:
-                new_height = max_height
+            # Limit width
+            if new_width > max_width:
+                new_width = max_width
+            if new_width < 1:
+                new_width = 1
             
             # Resize with nearest neighbor for crisp pixels
-            img = img.resize((width, new_height), Image.NEAREST)
+            img = img.resize((new_width, height), Image.NEAREST)
             
             # Apply horizontal flip if requested
             if flip_horizontal:
                 img = img.transpose(Image.FLIP_LEFT_RIGHT)
             
-            # Apply vertical flip for POV display
-            # POV format needs vertical flip: bottom of image → LED 1, top → LED 31
-            if not skip_pov_flip:
-                # Flip vertically so bottom of image is at LED 1 (closest to board)
-                # and top of image is at LED 31 (farthest from board)
-                img = img.transpose(Image.FLIP_TOP_BOTTOM)
+            # No vertical flip needed - LED 1 (bottom) maps to image bottom,
+            # LED 31 (top) maps to image top
             
             # Enhance contrast if requested
             if enhance_contrast:
@@ -571,6 +569,13 @@ class POVImageConverterGUI:
                 img,
                 scale_up=True
             )
+            
+        except Exception as e:
+            messagebox.showerror(
+                "Error Converting Image",
+                f"Failed to convert image:\n{str(e)}"
+            )
+            self.update_status("Error converting image")
             
         except Exception as e:
             messagebox.showerror(
@@ -636,13 +641,13 @@ class POVImageConverterGUI:
             self.update_status("Converting and saving...")
             
             # Use the existing conversion function
+            # HEIGHT is fixed (display LEDs), WIDTH is calculated
             success = convert_image_for_pov(
                 input_path,
                 output_path,
-                width=self.width_var.get(),
-                max_height=self.height_var.get(),
+                height=self.height_var.get(),
+                max_width=self.max_width_var.get(),
                 enhance_contrast=self.contrast_var.get(),
-                skip_pov_flip=self.skip_pov_flip_var.get(),
                 flip_horizontal=self.flip_horizontal_var.get()
             )
             
@@ -721,13 +726,13 @@ class POVImageConverterGUI:
                 output_path = os.path.join(output_dir, f"{base_name}_pov.png")
                 
                 try:
+                    # HEIGHT is fixed (display LEDs), WIDTH is calculated
                     success = convert_image_for_pov(
                         input_path,
                         output_path,
-                        width=self.width_var.get(),
-                        max_height=self.height_var.get(),
+                        height=self.height_var.get(),
+                        max_width=self.max_width_var.get(),
                         enhance_contrast=self.contrast_var.get(),
-                        skip_pov_flip=self.skip_pov_flip_var.get(),
                         flip_horizontal=self.flip_horizontal_var.get()
                     )
                     
