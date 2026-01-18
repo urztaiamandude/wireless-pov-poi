@@ -24,12 +24,16 @@
 #endif
 
 // LED Configuration
+// ⚠️ CRITICAL: LED 0 is used for level shifting only - NEVER use for display!
+// All display loops MUST start from index 1, not 0.
+// Example: for (int i = 1; i < NUM_LEDS; i++) { leds[i] = color; }
 #define NUM_LEDS 32
 #define DATA_PIN 11
 #define CLOCK_PIN 13
 #define LED_TYPE APA102
 #define COLOR_ORDER BGR
-#define DISPLAY_LEDS 31  // LEDs 1-31 used for display (LED 0 for level shifting)
+#define DISPLAY_LEDS 31       // LEDs 1-31 used for display (LED 0 for level shifting)
+#define DISPLAY_LED_START 1   // First LED index used for display content
 
 // Audio Input Configuration (for music reactive patterns)
 #define AUDIO_PIN A0         // Analog microphone input
@@ -67,12 +71,18 @@ struct POVImage {
 };
 
 // Pattern structure
+// Pattern types (0-15):
+//   0=rainbow, 1=wave, 2=gradient, 3=sparkle, 4=fire, 5=comet,
+//   6=breathing, 7=strobe, 8=meteor, 9=wipe, 10=plasma,
+//   11=music VU, 12=music pulse, 13=music rainbow, 14=music center, 15=music sparkle
 struct Pattern {
-  uint8_t type;  // 0=rainbow, 1=wave, 2=gradient, 3=sparkle, 4=custom
-  CRGB color1;
-  CRGB color2;
-  uint8_t speed;
-  bool active;
+  uint8_t type;  // Pattern type (0-15), see types above
+  CRGB color1;   // Primary color for pattern
+  CRGB color2;   // Secondary color for pattern
+  uint8_t speed; // Animation speed (1-255): higher = faster animation
+                 // Typical values: 20-40 slow, 50-80 medium, 100+ fast
+                 // For strobe: controls flash rate; for sparkle: controls sparkle density
+  bool active;   // Whether this pattern slot is in use
 };
 
 // Sequence structure
@@ -106,7 +116,10 @@ bool sequencePlaying = false;
 CRGB liveBuffer[DISPLAY_LEDS];
 
 // Serial command buffer
-#define CMD_BUFFER_SIZE 6144  // Large enough for 31x64 RGB image + protocol overhead
+// Buffer size calculation: 31 (width) × 64 (height) × 3 (RGB bytes) = 5,952 bytes
+// Plus protocol overhead (~100 bytes): 0xFF start, cmd, len, 0xFE end markers
+// Rounded up to 6144 for safety margin
+#define CMD_BUFFER_SIZE 6144
 uint8_t cmdBuffer[CMD_BUFFER_SIZE];
 uint16_t cmdBufferIndex = 0;
 

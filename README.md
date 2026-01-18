@@ -17,8 +17,9 @@ This system creates stunning POV light displays using a 32 LED APA102 strip cont
 
 ### Display Capabilities
 - **POV Image Display** - Upload and display custom images with persistence of vision
-- **Animated Patterns** - Built-in patterns including rainbow, wave, gradient, sparkle, fire, comet, and more
-- **Music-Reactive Patterns** - Sound-responsive effects (VU meter, pulse, audio rainbow) - requires microphone
+- **16 Animated Patterns** - Complete set of built-in visual effects:
+  - **Basic Patterns (0-10):** Rainbow, Wave, Gradient, Sparkle, Fire, Comet, Breathing, Strobe, Meteor, Wipe, Plasma
+  - **Music-Reactive Patterns (11-15):** VU Meter, Pulse, Audio Rainbow, Center Burst, Audio Sparkle (requires microphone)
 - **Sequences** - Chain multiple images and patterns together
 - **Live Mode** - Real-time drawing and control from web interface
 - **Adjustable Settings** - Control brightness (0-255) and frame rate (10-120 FPS)

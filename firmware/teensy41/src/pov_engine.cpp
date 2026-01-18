@@ -79,7 +79,11 @@ void POVEngine::update() {
             break;
             
         case 3:  // Sequence mode
-            // TODO: Implement sequence support
+            // NOTE: Sequence support is implemented in the Arduino IDE firmware 
+            // (teensy_firmware.ino), but not yet ported to this PlatformIO version.
+            // Implementation needed: port displaySequence() function from Arduino 
+            // firmware including sequence state tracking, item/duration arrays,
+            // and loop support. See teensy_firmware.ino lines 920-1005 for reference.
             break;
             
         case 4:  // Live mode - handled externally

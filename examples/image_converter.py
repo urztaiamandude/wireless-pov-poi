@@ -14,7 +14,8 @@ except ImportError:
 import sys
 import os
 
-def convert_image_for_pov(input_path, output_path=None, width=31, max_height=64, enhance_contrast=True, flip_vertical=False, flip_horizontal=False):
+def convert_image_for_pov(input_path, output_path=None, width=31, max_height=64, 
+                         enhance_contrast=True, skip_pov_flip=False, flip_horizontal=False):
     """
     Convert an image to POV-compatible format
     
@@ -24,8 +25,11 @@ def convert_image_for_pov(input_path, output_path=None, width=31, max_height=64,
         width: Target width in pixels (default 31 for POV system)
         max_height: Maximum height in pixels (default 64)
         enhance_contrast: Whether to enhance contrast (default True)
-        flip_vertical: Flip image vertically (skips default POV flip if True)
-        flip_horizontal: Flip image horizontally
+        skip_pov_flip: Skip the automatic vertical flip for POV display (default False).
+                       By default, images are flipped vertically so the bottom of the 
+                       image appears at LED 1 (closest to board) and top at LED 31.
+                       Set to True if your image is already pre-flipped.
+        flip_horizontal: Flip image horizontally (default False)
     """
     
     if not os.path.exists(input_path):
@@ -61,16 +65,15 @@ def convert_image_for_pov(input_path, output_path=None, width=31, max_height=64,
             print("Flipping image horizontally")
             img = img.transpose(Image.FLIP_LEFT_RIGHT)
         
-        # Apply vertical flip
-        # Note: POV format normally needs vertical flip for correct display
-        # If user wants "flip vertical", we skip the automatic flip
-        if not flip_vertical:
+        # Apply vertical flip for POV display
+        # POV format needs vertical flip: bottom of image → LED 1, top → LED 31
+        if not skip_pov_flip:
             # Flip vertically so bottom of image is at LED 1 (closest to board)
             # and top of image is at LED 31 (farthest from board)
             print("Flipping image vertically for correct POV orientation")
             img = img.transpose(Image.FLIP_TOP_BOTTOM)
         else:
-            print("Skipping default vertical flip (user requested flip)")
+            print("Skipping POV vertical flip (image pre-flipped)")
         
         # Enhance contrast if requested
         if enhance_contrast:
