@@ -62,7 +62,7 @@ class POVImageConverterGUI:
         self.height_var = tk.IntVar(value=64)
         self.contrast_var = tk.BooleanVar(value=True)
         self.aspect_ratio_lock_var = tk.BooleanVar(value=True)
-        self.flip_vertical_var = tk.BooleanVar(value=False)
+        self.skip_pov_flip_var = tk.BooleanVar(value=False)
         self.flip_horizontal_var = tk.BooleanVar(value=False)
         
         # Setup UI
@@ -288,14 +288,14 @@ class POVImageConverterGUI:
             font=("Arial", 10, "bold")
         ).pack(anchor="w")
         
-        flip_vertical_check = tk.Checkbutton(
+        skip_pov_flip_check = tk.Checkbutton(
             flip_frame,
-            text="Flip Vertical",
-            variable=self.flip_vertical_var,
+            text="Skip POV Flip (image pre-flipped)",
+            variable=self.skip_pov_flip_var,
             font=("Arial", 10),
             command=self.on_settings_change
         )
-        flip_vertical_check.pack(anchor="w")
+        skip_pov_flip_check.pack(anchor="w")
         
         flip_horizontal_check = tk.Checkbutton(
             flip_frame,
@@ -527,7 +527,7 @@ class POVImageConverterGUI:
             width = self.width_var.get()
             max_height = self.height_var.get()
             enhance_contrast = self.contrast_var.get()
-            flip_vertical = self.flip_vertical_var.get()
+            skip_pov_flip = self.skip_pov_flip_var.get()
             flip_horizontal = self.flip_horizontal_var.get()
             
             # Calculate new height maintaining aspect ratio
@@ -545,10 +545,9 @@ class POVImageConverterGUI:
             if flip_horizontal:
                 img = img.transpose(Image.FLIP_LEFT_RIGHT)
             
-            # Apply vertical flip
-            # Note: POV format always needs vertical flip for correct display
-            # If user wants "flip vertical", we skip the automatic flip
-            if not flip_vertical:
+            # Apply vertical flip for POV display
+            # POV format needs vertical flip: bottom of image → LED 1, top → LED 31
+            if not skip_pov_flip:
                 # Flip vertically so bottom of image is at LED 1 (closest to board)
                 # and top of image is at LED 31 (farthest from board)
                 img = img.transpose(Image.FLIP_TOP_BOTTOM)
@@ -643,7 +642,7 @@ class POVImageConverterGUI:
                 width=self.width_var.get(),
                 max_height=self.height_var.get(),
                 enhance_contrast=self.contrast_var.get(),
-                flip_vertical=self.flip_vertical_var.get(),
+                skip_pov_flip=self.skip_pov_flip_var.get(),
                 flip_horizontal=self.flip_horizontal_var.get()
             )
             
@@ -728,7 +727,7 @@ class POVImageConverterGUI:
                         width=self.width_var.get(),
                         max_height=self.height_var.get(),
                         enhance_contrast=self.contrast_var.get(),
-                        flip_vertical=self.flip_vertical_var.get(),
+                        skip_pov_flip=self.skip_pov_flip_var.get(),
                         flip_horizontal=self.flip_horizontal_var.get()
                     )
                     
