@@ -42,15 +42,50 @@ Images are stored in a custom binary format with `.pov` extension:
   - Each pixel: [R][G][B] (1 byte per channel)
 ```
 
+### Pattern Preset File Structure
+
+Pattern presets are stored with `.pat` extension in the `/poi_patterns/` directory:
+
+```
+[Header: 5 bytes]
+  - Magic:         4 bytes (0x50415431 = "PAT1")
+  - PatternCount:  1 byte  (number of patterns, typically 16)
+
+[Pattern Data: 9 bytes per pattern × PatternCount]
+  For each pattern:
+    - Active:  1 byte (0 = inactive, 1 = active)
+    - Type:    1 byte (0-15, pattern type)
+    - Color1:  3 bytes (R, G, B of primary color)
+    - Color2:  3 bytes (R, G, B of secondary color)
+    - Speed:   1 byte (1-255, animation speed)
+```
+
+**Usage:**
+- Save all patterns: `savePatternPreset("mypreset")` → `/poi_patterns/mypreset.pat`
+- Load patterns: `loadPatternPreset("mypreset")` → loads all patterns from file
+
 ### Directory Structure
+
+The SD card uses two directories for storing POV content:
 
 ```
 /
-└── images/
-    ├── image1.pov
-    ├── image2.pov
+├── poi_images/        # POV image files
+│   ├── heart.pov
+│   ├── star.pov
+│   └── ...
+│
+└── poi_patterns/      # Pattern preset files
+    ├── mypreset.pat
+    ├── party.pat
     └── ...
 ```
+
+**Notes:**
+- `poi_images/` stores POV image files in custom `.pov` binary format
+- `poi_patterns/` stores pattern preset files in custom `.pat` binary format
+- Directories are created automatically when first saving content
+- Both directories can contain up to 10 files each (MAX_SD_FILES limit)
 
 ## API Reference
 

@@ -24,12 +24,16 @@
 #endif
 
 // LED Configuration
+// ⚠️ CRITICAL: LED 0 is used for level shifting only - NEVER use for display!
+// All display loops MUST start from index 1, not 0.
+// Example: for (int i = 1; i < NUM_LEDS; i++) { leds[i] = color; }
 #define NUM_LEDS 32
 #define DATA_PIN 11
 #define CLOCK_PIN 13
 #define LED_TYPE APA102
 #define COLOR_ORDER BGR
-#define DISPLAY_LEDS 31  // LEDs 1-31 used for display (LED 0 for level shifting)
+#define DISPLAY_LEDS 31       // LEDs 1-31 used for display (LED 0 for level shifting)
+#define DISPLAY_LED_START 1   // First LED index used for display content
 
 // Audio Input Configuration (for music reactive patterns)
 #define AUDIO_PIN A0         // Analog microphone input
@@ -41,9 +45,11 @@
 #define ESP32_SERIAL Serial1
 
 // Display Configuration
+// NOTE: IMAGE_HEIGHT = DISPLAY_LEDS = 31 (fixed, matches physical LEDs)
+//       IMAGE_MAX_WIDTH = variable (calculated from aspect ratio)
 #define MAX_IMAGES 10
-#define IMAGE_WIDTH 31
-#define IMAGE_HEIGHT 64
+#define IMAGE_HEIGHT 31         // Fixed: matches DISPLAY_LEDS (one pixel per LED)
+#define IMAGE_MAX_WIDTH 200     // Maximum width for stored images
 #define MAX_PATTERNS 16  // 0-15: rainbow, wave, gradient, sparkle, fire, comet, breathing, strobe, meteor, wipe, plasma, music VU, music pulse, music rainbow, music center, music sparkle
 #define MAX_SEQUENCES 5
 
@@ -67,12 +73,19 @@ struct POVImage {
 };
 
 // Pattern structure
+// Pattern types (0-15):
+//   Basic:  0=rainbow, 1=wave, 2=gradient, 3=sparkle, 4=fire, 5=comet
+//           6=breathing, 7=strobe, 8=meteor, 9=wipe, 10=plasma
+//   Music:  11=VU meter, 12=pulse, 13=rainbow, 14=center, 15=sparkle
 struct Pattern {
-  uint8_t type;  // 0=rainbow, 1=wave, 2=gradient, 3=sparkle, 4=custom
-  CRGB color1;
-  CRGB color2;
-  uint8_t speed;
-  bool active;
+  uint8_t type;   // Pattern type (0-15), see types above
+  CRGB color1;    // Primary color for pattern
+  CRGB color2;    // Secondary color for pattern
+  uint8_t speed;  // Animation speed (1-255): higher = faster animation
+                  //   Typical: 20-40 slow, 50-80 medium, 100+ fast
+                  //   For strobe: controls flash rate
+                  //   For sparkle: controls sparkle density
+  bool active;    // Whether this pattern slot is in use
 };
 
 // Sequence structure
@@ -106,7 +119,10 @@ bool sequencePlaying = false;
 CRGB liveBuffer[DISPLAY_LEDS];
 
 // Serial command buffer
-#define CMD_BUFFER_SIZE 6144  // Large enough for 31x64 RGB image + protocol overhead
+// Buffer size calculation: 31 (width) × 64 (height) × 3 (RGB bytes) = 5,952 bytes
+// Plus protocol overhead (~100 bytes): 0xFF start, cmd, len, 0xFE end markers
+// Rounded up to 6144 for safety margin
+#define CMD_BUFFER_SIZE 6144
 uint8_t cmdBuffer[CMD_BUFFER_SIZE];
 uint16_t cmdBufferIndex = 0;
 

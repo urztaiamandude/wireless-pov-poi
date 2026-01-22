@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
 """
-Test script to verify vertical flip is working correctly
-Creates a gradient image (black at top, white at bottom) and verifies flip
+Test script to verify image conversion maintains correct orientation.
+
+NOTE: No vertical flip is needed because the LED arrangement maps directly:
+- LED 1 (bottom of strip) displays bottom of image
+- LED 31 (top of strip) displays top of image
+
+This test verifies that images maintain their original top-to-bottom orientation.
 """
 
 import os
@@ -31,9 +36,12 @@ def create_gradient_image(width, height, filename):
     return filename
 
 def test_vertical_flip():
-    """Test that vertical flip is working correctly"""
-    print("Testing vertical flip...")
+    """Test that image orientation is maintained (no flip needed)"""
+    print("Testing image orientation...")
     print("=" * 60)
+    print("NOTE: No vertical flip is applied - LEDs map directly to image pixels")
+    print("  LED 1 (bottom) = image bottom, LED 31 (top) = image top")
+    print()
     
     with tempfile.TemporaryDirectory() as tmpdir:
         # Create a gradient test image (black at top, white at bottom)
@@ -43,9 +51,9 @@ def test_vertical_flip():
         
         output_img = os.path.join(tmpdir, "gradient_output.png")
         
-        # Convert image with flip
+        # Convert image (no flip is applied)
         success = convert_image_for_pov(test_img, output_img, 
-                                       width=31, max_height=64, 
+                                       height=31, max_width=200, 
                                        enhance_contrast=False)
         
         if not success:
@@ -57,18 +65,14 @@ def test_vertical_flip():
         
         # Check pixel values
         # Original: top pixel should be black (0,0,0), bottom pixel white (255,255,255)
-        # After flip: top pixel should be white, bottom pixel should be black
+        # Since no flip is applied, orientation should be preserved
         
-        top_pixel = result.getpixel((15, 0))  # Middle x, top y
-        bottom_pixel = result.getpixel((15, result.height - 1))  # Middle x, bottom y
+        top_pixel = result.getpixel((result.width // 2, 0))  # Middle x, top y
+        bottom_pixel = result.getpixel((result.width // 2, result.height - 1))  # Middle x, bottom y
         
         print(f"Result image size: {result.width}x{result.height}")
         print(f"Top pixel (y=0) RGB: {top_pixel}")
         print(f"Bottom pixel (y={result.height-1}) RGB: {bottom_pixel}")
-        
-        # After vertical flip:
-        # - Top of result (y=0) should be bright (originally from bottom)
-        # - Bottom of result (y=max) should be dark (originally from top)
         
         top_brightness = sum(top_pixel) / 3
         bottom_brightness = sum(bottom_pixel) / 3
@@ -76,15 +80,18 @@ def test_vertical_flip():
         print(f"Top brightness: {top_brightness:.1f}")
         print(f"Bottom brightness: {bottom_brightness:.1f}")
         
-        # Check if flip worked (top should be brighter than bottom)
-        if top_brightness > bottom_brightness + 50:  # Allow some margin for contrast enhancement
-            print("✓ PASSED: Image is correctly flipped vertically!")
-            print("  - Top of image (y=0) is bright (originally from bottom)")
-            print("  - Bottom of image is dark (originally from top)")
+        # Check if orientation is preserved (no flip)
+        # Original: top=dark, bottom=bright
+        # After conversion (no flip): top should still be dark, bottom still bright
+        if bottom_brightness > top_brightness + 50:  # Allow some margin
+            print("✓ PASSED: Image orientation correctly preserved!")
+            print("  - Top of image (y=0) is dark (as in original)")
+            print("  - Bottom of image is bright (as in original)")
+            print("  - LED 1 (bottom) will show bright, LED 31 (top) will show dark")
             return True
         else:
-            print("❌ FAILED: Image flip may not be working correctly")
-            print(f"  Expected top pixel to be much brighter than bottom")
+            print("❌ FAILED: Image orientation may not be correct")
+            print(f"  Expected bottom pixel to be much brighter than top")
             print(f"  Top: {top_brightness:.1f}, Bottom: {bottom_brightness:.1f}")
             return False
 
