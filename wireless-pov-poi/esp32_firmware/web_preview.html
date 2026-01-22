@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<!--
+    Nebula Poi Web Interface Preview
+    
+    This is a standalone preview of the ESP32 web interface.
+    Open this file directly in a browser to see the UI without hardware.
+    
+    Note: API calls will fail since there's no real ESP32 backend,
+    but you can preview the full UI/UX experience.
+-->
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#667eea">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Nebula Poi">
+    <title>Nebula Poi Controller - Preview</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        .status {
+            background: rgba(255,255,255,0.2);
+            padding: 10px;
+            border-radius: 10px;
+            margin-top: 15px;
+        }
+        .content {
+            padding: 30px;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+        h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+        }
+        .control-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+        select, input[type="range"], input[type="file"], button {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+        select:focus, input[type="file"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        button:active {
+            transform: translateY(0);
+        }
+        .slider-value {
+            text-align: center;
+            font-size: 1.2em;
+            font-weight: 600;
+            color: #667eea;
+            margin-top: 8px;
+        }
+        .pattern-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .pattern-btn {
+            padding: 20px;
+            background: white;
+            border: 2px solid #667eea;
+            color: #667eea;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+        .pattern-btn:hover {
+            background: #667eea;
+            color: white;
+            transform: scale(1.05);
+        }
+        .pattern-btn.active {
+            background: #667eea;
+            color: white;
+        }
+        .color-picker-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .color-picker {
+            flex: 1;
+        }
+        input[type="color"] {
+            width: 100%;
+            height: 50px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        .live-canvas {
+            width: 100%;
+            height: 200px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            background: #000;
+            cursor: crosshair;
+        }
+        
+        /* Preview Mode Banner */
+        .preview-banner {
+            background: #ff9800;
+            color: white;
+            padding: 10px;
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        /* Toast notifications */
+        .toast {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: white;
+            padding: 15px 25px;
+            border-radius: 8px;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .toast.show {
+            opacity: 1;
+        }
+        
+        /* Mobile-first responsive design */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            
+            .container {
+                border-radius: 12px;
+            }
+            
+            h1 {
+                font-size: 1.8em;
+            }
+            
+            h2 {
+                font-size: 1.3em;
+            }
+            
+            .header {
+                padding: 20px;
+            }
+            
+            .content {
+                padding: 15px;
+            }
+            
+            .section {
+                padding: 15px;
+                margin-bottom: 15px;
+            }
+            
+            button {
+                width: 100%;
+                margin: 5px 0;
+                padding: 15px;
+                font-size: 16px;
+                min-height: 44px;
+                touch-action: manipulation;
+            }
+            
+            input[type="range"] {
+                width: 100%;
+                height: 40px;
+                -webkit-appearance: none;
+                appearance: none;
+            }
+            
+            input[type="range"]::-webkit-slider-thumb {
+                -webkit-appearance: none;
+                width: 32px;
+                height: 32px;
+                border-radius: 50%;
+                background: #667eea;
+                cursor: pointer;
+            }
+            
+            input[type="range"]::-moz-range-thumb {
+                width: 32px;
+                height: 32px;
+                border-radius: 50%;
+                background: #667eea;
+                cursor: pointer;
+                border: none;
+            }
+            
+            input[type="file"] {
+                width: 100%;
+                padding: 15px;
+                font-size: 16px;
+            }
+            
+            select {
+                font-size: 16px;
+                min-height: 44px;
+            }
+            
+            .pattern-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 8px;
+            }
+            
+            .pattern-btn {
+                padding: 15px;
+                font-size: 14px;
+            }
+            
+            .color-picker-group {
+                flex-direction: column;
+            }
+            
+            input[type="color"] {
+                height: 60px;
+            }
+            
+            .live-canvas {
+                height: 150px;
+            }
+            
+            .status {
+                font-size: 14px;
+            }
+        }
+        
+        /* Improve touch targets */
+        button, input, select {
+            min-height: 44px;
+        }
+        
+        /* Better contrast for readability */
+        body {
+            font-size: 16px;
+            line-height: 1.6;
+        }
+        
+        /* LED Preview Strip */
+        .led-preview {
+            display: flex;
+            gap: 2px;
+            padding: 10px;
+            background: #111;
+            border-radius: 8px;
+            margin-top: 15px;
+            overflow-x: auto;
+        }
+        .led {
+            width: 15px;
+            height: 30px;
+            border-radius: 3px;
+            background: #222;
+            transition: background 0.1s;
+        }
+    </style>
+</head>
+<body>
+    <!-- Preview Mode Banner -->
+    <div class="preview-banner">
+        🔍 PREVIEW MODE - This is a UI preview. Connect to real hardware at 192.168.4.1
+    </div>
+    
+    <!-- Toast Notification -->
+    <div id="toast" class="toast"></div>
+    
+    <div class="container">
+        <div class="header">
+            <h1>🎨 Nebula Poi Controller</h1>
+            <div class="status">
+                <div>Status: <span id="connection-status">Preview Mode (Simulated)</span></div>
+                <div>Mode: <span id="mode-status">Pattern</span></div>
+            </div>
+        </div>
+        
+        <div class="content">
+            <!-- LED Preview -->
+            <div class="section">
+                <h2>🔮 LED Preview</h2>
+                <div class="led-preview" id="led-preview">
+                    <!-- LEDs will be generated by JavaScript -->
+                </div>
+            </div>
+            
+            <!-- Mode Selection -->
+            <div class="section">
+                <h2>Display Mode</h2>
+                <div class="control-group">
+                    <label for="mode-select">Select Mode:</label>
+                    <select id="mode-select" onchange="changeMode()">
+                        <option value="0">Idle (Off)</option>
+                        <option value="1">Image Display</option>
+                        <option value="2" selected>Pattern Display</option>
+                        <option value="3">Sequence</option>
+                        <option value="4">Live Mode</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- System Controls -->
+            <div class="section">
+                <h2>System Controls</h2>
+                <div class="control-group">
+                    <label for="brightness">Brightness: <span id="brightness-value">128</span></label>
+                    <input type="range" id="brightness" min="0" max="255" value="128" oninput="updateBrightness(this.value)">
+                </div>
+                <div class="control-group">
+                    <label for="framerate">Frame Rate: <span id="framerate-value">50</span> FPS</label>
+                    <input type="range" id="framerate" min="10" max="120" value="50" oninput="updateFrameRate(this.value)">
+                </div>
+            </div>
+            
+            <!-- Patterns -->
+            <div class="section">
+                <h2>Visual Patterns</h2>
+                <div class="pattern-grid">
+                    <button class="pattern-btn" onclick="setPattern(0)">🌈 Rainbow</button>
+                    <button class="pattern-btn" onclick="setPattern(1)">🌊 Wave</button>
+                    <button class="pattern-btn" onclick="setPattern(2)">🎨 Gradient</button>
+                    <button class="pattern-btn" onclick="setPattern(3)">✨ Sparkle</button>
+                    <button class="pattern-btn" onclick="setPattern(4)">🔥 Fire</button>
+                    <button class="pattern-btn" onclick="setPattern(5)">☄️ Comet</button>
+                    <button class="pattern-btn" onclick="setPattern(6)">💨 Breathing</button>
+                    <button class="pattern-btn" onclick="setPattern(7)">⚡ Strobe</button>
+                    <button class="pattern-btn" onclick="setPattern(8)">🌠 Meteor</button>
+                    <button class="pattern-btn" onclick="setPattern(9)">🖌️ Wipe</button>
+                    <button class="pattern-btn" onclick="setPattern(10)">🌀 Plasma</button>
+                </div>
+            </div>
+            
+            <!-- Audio Reactive Patterns -->
+            <div class="section">
+                <h2>🎵 Audio Reactive</h2>
+                <p style="font-size: 12px; color: #666; margin-bottom: 10px;">Requires microphone on Teensy pin A0</p>
+                <div class="pattern-grid">
+                    <button class="pattern-btn" onclick="setPattern(11)" style="background: linear-gradient(135deg, #00ff88 0%, #ff0088 100%); color: white; border: none;">📊 VU Meter</button>
+                    <button class="pattern-btn" onclick="setPattern(12)" style="background: linear-gradient(135deg, #ff0088 0%, #00ff88 100%); color: white; border: none;">💓 Pulse</button>
+                    <button class="pattern-btn" onclick="setPattern(13)" style="background: linear-gradient(135deg, #ff0000 0%, #00ff00 50%, #0000ff 100%); color: white; border: none;">🌈 Audio Rainbow</button>
+                    <button class="pattern-btn" onclick="setPattern(14)" style="background: linear-gradient(135deg, #8800ff 0%, #ff8800 100%); color: white; border: none;">🎯 Center Burst</button>
+                    <button class="pattern-btn" onclick="setPattern(15)" style="background: linear-gradient(135deg, #ffff00 0%, #ff00ff 100%); color: white; border: none;">✨ Audio Sparkle</button>
+                </div>
+            </div>
+            
+            <!-- Pattern Settings -->
+            <div class="section">
+                <h2>Pattern Settings</h2>
+                <div class="color-picker-group">
+                    <div class="color-picker">
+                        <label>Color 1:</label>
+                        <input type="color" id="color1" value="#ff0000" onchange="updatePreview()">
+                    </div>
+                    <div class="color-picker">
+                        <label>Color 2:</label>
+                        <input type="color" id="color2" value="#0000ff" onchange="updatePreview()">
+                    </div>
+                </div>
+                <div class="control-group" style="margin-top: 10px;">
+                    <label for="pattern-speed">Pattern Speed: <span id="speed-value">50</span></label>
+                    <input type="range" id="pattern-speed" min="1" max="255" value="50" oninput="updateSpeed(this.value)">
+                </div>
+            </div>
+            
+            <!-- Image Upload -->
+            <div class="section">
+                <h2>Upload Image</h2>
+                <div class="control-group">
+                    <label for="image-upload">Select Image:</label>
+                    <input type="file" id="image-upload" accept="image/*" onchange="previewImage()">
+                    <button onclick="uploadImage()" style="margin-top: 10px;">Upload & Display</button>
+                </div>
+                <canvas id="image-preview-canvas" style="width: 100%; max-height: 100px; margin-top: 10px; display: none; border: 1px solid #ddd; border-radius: 4px;"></canvas>
+            </div>
+            
+            <!-- Live Mode -->
+            <div class="section">
+                <h2>Live Draw Mode</h2>
+                <canvas id="live-canvas" class="live-canvas" width="310" height="200"></canvas>
+                <button onclick="clearCanvas()" style="margin-top: 10px;">Clear</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // =====================
+        // State Management
+        // =====================
+        let currentMode = 2;
+        let currentPattern = 0;
+        let brightness = 128;
+        let animationFrame = null;
+        let hue = 0;
+        
+        // =====================
+        // LED Preview
+        // =====================
+        const NUM_LEDS = 31;  // LEDs 1-31 (index 0 is level shifter)
+        
+        function initLEDPreview() {
+            const container = document.getElementById('led-preview');
+            container.innerHTML = '';
+            for (let i = 0; i < NUM_LEDS; i++) {
+                const led = document.createElement('div');
+                led.className = 'led';
+                led.id = `led-${i}`;
+                container.appendChild(led);
+            }
+        }
+        
+        function setLED(index, r, g, b) {
+            const led = document.getElementById(`led-${index}`);
+            if (led) {
+                const scale = brightness / 255;
+                led.style.background = `rgb(${Math.round(r * scale)}, ${Math.round(g * scale)}, ${Math.round(b * scale)})`;
+                led.style.boxShadow = `0 0 10px rgba(${r}, ${g}, ${b}, 0.5)`;
+            }
+        }
+        
+        function clearLEDs() {
+            for (let i = 0; i < NUM_LEDS; i++) {
+                setLED(i, 0, 0, 0);
+            }
+        }
+        
+        // =====================
+        // Pattern Animations
+        // =====================
+        function hsvToRgb(h, s, v) {
+            let r, g, b;
+            const i = Math.floor(h * 6);
+            const f = h * 6 - i;
+            const p = v * (1 - s);
+            const q = v * (1 - f * s);
+            const t = v * (1 - (1 - f) * s);
+            
+            switch (i % 6) {
+                case 0: r = v; g = t; b = p; break;
+                case 1: r = q; g = v; b = p; break;
+                case 2: r = p; g = v; b = t; break;
+                case 3: r = p; g = q; b = v; break;
+                case 4: r = t; g = p; b = v; break;
+                case 5: r = v; g = p; b = q; break;
+            }
+            
+            return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
+        }
+        
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? [
+                parseInt(result[1], 16),
+                parseInt(result[2], 16),
+                parseInt(result[3], 16)
+            ] : [0, 0, 0];
+        }
+        
+        function animatePattern() {
+            const speed = parseInt(document.getElementById('pattern-speed').value);
+            const color1 = hexToRgb(document.getElementById('color1').value);
+            const color2 = hexToRgb(document.getElementById('color2').value);
+            const time = Date.now() / (256 - speed);
+            
+            switch (currentPattern) {
+                case 0: // Rainbow
+                    for (let i = 0; i < NUM_LEDS; i++) {
+                        const [r, g, b] = hsvToRgb(((i * 8 + hue) % 256) / 256, 1, 1);
+                        setLED(i, r, g, b);
+                    }
+                    hue = (hue + 1) % 256;
+                    break;
+                    
+                case 1: // Wave
+                    for (let i = 0; i < NUM_LEDS; i++) {
+                        const wave = Math.sin((i + time) * 0.3) * 0.5 + 0.5;
+                        setLED(i, color1[0] * wave, color1[1] * wave, color1[2] * wave);
+                    }
+                    break;
+                    
+                case 2: // Gradient
+                    for (let i = 0; i < NUM_LEDS; i++) {
+                        const t = i / NUM_LEDS;
+                        setLED(i,
+                            color1[0] + (color2[0] - color1[0]) * t,
+                            color1[1] + (color2[1] - color1[1]) * t,
+                            color1[2] + (color2[2] - color1[2]) * t
+                        );
+                    }
+                    break;
+                    
+                case 3: // Sparkle
+                    for (let i = 0; i < NUM_LEDS; i++) {
+                        if (Math.random() > 0.9) {
+                            setLED(i, 255, 255, 255);
+                        } else {
+                            setLED(i, color1[0] * 0.2, color1[1] * 0.2, color1[2] * 0.2);
+                        }
+                    }
+                    break;
+                    
+                case 4: // Fire
+                    for (let i = 0; i < NUM_LEDS; i++) {
+                        const flicker = Math.random() * 0.5 + 0.5;
+                        const heat = Math.max(0, 1 - i / NUM_LEDS + Math.random() * 0.3);
+                        setLED(i, 255 * heat * flicker, 100 * heat * flicker, 0);
+                    }
+                    break;
+                    
+                case 5: // Comet
+                    const cometPos = Math.floor(time * 0.5) % NUM_LEDS;
+                    for (let i = 0; i < NUM_LEDS; i++) {
+                        const dist = (i - cometPos + NUM_LEDS) % NUM_LEDS;
+                        const fade = Math.max(0, 1 - dist / 8);
+                        setLED(i, color1[0] * fade, color1[1] * fade, color1[2] * fade);
+                    }
+                    break;
+                    
+                case 6: // Breathing
+                    const breath = Math.sin(time * 0.05) * 0.5 + 0.5;
+                    for (let i = 0; i < NUM_LEDS; i++) {
+                        setLED(i, color1[0] * breath, color1[1] * breath, color1[2] * breath);
+                    }
+                    break;
+                    
+                case 7: // Strobe
+                    const on = Math.floor(time * 0.2) % 2 === 0;
+                    for (let i = 0; i < NUM_LEDS; i++) {
+                        setLED(i, on ? 255 : 0, on ? 255 : 0, on ? 255 : 0);
+                    }
+                    break;
+                    
+                case 8: // Meteor
+                    const meteorPos = Math.floor(time * 0.3) % (NUM_LEDS + 10);
+                    for (let i = 0; i < NUM_LEDS; i++) {
+                        const dist = meteorPos - i;
+                        if (dist >= 0 && dist < 10) {
+                            const fade = 1 - dist / 10;
+                            setLED(i, color1[0] * fade, color1[1] * fade, color1[2] * fade);
+                        } else {
+                            setLED(i, 0, 0, 0);
+                        }
+                    }
+                    break;
+                    
+                case 9: // Wipe
+                    const wipePos = Math.floor(time * 0.3) % (NUM_LEDS * 2);
+                    for (let i = 0; i < NUM_LEDS; i++) {
+                        if (wipePos < NUM_LEDS) {
+                            setLED(i, i <= wipePos ? color1[0] : 0, i <= wipePos ? color1[1] : 0, i <= wipePos ? color1[2] : 0);
+                        } else {
+                            const revPos = wipePos - NUM_LEDS;
+                            setLED(i, i > revPos ? color1[0] : 0, i > revPos ? color1[1] : 0, i > revPos ? color1[2] : 0);
+                        }
+                    }
+                    break;
+                    
+                case 10: // Plasma
+                    for (let i = 0; i < NUM_LEDS; i++) {
+                        const v = Math.sin(i * 0.2 + time * 0.1) + Math.sin(i * 0.1 + time * 0.05);
+                        const [r, g, b] = hsvToRgb((v + 2) / 4, 1, 1);
+                        setLED(i, r, g, b);
+                    }
+                    break;
+                    
+                // Audio reactive patterns (simulated)
+                case 11: // VU Meter
+                    const vuLevel = Math.floor(Math.random() * NUM_LEDS);
+                    for (let i = 0; i < NUM_LEDS; i++) {
+                        if (i < vuLevel) {
+                            const t = i / NUM_LEDS;
+                            setLED(i, 0, 255 * (1 - t), 255 * t);
+                        } else {
+                            setLED(i, 0, 0, 0);
+                        }
+                    }
+                    break;
+                    
+                case 12: // Pulse
+                    const pulse = Math.random() * 0.5 + 0.5;
+                    for (let i = 0; i < NUM_LEDS; i++) {
+                        setLED(i, 255 * pulse, 0, 128 * pulse);
+                    }
+                    break;
+                    
+                case 13: // Audio Rainbow
+                    const audioHue = Math.floor(Math.random() * 30);
+                    for (let i = 0; i < NUM_LEDS; i++) {
+                        const [r, g, b] = hsvToRgb(((i * 8 + audioHue) % 256) / 256, 1, Math.random() * 0.5 + 0.5);
+                        setLED(i, r, g, b);
+                    }
+                    break;
+                    
+                case 14: // Center Burst
+                    const center = Math.floor(NUM_LEDS / 2);
+                    const burstSize = Math.floor(Math.random() * center);
+                    for (let i = 0; i < NUM_LEDS; i++) {
+                        const dist = Math.abs(i - center);
+                        if (dist < burstSize) {
+                            setLED(i, 136, 0, 255);
+                        } else {
+                            setLED(i, 0, 0, 0);
+                        }
+                    }
+                    break;
+                    
+                case 15: // Audio Sparkle
+                    for (let i = 0; i < NUM_LEDS; i++) {
+                        if (Math.random() > 0.85) {
+                            setLED(i, 255, 255, 0);
+                        } else if (Math.random() > 0.95) {
+                            setLED(i, 255, 0, 255);
+                        } else {
+                            setLED(i, 20, 20, 20);
+                        }
+                    }
+                    break;
+            }
+            
+            if (currentMode === 2) {
+                animationFrame = requestAnimationFrame(animatePattern);
+            }
+        }
+        
+        function updatePreview() {
+            if (currentMode !== 2) return;
+            // Pattern will update on next animation frame
+        }
+        
+        // =====================
+        // UI Handlers
+        // =====================
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2000);
+        }
+        
+        function changeMode() {
+            const mode = document.getElementById('mode-select').value;
+            currentMode = parseInt(mode);
+            
+            if (animationFrame) {
+                cancelAnimationFrame(animationFrame);
+            }
+            
+            document.getElementById('mode-status').textContent = 
+                ['Idle', 'Image', 'Pattern', 'Sequence', 'Live'][currentMode] || 'Unknown';
+            
+            if (currentMode === 0) {
+                clearLEDs();
+            } else if (currentMode === 2) {
+                animatePattern();
+            }
+            
+            showToast(`Mode: ${['Idle', 'Image', 'Pattern', 'Sequence', 'Live'][currentMode]}`);
+        }
+        
+        function updateBrightness(value) {
+            brightness = parseInt(value);
+            document.getElementById('brightness-value').textContent = value;
+            showToast(`Brightness: ${value}`);
+        }
+        
+        function updateFrameRate(value) {
+            document.getElementById('framerate-value').textContent = value;
+            showToast(`Frame Rate: ${value} FPS`);
+        }
+        
+        function setPattern(type) {
+            currentPattern = type;
+            
+            // Update active button styling
+            document.querySelectorAll('.pattern-btn').forEach((btn, idx) => {
+                btn.classList.toggle('active', idx === type);
+            });
+            
+            // Switch to pattern mode
+            if (currentMode !== 2) {
+                document.getElementById('mode-select').value = '2';
+                changeMode();
+            }
+            
+            const patternNames = ['Rainbow', 'Wave', 'Gradient', 'Sparkle', 'Fire', 'Comet', 
+                                  'Breathing', 'Strobe', 'Meteor', 'Wipe', 'Plasma',
+                                  'VU Meter', 'Pulse', 'Audio Rainbow', 'Center Burst', 'Audio Sparkle'];
+            showToast(`Pattern: ${patternNames[type] || 'Unknown'}`);
+        }
+        
+        function updateSpeed(value) {
+            document.getElementById('speed-value').textContent = value;
+        }
+        
+        function previewImage() {
+            const fileInput = document.getElementById('image-upload');
+            const canvas = document.getElementById('image-preview-canvas');
+            const ctx = canvas.getContext('2d');
+            
+            if (fileInput.files.length) {
+                const file = fileInput.files[0];
+                const img = new Image();
+                const reader = new FileReader();
+                
+                reader.onload = (e) => {
+                    img.onload = () => {
+                        canvas.width = 31;
+                        canvas.height = Math.min(64, Math.round(31 * img.height / img.width));
+                        ctx.imageSmoothingEnabled = false;
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        canvas.style.display = 'block';
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+        
+        function uploadImage() {
+            const fileInput = document.getElementById('image-upload');
+            if (!fileInput.files.length) {
+                showToast('Please select an image first');
+                return;
+            }
+            showToast('Image uploaded (preview mode - no hardware)');
+        }
+        
+        // =====================
+        // Live Canvas
+        // =====================
+        const canvas = document.getElementById('live-canvas');
+        const ctx = canvas.getContext('2d');
+        let isDrawing = false;
+        
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mouseleave', stopDrawing);
+        
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            startDrawing(e.touches[0]);
+        });
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            draw(e.touches[0]);
+        });
+        canvas.addEventListener('touchend', stopDrawing);
+        
+        function startDrawing(e) {
+            isDrawing = true;
+            draw(e);
+        }
+        
+        function stopDrawing() {
+            isDrawing = false;
+            updateLivePreview();
+        }
+        
+        function draw(e) {
+            if (!isDrawing) return;
+            
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            ctx.fillStyle = document.getElementById('color1').value;
+            ctx.beginPath();
+            ctx.arc(x, y, 5, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        function clearCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            clearLEDs();
+            showToast('Canvas cleared');
+        }
+        
+        function updateLivePreview() {
+            // Sample the canvas and update LED preview
+            const scaleX = canvas.width / NUM_LEDS;
+            for (let i = 0; i < NUM_LEDS; i++) {
+                const x = Math.floor(i * scaleX);
+                const imageData = ctx.getImageData(x, canvas.height / 2, 1, 1).data;
+                setLED(i, imageData[0], imageData[1], imageData[2]);
+            }
+        }
+        
+        // =====================
+        // Initialize
+        // =====================
+        initLEDPreview();
+        setPattern(0);  // Start with rainbow
+    </script>
+</body>
+</html>
