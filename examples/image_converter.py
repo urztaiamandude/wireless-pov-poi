@@ -5,9 +5,10 @@ Converts regular images to POV-compatible format.
 
 IMPORTANT: The LED strip forms the VERTICAL axis of the display.
 - HEIGHT is FIXED at 31 pixels (matching 31 display LEDs)
-- WIDTH is calculated to maintain aspect ratio
+- WIDTH is scaled proportionally using the same scale factor as height
 - LED 1 (bottom of strip) = bottom of image
 - LED 31 (top of strip) = top of image
+- LEDs display vertical columns from left to right
 - No vertical flip is needed - the LED arrangement maps directly to image pixels
 """
 
@@ -31,7 +32,8 @@ def convert_image_for_pov(input_path, output_path=None, height=31, max_width=200
     
     The LED strip forms the VERTICAL axis, so:
     - HEIGHT is FIXED at 31 pixels (one pixel per display LED)
-    - WIDTH is calculated to maintain aspect ratio
+    - WIDTH is scaled proportionally using the same scale factor as height
+    - LEDs display vertical columns from left to right
     
     Args:
         input_path: Path to input image
@@ -61,10 +63,10 @@ def convert_image_for_pov(input_path, output_path=None, height=31, max_width=200
             print(f"Converting from {img.mode} to RGB")
             img = img.convert('RGB')
         
-        # Calculate new width maintaining aspect ratio
-        # HEIGHT is fixed (31 LEDs), WIDTH is calculated
-        aspect_ratio = img.width / img.height
-        new_width = int(height * aspect_ratio)
+        # Calculate scale factor based on height change
+        # Apply the same scale factor to width to prevent warping
+        scale_factor = height / img.height
+        new_width = int(img.width * scale_factor)
         
         # Limit width
         if new_width > max_width:
@@ -73,6 +75,8 @@ def convert_image_for_pov(input_path, output_path=None, height=31, max_width=200
         
         if new_width < 1:
             new_width = 1
+        
+        print(f"Scale factor: {scale_factor:.4f} ({height}/{img.height})")
         
         # Resize with nearest neighbor for crisp pixels
         print(f"Resizing to {new_width}x{height}")
@@ -123,13 +127,14 @@ def print_usage():
     print()
     print("The script will:")
     print("  - Resize image to 31 pixels HIGH (matching 31 display LEDs)")
-    print("  - Calculate width to maintain aspect ratio")
+    print("  - Scale width proportionally using the same scale factor")
     print("  - Enhance contrast for better visibility")
     print("  - Save as PNG format")
     print()
     print("Note: The LED strip forms the VERTICAL axis of the display.")
     print("  - HEIGHT is fixed at 31 pixels (one per LED)")
-    print("  - WIDTH is calculated based on aspect ratio")
+    print("  - WIDTH is scaled proportionally to prevent warping")
+    print("  - LEDs display vertical columns from left to right")
     print()
     print("Alternative: Use the POISonic online converter:")
     print("  https://web.archive.org/web/20210509110926/https://www.orchardelica.com/poisonic/poi_page.html")
