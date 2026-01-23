@@ -162,20 +162,32 @@ ESP32 Nebula Poi Controller Ready!
 2. Navigate to: **http://192.168.4.1**
 3. Web interface should load
 
-#### C. Test Basic Functions
-1. **Brightness Test**:
+#### C. Test Demo Content
+
+The firmware comes pre-loaded with demo content! Try these:
+
+1. **Demo Patterns** (Mode: Pattern Display):
+   - Set mode to "Pattern Display"
+   - Set index to 0 for Rainbow pattern
+   - Try indices 1-4 for Fire, Comet, Breathing, Plasma
+   
+2. **Demo Images** (Mode: Image Display):
+   - Set mode to "Image Display"
+   - Set index to 0 for Smiley Face
+   - Try indices 1-2 for Rainbow Gradient and Heart
+   
+3. **Demo Sequence** (Mode: Sequence):
+   - Set mode to "Sequence"
+   - Set index to 0
+   - Watch it cycle through images and patterns!
+
+4. **Brightness Test**:
    - Move brightness slider
    - LEDs should change brightness
-   
-2. **Pattern Test**:
-   - Click "Rainbow" button
-   - LEDs should show rainbow pattern
-   
-3. **Mode Test**:
-   - Select different modes from dropdown
-   - Observe LED behavior changes
 
 ✅ **Checkpoint**: System fully operational!
+
+**📖 See [DEMO_CONTENT.md](DEMO_CONTENT.md) for complete details on all built-in content**
 
 ## Quick Test Checklist
 

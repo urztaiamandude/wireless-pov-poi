@@ -475,6 +475,16 @@ void handleRoot() {
                         <option value="4">Live Mode</option>
                     </select>
                 </div>
+                <div style="margin-top: 10px; padding: 10px; background: rgba(102, 126, 234, 0.1); border-radius: 5px; font-size: 14px;">
+                    <strong>Available Content:</strong><br>
+                    📷 Images: 0=Smiley, 1=Rainbow, 2=Heart<br>
+                    🎨 Patterns: 0=Rainbow, 1=Fire, 2=Comet, 3=Breathing, 4=Plasma<br>
+                    🎬 Sequences: 0=Demo Mix
+                </div>
+                <div class="control-group" style="margin-top: 15px;">
+                    <label for="content-index">Content Index (0-15):</label>
+                    <input type="number" id="content-index" min="0" max="15" value="0" onchange="changeContentIndex()">
+                </div>
             </div>
             
             <!-- System Controls -->
@@ -720,15 +730,21 @@ void handleRoot() {
         
         async function changeMode() {
             const mode = document.getElementById('mode-select').value;
+            const index = document.getElementById('content-index').value;
             currentMode = parseInt(mode);
             
             await fetch('/api/mode', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({mode: currentMode, index: 0})
+                body: JSON.stringify({mode: currentMode, index: parseInt(index)})
             });
             
             updateStatus();
+        }
+        
+        async function changeContentIndex() {
+            // When index changes, update the current mode with new index
+            await changeMode();
         }
         
         function updateBrightness(value) {

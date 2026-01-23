@@ -48,6 +48,7 @@
 // NOTE: IMAGE_HEIGHT = DISPLAY_LEDS = 31 (fixed, matches physical LEDs)
 //       IMAGE_MAX_WIDTH = variable (calculated from aspect ratio)
 #define MAX_IMAGES 10
+#define IMAGE_WIDTH 31          // Fixed width for POV display (matches DISPLAY_LEDS)
 #define IMAGE_HEIGHT 31         // Fixed: matches DISPLAY_LEDS (one pixel per LED)
 #define IMAGE_MAX_WIDTH 200     // Maximum width for stored images
 #define MAX_PATTERNS 16  // 0-15: rainbow, wave, gradient, sparkle, fire, comet, breathing, strobe, meteor, wipe, plasma, music VU, music pulse, music rainbow, music center, music sparkle
@@ -222,6 +223,137 @@ void initStorage() {
   patterns[4].color1 = CRGB::Green;
   patterns[4].color2 = CRGB::Magenta;
   patterns[4].speed = 40;
+  
+  // Initialize with default demo images
+  createDemoImages();
+  
+  // Initialize with default demo sequence
+  createDemoSequence();
+}
+
+// Create demo images for testing
+void createDemoImages() {
+  // Demo Image 0: Simple smiley face (31x31)
+  images[0].active = true;
+  images[0].width = IMAGE_WIDTH;
+  images[0].height = IMAGE_HEIGHT;
+  
+  // Clear to black
+  for (int x = 0; x < IMAGE_WIDTH; x++) {
+    for (int y = 0; y < IMAGE_HEIGHT; y++) {
+      images[0].pixels[x][y] = CRGB::Black;
+    }
+  }
+  
+  // Draw yellow smiley face
+  // Face outline (circle)
+  for (int x = 5; x < 26; x++) {
+    for (int y = 5; y < 26; y++) {
+      int dx = x - 15;
+      int dy = y - 15;
+      int dist = sqrt(dx*dx + dy*dy);
+      if (dist >= 9 && dist <= 10) {
+        images[0].pixels[x][y] = CRGB::Yellow;
+      }
+    }
+  }
+  
+  // Left eye
+  for (int x = 10; x < 13; x++) {
+    for (int y = 10; y < 13; y++) {
+      images[0].pixels[x][y] = CRGB::Yellow;
+    }
+  }
+  
+  // Right eye
+  for (int x = 18; x < 21; x++) {
+    for (int y = 10; y < 13; y++) {
+      images[0].pixels[x][y] = CRGB::Yellow;
+    }
+  }
+  
+  // Smile (arc)
+  for (int x = 10; x < 21; x++) {
+    int y = 18 + (int)(3 * sin((x - 10) * 3.14159 / 10));
+    if (y >= 0 && y < IMAGE_HEIGHT) {
+      images[0].pixels[x][y] = CRGB::Yellow;
+    }
+  }
+  
+  Serial.println("Demo image 0 created: Smiley Face");
+  
+  // Demo Image 1: Rainbow gradient (31x31)
+  images[1].active = true;
+  images[1].width = IMAGE_WIDTH;
+  images[1].height = IMAGE_HEIGHT;
+  
+  for (int x = 0; x < IMAGE_WIDTH; x++) {
+    for (int y = 0; y < IMAGE_HEIGHT; y++) {
+      uint8_t hue = (x * 256 / IMAGE_WIDTH + y * 256 / IMAGE_HEIGHT) / 2;
+      images[1].pixels[x][y] = CHSV(hue, 255, 255);
+    }
+  }
+  
+  Serial.println("Demo image 1 created: Rainbow Gradient");
+  
+  // Demo Image 2: Heart shape (31x31)
+  images[2].active = true;
+  images[2].width = IMAGE_WIDTH;
+  images[2].height = IMAGE_HEIGHT;
+  
+  // Clear to black
+  for (int x = 0; x < IMAGE_WIDTH; x++) {
+    for (int y = 0; y < IMAGE_HEIGHT; y++) {
+      images[2].pixels[x][y] = CRGB::Black;
+    }
+  }
+  
+  // Draw red heart
+  for (int x = 0; x < IMAGE_WIDTH; x++) {
+    for (int y = 0; y < IMAGE_HEIGHT; y++) {
+      // Heart equation (simplified)
+      float fx = (x - 15.5) / 10.0;
+      float fy = (y - 12.0) / 10.0;
+      float heart = fx*fx + fy*fy - 1;
+      float heart2 = fx*fx + (fy - sqrt(abs(fx)))*( fy - sqrt(abs(fx))) - 1;
+      
+      if (heart < 0.3 || heart2 < 0.3) {
+        images[2].pixels[x][y] = CRGB::Red;
+      }
+    }
+  }
+  
+  Serial.println("Demo image 2 created: Heart");
+}
+
+// Create demo sequence
+void createDemoSequence() {
+  // Sequence 0: Cycle through demo images and patterns
+  sequences[0].active = true;
+  sequences[0].count = 5;
+  sequences[0].loop = true;
+  
+  // Item 0: Smiley face image for 2 seconds
+  sequences[0].items[0] = 0;  // Image 0
+  sequences[0].durations[0] = 2000;
+  
+  // Item 1: Rainbow pattern for 2 seconds
+  sequences[0].items[1] = 0;  // Pattern 0
+  sequences[0].durations[1] = 2000;
+  
+  // Item 2: Heart image for 2 seconds
+  sequences[0].items[2] = 2;  // Image 2
+  sequences[0].durations[2] = 2000;
+  
+  // Item 3: Fire pattern for 2 seconds
+  sequences[0].items[3] = 1;  // Pattern 1
+  sequences[0].durations[3] = 2000;
+  
+  // Item 4: Rainbow gradient image for 2 seconds
+  sequences[0].items[4] = 1;  // Image 1
+  sequences[0].durations[4] = 2000;
+  
+  Serial.println("Demo sequence 0 created: Image/Pattern cycle");
 }
 
 void startupAnimation() {
