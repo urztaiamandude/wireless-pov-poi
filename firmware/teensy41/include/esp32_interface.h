@@ -89,7 +89,13 @@ private:
     // Simple protocol handlers
     bool handleSimpleImageUpload(const uint8_t* data, size_t len);
     bool handleSimplePatternUpload(const uint8_t* data, size_t len);
+    bool handleSimpleSequenceUpload(const uint8_t* data, size_t len);
     bool handleSimpleLiveFrame(const uint8_t* data, size_t len);
+    bool handleSimpleSDSaveImage(const uint8_t* data, size_t len);
+    bool handleSimpleSDListImages(const uint8_t* data, size_t len);
+    bool handleSimpleSDDeleteImage(const uint8_t* data, size_t len);
+    bool handleSimpleSDGetInfo(const uint8_t* data, size_t len);
+    bool handleSimpleSDLoadImage(const uint8_t* data, size_t len);
     
     // SD card message handlers
     bool handleSDSaveImage(const uint8_t* data, size_t len);

@@ -1,12 +1,12 @@
 #include "pov_engine.h"
 #include "sd_storage.h"
 #include <new>
+#include <cstring>
+#include <FastLED.h>
+#include <math.h>
 
 POVEngine::POVEngine(LEDDriver& ledDriver) 
     : leds(ledDriver), 
-      imageBuffer(nullptr), 
-      imageWidth(0), 
-      imageHeight(0),
       currentAngle(0),
       rotationSpeed(0.0),
       displayMode(0),
@@ -15,7 +15,20 @@ POVEngine::POVEngine(LEDDriver& ledDriver)
       lastUpdateTime(0),
       lastFrameTime(0),
       frameDelay(16),  // Default ~60 FPS
-      patternTime(0) {
+      currentColumn(0),
+      patternTime(0),
+      currentSequenceItem(0),
+      sequenceStartTime(0),
+      sequencePlaying(false) {
+    
+    // Initialize image storage
+    for (int i = 0; i < MAX_IMAGES; i++) {
+        images[i].data = nullptr;
+        images[i].width = 0;
+        images[i].height = 0;
+        images[i].filename[0] = '\0';
+        images[i].active = false;
+    }
     
     // Initialize pattern storage
     for (int i = 0; i < 5; i++) {
@@ -29,11 +42,44 @@ POVEngine::POVEngine(LEDDriver& ledDriver)
         patterns[i].g2 = 0;
         patterns[i].b2 = 255;
     }
+
+    // Initialize sequence storage
+    for (int i = 0; i < 5; i++) {
+        sequences[i].active = false;
+        sequences[i].count = 0;
+        sequences[i].loop = false;
+        for (int j = 0; j < 10; j++) {
+            sequences[i].items[j] = 0;
+            sequences[i].durations[j] = 0;
+        }
+    }
 }
 
 void POVEngine::begin() {
     #if DEBUG_ENABLED
     DEBUG_SERIAL.println("POV Engine initialized");
+    #endif
+
+    // Create a default demo sequence in slot 0 that cycles through
+    // the first few patterns. This mirrors the Arduino firmware's
+    // "Demo Mix" sequence but uses patterns only (no built-in images).
+    Sequence demo;
+    demo.active = true;
+    demo.loop = true;
+    demo.count = 5;
+    // Use high bit to mark items as patterns (compatible with Arduino design)
+    demo.items[0] = 0x80 | 0;  // Pattern 0
+    demo.items[1] = 0x80 | 1;  // Pattern 1
+    demo.items[2] = 0x80 | 2;  // Pattern 2
+    demo.items[3] = 0x80 | 3;  // Pattern 3
+    demo.items[4] = 0x80 | 4;  // Pattern 4 (if configured)
+    for (int i = 0; i < demo.count; i++) {
+        demo.durations[i] = 2000;  // 2 seconds per item
+    }
+    loadSequence(0, demo);
+
+    #if DEBUG_ENABLED
+    DEBUG_SERIAL.println("Default demo sequence (index 0) initialized");
     #endif
 }
 
@@ -68,9 +114,12 @@ void POVEngine::update() {
             break;
             
         case 1:  // Image mode
-            if (imageBuffer) {
-                uint16_t column = getColumnForAngle(currentAngle);
-                renderColumn(column);
+            if (modeIndex < MAX_IMAGES && images[modeIndex].active && images[modeIndex].data) {
+                uint16_t column = getColumnForAngle(currentAngle, modeIndex);
+                renderColumn(column, modeIndex);
+            } else {
+                leds.clear();
+                leds.show();
             }
             break;
             
@@ -79,11 +128,7 @@ void POVEngine::update() {
             break;
             
         case 3:  // Sequence mode
-            // NOTE: Sequence support is implemented in the Arduino IDE firmware 
-            // (teensy_firmware.ino), but not yet ported to this PlatformIO version.
-            // Implementation needed: port displaySequence() function and related
-            // sequence state tracking code (currentSequenceItem, sequenceStartTime,
-            // item/duration arrays, loop support). See teensy_firmware.ino for reference.
+            renderSequence();
             break;
             
         case 4:  // Live mode - handled externally
@@ -97,33 +142,36 @@ void POVEngine::update() {
 }
 
 void POVEngine::loadImageData(const uint8_t* data, size_t width, size_t height) {
-    // Free existing buffer if any
-    if (imageBuffer) {
-        delete[] imageBuffer;
-        imageBuffer = nullptr;
-    }
+    // Store uploaded images in slot 0 by default (most recent upload)
+    uint8_t slot = 0;
+    
+    // Free existing data in slot 0 if any
+    freeImageSlot(slot);
     
     // Allocate new buffer
     size_t bufferSize = width * height * 3; // RGB data
-    imageBuffer = new (std::nothrow) uint8_t[bufferSize];
+    images[slot].data = new (std::nothrow) uint8_t[bufferSize];
     
-    if (imageBuffer && data) {
-        memcpy(imageBuffer, data, bufferSize);
-        imageWidth = width;
-        imageHeight = height;
+    if (images[slot].data && data) {
+        memcpy(images[slot].data, data, bufferSize);
+        images[slot].width = width;
+        images[slot].height = height;
+        images[slot].filename[0] = '\0';  // Uploaded images have no filename
+        images[slot].active = true;
         
         #if DEBUG_ENABLED
-        DEBUG_SERIAL.print("Image loaded: ");
+        DEBUG_SERIAL.print("Image loaded to slot ");
+        DEBUG_SERIAL.print(slot);
+        DEBUG_SERIAL.print(": ");
         DEBUG_SERIAL.print(width);
         DEBUG_SERIAL.print("x");
         DEBUG_SERIAL.println(height);
         #endif
-    } else if (!imageBuffer) {
+    } else if (!images[slot].data) {
         #if DEBUG_ENABLED
         DEBUG_SERIAL.println("ERROR: Failed to allocate image buffer");
         #endif
-        imageWidth = 0;
-        imageHeight = 0;
+        images[slot].active = false;
     }
 }
 
@@ -137,6 +185,24 @@ SDError POVEngine::loadImageFromSD(const char* filename, SDStorageManager* sdSto
     DEBUG_SERIAL.println(filename);
     #endif
     
+    // Check if image is already loaded (find by filename)
+    uint8_t slot = findImageByFilename(filename);
+    if (slot < MAX_IMAGES) {
+        #if DEBUG_ENABLED
+        DEBUG_SERIAL.print("Image already loaded in slot ");
+        DEBUG_SERIAL.println(slot);
+        #endif
+        return SD_OK;  // Already loaded
+    }
+    
+    // Find a free slot or reuse slot 0
+    slot = findFreeImageSlot();
+    if (slot >= MAX_IMAGES) {
+        // No free slots - reuse slot 0 (most recent upload)
+        slot = 0;
+        freeImageSlot(slot);
+    }
+    
     // Get image info first to allocate proper buffer
     size_t width, height, fileSize;
     SDError error = sdStorage->getImageInfo(filename, width, height, fileSize);
@@ -145,42 +211,39 @@ SDError POVEngine::loadImageFromSD(const char* filename, SDStorageManager* sdSto
         return error;
     }
     
-    // Free existing buffer if any
-    if (imageBuffer) {
-        delete[] imageBuffer;
-        imageBuffer = nullptr;
-    }
-    
     // Allocate buffer for image data
     size_t bufferSize = width * height * 3;
-    imageBuffer = new (std::nothrow) uint8_t[bufferSize];
+    images[slot].data = new (std::nothrow) uint8_t[bufferSize];
     
-    if (!imageBuffer) {
+    if (!images[slot].data) {
         #if DEBUG_ENABLED
         DEBUG_SERIAL.println("ERROR: Failed to allocate image buffer");
         #endif
-        imageWidth = 0;
-        imageHeight = 0;
         return SD_ERROR_OUT_OF_MEMORY;
     }
     
     // Load image data from SD card
     size_t loadedWidth, loadedHeight;
-    error = sdStorage->loadImage(filename, imageBuffer, bufferSize, loadedWidth, loadedHeight);
+    error = sdStorage->loadImage(filename, images[slot].data, bufferSize, loadedWidth, loadedHeight);
     
     if (error == SD_OK) {
-        imageWidth = loadedWidth;
-        imageHeight = loadedHeight;
+        images[slot].width = loadedWidth;
+        images[slot].height = loadedHeight;
+        strncpy(images[slot].filename, filename, MAX_FILENAME_LEN);
+        images[slot].filename[MAX_FILENAME_LEN] = '\0';
+        images[slot].active = true;
         
         #if DEBUG_ENABLED
-        DEBUG_SERIAL.println("Image loaded from SD successfully");
+        DEBUG_SERIAL.print("Image loaded from SD to slot ");
+        DEBUG_SERIAL.print(slot);
+        DEBUG_SERIAL.print(": ");
+        DEBUG_SERIAL.print(loadedWidth);
+        DEBUG_SERIAL.print("x");
+        DEBUG_SERIAL.println(loadedHeight);
         #endif
     } else {
         // Clean up on error
-        delete[] imageBuffer;
-        imageBuffer = nullptr;
-        imageWidth = 0;
-        imageHeight = 0;
+        freeImageSlot(slot);
         
         #if DEBUG_ENABLED
         DEBUG_SERIAL.println("ERROR: Failed to load image from SD");
@@ -246,6 +309,19 @@ void POVEngine::setPattern(uint8_t index) {
     }
 }
 
+void POVEngine::loadSequence(uint8_t index, const Sequence& sequence) {
+    if (index < 5) {
+        sequences[index] = sequence;
+
+        #if DEBUG_ENABLED
+        DEBUG_SERIAL.print("Sequence ");
+        DEBUG_SERIAL.print(index);
+        DEBUG_SERIAL.print(" loaded, items: ");
+        DEBUG_SERIAL.println(sequences[index].count);
+        #endif
+    }
+}
+
 void POVEngine::setFrameDelay(uint8_t delayMs) {
     frameDelay = delayMs;
     
@@ -256,29 +332,37 @@ void POVEngine::setFrameDelay(uint8_t delayMs) {
     #endif
 }
 
-uint16_t POVEngine::getColumnForAngle(uint16_t angle) {
-    if (imageWidth == 0) {
+uint16_t POVEngine::getColumnForAngle(uint16_t angle, uint8_t imageSlot) {
+    if (imageSlot >= MAX_IMAGES || !images[imageSlot].active || images[imageSlot].width == 0) {
         return 0;
     }
     
     // Map angle (0-359) to column (0 to imageWidth-1)
-    return (angle * imageWidth) / 360;
+    return (angle * images[imageSlot].width) / 360;
 }
 
-void POVEngine::renderColumn(uint16_t column) {
-    if (!imageBuffer || column >= imageWidth) {
+void POVEngine::renderColumn(uint16_t column, uint8_t imageSlot) {
+    if (imageSlot >= MAX_IMAGES || !images[imageSlot].active || !images[imageSlot].data) {
+        return;
+    }
+    
+    POVImage& img = images[imageSlot];
+    if (column >= img.width) {
         return;
     }
     
     // Render column of pixels to LED strip
     // LED 0 is for level shifting, LEDs 1-31 are for display
-    for (uint16_t y = 0; y < imageHeight && y < leds.getNumLEDs() - 1; y++) {
-        size_t pixelIndex = (y * imageWidth + column) * 3;
-        uint8_t r = imageBuffer[pixelIndex];
-        uint8_t g = imageBuffer[pixelIndex + 1];
-        uint8_t b = imageBuffer[pixelIndex + 2];
+    for (uint16_t y = 0; y < img.height && y < leds.getNumLEDs() - 1; y++) {
+        size_t pixelIndex = (y * img.width + column) * 3;
+        uint8_t r = img.data[pixelIndex];
+        uint8_t g = img.data[pixelIndex + 1];
+        uint8_t b = img.data[pixelIndex + 2];
         leds.setPixel(y + 1, r, g, b);  // +1 to skip LED 0
     }
+    
+    // Advance column for next frame (for image mode rotation)
+    currentColumn = (currentColumn + 1) % img.width;
     
     leds.show();
 }
@@ -297,16 +381,58 @@ void POVEngine::renderPattern() {
         case PATTERN_RAINBOW:
             renderRainbowPattern(pattern);
             break;
-            
+
         case PATTERN_WAVE:
             renderWavePattern(pattern);
             break;
-            
+
         case PATTERN_GRADIENT:
             renderGradientPattern(pattern);
             break;
-            
+
         case PATTERN_SPARKLE:
+            renderSparklePattern(pattern);
+            break;
+
+        // Extended pattern IDs from ESP32 UI - distinct implementations
+        case 4:   // Fire
+            renderFirePattern(pattern);
+            break;
+
+        case 5:   // Comet
+            renderCometPattern(pattern);
+            break;
+
+        case 6:   // Breathing
+            renderBreathingPattern(pattern);
+            break;
+
+        case 7:   // Strobe
+            renderStrobePattern(pattern);
+            break;
+
+        case 8:   // Meteor
+            renderMeteorPattern(pattern);
+            break;
+
+        case 9:   // Wipe
+            renderWipePattern(pattern);
+            break;
+
+        case 10:  // Plasma
+            renderPlasmaPattern(pattern);
+            break;
+
+        // Audio-reactive patterns (IDs 11-15)
+        // Note: These require audio input on pin A0. For now, they fall back to
+        // visual-only effects. Full audio support requires microphone hardware.
+        case 11:  // VU Meter (audio-reactive)
+        case 12:  // Pulse (audio-reactive)
+        case 13:  // Audio Rainbow (audio-reactive)
+        case 14:  // Center Burst (audio-reactive)
+        case 15:  // Audio Sparkle (audio-reactive)
+            // TODO: Implement audio-reactive patterns when audio input is configured
+            // For now, use sparkle as fallback
             renderSparklePattern(pattern);
             break;
             
@@ -389,18 +515,304 @@ void POVEngine::renderGradientPattern(const Pattern& pattern) {
 void POVEngine::renderSparklePattern(const Pattern& pattern) {
     // Sparkle pattern - random sparkles that fade
     // Fade all LEDs
+    CRGB* ledsArray = leds.getLEDs();
     for (uint16_t i = 1; i < leds.getNumLEDs(); i++) {
-        uint8_t r, g, b;
-        leds.getPixel(i, r, g, b);
-        r = (r * 230) / 255;  // Fade to ~90%
-        g = (g * 230) / 255;
-        b = (b * 230) / 255;
-        leds.setPixel(i, r, g, b);
+        ledsArray[i].fadeToBlackBy(25);  // Fade by ~10%
     }
     
     // Add random sparkles based on speed
-    if (random(256) < pattern.speed) {
+    if (random8() < pattern.speed) {
         uint16_t led = random(1, leds.getNumLEDs());
         leds.setPixel(led, pattern.r1, pattern.g1, pattern.b1);
     }
+}
+
+void POVEngine::renderFirePattern(const Pattern& pattern) {
+    // Fire pattern - heat simulation rising upward
+    static uint8_t heat[NUM_LEDS];
+    CRGB* ledsArray = leds.getLEDs();
+    uint16_t displayLEDs = leds.getNumLEDs() - 1;  // LEDs 1-31
+    
+    // Cool down every cell
+    for (uint16_t i = 1; i < leds.getNumLEDs(); i++) {
+        heat[i] = qsub8(heat[i], random8(0, ((55 * 10) / displayLEDs) + 2));
+    }
+    
+    // Heat rises - drift heat upward
+    for (uint16_t i = leds.getNumLEDs() - 1; i >= 2; i--) {
+        heat[i] = (heat[i - 1] + heat[i - 2] + heat[i - 2]) / 3;
+    }
+    
+    // Random ignition at the bottom
+    if (random8() < pattern.speed) {
+        uint16_t y = random8(1, 4);
+        heat[y] = qadd8(heat[y], random8(160, 255));
+    }
+    
+    // Map heat to colors using FastLED HeatColor
+    for (uint16_t i = 1; i < leds.getNumLEDs(); i++) {
+        ledsArray[i] = HeatColor(heat[i]);
+    }
+}
+
+void POVEngine::renderCometPattern(const Pattern& pattern) {
+    // Comet pattern - single bright head with fading tail
+    static uint8_t cometPos = 1;
+    static int8_t direction = 1;
+    CRGB* ledsArray = leds.getLEDs();
+    
+    // Fade creates tail (fade all LEDs)
+    for (uint16_t i = 1; i < leds.getNumLEDs(); i++) {
+        ledsArray[i].fadeToBlackBy(60);
+    }
+    
+    // Move comet
+    cometPos += direction;
+    if (cometPos >= leds.getNumLEDs() - 1 || cometPos <= 1) {
+        direction = -direction;
+    }
+    
+    // Draw comet head and tail
+    CRGB color(pattern.r1, pattern.g1, pattern.b1);
+    ledsArray[cometPos] = color;
+    if (cometPos - direction >= 1 && cometPos - direction < leds.getNumLEDs()) {
+        ledsArray[cometPos - direction] = color;
+        ledsArray[cometPos - direction].nscale8(128);
+    }
+}
+
+void POVEngine::renderBreathingPattern(const Pattern& pattern) {
+    // Breathing pattern - smooth pulse on/off
+    // Use beatsin8 for smooth sine wave pulsing
+    uint8_t breath = beatsin8(pattern.speed / 4, 20, 255);
+    CRGB color(pattern.r1, pattern.g1, pattern.b1);
+    
+    for (uint16_t i = 1; i < leds.getNumLEDs(); i++) {
+        CRGB ledColor = color;
+        ledColor.nscale8(breath);
+        leds.setPixel(i, ledColor);
+    }
+}
+
+void POVEngine::renderStrobePattern(const Pattern& pattern) {
+    // Strobe pattern - quick flashes
+    static bool strobeOn = false;
+    static unsigned long lastStrobe = 0;
+    
+    // Map speed (1-255) to delay (100ms to 10ms)
+    uint32_t strobeDelay = map(pattern.speed, 1, 255, 100, 10);
+    
+    if (millis() - lastStrobe > strobeDelay) {
+        strobeOn = !strobeOn;
+        lastStrobe = millis();
+    }
+    
+    CRGB color = strobeOn ? CRGB(pattern.r1, pattern.g1, pattern.b1) : CRGB::Black;
+    for (uint16_t i = 1; i < leds.getNumLEDs(); i++) {
+        leds.setPixel(i, color);
+    }
+}
+
+void POVEngine::renderMeteorPattern(const Pattern& pattern) {
+    // Meteor pattern - falling with random decay
+    static uint8_t meteorPos = NUM_LEDS - 1;
+    CRGB* ledsArray = leds.getLEDs();
+    CRGB color(pattern.r1, pattern.g1, pattern.b1);
+    
+    // Fade all LEDs randomly for sparkly tail
+    for (uint16_t i = 1; i < leds.getNumLEDs(); i++) {
+        if (random8() < 80) {
+            ledsArray[i].fadeToBlackBy(64);
+        }
+    }
+    
+    // Draw meteor head with fading tail
+    for (uint8_t i = 0; i < 4; i++) {
+        if (meteorPos - i >= 1 && meteorPos - i < leds.getNumLEDs()) {
+            CRGB meteorColor = color;
+            meteorColor.nscale8(255 - (i * 60));
+            ledsArray[meteorPos - i] = meteorColor;
+        }
+    }
+    
+    // Move meteor down
+    meteorPos--;
+    if (meteorPos < 1) {
+        meteorPos = leds.getNumLEDs() - 1;
+    }
+}
+
+void POVEngine::renderWipePattern(const Pattern& pattern) {
+    // Color Wipe pattern - progressive fill then clear
+    static uint8_t wipePos = 1;
+    static bool filling = true;
+    CRGB* ledsArray = leds.getLEDs();
+    CRGB color(pattern.r1, pattern.g1, pattern.b1);
+    
+    ledsArray[wipePos] = filling ? color : CRGB::Black;
+    
+    wipePos++;
+    if (wipePos >= leds.getNumLEDs()) {
+        wipePos = 1;
+        filling = !filling;
+    }
+}
+
+void POVEngine::renderPlasmaPattern(const Pattern& pattern) {
+    // Plasma pattern - organic color mixing
+    CRGB* ledsArray = leds.getLEDs();
+    
+    for (uint16_t i = 1; i < leds.getNumLEDs(); i++) {
+        uint8_t hue = sin8(i * 10 + patternTime * pattern.speed / 20) + 
+                      sin8(i * 15 - patternTime * pattern.speed / 15) +
+                      sin8(patternTime * pattern.speed / 10);
+        ledsArray[i] = CHSV(hue, 255, 255);
+    }
+}
+
+void POVEngine::renderSequence() {
+    // Ensure selected sequence is valid
+    if (modeIndex >= 5 || !sequences[modeIndex].active) {
+        leds.clear();
+        leds.show();
+        sequencePlaying = false;
+        currentSequenceItem = 0;
+        return;
+    }
+
+    Sequence& seq = sequences[modeIndex];
+
+    // No items -> nothing to display
+    if (seq.count == 0) {
+        leds.clear();
+        leds.show();
+        sequencePlaying = false;
+        currentSequenceItem = 0;
+        return;
+    }
+
+    unsigned long now = millis();
+
+    // Initialize playback on first entry or after mode/index changes
+    if (!sequencePlaying) {
+        currentSequenceItem = 0;
+        sequenceStartTime = now;
+        sequencePlaying = true;
+
+        #if DEBUG_ENABLED
+        DEBUG_SERIAL.print("Starting sequence ");
+        DEBUG_SERIAL.print(modeIndex);
+        DEBUG_SERIAL.print(", items: ");
+        DEBUG_SERIAL.println(seq.count);
+        #endif
+    }
+
+    // Check if current item duration has elapsed
+    unsigned long elapsed = now - sequenceStartTime;
+    if (elapsed >= seq.durations[currentSequenceItem]) {
+        currentSequenceItem++;
+        sequenceStartTime = now;
+
+        #if DEBUG_ENABLED
+        DEBUG_SERIAL.print("Sequence item ");
+        DEBUG_SERIAL.print(currentSequenceItem);
+        DEBUG_SERIAL.print(" of ");
+        DEBUG_SERIAL.println(seq.count);
+        #endif
+
+        // End-of-sequence handling
+        if (currentSequenceItem >= seq.count) {
+            if (seq.loop) {
+                currentSequenceItem = 0;
+                #if DEBUG_ENABLED
+                DEBUG_SERIAL.println("Sequence looping...");
+                #endif
+            } else {
+                // Stop on last item
+                sequencePlaying = false;
+                currentSequenceItem = seq.count - 1;
+            }
+        }
+    }
+
+    // Display the current item
+    uint8_t itemIndex = seq.items[currentSequenceItem];
+
+    // MSB indicates whether this is a pattern (1) or image (0),
+    // mirroring the Arduino firmware convention.
+    // Images are stored in slots (0 to MAX_IMAGES-1) and can be referenced by sequence items.
+    bool isPattern = (itemIndex & 0x80) != 0;
+    uint8_t actualIndex = itemIndex & 0x7F;
+
+    if (isPattern) {
+        // Render one of the stored patterns
+        if (actualIndex < 5 && patterns[actualIndex].active) {
+            // Temporarily use this pattern index
+            uint8_t savedIndex = modeIndex;
+            modeIndex = actualIndex;
+            renderPattern();
+            modeIndex = savedIndex;
+            return;
+        }
+    } else {
+        // Image-type item: display image from slot
+        if (actualIndex < MAX_IMAGES && images[actualIndex].active && images[actualIndex].data) {
+            // Temporarily use this image index for rendering
+            uint8_t savedIndex = modeIndex;
+            modeIndex = actualIndex;
+            uint16_t column = getColumnForAngle(currentAngle, actualIndex);
+            renderColumn(column, actualIndex);
+            modeIndex = savedIndex;
+            return;
+        } else {
+            #if DEBUG_ENABLED
+            DEBUG_SERIAL.print("Sequence item refers to image slot ");
+            DEBUG_SERIAL.print(actualIndex);
+            DEBUG_SERIAL.println(" which is not loaded");
+            #endif
+        }
+    }
+
+    // Fallback: clear if item is invalid/unimplemented
+    leds.clear();
+    leds.show();
+}
+
+uint8_t POVEngine::findImageByFilename(const char* filename) const {
+    if (!filename || filename[0] == '\0') {
+        return MAX_IMAGES;  // Not found
+    }
+    
+    for (uint8_t i = 0; i < MAX_IMAGES; i++) {
+        if (images[i].active && strcmp(images[i].filename, filename) == 0) {
+            return i;
+        }
+    }
+    
+    return MAX_IMAGES;  // Not found
+}
+
+uint8_t POVEngine::findFreeImageSlot() {
+    for (uint8_t i = 0; i < MAX_IMAGES; i++) {
+        if (!images[i].active) {
+            return i;
+        }
+    }
+    return MAX_IMAGES;  // No free slots
+}
+
+void POVEngine::freeImageSlot(uint8_t slot) {
+    if (slot >= MAX_IMAGES) {
+        return;
+    }
+    
+    if (images[slot].data) {
+        delete[] images[slot].data;
+        images[slot].data = nullptr;
+    }
+    
+    images[slot].width = 0;
+    images[slot].height = 0;
+    images[slot].filename[0] = '\0';
+    images[slot].active = false;
 }

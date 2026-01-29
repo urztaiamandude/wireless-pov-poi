@@ -27,6 +27,7 @@ Thumbs.db
 .vscode/
 .idea/
 *.code-workspace
+.gradle/
 
 # Arduino IDE
 *.ino.cpp

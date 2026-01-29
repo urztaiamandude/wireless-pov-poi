@@ -124,6 +124,13 @@ See [ESP32-S3 Compatibility Guide](docs/ESP32_S3_COMPATIBILITY.md) for ESP32-S3 
 3. Open browser and navigate to: `http://192.168.4.1`
 4. Use the web interface to control patterns, upload images, and adjust settings
 
+**🎨 Demo Content Available!** The firmware comes pre-loaded with:
+- 3 demo images (Smiley, Rainbow, Heart)
+- 5 demo patterns (Rainbow, Fire, Comet, Breathing, Plasma)
+- 1 demo sequence (cycles through images and patterns)
+
+See [DEMO_CONTENT.md](DEMO_CONTENT.md) for complete details on built-in content.
+
 ## Project Status
 
 🎉 **This project is production-ready!** All documented features are complete and fully functional.

@@ -7,9 +7,10 @@ This guide explains how images are automatically converted to POV-compatible for
 **IMPORTANT: The LED strip forms the VERTICAL axis of the POV display.**
 
 - **HEIGHT is FIXED at 31 pixels** - This matches the 31 display LEDs (LED 0 is level shifter)
-- **WIDTH is CALCULATED** - Based on the original image's aspect ratio
+- **WIDTH is SCALED PROPORTIONALLY** - Using the same scale factor as height to prevent warping
 - **LED 1 (bottom)** displays the **bottom** of the image
 - **LED 31 (top)** displays the **top** of the image
+- **LEDs display vertical columns** from left to right
 - **No vertical flip is needed** - The LED arrangement maps directly to image pixels
 
 ## Conversion Flow
@@ -19,7 +20,7 @@ This guide explains how images are automatically converted to POV-compatible for
 **Process:**
 1. User selects any image file (JPG, PNG, etc.)
 2. JavaScript Canvas API resizes image to 31 pixels **HIGH**
-3. Width is calculated to maintain aspect ratio
+3. Width is scaled proportionally using the same scale factor
 4. Image is converted to raw RGB data
 5. RGB data is uploaded to ESP32
 6. ESP32 forwards data to Teensy for final processing
@@ -37,7 +38,7 @@ This guide explains how images are automatically converted to POV-compatible for
 **Process:**
 1. User selects image from gallery or camera
 2. Android Bitmap API resizes image to 31 pixels **HIGH**
-3. Width is calculated to maintain aspect ratio
+3. Width is scaled proportionally using the same scale factor
 4. Image is converted to raw RGB byte array
 5. RGB data is uploaded to ESP32
 6. ESP32 forwards data to Teensy for final processing
@@ -57,7 +58,7 @@ This guide explains how images are automatically converted to POV-compatible for
 2. Select image(s) through file browser
 3. Preview before/after conversion in real-time
 4. Height is fixed at 31 (matching display LEDs)
-5. Width is calculated to maintain aspect ratio
+5. Width is scaled proportionally using the same scale factor
 6. PIL/Pillow library resizes image with settings
 7. Save converted image(s) to chosen location
 8. User uploads pre-converted image to device
@@ -79,7 +80,7 @@ This guide explains how images are automatically converted to POV-compatible for
 1. User runs `python image_converter.py input.jpg`
 2. PIL/Pillow library loads and resizes image
 3. Image resized to 31 pixels **HIGH**
-4. Width calculated based on aspect ratio
+4. Width scaled proportionally using the same scale factor
 5. Contrast enhancement applied (optional)
 6. Output saved as PNG file
 7. User uploads pre-converted image
@@ -114,8 +115,8 @@ This guide explains how images are automatically converted to POV-compatible for
 
 ### Target Dimensions
 - **Height:** 31 pixels (FIXED - matches 31 display LEDs)
-- **Width:** Calculated to maintain aspect ratio (max configurable)
-- **Aspect Ratio:** Maintained from source image
+- **Width:** Scaled proportionally using the same scale factor as height (max configurable)
+- **Proportions:** Maintained from source image to prevent warping
 
 ### LED Orientation
 - **LED 1** (bottom of strip): Displays **bottom** of image
@@ -295,9 +296,10 @@ async function convertImageToPOVFormat(file) {
     const ctx = canvas.getContext('2d');
     
     // HEIGHT is fixed at 31 (matching display LEDs)
-    // WIDTH is calculated to maintain aspect ratio
+    // WIDTH is scaled proportionally using the same scale factor
     const targetHeight = 31;
-    const targetWidth = Math.round(targetHeight * img.width / img.height);
+    const scaleFactor = targetHeight / img.height;
+    const targetWidth = Math.round(img.width * scaleFactor);
     
     canvas.width = targetWidth;
     canvas.height = targetHeight;
@@ -319,7 +321,8 @@ async function convertImageToPOVFormat(file) {
 private fun convertBitmapToPOVFormat(bitmap: Bitmap): ByteArray {
     // HEIGHT is fixed at 31 (matching display LEDs)
     val targetHeight = 31
-    var targetWidth = (targetHeight * bitmap.width / bitmap.height)
+    val scaleFactor = targetHeight.toFloat() / bitmap.height
+    var targetWidth = (bitmap.width * scaleFactor).toInt()
     if (targetWidth > 200) targetWidth = 200
     
     // Resize with nearest neighbor
@@ -340,13 +343,13 @@ private fun convertBitmapToPOVFormat(bitmap: Bitmap): ByteArray {
 ### Python (Image Converter)
 
 ```python
-def convert_image_for_pov(input_path, output_path=None, 
+def convert_image_for_pov(input_path, output_path=None,
                          height=31, max_width=200):
     img = Image.open(input_path)
     
-    # HEIGHT is fixed (display LEDs), WIDTH is calculated
-    aspect_ratio = img.width / img.height
-    new_width = int(height * aspect_ratio)
+    # HEIGHT is fixed (display LEDs), WIDTH is scaled proportionally
+    scale_factor = height / img.height
+    new_width = int(img.width * scale_factor)
     if new_width > max_width:
         new_width = max_width
     
@@ -367,9 +370,10 @@ void receiveImage() {
     uint8_t srcWidth = cmdBuffer[4];
     uint8_t srcHeight = cmdBuffer[5];
     
-    // HEIGHT is fixed (DISPLAY_LEDS), WIDTH is calculated
+    // HEIGHT is fixed (DISPLAY_LEDS), WIDTH is scaled proportionally
     uint8_t targetHeight = DISPLAY_LEDS;  // 31
-    uint8_t targetWidth = (srcWidth * targetHeight) / srcHeight;
+    float scaleFactor = (float)targetHeight / srcHeight;
+    uint8_t targetWidth = (uint8_t)(srcWidth * scaleFactor);
     if (targetWidth > MAX_IMAGE_WIDTH) targetWidth = MAX_IMAGE_WIDTH;
     
     // Nearest-neighbor resize

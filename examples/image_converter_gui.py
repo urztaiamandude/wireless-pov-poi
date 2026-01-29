@@ -58,7 +58,7 @@ class POVImageConverterGUI:
         self.original_aspect_ratio = 1.0  # Store original aspect ratio
         
         # Settings variables
-        # NOTE: HEIGHT is FIXED at 31 (matching display LEDs), WIDTH is calculated
+        # NOTE: HEIGHT is FIXED at 31 (matching display LEDs), WIDTH is scaled proportionally
         self.height_var = tk.IntVar(value=31)  # Fixed: matches 31 display LEDs
         self.max_width_var = tk.IntVar(value=200)  # Max width limit
         self.contrast_var = tk.BooleanVar(value=True)
@@ -228,7 +228,7 @@ class POVImageConverterGUI:
             fg="#e74c3c"
         ).pack(side=tk.LEFT)
         
-        # Max width setting (calculated based on aspect ratio)
+        # Max width setting (scaled proportionally)
         width_frame = tk.Frame(settings_frame)
         width_frame.pack(fill=tk.X, pady=(0, 10))
         
@@ -254,7 +254,7 @@ class POVImageConverterGUI:
         
         tk.Label(
             width_frame,
-            text="pixels (calculated from aspect ratio)",
+            text="pixels (scaled proportionally)",
             font=("Arial", 9),
             fg="#7f8c8d"
         ).pack(side=tk.LEFT)
@@ -529,10 +529,10 @@ class POVImageConverterGUI:
             enhance_contrast = self.contrast_var.get()
             flip_horizontal = self.flip_horizontal_var.get()
             
-            # Calculate new width maintaining aspect ratio
-            # HEIGHT is fixed at 31 (display LEDs), WIDTH is calculated
-            aspect_ratio = img.width / img.height
-            new_width = int(height * aspect_ratio)
+            # Calculate scale factor based on height change
+            # Apply the same scale factor to width to prevent warping
+            scale_factor = height / img.height
+            new_width = int(img.width * scale_factor)
             
             # Limit width
             if new_width > max_width:

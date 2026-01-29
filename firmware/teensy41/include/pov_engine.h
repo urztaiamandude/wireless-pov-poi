@@ -26,6 +26,24 @@ struct Pattern {
     bool active;
 };
 
+// Image data structure (stored in RAM slots)
+struct POVImage {
+    uint8_t* data;           // RGB pixel data (width * height * 3 bytes)
+    size_t width;
+    size_t height;
+    char filename[MAX_FILENAME_LEN + 1];  // SD filename (empty for uploaded images)
+    bool active;
+};
+
+// Sequence data structure (pattern/image timeline)
+struct Sequence {
+    uint8_t items[10];       // Item indices (MSB=1 => pattern, MSB=0 => image slot)
+    uint16_t durations[10];  // Duration per item in ms
+    uint8_t count;           // Number of valid items
+    bool active;
+    bool loop;
+};
+
 class POVEngine {
 public:
     POVEngine(LEDDriver& ledDriver);
@@ -36,11 +54,14 @@ public:
     // Update POV display based on current rotation
     void update();
     
-    // Load image data for POV display
+    // Load image data for POV display (stores in slot 0 by default)
     void loadImageData(const uint8_t* data, size_t width, size_t height);
     
-    // Load image from SD card
+    // Load image from SD card (stores with filename, finds or creates slot)
     SDError loadImageFromSD(const char* filename, SDStorageManager* sdStorage);
+    
+    // Find image slot by filename (returns slot index or MAX_IMAGES if not found)
+    uint8_t findImageByFilename(const char* filename) const;
     
     // Set rotation speed (RPM)
     void setRotationSpeed(float rpm);
@@ -50,9 +71,11 @@ public:
     
     // Set display mode (0=idle, 1=image, 2=pattern, 3=sequence, 4=live)
     void setMode(uint8_t mode);
+    uint8_t getMode() const { return displayMode; }
     
     // Set mode index (for selecting which image/pattern/sequence)
     void setModeIndex(uint8_t index);
+    uint8_t getModeIndex() const { return modeIndex; }
     
     // Enable/disable POV engine
     void setEnabled(bool enabled);
@@ -60,6 +83,9 @@ public:
     // Pattern management
     void loadPattern(uint8_t index, const Pattern& pattern);
     void setPattern(uint8_t index);
+
+    // Sequence management
+    void loadSequence(uint8_t index, const Sequence& sequence);
     
     // Frame rate control
     void setFrameDelay(uint8_t delayMs);
@@ -67,9 +93,6 @@ public:
 
 private:
     LEDDriver& leds;
-    uint8_t* imageBuffer;
-    size_t imageWidth;
-    size_t imageHeight;
     uint16_t currentAngle;
     float rotationSpeed;
     uint8_t displayMode;
@@ -79,15 +102,29 @@ private:
     unsigned long lastFrameTime;
     uint8_t frameDelay;  // Delay in milliseconds between frames
     
+    // Image storage (keyed by SD filename)
+    POVImage images[MAX_IMAGES];
+    uint16_t currentColumn;  // Current column for image display
+    
     // Pattern storage
     Pattern patterns[5];  // Support up to 5 patterns
     uint32_t patternTime;
+
+    // Sequence storage and playback state
+    Sequence sequences[5];       // Support up to 5 sequences
+    uint8_t currentSequenceItem;
+    unsigned long sequenceStartTime;
+    bool sequencePlaying;
+    
+    // Helper methods
+    uint8_t findFreeImageSlot();
+    void freeImageSlot(uint8_t slot);
     
     // Calculate column to display based on rotation angle
-    uint16_t getColumnForAngle(uint16_t angle);
+    uint16_t getColumnForAngle(uint16_t angle, uint8_t imageSlot);
     
     // Render current column
-    void renderColumn(uint16_t column);
+    void renderColumn(uint16_t column, uint8_t imageSlot);
     
     // Pattern rendering
     void renderPattern();
@@ -95,6 +132,16 @@ private:
     void renderWavePattern(const Pattern& pattern);
     void renderGradientPattern(const Pattern& pattern);
     void renderSparklePattern(const Pattern& pattern);
+    void renderFirePattern(const Pattern& pattern);
+    void renderCometPattern(const Pattern& pattern);
+    void renderBreathingPattern(const Pattern& pattern);
+    void renderStrobePattern(const Pattern& pattern);
+    void renderMeteorPattern(const Pattern& pattern);
+    void renderWipePattern(const Pattern& pattern);
+    void renderPlasmaPattern(const Pattern& pattern);
+
+    // Sequence rendering
+    void renderSequence();
 };
 
 #endif // POV_ENGINE_H
