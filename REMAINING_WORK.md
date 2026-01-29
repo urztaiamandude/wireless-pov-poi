@@ -317,7 +317,6 @@ These items are explicitly documented as **future enhancements** and should NOT 
 - ❌ IMU/gyroscope for rotation detection
 - ❌ Battery power system with charge management
 - ❌ Bluetooth LE support
-- ❌ Multiple poi synchronization
 
 ### Software Enhancements
 - ❌ OTA firmware updates
