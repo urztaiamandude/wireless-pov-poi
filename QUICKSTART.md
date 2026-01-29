@@ -6,7 +6,9 @@ Get your Nebula Poi up and running in 30 minutes!
 
 ### Hardware
 - [ ] Teensy 4.1 development board
-- [ ] ESP32 development board (ESP32-DevKitC or similar)
+- [ ] ESP32 or ESP32-S3 development board
+  - ESP32-DevKitC or similar
+  - **ESP32-S3 N16R8 recommended** for new builds (16MB Flash, 8MB PSRAM)
 - [ ] APA102 LED strip with 32 LEDs
 - [ ] 5V power supply (2-3A)
 - [ ] Jumper wires
@@ -96,11 +98,12 @@ Teensy Pin 11 → LED Strip DATA (DI)
 Teensy Pin 13 → LED Strip CLOCK (CI)
 ```
 
-#### Teensy to ESP32
+#### Teensy to ESP32/ESP32-S3
 ```
-Teensy Pin 1 (TX1) → ESP32 GPIO 16 (RX2)
-Teensy Pin 0 (RX1) → ESP32 GPIO 17 (TX2)
+Teensy Pin 1 (TX1) → ESP32/S3 GPIO 16 (RX2)
+Teensy Pin 0 (RX1) → ESP32/S3 GPIO 17 (TX2)
 ```
+**Note**: ESP32-S3 uses the same GPIO pins as ESP32 - no wiring changes needed!
 
 **Important**: All grounds must be connected together!
 
@@ -126,14 +129,26 @@ Commands: IMAGE, PATTERN, SEQUENCE, LIVE, STATUS
 
 ✅ **Checkpoint**: Teensy programmed and LEDs show startup animation
 
-### Step 4: Program ESP32 (5 minutes)
+### Step 4: Program ESP32 or ESP32-S3 (5 minutes)
 
+**For ESP32:**
 1. Connect ESP32 to computer via USB
 2. Open `esp32_firmware/esp32_firmware.ino`
 3. Select:
    - Tools > Board > ESP32 Dev Module
    - Tools > Port > [Your ESP32 COM port]
    - Tools > Partition Scheme > Default
+4. Click Upload
+5. Wait for upload to complete
+
+**For ESP32-S3:**
+1. Connect ESP32-S3 to computer via USB
+2. Open `esp32_firmware/esp32_firmware.ino`
+3. Select:
+   - Tools > Board > ESP32S3 Dev Module
+   - Tools > Port > [Your ESP32-S3 COM port]
+   - Tools > USB CDC On Boot > Enabled
+   - Tools > Partition Scheme > 16MB Flash (3MB APP/9.9MB FATFS)
 4. Click Upload
 5. Wait for upload to complete
 
@@ -147,7 +162,7 @@ Web server started
 ESP32 Nebula Poi Controller Ready!
 ```
 
-✅ **Checkpoint**: ESP32 programmed and WiFi AP started
+✅ **Checkpoint**: ESP32/ESP32-S3 programmed and WiFi AP started
 
 ### Step 5: Connect and Test (5 minutes)
 

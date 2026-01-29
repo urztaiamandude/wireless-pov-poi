@@ -690,3 +690,459 @@ For API questions or issues:
 - Verify WiFi connection to POV-POI-WiFi
 - Test with curl before mobile app integration
 - Review example code in documentation
+
+---
+
+## Peer-to-Peer Synchronization API 🆕
+
+### Overview
+
+The sync API enables peer-to-peer communication between multiple POV poi devices. Devices can discover each other, exchange data, and synchronize their settings, images, and patterns.
+
+### Sync Status
+
+#### Get Sync Status
+
+Get current synchronization status and list of peer devices.
+
+**Endpoint:** `GET /api/sync/status`
+
+**Response:**
+```json
+{
+  "deviceId": "A1:B2:C3:D4:E5:F6",
+  "deviceName": "Left Poi",
+  "syncGroup": "PoiPair01",
+  "autoSync": true,
+  "syncInterval": 30000,
+  "peers": [
+    {
+      "deviceId": "F6:E5:D4:C3:B2:A1",
+      "deviceName": "Right Poi",
+      "ipAddress": "192.168.4.2",
+      "lastSeen": 1706518800,
+      "online": true
+    }
+  ]
+}
+```
+
+**Response Fields:**
+- `deviceId` (string): Unique device identifier (MAC-based)
+- `deviceName` (string): User-configured device name
+- `syncGroup` (string): Sync group identifier (optional)
+- `autoSync` (boolean): Auto-sync enabled status
+- `syncInterval` (number): Auto-sync interval in milliseconds
+- `peers` (array): List of discovered peer devices
+  - `deviceId` (string): Peer device ID
+  - `deviceName` (string): Peer device name
+  - `ipAddress` (string): Peer IP address
+  - `lastSeen` (number): Last seen timestamp
+  - `online` (boolean): Peer online status
+
+**Example:**
+```bash
+curl http://192.168.4.1/api/sync/status
+```
+
+---
+
+### Peer Discovery
+
+#### Discover Peers
+
+Manually trigger peer device discovery using mDNS.
+
+**Endpoint:** `POST /api/sync/discover`
+
+**Request Body:** None required
+
+**Response:**
+```json
+{
+  "status": "ok",
+  "peersFound": 1,
+  "peers": [
+    {
+      "deviceId": "F6:E5:D4:C3:B2:A1",
+      "deviceName": "Right Poi",
+      "ipAddress": "192.168.4.2"
+    }
+  ]
+}
+```
+
+**Response Fields:**
+- `status` (string): Operation status
+- `peersFound` (number): Number of peers discovered
+- `peers` (array): List of discovered peers
+
+**Example:**
+```bash
+curl -X POST http://192.168.4.1/api/sync/discover
+```
+
+---
+
+### Sync Execution
+
+#### Execute Sync
+
+Trigger synchronization with a specific peer device.
+
+**Endpoint:** `POST /api/sync/execute`
+
+**Request Body:**
+```json
+{
+  "peerId": "F6:E5:D4:C3:B2:A1",
+  "direction": "bidirectional",
+  "syncImages": true,
+  "syncPatterns": true,
+  "syncSettings": true
+}
+```
+
+**Request Fields:**
+- `peerId` (string, required): Target peer device ID
+- `direction` (string, optional): Sync direction
+  - `"bidirectional"` (default): Merge data from both devices
+  - `"push"`: Push data to peer only
+  - `"pull"`: Pull data from peer only
+- `syncImages` (boolean, optional): Sync images (default: true)
+- `syncPatterns` (boolean, optional): Sync patterns (default: true)
+- `syncSettings` (boolean, optional): Sync settings (default: true)
+
+**Response:**
+```json
+{
+  "status": "ok",
+  "itemsSynced": 5,
+  "imagesAdded": 2,
+  "patternsAdded": 1,
+  "settingsUpdated": true
+}
+```
+
+**Response Fields:**
+- `status` (string): Operation status
+- `itemsSynced` (number): Total items synchronized
+- `imagesAdded` (number): Images added/updated
+- `patternsAdded` (number): Patterns added/updated
+- `settingsUpdated` (boolean): Settings updated status
+
+**Example:**
+```bash
+curl -X POST http://192.168.4.1/api/sync/execute \
+  -H "Content-Type: application/json" \
+  -d '{"peerId":"F6:E5:D4:C3:B2:A1","direction":"bidirectional"}'
+```
+
+---
+
+### Sync Data
+
+#### Get Sync Data
+
+Retrieve device's current data for synchronization.
+
+**Endpoint:** `GET /api/sync/data`
+
+**Response:**
+```json
+{
+  "deviceId": "A1:B2:C3:D4:E5:F6",
+  "deviceName": "Left Poi",
+  "images": [
+    {
+      "id": "img_001",
+      "name": "spiral.png",
+      "width": 31,
+      "height": 64,
+      "timestamp": 1706518800,
+      "size": 5952
+    }
+  ],
+  "patterns": [
+    {
+      "id": "pat_001",
+      "type": 0,
+      "name": "Rainbow Fast",
+      "timestamp": 1706518700
+    }
+  ],
+  "settings": {
+    "brightness": 128,
+    "framerate": 60,
+    "mode": 2,
+    "index": 0,
+    "timestamp": 1706518900
+  }
+}
+```
+
+**Response Fields:**
+- `deviceId` (string): Source device ID
+- `deviceName` (string): Source device name
+- `images` (array): List of images available for sync
+- `patterns` (array): List of patterns available for sync
+- `settings` (object): Current device settings
+
+**Example:**
+```bash
+curl http://192.168.4.1/api/sync/data
+```
+
+---
+
+### Push Sync Data
+
+#### Push Data to Device
+
+Push synchronization data to this device from peer.
+
+**Endpoint:** `POST /api/sync/push`
+
+**Request Body:**
+```json
+{
+  "deviceId": "F6:E5:D4:C3:B2:A1",
+  "deviceName": "Right Poi",
+  "images": [...],
+  "patterns": [...],
+  "settings": {
+    "brightness": 150,
+    "framerate": 60,
+    "mode": 2,
+    "index": 0,
+    "timestamp": 1706518900
+  }
+}
+```
+
+**Request Fields:**
+- `deviceId` (string): Source device ID
+- `deviceName` (string): Source device name
+- `images` (array, optional): Images to sync
+- `patterns` (array, optional): Patterns to sync
+- `settings` (object, optional): Settings to sync
+
+**Response:**
+```json
+{
+  "status": "ok",
+  "message": "Sync data received"
+}
+```
+
+**Example:**
+```bash
+curl -X POST http://192.168.4.1/api/sync/push \
+  -H "Content-Type: application/json" \
+  -d '{"deviceId":"F6:E5:D4:C3:B2:A1","settings":{"brightness":150}}'
+```
+
+---
+
+## Device Configuration API 🆕
+
+### Get Device Configuration
+
+#### Get Configuration
+
+Get device identification and sync configuration.
+
+**Endpoint:** `GET /api/device/config`
+
+**Response:**
+```json
+{
+  "deviceId": "A1:B2:C3:D4:E5:F6",
+  "deviceName": "Left Poi",
+  "syncGroup": "PoiPair01",
+  "autoSync": true,
+  "syncInterval": 30000
+}
+```
+
+**Response Fields:**
+- `deviceId` (string): Unique device identifier
+- `deviceName` (string): User-configured device name
+- `syncGroup` (string): Sync group identifier
+- `autoSync` (boolean): Auto-sync enabled
+- `syncInterval` (number): Auto-sync interval (ms)
+
+**Example:**
+```bash
+curl http://192.168.4.1/api/device/config
+```
+
+---
+
+### Update Device Configuration
+
+#### Update Configuration
+
+Update device name, sync group, and sync settings.
+
+**Endpoint:** `POST /api/device/config`
+
+**Request Body:**
+```json
+{
+  "deviceName": "Left Poi",
+  "syncGroup": "PoiPair01",
+  "autoSync": true,
+  "syncInterval": 30000
+}
+```
+
+**Request Fields:**
+- `deviceName` (string, optional): New device name
+- `syncGroup` (string, optional): New sync group
+- `autoSync` (boolean, optional): Enable/disable auto-sync
+- `syncInterval` (number, optional): Auto-sync interval in ms
+
+**Response:**
+```json
+{
+  "status": "ok",
+  "message": "Configuration updated"
+}
+```
+
+**Example:**
+```bash
+curl -X POST http://192.168.4.1/api/device/config \
+  -H "Content-Type: application/json" \
+  -d '{"deviceName":"Left Poi","autoSync":true}'
+```
+
+---
+
+## Sync API Examples
+
+### Python Example: Pair Two Devices
+
+```python
+import requests
+import time
+
+# Device endpoints
+device1 = "http://192.168.4.1"
+device2 = "http://192.168.4.2"  # Second device IP
+
+def configure_device(url, name, sync_group):
+    """Configure device identity and sync settings"""
+    config = {
+        "deviceName": name,
+        "syncGroup": sync_group,
+        "autoSync": True,
+        "syncInterval": 30000
+    }
+    response = requests.post(f"{url}/api/device/config", json=config)
+    return response.json()
+
+def discover_peers(url):
+    """Discover peer devices"""
+    response = requests.post(f"{url}/api/sync/discover")
+    return response.json()
+
+def sync_with_peer(url, peer_id):
+    """Synchronize with specific peer"""
+    data = {
+        "peerId": peer_id,
+        "direction": "bidirectional",
+        "syncImages": True,
+        "syncPatterns": True,
+        "syncSettings": True
+    }
+    response = requests.post(f"{url}/api/sync/execute", json=data)
+    return response.json()
+
+# Configure both devices
+print("Configuring devices...")
+configure_device(device1, "Left Poi", "PoiPair01")
+configure_device(device2, "Right Poi", "PoiPair01")
+
+# Wait for mDNS to propagate
+time.sleep(2)
+
+# Discover peers
+print("Discovering peers...")
+peers = discover_peers(device1)
+print(f"Found {peers['peersFound']} peers")
+
+# Sync if peer found
+if peers['peersFound'] > 0:
+    peer_id = peers['peers'][0]['deviceId']
+    print(f"Syncing with {peers['peers'][0]['deviceName']}...")
+    result = sync_with_peer(device1, peer_id)
+    print(f"Sync complete: {result}")
+else:
+    print("No peers found")
+```
+
+### JavaScript Example: Auto-Sync Monitor
+
+```javascript
+// Monitor sync status and display peer information
+async function monitorSyncStatus() {
+    try {
+        const response = await fetch('http://192.168.4.1/api/sync/status');
+        const status = await response.json();
+        
+        console.log(`Device: ${status.deviceName} (${status.deviceId})`);
+        console.log(`Auto-Sync: ${status.autoSync ? 'Enabled' : 'Disabled'}`);
+        console.log(`Peers: ${status.peers.length}`);
+        
+        status.peers.forEach(peer => {
+            console.log(`  - ${peer.deviceName}: ${peer.online ? 'Online' : 'Offline'}`);
+        });
+        
+    } catch (error) {
+        console.error('Failed to get sync status:', error);
+    }
+}
+
+// Trigger manual sync
+async function syncNow(peerId) {
+    try {
+        const response = await fetch('http://192.168.4.1/api/sync/execute', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                peerId: peerId,
+                direction: 'bidirectional'
+            })
+        });
+        
+        const result = await response.json();
+        console.log('Sync result:', result);
+        
+    } catch (error) {
+        console.error('Sync failed:', error);
+    }
+}
+
+// Run monitor every 5 seconds
+setInterval(monitorSyncStatus, 5000);
+```
+
+---
+
+## Future Sync API Enhancements
+
+Planned additions:
+- Image binary data transfer
+- Pattern data structures
+- Sequence synchronization
+- Conflict resolution options
+- Sync history and logs
+- Bandwidth optimization
+- Selective item sync
+- Multi-device group sync
+
+For complete sync setup guide, see [POI Pairing Guide](POI_PAIRING.md).

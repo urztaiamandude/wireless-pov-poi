@@ -12,12 +12,12 @@
                                      │
                                 WiFi │ 192.168.4.1
                                      │
-                              ┌──────▼───────┐
-                              │    ESP32     │
-                              │  WiFi AP     │
-                              │ Web Server   │
-                              │  REST API    │
-                              └──────┬───────┘
+                              ┌──────▼────────┐
+                              │  ESP32/S3     │
+                              │  WiFi AP      │
+                              │  Web Server   │
+                              │  REST API     │
+                              └──────┬────────┘
                                      │
                         Serial(TX/RX)│ 115200 baud
                                      │
@@ -92,8 +92,9 @@ Visual Output (POV Display) ✨
                     ▲│▼
  Layer 2: Control
  ┌─────────────────────────────────────────┐
- │  ESP32 @ 240MHz (Dual Core)            │
+ │  ESP32/S3 @ 240MHz (Dual Core)         │
  │  WiFi Stack + Web Server                │
+ │  (S3: 16MB Flash + 8MB PSRAM optional)  │
  └─────────────────────────────────────────┘
                     ▲│▼
  Layer 1.5: Communication

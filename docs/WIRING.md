@@ -33,7 +33,7 @@
                        │ │
                        │ │
 ┌──────────────────┐   │ │
-│     ESP32        │   │ │
+│   ESP32/ESP32-S3 │   │ │
 │   DEV MODULE     │   │ │
 │                  │   │ │
 │  GPIO17 (TX2) ───┼───┘ │
@@ -56,6 +56,9 @@
 └──────────────────┘
 ```
 
+**Note**: ESP32-S3 uses the same GPIO pins (16/17) as ESP32 - no wiring changes needed!  
+See [ESP32-S3 Compatibility Guide](ESP32_S3_COMPATIBILITY.md) for details.
+
 ## Pin Connections Table
 
 ### Teensy 4.1 Pin Assignments
@@ -71,10 +74,12 @@
 | GND | Ground | Common Ground | Shared with ESP32 and LEDs |
 | VIN | Power Input | 5V Power Supply | 5V input (or USB power) |
 
-### ESP32 Pin Assignments
+### ESP32 / ESP32-S3 Pin Assignments
 
-| ESP32 Pin | Function | Connects To | Notes |
-|-----------|----------|-------------|-------|
+Both ESP32 and ESP32-S3 use the same GPIO pins - **no wiring changes needed!**
+
+| ESP32/S3 Pin | Function | Connects To | Notes |
+|--------------|----------|-------------|-------|
 | GPIO 16 | UART2 RX | Teensy Pin 1 (TX1) | Serial receive from Teensy |
 | GPIO 17 | UART2 TX | Teensy Pin 0 (RX1) | Serial transmit to Teensy |
 | GND | Ground | Common Ground | Shared with Teensy and power |
@@ -130,18 +135,20 @@
    ```
    - Alternatively: Power via USB (testing only)
 
-### Step 3: ESP32 Connections
+### Step 3: ESP32 or ESP32-S3 Connections
+
+**Note**: ESP32-S3 uses the same pins as ESP32 (GPIO 16/17) - no wiring changes needed!
 
 1. **Serial Communication to Teensy**
    ```
-   ESP32 RX2 (GPIO 16) → Teensy TX1 (Pin 1)
-   ESP32 TX2 (GPIO 17) → Teensy RX1 (Pin 0)
+   ESP32/S3 RX2 (GPIO 16) → Teensy TX1 (Pin 1)
+   ESP32/S3 TX2 (GPIO 17) → Teensy RX1 (Pin 0)
    ```
 
 2. **Power**
    ```
-   ESP32 VIN → 5V Power Supply (+)
-   ESP32 GND → Power Supply Ground (-)
+   ESP32/S3 VIN → 5V Power Supply (+)
+   ESP32/S3 GND → Power Supply Ground (-)
    ```
    - Alternatively: Power via USB (development/testing)
 
@@ -174,7 +181,7 @@
 
 ```
 Power Supply GND ──┬── Teensy GND
-                   ├── ESP32 GND
+                   ├── ESP32/ESP32-S3 GND
                    └── LED Strip GND
 ```
 
@@ -366,6 +373,7 @@ Power Supply (+) ───[Ammeter]─── 5V Rail
 Recommended sources for components:
 - **Teensy 4.1**: PJRC.com
 - **ESP32**: Adafruit, SparkFun, AliExpress
+- **ESP32-S3 N16R8** ⭐ (Recommended): Adafruit, SparkFun, AliExpress, Amazon
 - **APA102 LEDs**: Adafruit, BTF-Lighting, AliExpress
 - **Power Supplies**: Mean Well, Amazon
 - **Level Shifters**: Adafruit, SparkFun
