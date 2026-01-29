@@ -7,8 +7,9 @@ A complete persistence of vision (POV) LED poi system using Teensy 4.1 and ESP32
 ### Hardware
 - **Teensy 4.1** - Main controller for LED display and POV rendering
 - **APA102 LED Strip** - 32 addressable RGB LEDs (31 for display, 1 for level shifting)
-- **ESP32** - WiFi co-processor for wireless communication and web interface
-- Serial communication between Teensy and ESP32
+- **ESP32 or ESP32-S3** - WiFi co-processor for wireless communication and web interface
+  - See [ESP32-S3 Compatibility Guide](ESP32_S3_COMPATIBILITY.md) for upgrade options
+- Serial communication between Teensy and ESP32/ESP32-S3
 
 ### Capabilities
 - Display custom images in POV mode
@@ -24,7 +25,9 @@ A complete persistence of vision (POV) LED poi system using Teensy 4.1 and ESP32
 
 ### Components Required
 - Teensy 4.1 development board
-- ESP32 development board (ESP32-DevKitC or similar)
+- ESP32 or ESP32-S3 development board (ESP32-DevKitC or ESP32-S3-DevKitC)
+  - **ESP32-S3 N16R8 recommended** for new builds (16MB Flash, 8MB PSRAM)
+  - See [ESP32-S3 Compatibility Guide](ESP32_S3_COMPATIBILITY.md) for details
 - APA102 LED strip (32 LEDs, 30 LEDs/m or 60 LEDs/m)
 - 5V power supply (min 2A recommended)
 - Logic level shifter (or use LED 0 as level shifter)
@@ -79,13 +82,17 @@ GND             →   GND
 2. Select Teensy 4.1 as target board in Arduino IDE
 3. Install FastLED library via Library Manager
 
-#### ESP32
+#### ESP32 or ESP32-S3
 1. Add ESP32 board manager URL to Arduino IDE preferences:
    ```
    https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
    ```
 2. Install "ESP32 by Espressif Systems" via Board Manager
-3. Select appropriate ESP32 board (e.g., "ESP32 Dev Module")
+3. Select appropriate board:
+   - **ESP32 Dev Module** (for standard ESP32)
+   - **ESP32S3 Dev Module** (for ESP32-S3)
+
+See [ESP32-S3 Compatibility Guide](ESP32_S3_COMPATIBILITY.md) for ESP32-S3 specific setup.
 
 ### Required Libraries
 
@@ -120,14 +127,34 @@ If you prefer to use the Teensy Loader application:
 
 See [BUILDING_HEX.md](BUILDING_HEX.md) for detailed instructions on building and loading HEX files.
 
-### Programming the ESP32
+### Programming the ESP32 or ESP32-S3
 
+**For ESP32:**
 1. Open `esp32_firmware/esp32_firmware.ino` in Arduino IDE
-2. Select **Tools > Board > ESP32 Dev Module** (or your specific board)
+2. Select **Tools > Board > ESP32 Dev Module**
 3. Select the correct COM port
 4. Set **Tools > Partition Scheme > Default** or **Minimal SPIFFS**
 5. Click Upload button
 6. Hold BOOT button on ESP32 if required during upload
+
+**For ESP32-S3:**
+1. Open `esp32_firmware/esp32_firmware.ino` in Arduino IDE
+2. Select **Tools > Board > ESP32S3 Dev Module**
+3. Select the correct COM port
+4. Set **Tools > USB CDC On Boot > Enabled** (recommended)
+5. Set **Tools > Partition Scheme > 16MB Flash (3MB APP/9.9MB FATFS)**
+6. Click Upload button
+
+**Using PlatformIO:**
+```bash
+# For ESP32
+pio run -e esp32 -t upload
+
+# For ESP32-S3
+pio run -e esp32s3 -t upload
+```
+
+See [ESP32-S3 Compatibility Guide](ESP32_S3_COMPATIBILITY.md) for detailed ESP32-S3 setup instructions.
 
 ## Usage
 

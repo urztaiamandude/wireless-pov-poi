@@ -1,19 +1,21 @@
 # Nebula Poi
 
-A wireless persistence of vision (POV) LED poi system featuring Teensy 4.1 and ESP32 with web-based control interface.
+A wireless persistence of vision (POV) LED poi system featuring Teensy 4.1 and ESP32/ESP32-S3 with web-based control interface.
 
 ## Overview
 
-This system creates stunning POV light displays using a 32 LED APA102 strip controlled by a Teensy 4.1 microcontroller. An ESP32 co-processor provides WiFi connectivity, enabling wireless control through a built-in web portal accessible from any device (phone, tablet, laptop). The system supports custom images, animated patterns, sequences, and real-time live drawing mode.
+This system creates stunning POV light displays using a 32 LED APA102 strip controlled by a Teensy 4.1 microcontroller. An ESP32 or ESP32-S3 co-processor provides WiFi connectivity, enabling wireless control through a built-in web portal accessible from any device (phone, tablet, laptop). The system supports custom images, animated patterns, sequences, and real-time live drawing mode.
 
 ## Features
 
 ### Hardware
 - **Teensy 4.1** - High-performance main controller for LED display and POV rendering
-- **ESP32** - WiFi co-processor for wireless communication and web interface
+- **ESP32 or ESP32-S3** - WiFi co-processor for wireless communication and web interface
+  - ESP32-S3 N16R8 (16MB Flash, 8MB PSRAM) recommended for new builds ✨
+  - See [ESP32-S3 Compatibility Guide](docs/ESP32_S3_COMPATIBILITY.md) for details
 - **APA102 LED Strip** - 32 addressable RGB LEDs (31 for display, 1 for level shifting)
 - **MAX9814 Microphone** (optional) - For music-reactive pattern modes
-- Serial communication (115200 baud) between Teensy and ESP32
+- Serial communication (115200 baud) between Teensy and ESP32/ESP32-S3
 
 ### Display Capabilities
 - **POV Image Display** - Upload and display custom images with persistence of vision
@@ -86,10 +88,25 @@ See [docs/WIRING.md](docs/WIRING.md) for detailed wiring instructions.
 - **CLI Guide**: See [CLI Compilation](docs/CLI_COMPILATION.md) for command-line builds
 - **Detailed Guide**: See [Building HEX Files](docs/BUILDING_HEX.md) for complete instructions
 
-**Program the ESP32:**
+**Program the ESP32 or ESP32-S3:**
+
+**Option A: Using Arduino IDE**
 1. Open `esp32_firmware/esp32_firmware.ino`
-2. Select Board: ESP32 Dev Module
+2. Select Board: 
+   - For ESP32: ESP32 Dev Module
+   - For ESP32-S3: ESP32S3 Dev Module
 3. Upload the firmware
+
+**Option B: Using PlatformIO**
+```bash
+# For ESP32
+pio run -e esp32 -t upload
+
+# For ESP32-S3 (recommended for new builds)
+pio run -e esp32s3 -t upload
+```
+
+See [ESP32-S3 Compatibility Guide](docs/ESP32_S3_COMPATIBILITY.md) for ESP32-S3 setup details.
 
 ### 3. Connect and Control
 
@@ -180,7 +197,9 @@ See [API Documentation](docs/API.md) for detailed endpoint information and examp
 ## Technical Specifications
 
 - **LED Controller**: Teensy 4.1 @ 600 MHz
-- **WiFi Module**: ESP32 (2.4 GHz)
+- **WiFi Module**: ESP32 or ESP32-S3 (2.4 GHz)
+  - ESP32: 4MB Flash typical
+  - ESP32-S3 N16R8: 16MB Flash + 8MB PSRAM (recommended) ✨
 - **LED Strip**: APA102 (32 LEDs, 31 for display + 1 for level shifting)
 - **Display Resolution**: HEIGHT = 31 pixels (fixed), WIDTH = variable
 - **Frame Rate**: 10-120 FPS (adjustable)
