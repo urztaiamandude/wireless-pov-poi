@@ -14,10 +14,6 @@ POVEngine povEngine(ledDriver);
 SDStorageManager sdStorage;
 #endif
 
-// Timing variables
-unsigned long lastFrameTime = 0;
-const unsigned long frameInterval = 1000 / POV_FRAME_RATE;
-
 void setup() {
     // Initialize debug serial
     #if DEBUG_ENABLED
@@ -82,8 +78,6 @@ void setup() {
 }
 
 void loop() {
-    unsigned long currentTime = millis();
-    
     // Process ESP32 communication
     if (esp32.available()) {
         uint8_t buffer[2048];  // Increased buffer for larger messages
@@ -120,11 +114,8 @@ void loop() {
         }
     }
     
-    // Update POV engine at fixed frame rate
-    if (currentTime - lastFrameTime >= frameInterval) {
-        lastFrameTime = currentTime;
-        povEngine.update();
-    }
+    // Let POV engine handle its own frame timing via frameDelay
+    povEngine.update();
     
     // Small yield to prevent watchdog issues
     yield();

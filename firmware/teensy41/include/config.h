@@ -33,4 +33,8 @@
 #define SD_CACHE_SIZE 2  // Number of images to cache in RAM
 #define SD_FILE_MAGIC 0x504F5631  // "POV1" in hex
 
+// Image Storage Configuration
+#define MAX_IMAGES 10  // Maximum number of images that can be stored in RAM
+#define MAX_FILENAME_LEN 32  // Maximum length for SD image filenames
+
 #endif // CONFIG_H

@@ -16,7 +16,6 @@
 #include <WiFi.h>
 #include <WebServer.h>
 #include <ESPmDNS.h>
-#include <FS.h>
 #include <SPIFFS.h>
 
 // Forward declarations for PlatformIO compilation
@@ -31,11 +30,16 @@ void handleSetFrameRate();
 void handleUploadPattern();
 void handleUploadImage();
 void handleLiveFrame();
+void handleSDList();
+void handleSDDelete();
+void handleSDInfo();
+void handleSDLoad();
 void handleManifest();
 void handleServiceWorker();
 void handleNotFound();
 void sendFile(const char* path, const char* contentType);
 void sendTeensyCommand(uint8_t cmd, uint8_t dataLen);
+bool readTeensyResponse(uint8_t expectedMarker, uint8_t* buffer, size_t maxLen, size_t& bytesRead, unsigned long timeout = 500);
 
 // WiFi Configuration
 const char* ssid = "POV-POI-WiFi";
@@ -55,6 +59,7 @@ struct SystemState {
   uint8_t brightness;
   uint8_t frameRate;
   bool connected;
+  bool sdCardPresent;
 } state;
 
 void setup() {
@@ -90,6 +95,7 @@ void setup() {
   state.brightness = 128;
   state.frameRate = 50;
   state.connected = false;
+  state.sdCardPresent = false;
   
   Serial.println("ESP32 Nebula Poi Controller Ready!");
   Serial.print("IP Address: ");
@@ -145,6 +151,12 @@ void setupWebServer() {
     },
     handleUploadImage);
   server.on("/api/live", HTTP_POST, handleLiveFrame);
+  
+  // SD card management endpoints
+  server.on("/api/sd/list", HTTP_GET, handleSDList);
+  server.on("/api/sd/info", HTTP_GET, handleSDInfo);
+  server.on("/api/sd/delete", HTTP_POST, handleSDDelete);
+  server.on("/api/sd/load", HTTP_POST, handleSDLoad);
   
   // PWA support
   server.on("/manifest.json", HTTP_GET, handleManifest);
@@ -594,12 +606,28 @@ void handleRoot() {
                 <canvas id="live-canvas" class="live-canvas" width="310" height="200"></canvas>
                 <button onclick="clearCanvas()" style="margin-top: 10px;">Clear</button>
             </div>
+            
+            <!-- SD Card Management -->
+            <div class="section">
+                <h2>💾 SD Card Storage</h2>
+                <div id="sd-status" style="margin-bottom: 15px; padding: 10px; background: rgba(102, 126, 234, 0.1); border-radius: 5px;">
+                    <div>Status: <span id="sd-status-text">Checking...</span></div>
+                    <div id="sd-info" style="margin-top: 5px; font-size: 14px; color: #666;"></div>
+                </div>
+                <div class="control-group">
+                    <button onclick="refreshSDList()" style="margin-bottom: 10px;">🔄 Refresh List</button>
+                    <div id="sd-file-list" style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; border-radius: 5px; padding: 10px; background: white;">
+                        <div style="text-align: center; color: #999;">No files loaded</div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
     
     <script>
         let currentMode = 2;
         let currentPattern = 0;
+        // aspect ratio is stored as height / width
         let originalImageAspectRatio = 1.0;
         
         // Initialize
@@ -615,11 +643,19 @@ void handleRoot() {
                     const img = new Image();
                     img.onload = function() {
                         originalImageAspectRatio = img.height / img.width;
-                        // Update height based on current width and new aspect ratio if lock is on
+                        // When aspect lock is on, treat height as the LED count
+                        // entered by the user and adjust width automatically to
+                        // preserve the original image aspect ratio, so the
+                        // physical LED count stays authoritative.
+                        const heightInput = document.getElementById('image-height');
+                        const widthInput = document.getElementById('image-width');
+                        let targetHeight = parseInt(heightInput.value) || 31;
+                        targetHeight = Math.min(200, Math.max(1, targetHeight));
+                        heightInput.value = targetHeight;
+
                         if (document.getElementById('aspect-ratio-lock').checked) {
-                            const width = parseInt(document.getElementById('image-width').value);
-                            const newHeight = Math.round(width * originalImageAspectRatio);
-                            document.getElementById('image-height').value = Math.min(200, Math.max(1, newHeight));
+                            const newWidth = Math.round(targetHeight / originalImageAspectRatio);
+                            widthInput.value = Math.min(100, Math.max(1, newWidth));
                         }
                     };
                     img.src = event.target.result;
@@ -631,19 +667,32 @@ void handleRoot() {
         // Function to handle dimension changes with aspect ratio lock
         function updateImageDimensions(changedField) {
             const aspectLock = document.getElementById('aspect-ratio-lock').checked;
-            if (!aspectLock) return;
-            
             const widthInput = document.getElementById('image-width');
             const heightInput = document.getElementById('image-height');
-            
-            if (changedField === 'width') {
-                const newWidth = parseInt(widthInput.value) || 31;
-                const newHeight = Math.round(newWidth * originalImageAspectRatio);
-                heightInput.value = Math.min(200, Math.max(1, newHeight));
-            } else if (changedField === 'height') {
-                const newHeight = parseInt(heightInput.value) || 64;
-                const newWidth = Math.round(newHeight / originalImageAspectRatio);
-                widthInput.value = Math.min(100, Math.max(1, newWidth));
+
+            // When aspect ratio is locked, we treat HEIGHT as the source of truth:
+            // it represents the number of physical LEDs. Width is then derived
+            // from that LED count and the image's aspect ratio to avoid warping.
+            if (aspectLock) {
+                // If the user changes height, recompute width from height.
+                if (changedField === 'height') {
+                    let newHeight = parseInt(heightInput.value) || 31;
+                    newHeight = Math.min(200, Math.max(1, newHeight));
+                    heightInput.value = newHeight;
+
+                    const newWidth = Math.round(newHeight / originalImageAspectRatio);
+                    widthInput.value = Math.min(100, Math.max(1, newWidth));
+                } else if (changedField === 'width') {
+                    // If the user changes width while locked, ignore that as a
+                    // source of truth and instead snap width back to the value
+                    // implied by the current LED count (height).
+                    let ledCount = parseInt(heightInput.value) || 31;
+                    ledCount = Math.min(200, Math.max(1, ledCount));
+                    heightInput.value = ledCount;
+
+                    const newWidth = Math.round(ledCount / originalImageAspectRatio);
+                    widthInput.value = Math.min(100, Math.max(1, newWidth));
+                }
             }
         }
         
@@ -723,6 +772,18 @@ void handleRoot() {
                     data.connected ? 'Connected ✓' : 'Disconnected ✗';
                 document.getElementById('mode-status').textContent = 
                     ['Idle', 'Image', 'Pattern', 'Sequence', 'Live'][data.mode] || 'Unknown';
+                
+                // Update SD card status if available
+                if (data.sdCardPresent !== undefined) {
+                    const sdStatusText = document.getElementById('sd-status-text');
+                    if (data.sdCardPresent) {
+                        sdStatusText.textContent = 'Present ✓';
+                        sdStatusText.style.color = '#4CAF50';
+                    } else {
+                        sdStatusText.textContent = 'Not Present ✗';
+                        sdStatusText.style.color = '#f44336';
+                    }
+                }
             } catch (e) {
                 document.getElementById('connection-status').textContent = 'Error';
             }
@@ -856,8 +917,18 @@ void handleRoot() {
                             const ctx = canvas.getContext('2d');
                             
                             // Get user-specified dimensions
-                            const targetWidth = parseInt(document.getElementById('image-width').value) || 31;
-                            const targetHeight = parseInt(document.getElementById('image-height').value) || 64;
+                            // Height is the physical LED count; width is derived
+                            // from it (or directly used if aspect lock is off).
+                            let targetHeight = parseInt(document.getElementById('image-height').value) || 31;
+                            targetHeight = Math.min(200, Math.max(1, targetHeight));
+
+                            let targetWidth = parseInt(document.getElementById('image-width').value) || 31;
+                            const aspectLock = document.getElementById('aspect-ratio-lock').checked;
+                            if (aspectLock) {
+                                // Derive width from LED count and original aspect ratio.
+                                targetWidth = Math.round(targetHeight / originalImageAspectRatio);
+                            }
+                            targetWidth = Math.min(100, Math.max(1, targetWidth));
                             
                             // Get flip options
                             const flipVertical = document.getElementById('flip-vertical').checked;
@@ -943,6 +1014,106 @@ void handleRoot() {
             });
         }
         
+        // SD Card Management
+        async function refreshSDList() {
+            try {
+                const response = await fetch('/api/sd/list');
+                const data = await response.json();
+                const listDiv = document.getElementById('sd-file-list');
+                
+                if (data.files && data.files.length > 0) {
+                    listDiv.innerHTML = '';
+                    data.files.forEach(filename => {
+                        const fileItem = document.createElement('div');
+                        fileItem.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 8px; margin: 5px 0; background: #f0f0f0; border-radius: 5px;';
+                        fileItem.innerHTML = `
+                            <span style="flex: 1; font-size: 14px;">${filename}</span>
+                            <div style="display: flex; gap: 5px;">
+                                <button onclick="loadSDImage('${filename}')" style="padding: 5px 10px; font-size: 12px; background: #4CAF50; color: white; border: none; border-radius: 3px; cursor: pointer;">Load</button>
+                                <button onclick="deleteSDImage('${filename}')" style="padding: 5px 10px; font-size: 12px; background: #f44336; color: white; border: none; border-radius: 3px; cursor: pointer;">Delete</button>
+                            </div>
+                        `;
+                        listDiv.appendChild(fileItem);
+                    });
+                } else {
+                    listDiv.innerHTML = '<div style="text-align: center; color: #999;">No images found on SD card</div>';
+                }
+            } catch (e) {
+                document.getElementById('sd-file-list').innerHTML = '<div style="text-align: center; color: #f44336;">Error loading file list</div>';
+            }
+        }
+        
+        async function loadSDImage(filename) {
+            try {
+                const response = await fetch('/api/sd/load', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({filename: filename})
+                });
+                if (response.ok) {
+                    alert('Image loaded from SD: ' + filename);
+                    // Switch to image mode
+                    document.getElementById('mode-select').value = '1';
+                    await changeMode();
+                    updateStatus();
+                } else {
+                    alert('Failed to load image');
+                }
+            } catch (e) {
+                alert('Error loading image: ' + e.message);
+            }
+        }
+        
+        async function deleteSDImage(filename) {
+            if (!confirm('Delete ' + filename + ' from SD card?')) {
+                return;
+            }
+            try {
+                const response = await fetch('/api/sd/delete', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({filename: filename})
+                });
+                if (response.ok) {
+                    alert('Image deleted from SD');
+                    refreshSDList();
+                } else {
+                    alert('Failed to delete image');
+                }
+            } catch (e) {
+                alert('Error deleting image: ' + e.message);
+            }
+        }
+        
+        async function updateSDStatus() {
+            try {
+                const response = await fetch('/api/sd/info');
+                const data = await response.json();
+                const statusText = document.getElementById('sd-status-text');
+                const infoDiv = document.getElementById('sd-info');
+                
+                if (data.present) {
+                    statusText.textContent = 'Present ✓';
+                    statusText.style.color = '#4CAF50';
+                    const totalMB = (data.totalSpace / (1024 * 1024)).toFixed(1);
+                    const freeMB = (data.freeSpace / (1024 * 1024)).toFixed(1);
+                    infoDiv.innerHTML = `Total: ${totalMB} MB | Free: ${freeMB} MB`;
+                } else {
+                    statusText.textContent = 'Not Present ✗';
+                    statusText.style.color = '#f44336';
+                    infoDiv.innerHTML = '';
+                }
+            } catch (e) {
+                document.getElementById('sd-status-text').textContent = 'Error';
+                document.getElementById('sd-status-text').style.color = '#f44336';
+            }
+        }
+        
+        // Update SD status on page load and periodically
+        updateSDStatus();
+        setInterval(updateSDStatus, 5000);
+        setInterval(refreshSDList, 10000);  // Refresh list every 10 seconds
+        
         // PWA Install Prompt
         let deferredPrompt;
         
@@ -984,7 +1155,8 @@ void handleStatus() {
   json += "\"mode\":" + String(state.currentMode) + ",";
   json += "\"index\":" + String(state.currentIndex) + ",";
   json += "\"brightness\":" + String(state.brightness) + ",";
-  json += "\"framerate\":" + String(state.frameRate);
+  json += "\"framerate\":" + String(state.frameRate) + ",";
+  json += "\"sdCardPresent\":" + String(state.sdCardPresent ? "true" : "false");
   json += "}";
   
   server.send(200, "application/json", json);
@@ -1062,20 +1234,109 @@ void handleUploadPattern() {
   if (server.hasArg("plain")) {
     String body = server.arg("plain");
     
-    // Parse JSON manually (simple parsing)
+    // Parse JSON manually (simple parsing, no external libs)
+    // Expected format:
+    // {
+    //   "index": N,
+    //   "type": N,
+    //   "color1": {"r":R,"g":G,"b":B},
+    //   "color2": {"r":R,"g":G,"b":B},
+    //   "speed": N
+    // }
     uint8_t index = 0;
     uint8_t type = 0;
     uint8_t r1 = 255, g1 = 0, b1 = 0;
     uint8_t r2 = 0, g2 = 0, b2 = 255;
     uint8_t speed = 50;
-    
-    int idx = body.indexOf("\"type\":");
-    if (idx != -1) {
-      type = body.substring(idx + 7, body.indexOf(",", idx)).toInt();
+
+    auto parseUintField = [&](const char* key, uint8_t& outValue, uint8_t defaultValue) {
+      int k = body.indexOf(key);
+      if (k == -1) {
+        outValue = defaultValue;
+        return;
+      }
+      int start = body.indexOf(":", k);
+      if (start == -1) {
+        outValue = defaultValue;
+        return;
+      }
+      // Read until comma or closing brace
+      int end = body.indexOf(",", start);
+      int endBrace = body.indexOf("}", start);
+      if (end == -1 || (endBrace != -1 && endBrace < end)) {
+        end = endBrace;
+      }
+      if (end == -1) {
+        end = body.length();
+      }
+      String num = body.substring(start + 1, end);
+      num.trim();
+      long v = num.toInt();
+      if (v < 0) v = 0;
+      if (v > 255) v = 255;
+      outValue = (uint8_t)v;
+    };
+
+    // Top-level scalar fields
+    parseUintField("\"index\"", index, 0);
+    parseUintField("\"type\"", type, 0);
+    parseUintField("\"speed\"", speed, 50);
+
+    // color1 components
+    int c1 = body.indexOf("\"color1\"");
+    if (c1 != -1) {
+      String c1Sub = body.substring(c1);
+      parseUintField("\"r\"", r1, r1);
+      parseUintField("\"g\"", g1, g1);
+      parseUintField("\"b\"", b1, b1);
+    }
+
+    // color2 components
+    int c2 = body.indexOf("\"color2\"");
+    if (c2 != -1) {
+      String c2Sub = body.substring(c2);
+      // Temporarily operate on c2Sub for parsing
+      auto parseUintFieldLocal = [&](String& src, const char* key, uint8_t& outValue, uint8_t defaultValue) {
+        int k = src.indexOf(key);
+        if (k == -1) {
+          outValue = defaultValue;
+          return;
+        }
+        int start = src.indexOf(":", k);
+        if (start == -1) {
+          outValue = defaultValue;
+          return;
+        }
+        int end = src.indexOf(",", start);
+        int endBrace = src.indexOf("}", start);
+        if (end == -1 || (endBrace != -1 && endBrace < end)) {
+          end = endBrace;
+        }
+        if (end == -1) {
+          end = src.length();
+        }
+        String num = src.substring(start + 1, end);
+        num.trim();
+        long v = num.toInt();
+        if (v < 0) v = 0;
+        if (v > 255) v = 255;
+        outValue = (uint8_t)v;
+      };
+
+      parseUintFieldLocal(c2Sub, "\"r\"", r2, r2);
+      parseUintFieldLocal(c2Sub, "\"g\"", g2, g2);
+      parseUintFieldLocal(c2Sub, "\"b\"", b2, b2);
     }
     
-    // Send pattern to Teensy
-    sendTeensyCommand(0x03, 8);
+    // Clamp the pattern index to the range supported by the Teensy engine (0-4)
+    if (index > 4) {
+      index = 4;
+    }
+    
+    // Send pattern to Teensy (simple protocol)
+    // Data format expected by Teensy:
+    // [index][type][r1][g1][b1][r2][g2][b2][speed]  (9 bytes)
+    sendTeensyCommand(0x03, 9);
     TEENSY_SERIAL.write(index);
     TEENSY_SERIAL.write(type);
     TEENSY_SERIAL.write(r1);
@@ -1159,6 +1420,41 @@ void handleUploadImage() {
     TEENSY_SERIAL.write(state.currentIndex);
     TEENSY_SERIAL.write(0xFE);
     
+    // Auto-save to SD card if present
+    // Check SD status first (from last status check)
+    if (state.sdCardPresent) {
+      delay(50);  // Small delay to ensure previous command processed
+      
+      // Generate filename based on timestamp
+      // Format: "upload_XXXXX.pov" where XXXXX is milliseconds modulo 100000
+      uint32_t timestamp = millis() % 100000;
+      char filename[32];
+      snprintf(filename, sizeof(filename), "upload_%05lu.pov", timestamp);
+      uint8_t filenameLen = strlen(filename);
+      
+      // Calculate total data length: filename_len + filename + width + height + image_data
+      uint16_t totalDataLen = 1 + filenameLen + 2 + actualSize;
+      
+      // Send SD save command (simple protocol)
+      // Format: 0xFF 0x20 dataLen [filename_len][filename][width][height][RGB_data...] 0xFE
+      sendTeensyCommand(0x20, totalDataLen);
+      TEENSY_SERIAL.write(filenameLen);
+      TEENSY_SERIAL.write((const uint8_t*)filename, filenameLen);
+      TEENSY_SERIAL.write(imageWidth);
+      TEENSY_SERIAL.write(imageHeight);
+      
+      // Send pixel data
+      for (uint16_t i = 0; i < actualSize && i < bufferIndex; i++) {
+        TEENSY_SERIAL.write(imageBuffer[i]);
+      }
+      TEENSY_SERIAL.write(0xFE);
+      
+      Serial.print("Auto-saving image to SD: ");
+      Serial.println(filename);
+    } else {
+      Serial.println("SD card not present - skipping auto-save");
+    }
+    
     server.send(200, "application/json", "{\"status\":\"ok\"}");
   } else if (upload.status == UPLOAD_FILE_ABORTED) {
     Serial.println("Upload aborted");
@@ -1170,16 +1466,249 @@ void handleLiveFrame() {
   if (server.hasArg("plain")) {
     String body = server.arg("plain");
     
-    // Send live frame command to Teensy
-    sendTeensyCommand(0x05, 93);  // 31 LEDs * 3 bytes
-    
-    // Parse and send pixel data (simplified)
-    // Real implementation would parse JSON array
-    for (int i = 0; i < 31; i++) {
-      TEENSY_SERIAL.write(0);  // R
-      TEENSY_SERIAL.write(0);  // G
-      TEENSY_SERIAL.write(0);  // B
+    // Parse JSON payload: {"pixels":[{"r":R,"g":G,"b":B}, ...]}
+    const int ledCount = 31;  // Display LEDs (Teensy uses 31 display LEDs)
+    uint8_t rgb[ledCount * 3];
+    for (int i = 0; i < ledCount * 3; i++) {
+      rgb[i] = 0;
     }
+
+    int pixelsIdx = body.indexOf("\"pixels\"");
+    if (pixelsIdx != -1) {
+      int pos = body.indexOf("[", pixelsIdx);
+      int end = body.indexOf("]", pos);
+      if (pos != -1 && end != -1) {
+        String arr = body.substring(pos, end);
+        int led = 0;
+        int cursor = 0;
+        while (led < ledCount) {
+          int objStart = arr.indexOf("{", cursor);
+          if (objStart == -1) break;
+          int objEnd = arr.indexOf("}", objStart);
+          if (objEnd == -1) break;
+          String obj = arr.substring(objStart, objEnd + 1);
+
+          auto parseComp = [&](const char* key, uint8_t& outValue) {
+            int k = obj.indexOf(key);
+            if (k == -1) return;
+            int s = obj.indexOf(":", k);
+            if (s == -1) return;
+            int e = obj.indexOf(",", s);
+            int eBrace = obj.indexOf("}", s);
+            if (e == -1 || (eBrace != -1 && eBrace < e)) {
+              e = eBrace;
+            }
+            if (e == -1) {
+              e = obj.length();
+            }
+            String num = obj.substring(s + 1, e);
+            num.trim();
+            long v = num.toInt();
+            if (v < 0) v = 0;
+            if (v > 255) v = 255;
+            outValue = (uint8_t)v;
+          };
+
+          uint8_t r = 0, g = 0, b = 0;
+          parseComp("\"r\"", r);
+          parseComp("\"g\"", g);
+          parseComp("\"b\"", b);
+
+          rgb[led * 3 + 0] = r;
+          rgb[led * 3 + 1] = g;
+          rgb[led * 3 + 2] = b;
+
+          led++;
+          cursor = objEnd + 1;
+        }
+      }
+    }
+
+    // Send live frame command to Teensy
+    sendTeensyCommand(0x05, ledCount * 3);  // 31 LEDs * 3 bytes
+    for (int i = 0; i < ledCount * 3; i++) {
+      TEENSY_SERIAL.write(rgb[i]);
+    }
+    TEENSY_SERIAL.write(0xFE);
+    
+    server.send(200, "application/json", "{\"status\":\"ok\"}");
+  } else {
+    server.send(400, "application/json", "{\"error\":\"No data\"}");
+  }
+}
+
+bool readTeensyResponse(uint8_t expectedMarker, uint8_t* buffer, size_t maxLen, size_t& bytesRead, unsigned long timeout) {
+  bytesRead = 0;
+  unsigned long start = millis();
+  
+  // Wait for start marker
+  while (millis() - start < timeout) {
+    if (TEENSY_SERIAL.available() > 0) {
+      if (TEENSY_SERIAL.read() == 0xFF) {
+        if (TEENSY_SERIAL.available() > 0) {
+          uint8_t marker = TEENSY_SERIAL.read();
+          if (marker == expectedMarker) {
+            // Read data until 0xFE
+            while (millis() - start < timeout && bytesRead < maxLen - 1) {
+              if (TEENSY_SERIAL.available() > 0) {
+                uint8_t byte = TEENSY_SERIAL.read();
+                if (byte == 0xFE) {
+                  return true;
+                }
+                buffer[bytesRead++] = byte;
+              }
+            }
+            return bytesRead > 0;
+          }
+        }
+      }
+    }
+  }
+  return false;
+}
+
+void handleSDList() {
+  if (!state.sdCardPresent) {
+    server.send(200, "application/json", "{\"error\":\"SD card not present\",\"files\":[]}");
+    return;
+  }
+  
+  // Send list command
+  sendTeensyCommand(0x21, 0);
+  TEENSY_SERIAL.write(0xFE);
+  
+  // Wait for response: 0xFF 0xCC count [filename_len][filename]... 0xFE
+  delay(100);
+  uint8_t buffer[2048];
+  size_t bytesRead = 0;
+  
+  if (readTeensyResponse(0xCC, buffer, sizeof(buffer), bytesRead, 500)) {
+    if (bytesRead > 0) {
+      uint8_t count = buffer[0];
+      String json = "{\"files\":[";
+      
+      size_t pos = 1;
+      for (uint8_t i = 0; i < count && pos < bytesRead; i++) {
+        if (i > 0) json += ",";
+        uint8_t nameLen = buffer[pos++];
+        if (pos + nameLen <= bytesRead) {
+          String filename = "";
+          for (uint8_t j = 0; j < nameLen; j++) {
+            filename += (char)buffer[pos++];
+          }
+          json += "\"" + filename + "\"";
+        }
+      }
+      json += "]}";
+      server.send(200, "application/json", json);
+      return;
+    }
+  }
+  
+  server.send(200, "application/json", "{\"error\":\"Failed to read response\",\"files\":[]}");
+}
+
+void handleSDInfo() {
+  // Send info command
+  sendTeensyCommand(0x23, 0);
+  TEENSY_SERIAL.write(0xFE);
+  
+  // Wait for response: 0xFF 0xDD present [total:8][free:8] 0xFE
+  delay(100);
+  uint8_t buffer[20];
+  size_t bytesRead = 0;
+  
+  if (readTeensyResponse(0xDD, buffer, sizeof(buffer), bytesRead, 500)) {
+    if (bytesRead >= 17) {
+      bool present = buffer[0] != 0;
+      uint64_t totalSpace = 0;
+      uint64_t freeSpace = 0;
+      
+      for (int i = 0; i < 8; i++) {
+        totalSpace = (totalSpace << 8) | buffer[1 + i];
+        freeSpace = (freeSpace << 8) | buffer[9 + i];
+      }
+      
+      String json = "{";
+      json += "\"present\":" + String(present ? "true" : "false") + ",";
+      json += "\"totalSpace\":" + String(totalSpace) + ",";
+      json += "\"freeSpace\":" + String(freeSpace);
+      json += "}";
+      server.send(200, "application/json", json);
+      return;
+    }
+  }
+  
+  server.send(200, "application/json", "{\"error\":\"Failed to read response\"}");
+}
+
+void handleSDDelete() {
+  if (server.hasArg("plain")) {
+    String body = server.arg("plain");
+    
+    // Parse JSON: {"filename":"name.pov"}
+    int filenameIdx = body.indexOf("\"filename\":");
+    if (filenameIdx == -1) {
+      server.send(400, "application/json", "{\"error\":\"Missing filename\"}");
+      return;
+    }
+    
+    int start = body.indexOf("\"", filenameIdx + 11);
+    int end = body.indexOf("\"", start + 1);
+    if (start == -1 || end == -1) {
+      server.send(400, "application/json", "{\"error\":\"Invalid filename format\"}");
+      return;
+    }
+    
+    String filename = body.substring(start + 1, end);
+    uint8_t filenameLen = filename.length();
+    if (filenameLen > 63) filenameLen = 63;
+    
+    // Send delete command
+    sendTeensyCommand(0x22, filenameLen);
+    TEENSY_SERIAL.write((const uint8_t*)filename.c_str(), filenameLen);
+    TEENSY_SERIAL.write(0xFE);
+    
+    server.send(200, "application/json", "{\"status\":\"ok\"}");
+  } else {
+    server.send(400, "application/json", "{\"error\":\"No data\"}");
+  }
+}
+
+void handleSDLoad() {
+  if (server.hasArg("plain")) {
+    String body = server.arg("plain");
+    
+    // Parse JSON: {"filename":"name.pov"}
+    int filenameIdx = body.indexOf("\"filename\":");
+    if (filenameIdx == -1) {
+      server.send(400, "application/json", "{\"error\":\"Missing filename\"}");
+      return;
+    }
+    
+    int start = body.indexOf("\"", filenameIdx + 11);
+    int end = body.indexOf("\"", start + 1);
+    if (start == -1 || end == -1) {
+      server.send(400, "application/json", "{\"error\":\"Invalid filename format\"}");
+      return;
+    }
+    
+    String filename = body.substring(start + 1, end);
+    uint8_t filenameLen = filename.length();
+    if (filenameLen > 63) filenameLen = 63;
+    
+    // Send load command
+    sendTeensyCommand(0x24, filenameLen);
+    TEENSY_SERIAL.write((const uint8_t*)filename.c_str(), filenameLen);
+    TEENSY_SERIAL.write(0xFE);
+    
+    // Switch to image mode after loading
+    delay(100);
+    state.currentMode = 1;
+    state.currentIndex = 0;
+    sendTeensyCommand(0x01, 2);
+    TEENSY_SERIAL.write(state.currentMode);
+    TEENSY_SERIAL.write(state.currentIndex);
     TEENSY_SERIAL.write(0xFE);
     
     server.send(200, "application/json", "{\"status\":\"ok\"}");
@@ -1289,16 +1818,19 @@ void checkTeensyConnection() {
   TEENSY_SERIAL.write(0xFE);
   
   // Wait for response (simplified)
+  // Format: 0xFF 0xBB mode index sd_present 0xFE
   unsigned long start = millis();
   while (millis() - start < 100) {
-    if (TEENSY_SERIAL.available() >= 4) {
+    if (TEENSY_SERIAL.available() >= 5) {
       if (TEENSY_SERIAL.read() == 0xFF && TEENSY_SERIAL.read() == 0xBB) {
         state.currentMode = TEENSY_SERIAL.read();
         state.currentIndex = TEENSY_SERIAL.read();
+        state.sdCardPresent = (TEENSY_SERIAL.read() != 0);
         state.connected = true;
         return;
       }
     }
   }
   state.connected = false;
+  state.sdCardPresent = false;
 }

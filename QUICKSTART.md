@@ -6,7 +6,7 @@ Get your Nebula Poi up and running in 30 minutes!
 
 ### Hardware
 - [ ] Teensy 4.1 development board
-- [ ] ESP32 development board (ESP32-DevKitC or similar)
+- [ ] ESP32 development board (ESP32-WROOM-32, ESP32-DevKitC, or similar)
 - [ ] APA102 LED strip with 32 LEDs
 - [ ] 5V power supply (2-3A)
 - [ ] Jumper wires
@@ -131,11 +131,15 @@ Commands: IMAGE, PATTERN, SEQUENCE, LIVE, STATUS
 1. Connect ESP32 to computer via USB
 2. Open `esp32_firmware/esp32_firmware.ino`
 3. Select:
-   - Tools > Board > ESP32 Dev Module
+   - Tools > Board > **ESP32 Dev Module** (works for ESP32-WROOM-32)
    - Tools > Port > [Your ESP32 COM port]
-   - Tools > Partition Scheme > Default
+   - Tools > Partition Scheme > **Default** (or "Minimal SPIFFS" if you have 4MB flash)
+   - Tools > Flash Size > **4MB (32Mb)** (for ESP32-WROOM-32)
+   - Tools > CPU Frequency > **240MHz (WiFi/BT)** (default)
 4. Click Upload
 5. Wait for upload to complete
+
+**Note for ESP32-WROOM-32**: The "ESP32 Dev Module" board setting works perfectly. If you have a 4MB flash version (most common), use "Default" partition scheme. If you encounter SPIFFS errors, try "Minimal SPIFFS" partition scheme instead.
 
 **Expected Output** (Serial Monitor at 115200 baud):
 ```

@@ -123,11 +123,18 @@ See [BUILDING_HEX.md](BUILDING_HEX.md) for detailed instructions on building and
 ### Programming the ESP32
 
 1. Open `esp32_firmware/esp32_firmware.ino` in Arduino IDE
-2. Select **Tools > Board > ESP32 Dev Module** (or your specific board)
-3. Select the correct COM port
-4. Set **Tools > Partition Scheme > Default** or **Minimal SPIFFS**
-5. Click Upload button
-6. Hold BOOT button on ESP32 if required during upload
+2. Select **Tools > Board > ESP32 Dev Module** (works for ESP32-WROOM-32 and most ESP32 boards)
+3. Select **Tools > Port > [Your COM port]**
+4. Set **Tools > Partition Scheme > Default** (or "Minimal SPIFFS" for 4MB flash)
+5. Set **Tools > Flash Size > 4MB (32Mb)** (for ESP32-WROOM-32)
+6. Click Upload button
+7. Hold BOOT button on ESP32 if required during upload
+
+**ESP32-WROOM-32 Specific Notes:**
+- The "ESP32 Dev Module" board setting is fully compatible
+- Most ESP32-WROOM-32 modules have 4MB flash - use "Default" partition scheme
+- If you get SPIFFS mount errors, try "Minimal SPIFFS" partition scheme
+- Serial pins are standard: GPIO 16 (RX2), GPIO 17 (TX2) - matches firmware
 
 ## Usage
 

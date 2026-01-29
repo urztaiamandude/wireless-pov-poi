@@ -389,6 +389,9 @@ bool ESP32Interface::processSimpleCommand(uint8_t command, const uint8_t* data, 
         case 0x03:  // Upload pattern
             return handleSimplePatternUpload(data, len);
             
+        case 0x04:  // Upload sequence
+            return handleSimpleSequenceUpload(data, len);
+            
         case 0x05:  // Live frame data
             return handleSimpleLiveFrame(data, len);
             
@@ -422,20 +425,30 @@ bool ESP32Interface::processSimpleCommand(uint8_t command, const uint8_t* data, 
             DEBUG_SERIAL.println("Status request");
             #endif
             // Send status response
-            // Format: 0xFF 0xBB mode index 0xFE
+            // Format: 0xFF 0xBB mode index sd_present 0xFE
             serial.write(0xFF);
             serial.write(0xBB);
             if (povEngine) {
-                // Would need getter methods in POV engine
-                serial.write((uint8_t)0);  // mode placeholder
-                serial.write((uint8_t)0);  // index placeholder
+                serial.write(povEngine->getMode());
+                serial.write(povEngine->getModeIndex());
             } else {
                 serial.write((uint8_t)0);
                 serial.write((uint8_t)0);
             }
+            // Include SD card status
+            serial.write((sdStorage && sdStorage->isInitialized()) ? 1 : 0);
             serial.write(0xFE);
             return true;
-            
+        case 0x20:  // Save image to SD (simple protocol)
+            return handleSimpleSDSaveImage(data, len);
+        case 0x21:  // List SD images (simple protocol)
+            return handleSimpleSDListImages(data, len);
+        case 0x22:  // Delete SD image (simple protocol)
+            return handleSimpleSDDeleteImage(data, len);
+        case 0x23:  // Get SD info (simple protocol)
+            return handleSimpleSDGetInfo(data, len);
+        case 0x24:  // Load image from SD (simple protocol)
+            return handleSimpleSDLoadImage(data, len);
         default:
             #if DEBUG_ENABLED
             DEBUG_SERIAL.print("Unknown simple command: 0x");
@@ -798,6 +811,80 @@ bool ESP32Interface::handleSimplePatternUpload(const uint8_t* data, size_t len) 
     return true;
 }
 
+bool ESP32Interface::handleSimpleSequenceUpload(const uint8_t* data, size_t len) {
+    // Data format: [seqIndex][count][loop][item0][dur0_h][dur0_l][item1][dur1_h][dur1_l]...
+    // Minimum: 3 bytes (seqIndex, count=0, loop)
+    if (len < 3) {
+        #if DEBUG_ENABLED
+        DEBUG_SERIAL.println("ERROR: Sequence data too short");
+        #endif
+        return false;
+    }
+    
+    if (!povEngine) {
+        #if DEBUG_ENABLED
+        DEBUG_SERIAL.println("ERROR: POV engine not available");
+        #endif
+        return false;
+    }
+    
+    uint8_t seqIndex = data[0];
+    uint8_t count = data[1];
+    bool loop = data[2] != 0;
+    
+    // Validate sequence index
+    if (seqIndex >= 5) {
+        #if DEBUG_ENABLED
+        DEBUG_SERIAL.println("ERROR: Invalid sequence index");
+        #endif
+        return false;
+    }
+    
+    // Validate count
+    if (count > 10) {
+        count = 10;  // Cap at max items
+    }
+    
+    // Expected data length: 3 + count * 3 (item + 2-byte duration)
+    size_t expectedLen = 3 + count * 3;
+    if (len < expectedLen) {
+        #if DEBUG_ENABLED
+        DEBUG_SERIAL.print("ERROR: Sequence data incomplete. Expected: ");
+        DEBUG_SERIAL.print(expectedLen);
+        DEBUG_SERIAL.print(", Got: ");
+        DEBUG_SERIAL.println(len);
+        #endif
+        return false;
+    }
+    
+    // Build sequence structure
+    Sequence seq;
+    seq.active = true;
+    seq.count = count;
+    seq.loop = loop;
+    
+    // Parse items and durations
+    for (uint8_t i = 0; i < count; i++) {
+        uint8_t offset = 3 + i * 3;
+        seq.items[i] = data[offset];
+        seq.durations[i] = (data[offset + 1] << 8) | data[offset + 2];
+    }
+    
+    // Load sequence into POV engine
+    povEngine->loadSequence(seqIndex, seq);
+    
+    #if DEBUG_ENABLED
+    DEBUG_SERIAL.print("Sequence ");
+    DEBUG_SERIAL.print(seqIndex);
+    DEBUG_SERIAL.print(" loaded, items: ");
+    DEBUG_SERIAL.print(count);
+    DEBUG_SERIAL.print(", loop: ");
+    DEBUG_SERIAL.println(loop ? "yes" : "no");
+    #endif
+    
+    return true;
+}
+
 bool ESP32Interface::handleSimpleLiveFrame(const uint8_t* data, size_t len) {
     if (!ledDriver) {
         #if DEBUG_ENABLED
@@ -835,4 +922,264 @@ bool ESP32Interface::handleSimpleLiveFrame(const uint8_t* data, size_t len) {
     ledDriver->show();
     
     return true;
+}
+
+bool ESP32Interface::handleSimpleSDSaveImage(const uint8_t* data, size_t len) {
+    if (!sdStorage || !sdStorage->isInitialized()) {
+        #if DEBUG_ENABLED
+        DEBUG_SERIAL.println("SD storage not available");
+        #endif
+        return false;
+    }
+    
+    // Data format: [filename_len][filename][width][height][RGB_data...]
+    // Minimum: 1 byte (filename_len=0 means use default name)
+    if (len < 1) {
+        #if DEBUG_ENABLED
+        DEBUG_SERIAL.println("ERROR: SD save data too short");
+        #endif
+        return false;
+    }
+    
+    uint8_t filenameLen = data[0];
+    char filename[64];
+    
+    // Generate default filename if none provided (timestamp-based)
+    if (filenameLen == 0 || filenameLen > 63) {
+        // Generate filename: "img_XXXXX.pov" where XXXXX is a counter/timestamp
+        static uint16_t imageCounter = 0;
+        imageCounter++;
+        snprintf(filename, sizeof(filename), "img_%05d.pov", imageCounter);
+        filenameLen = strlen(filename);
+    } else {
+        // Use provided filename
+        memcpy(filename, data + 1, filenameLen);
+        filename[filenameLen] = '\0';
+    }
+    
+    // Extract dimensions (width and height are single bytes)
+    if (len < 1 + filenameLen + 2) {
+        #if DEBUG_ENABLED
+        DEBUG_SERIAL.println("ERROR: SD save data incomplete (missing dimensions)");
+        #endif
+        return false;
+    }
+    
+    uint8_t width = data[1 + filenameLen];
+    uint8_t height = data[2 + filenameLen];
+    
+    // Extract image data
+    const uint8_t* imageData = data + 3 + filenameLen;
+    size_t imageDataLen = len - 3 - filenameLen;
+    
+    // Verify data size
+    size_t expectedSize = width * height * 3;
+    if (imageDataLen != expectedSize) {
+        #if DEBUG_ENABLED
+        DEBUG_SERIAL.print("ERROR: Image data size mismatch. Expected: ");
+        DEBUG_SERIAL.print(expectedSize);
+        DEBUG_SERIAL.print(", Got: ");
+        DEBUG_SERIAL.println(imageDataLen);
+        #endif
+        return false;
+    }
+    
+    // Save image to SD card
+    SDError error = sdStorage->saveImage(filename, imageData, width, height);
+    
+    if (error == SD_OK) {
+        #if DEBUG_ENABLED
+        DEBUG_SERIAL.print("Image saved to SD: ");
+        DEBUG_SERIAL.println(filename);
+        #endif
+        return true;
+    } else {
+        #if DEBUG_ENABLED
+        DEBUG_SERIAL.print("SD save failed: ");
+        DEBUG_SERIAL.println(sdStorage->getErrorString(error));
+        #endif
+        return false;
+    }
+}
+
+bool ESP32Interface::handleSimpleSDListImages(const uint8_t* data, size_t len) {
+    if (!sdStorage || !sdStorage->isInitialized()) {
+        #if DEBUG_ENABLED
+        DEBUG_SERIAL.println("SD storage not available");
+        #endif
+        return false;
+    }
+    
+    char filenames[32][64];  // Support up to 32 files
+    int count = sdStorage->listImages(filenames, 32);
+    
+    // Send response using simple protocol
+    // Format: 0xFF 0xCC count [filename1_len][filename1][filename2_len][filename2]... 0xFE
+    serial.write(0xFF);
+    serial.write(0xCC);  // List response marker
+    serial.write((uint8_t)count);
+    
+    for (int i = 0; i < count; i++) {
+        size_t nameLen = strlen(filenames[i]);
+        if (nameLen > 63) nameLen = 63;  // Cap at 63 bytes
+        serial.write((uint8_t)nameLen);
+        serial.write((const uint8_t*)filenames[i], nameLen);
+    }
+    
+    serial.write(0xFE);
+    
+    #if DEBUG_ENABLED
+    DEBUG_SERIAL.print("SD list sent: ");
+    DEBUG_SERIAL.print(count);
+    DEBUG_SERIAL.println(" images");
+    #endif
+    
+    return true;
+}
+
+bool ESP32Interface::handleSimpleSDDeleteImage(const uint8_t* data, size_t len) {
+    if (!sdStorage || !sdStorage->isInitialized()) {
+        #if DEBUG_ENABLED
+        DEBUG_SERIAL.println("SD storage not available");
+        #endif
+        return false;
+    }
+    
+    // Data format: [filename_len][filename]
+    if (len < 1) {
+        #if DEBUG_ENABLED
+        DEBUG_SERIAL.println("ERROR: Delete data too short");
+        #endif
+        return false;
+    }
+    
+    uint8_t filenameLen = data[0];
+    if (len < 1 + filenameLen || filenameLen > 63) {
+        #if DEBUG_ENABLED
+        DEBUG_SERIAL.println("ERROR: Invalid filename length");
+        #endif
+        return false;
+    }
+    
+    char filename[64];
+    memcpy(filename, data + 1, filenameLen);
+    filename[filenameLen] = '\0';
+    
+    SDError error = sdStorage->deleteImage(filename);
+    
+    if (error == SD_OK) {
+        #if DEBUG_ENABLED
+        DEBUG_SERIAL.print("Image deleted from SD: ");
+        DEBUG_SERIAL.println(filename);
+        #endif
+        return true;
+    } else {
+        #if DEBUG_ENABLED
+        DEBUG_SERIAL.print("Delete failed: ");
+        DEBUG_SERIAL.println(sdStorage->getErrorString(error));
+        #endif
+        return false;
+    }
+}
+
+bool ESP32Interface::handleSimpleSDGetInfo(const uint8_t* data, size_t len) {
+    if (!sdStorage) {
+        #if DEBUG_ENABLED
+        DEBUG_SERIAL.println("SD storage manager not available");
+        #endif
+        return false;
+    }
+    
+    bool cardPresent = sdStorage->isCardPresent();
+    uint64_t totalSpace = 0;
+    uint64_t freeSpace = 0;
+    
+    if (sdStorage->isInitialized()) {
+        totalSpace = sdStorage->getTotalSpace();
+        freeSpace = sdStorage->getFreeSpace();
+    }
+    
+    // Send response using simple protocol
+    // Format: 0xFF 0xDD present [total_space:8][free_space:8] 0xFE
+    serial.write(0xFF);
+    serial.write(0xDD);  // Info response marker
+    serial.write(cardPresent ? 1 : 0);
+    
+    // Pack 64-bit values (big-endian)
+    for (int i = 0; i < 8; i++) {
+        serial.write((uint8_t)((totalSpace >> (56 - i * 8)) & 0xFF));
+    }
+    for (int i = 0; i < 8; i++) {
+        serial.write((uint8_t)((freeSpace >> (56 - i * 8)) & 0xFF));
+    }
+    
+    serial.write(0xFE);
+    
+    #if DEBUG_ENABLED
+    DEBUG_SERIAL.print("SD info sent: present=");
+    DEBUG_SERIAL.print(cardPresent);
+    DEBUG_SERIAL.print(", total=");
+    DEBUG_SERIAL.print(totalSpace / (1024ULL * 1024ULL));
+    DEBUG_SERIAL.print("MB, free=");
+    DEBUG_SERIAL.print(freeSpace / (1024ULL * 1024ULL));
+    DEBUG_SERIAL.println("MB");
+    #endif
+    
+    return true;
+}
+
+bool ESP32Interface::handleSimpleSDLoadImage(const uint8_t* data, size_t len) {
+    if (!sdStorage || !sdStorage->isInitialized() || !povEngine) {
+        #if DEBUG_ENABLED
+        DEBUG_SERIAL.println("SD storage or POV engine not available");
+        #endif
+        return false;
+    }
+    
+    // Data format: [filename_len][filename]
+    if (len < 1) {
+        #if DEBUG_ENABLED
+        DEBUG_SERIAL.println("ERROR: Load data too short");
+        #endif
+        return false;
+    }
+    
+    uint8_t filenameLen = data[0];
+    if (len < 1 + filenameLen || filenameLen > 63) {
+        #if DEBUG_ENABLED
+        DEBUG_SERIAL.println("ERROR: Invalid filename length");
+        #endif
+        return false;
+    }
+    
+    char filename[64];
+    memcpy(filename, data + 1, filenameLen);
+    filename[filenameLen] = '\0';
+    
+    // Load image from SD and store in POV engine (with filename)
+    SDError error = povEngine->loadImageFromSD(filename, sdStorage);
+    
+    if (error == SD_OK) {
+        // Find which slot the image was loaded into and set it as the active image
+        uint8_t slot = povEngine->findImageByFilename(filename);
+        if (slot < 10) {  // MAX_IMAGES = 10
+            povEngine->setModeIndex(slot);
+            povEngine->setMode(1);  // Image mode
+            povEngine->setEnabled(true);
+        }
+        
+        #if DEBUG_ENABLED
+        DEBUG_SERIAL.print("Image loaded from SD to slot ");
+        DEBUG_SERIAL.print(slot);
+        DEBUG_SERIAL.print(": ");
+        DEBUG_SERIAL.println(filename);
+        #endif
+        return true;
+    } else {
+        #if DEBUG_ENABLED
+        DEBUG_SERIAL.print("Load failed: ");
+        DEBUG_SERIAL.println(sdStorage->getErrorString(error));
+        #endif
+        return false;
+    }
 }

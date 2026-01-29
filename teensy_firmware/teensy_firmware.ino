@@ -725,8 +725,8 @@ void displayPattern() {
       
     case 2:  // Gradient
       for (int i = 1; i < NUM_LEDS; i++) {
-        uint8_t blend = (i * 255) / DISPLAY_LEDS;
-        leds[i] = blend8(pat.color1, pat.color2, blend);
+        uint8_t blendAmount = (i * 255) / DISPLAY_LEDS;
+        leds[i] = blend(pat.color1, pat.color2, blendAmount);
       }
       break;
       
