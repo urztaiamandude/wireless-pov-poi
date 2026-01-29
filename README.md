@@ -12,7 +12,8 @@ This system creates stunning POV light displays using a 32 LED APA102 strip cont
 - **Teensy 4.1** - High-performance main controller for LED display and POV rendering
 - **ESP32 or ESP32-S3** - WiFi co-processor for wireless communication and web interface
   - ESP32-S3 N16R8 (16MB Flash, 8MB PSRAM) recommended for new builds ✨
-  - See [ESP32-S3 Compatibility Guide](docs/ESP32_S3_COMPATIBILITY.md) for details
+  - 📋 [ESP32-S3 Purchase Guide](ESP32_S3_PURCHASE_GUIDE.md) - Should I buy ESP32-S3?
+  - 🔧 [ESP32-S3 Compatibility Guide](docs/ESP32_S3_COMPATIBILITY.md) - Technical details
 - **APA102 LED Strip** - 32 addressable RGB LEDs (31 for display, 1 for level shifting)
 - **MAX9814 Microphone** (optional) - For music-reactive pattern modes
 - Serial communication (115200 baud) between Teensy and ESP32/ESP32-S3
