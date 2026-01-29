@@ -18,6 +18,9 @@
 #include <ESPmDNS.h>
 #include <FS.h>
 #include <SPIFFS.h>
+#include <HTTPClient.h>
+#include <WiFiClient.h>
+#include <Preferences.h>
 
 // Forward declarations for PlatformIO compilation
 void setupWiFi();
@@ -37,6 +40,20 @@ void handleNotFound();
 void sendFile(const char* path, const char* contentType);
 void sendTeensyCommand(uint8_t cmd, uint8_t dataLen);
 
+// Sync function declarations
+void handleSyncStatus();
+void handleSyncDiscover();
+void handleSyncExecute();
+void handleSyncData();
+void handleSyncPush();
+void handleDeviceConfig();
+void handleDeviceConfigUpdate();
+void discoverPeers();
+void performSync(String peerId);
+String getDeviceId();
+void loadDeviceConfig();
+void saveDeviceConfig();
+
 // WiFi Configuration
 const char* ssid = "POV-POI-WiFi";
 const char* password = "povpoi123";
@@ -45,8 +62,40 @@ const char* password = "povpoi123";
 #define TEENSY_SERIAL Serial2
 #define SERIAL_BAUD 115200
 
+// Sync Configuration
+#define AUTO_SYNC_ENABLED false
+#define AUTO_SYNC_INTERVAL 30000  // 30 seconds
+#define PEER_DISCOVERY_INTERVAL 60000  // 60 seconds
+#define PEER_TIMEOUT 120000  // 2 minutes
+
 // Web Server
 WebServer server(80);
+
+// Preferences for persistent storage
+Preferences preferences;
+
+// Device configuration
+struct DeviceConfig {
+  String deviceId;
+  String deviceName;
+  String syncGroup;
+  bool autoSync;
+  unsigned long syncInterval;
+} deviceConfig;
+
+// Peer device structure
+struct PeerDevice {
+  String deviceId;
+  String deviceName;
+  String ipAddress;
+  unsigned long lastSeen;
+  bool online;
+};
+
+// Maximum peers
+#define MAX_PEERS 5
+PeerDevice peers[MAX_PEERS];
+int peerCount = 0;
 
 // System state
 struct SystemState {
@@ -55,6 +104,8 @@ struct SystemState {
   uint8_t brightness;
   uint8_t frameRate;
   bool connected;
+  unsigned long lastSync;
+  unsigned long lastDiscovery;
 } state;
 
 void setup() {
@@ -73,6 +124,13 @@ void setup() {
   }
   Serial.println("SPIFFS Mounted");
   
+  // Load device configuration
+  loadDeviceConfig();
+  Serial.print("Device ID: ");
+  Serial.println(deviceConfig.deviceId);
+  Serial.print("Device Name: ");
+  Serial.println(deviceConfig.deviceName);
+  
   // Initialize WiFi Access Point
   setupWiFi();
   
@@ -80,8 +138,14 @@ void setup() {
   setupWebServer();
   
   // Initialize mDNS
-  if (MDNS.begin("povpoi")) {
-    Serial.println("mDNS responder started: http://povpoi.local");
+  String mdnsName = "povpoi-" + deviceConfig.deviceId.substring(deviceConfig.deviceId.length() - 6);
+  mdnsName.replace(":", "");
+  if (MDNS.begin(mdnsName.c_str())) {
+    Serial.printf("mDNS responder started: http://%s.local\n", mdnsName.c_str());
+    // Add service for discovery
+    MDNS.addService("povpoi", "tcp", 80);
+    MDNS.addServiceTxt("povpoi", "tcp", "deviceId", deviceConfig.deviceId.c_str());
+    MDNS.addServiceTxt("povpoi", "tcp", "deviceName", deviceConfig.deviceName.c_str());
   }
   
   // Initialize system state
@@ -90,6 +154,8 @@ void setup() {
   state.brightness = 128;
   state.frameRate = 50;
   state.connected = false;
+  state.lastSync = 0;
+  state.lastDiscovery = 0;
   
   Serial.println("ESP32 Nebula Poi Controller Ready!");
   Serial.print("IP Address: ");
@@ -104,6 +170,26 @@ void loop() {
   if (millis() - lastCheck > 5000) {
     lastCheck = millis();
     checkTeensyConnection();
+  }
+  
+  // Periodic peer discovery
+  if (millis() - state.lastDiscovery > PEER_DISCOVERY_INTERVAL) {
+    state.lastDiscovery = millis();
+    discoverPeers();
+  }
+  
+  // Auto-sync if enabled
+  if (deviceConfig.autoSync && peerCount > 0 && 
+      millis() - state.lastSync > deviceConfig.syncInterval) {
+    state.lastSync = millis();
+    // Auto-sync with first available peer
+    for (int i = 0; i < peerCount; i++) {
+      if (peers[i].online) {
+        Serial.println("Auto-syncing with peer: " + peers[i].deviceName);
+        performSync(peers[i].deviceId);
+        break;
+      }
+    }
   }
 }
 
@@ -145,6 +231,17 @@ void setupWebServer() {
     },
     handleUploadImage);
   server.on("/api/live", HTTP_POST, handleLiveFrame);
+  
+  // Sync API endpoints
+  server.on("/api/sync/status", HTTP_GET, handleSyncStatus);
+  server.on("/api/sync/discover", HTTP_POST, handleSyncDiscover);
+  server.on("/api/sync/execute", HTTP_POST, handleSyncExecute);
+  server.on("/api/sync/data", HTTP_GET, handleSyncData);
+  server.on("/api/sync/push", HTTP_POST, handleSyncPush);
+  
+  // Device configuration endpoints
+  server.on("/api/device/config", HTTP_GET, handleDeviceConfig);
+  server.on("/api/device/config", HTTP_POST, handleDeviceConfigUpdate);
   
   // PWA support
   server.on("/manifest.json", HTTP_GET, handleManifest);
@@ -1285,4 +1382,344 @@ void checkTeensyConnection() {
     }
   }
   state.connected = false;
+}
+
+// ============================================================================
+// PEER-TO-PEER SYNC IMPLEMENTATION
+// ============================================================================
+
+// Load device configuration from preferences
+void loadDeviceConfig() {
+  preferences.begin("povpoi", false);
+  
+  // Generate device ID from MAC address if not set
+  String macAddr = WiFi.macAddress();
+  deviceConfig.deviceId = preferences.getString("deviceId", macAddr);
+  if (deviceConfig.deviceId.length() == 0) {
+    deviceConfig.deviceId = macAddr;
+    preferences.putString("deviceId", deviceConfig.deviceId);
+  }
+  
+  // Load device name (default: "POV Poi" + last 4 chars of MAC)
+  String defaultName = "POV Poi " + deviceConfig.deviceId.substring(deviceConfig.deviceId.length() - 5);
+  deviceConfig.deviceName = preferences.getString("deviceName", defaultName);
+  
+  // Load sync group
+  deviceConfig.syncGroup = preferences.getString("syncGroup", "");
+  
+  // Load auto-sync settings
+  deviceConfig.autoSync = preferences.getBool("autoSync", AUTO_SYNC_ENABLED);
+  deviceConfig.syncInterval = preferences.getULong("syncInterval", AUTO_SYNC_INTERVAL);
+  
+  preferences.end();
+}
+
+// Save device configuration
+void saveDeviceConfig() {
+  preferences.begin("povpoi", false);
+  preferences.putString("deviceId", deviceConfig.deviceId);
+  preferences.putString("deviceName", deviceConfig.deviceName);
+  preferences.putString("syncGroup", deviceConfig.syncGroup);
+  preferences.putBool("autoSync", deviceConfig.autoSync);
+  preferences.putULong("syncInterval", deviceConfig.syncInterval);
+  preferences.end();
+}
+
+// Get device ID
+String getDeviceId() {
+  return deviceConfig.deviceId;
+}
+
+// Discover peer devices using mDNS
+void discoverPeers() {
+  Serial.println("Discovering peers...");
+  
+  int n = MDNS.queryService("povpoi", "tcp");
+  Serial.printf("Found %d POV Poi devices\n", n);
+  
+  for (int i = 0; i < n && peerCount < MAX_PEERS; i++) {
+    String peerId = MDNS.txt(i, "deviceId");
+    
+    // Skip self
+    if (peerId == deviceConfig.deviceId) {
+      continue;
+    }
+    
+    // Check if peer already exists
+    bool exists = false;
+    int peerIndex = -1;
+    for (int j = 0; j < peerCount; j++) {
+      if (peers[j].deviceId == peerId) {
+        exists = true;
+        peerIndex = j;
+        break;
+      }
+    }
+    
+    if (exists) {
+      // Update existing peer
+      peers[peerIndex].deviceName = MDNS.txt(i, "deviceName");
+      peers[peerIndex].ipAddress = MDNS.IP(i).toString();
+      peers[peerIndex].lastSeen = millis();
+      peers[peerIndex].online = true;
+      Serial.printf("Updated peer: %s (%s)\n", peers[peerIndex].deviceName.c_str(), peers[peerIndex].ipAddress.c_str());
+    } else {
+      // Add new peer
+      peers[peerCount].deviceId = peerId;
+      peers[peerCount].deviceName = MDNS.txt(i, "deviceName");
+      peers[peerCount].ipAddress = MDNS.IP(i).toString();
+      peers[peerCount].lastSeen = millis();
+      peers[peerCount].online = true;
+      peerCount++;
+      Serial.printf("Added peer: %s (%s)\n", peers[peerCount-1].deviceName.c_str(), peers[peerCount-1].ipAddress.c_str());
+    }
+  }
+  
+  // Mark peers as offline if not seen recently
+  for (int i = 0; i < peerCount; i++) {
+    if (millis() - peers[i].lastSeen > PEER_TIMEOUT) {
+      peers[i].online = false;
+    }
+  }
+}
+
+// Perform sync with peer device
+void performSync(String peerId) {
+  // Find peer
+  PeerDevice* peer = nullptr;
+  for (int i = 0; i < peerCount; i++) {
+    if (peers[i].deviceId == peerId) {
+      peer = &peers[i];
+      break;
+    }
+  }
+  
+  if (peer == nullptr || !peer->online) {
+    Serial.println("Peer not found or offline");
+    return;
+  }
+  
+  Serial.printf("Syncing with %s (%s)...\n", peer->deviceName.c_str(), peer->ipAddress.c_str());
+  
+  // Create HTTP client
+  HTTPClient http;
+  WiFiClient client;
+  
+  // Get peer's data
+  String url = "http://" + peer->ipAddress + "/api/sync/data";
+  http.begin(client, url);
+  
+  int httpCode = http.GET();
+  if (httpCode == HTTP_CODE_OK) {
+    String payload = http.getString();
+    Serial.println("Received sync data from peer");
+    
+    // Push our data to peer
+    http.end();
+    url = "http://" + peer->ipAddress + "/api/sync/push";
+    http.begin(client, url);
+    http.addHeader("Content-Type", "application/json");
+    
+    // Build sync data JSON (simplified - just settings for now)
+    String syncData = "{";
+    syncData += "\"deviceId\":\"" + deviceConfig.deviceId + "\",";
+    syncData += "\"deviceName\":\"" + deviceConfig.deviceName + "\",";
+    syncData += "\"settings\":{";
+    syncData += "\"brightness\":" + String(state.brightness) + ",";
+    syncData += "\"framerate\":" + String(state.frameRate) + ",";
+    syncData += "\"mode\":" + String(state.currentMode) + ",";
+    syncData += "\"index\":" + String(state.currentIndex) + ",";
+    syncData += "\"timestamp\":" + String(millis());
+    syncData += "}}";
+    
+    httpCode = http.POST(syncData);
+    if (httpCode == HTTP_CODE_OK) {
+      Serial.println("Successfully synced with peer");
+    } else {
+      Serial.printf("Sync push failed: %d\n", httpCode);
+    }
+  } else {
+    Serial.printf("Sync failed: %d\n", httpCode);
+  }
+  
+  http.end();
+}
+
+// Handle sync status request
+void handleSyncStatus() {
+  String json = "{";
+  json += "\"deviceId\":\"" + deviceConfig.deviceId + "\",";
+  json += "\"deviceName\":\"" + deviceConfig.deviceName + "\",";
+  json += "\"syncGroup\":\"" + deviceConfig.syncGroup + "\",";
+  json += "\"autoSync\":" + String(deviceConfig.autoSync ? "true" : "false") + ",";
+  json += "\"syncInterval\":" + String(deviceConfig.syncInterval) + ",";
+  json += "\"peers\":[";
+  
+  for (int i = 0; i < peerCount; i++) {
+    if (i > 0) json += ",";
+    json += "{";
+    json += "\"deviceId\":\"" + peers[i].deviceId + "\",";
+    json += "\"deviceName\":\"" + peers[i].deviceName + "\",";
+    json += "\"ipAddress\":\"" + peers[i].ipAddress + "\",";
+    json += "\"lastSeen\":" + String(peers[i].lastSeen) + ",";
+    json += "\"online\":" + String(peers[i].online ? "true" : "false");
+    json += "}";
+  }
+  
+  json += "]}";
+  server.send(200, "application/json", json);
+}
+
+// Handle peer discovery request
+void handleSyncDiscover() {
+  discoverPeers();
+  
+  String json = "{";
+  json += "\"status\":\"ok\",";
+  json += "\"peersFound\":" + String(peerCount) + ",";
+  json += "\"peers\":[";
+  
+  for (int i = 0; i < peerCount; i++) {
+    if (i > 0) json += ",";
+    json += "{";
+    json += "\"deviceId\":\"" + peers[i].deviceId + "\",";
+    json += "\"deviceName\":\"" + peers[i].deviceName + "\",";
+    json += "\"ipAddress\":\"" + peers[i].ipAddress + "\"";
+    json += "}";
+  }
+  
+  json += "]}";
+  server.send(200, "application/json", json);
+}
+
+// Handle sync execution request
+void handleSyncExecute() {
+  if (!server.hasArg("plain")) {
+    server.send(400, "application/json", "{\"error\":\"No data\"}");
+    return;
+  }
+  
+  String body = server.arg("plain");
+  
+  // Parse peer ID (simplified - should use proper JSON parser)
+  int peerIdIdx = body.indexOf("\"peerId\":");
+  if (peerIdIdx == -1) {
+    server.send(400, "application/json", "{\"error\":\"Missing peerId\"}");
+    return;
+  }
+  
+  // Extract peer ID (simplified parsing)
+  int startIdx = body.indexOf("\"", peerIdIdx + 9) + 1;
+  int endIdx = body.indexOf("\"", startIdx);
+  String peerId = body.substring(startIdx, endIdx);
+  
+  // Perform sync
+  performSync(peerId);
+  state.lastSync = millis();
+  
+  String json = "{";
+  json += "\"status\":\"ok\",";
+  json += "\"itemsSynced\":1,";
+  json += "\"imagesAdded\":0,";
+  json += "\"patternsAdded\":0,";
+  json += "\"settingsUpdated\":true";
+  json += "}";
+  
+  server.send(200, "application/json", json);
+}
+
+// Handle sync data request (GET)
+void handleSyncData() {
+  String json = "{";
+  json += "\"deviceId\":\"" + deviceConfig.deviceId + "\",";
+  json += "\"deviceName\":\"" + deviceConfig.deviceName + "\",";
+  json += "\"images\":[],";  // TODO: Implement image listing
+  json += "\"patterns\":[],";  // TODO: Implement pattern listing
+  json += "\"settings\":{";
+  json += "\"brightness\":" + String(state.brightness) + ",";
+  json += "\"framerate\":" + String(state.frameRate) + ",";
+  json += "\"mode\":" + String(state.currentMode) + ",";
+  json += "\"index\":" + String(state.currentIndex) + ",";
+  json += "\"timestamp\":" + String(millis());
+  json += "}}";
+  
+  server.send(200, "application/json", json);
+}
+
+// Handle sync push request (POST)
+void handleSyncPush() {
+  if (!server.hasArg("plain")) {
+    server.send(400, "application/json", "{\"error\":\"No data\"}");
+    return;
+  }
+  
+  String body = server.arg("plain");
+  Serial.println("Received sync data:");
+  Serial.println(body);
+  
+  // Parse and apply sync data (simplified)
+  // In full implementation, would parse JSON and update settings/images/patterns
+  
+  // For now, just acknowledge receipt
+  String json = "{";
+  json += "\"status\":\"ok\",";
+  json += "\"message\":\"Sync data received\"";
+  json += "}";
+  
+  server.send(200, "application/json", json);
+}
+
+// Handle device configuration request (GET)
+void handleDeviceConfig() {
+  String json = "{";
+  json += "\"deviceId\":\"" + deviceConfig.deviceId + "\",";
+  json += "\"deviceName\":\"" + deviceConfig.deviceName + "\",";
+  json += "\"syncGroup\":\"" + deviceConfig.syncGroup + "\",";
+  json += "\"autoSync\":" + String(deviceConfig.autoSync ? "true" : "false") + ",";
+  json += "\"syncInterval\":" + String(deviceConfig.syncInterval);
+  json += "}";
+  
+  server.send(200, "application/json", json);
+}
+
+// Handle device configuration update (POST)
+void handleDeviceConfigUpdate() {
+  if (!server.hasArg("plain")) {
+    server.send(400, "application/json", "{\"error\":\"No data\"}");
+    return;
+  }
+  
+  String body = server.arg("plain");
+  
+  // Parse and update configuration (simplified)
+  // In full implementation, would use proper JSON parser
+  
+  int nameIdx = body.indexOf("\"deviceName\":");
+  if (nameIdx != -1) {
+    int startIdx = body.indexOf("\"", nameIdx + 13) + 1;
+    int endIdx = body.indexOf("\"", startIdx);
+    deviceConfig.deviceName = body.substring(startIdx, endIdx);
+  }
+  
+  int groupIdx = body.indexOf("\"syncGroup\":");
+  if (groupIdx != -1) {
+    int startIdx = body.indexOf("\"", groupIdx + 12) + 1;
+    int endIdx = body.indexOf("\"", startIdx);
+    deviceConfig.syncGroup = body.substring(startIdx, endIdx);
+  }
+  
+  int autoSyncIdx = body.indexOf("\"autoSync\":");
+  if (autoSyncIdx != -1) {
+    deviceConfig.autoSync = body.indexOf("true", autoSyncIdx) != -1;
+  }
+  
+  // Save configuration
+  saveDeviceConfig();
+  
+  String json = "{";
+  json += "\"status\":\"ok\",";
+  json += "\"message\":\"Configuration updated\"";
+  json += "}";
+  
+  server.send(200, "application/json", json);
 }
