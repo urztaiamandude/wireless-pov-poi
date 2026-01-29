@@ -27,6 +27,14 @@ This system creates stunning POV light displays using a 32 LED APA102 strip cont
 - **Live Mode** - Real-time drawing and control from web interface
 - **Adjustable Settings** - Control brightness (0-255) and frame rate (10-120 FPS)
 
+### Peer-to-Peer Synchronization 🆕
+- **Multi-Device Pairing** - Sync multiple poi devices together
+- **Automatic Discovery** - Devices find each other via mDNS
+- **Bidirectional Sync** - Share images, patterns, and settings between devices
+- **Independent Operation** - Each device works standalone, sync when convenient
+- **No Master/Slave** - All devices are equal peers
+- **See [POI Pairing Guide](docs/POI_PAIRING.md)** for setup instructions
+
 ### Wireless Control
 - **WiFi Access Point** - Direct wireless connection without router
   - SSID: `POV-POI-WiFi`
@@ -128,6 +136,7 @@ See [ESP32-S3 Compatibility Guide](docs/ESP32_S3_COMPATIBILITY.md) for ESP32-S3 
 - **[Complete Setup Guide](docs/README.md)** - Detailed installation and usage instructions
 - **[Wiring Diagram](docs/WIRING.md)** - Hardware connections and assembly guide
 - **[API Documentation](docs/API.md)** - REST API reference for mobile app development
+- **[POI Pairing Guide](docs/POI_PAIRING.md)** 🆕 - Setup and sync multiple poi devices
 - **[Image Conversion Guide](docs/IMAGE_CONVERSION.md)** - How automatic image conversion works
 - **[Testing Guide](TESTING.md)** - Testing tools, environment setup, and test procedures
 
