@@ -1,5 +1,8 @@
 # Building Windows Executable for Nebula Poi Image Converter
 
+> Note: Build documentation has moved to the wiki.
+> See [Build-Image-Converter](../wiki/Build-Image-Converter.md).
+
 This guide explains how to create a standalone Windows executable (.exe) for the Nebula Poi Image Converter GUI, allowing Windows users to run the application without installing Python.
 
 ## Table of Contents

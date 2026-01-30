@@ -1,5 +1,8 @@
 # Compiling and Uploading ESP32 Firmware
 
+> Note: Build documentation has moved to the wiki.
+> See [Build-ESP32-Firmware](../wiki/Build-ESP32-Firmware.md).
+
 ## Quick Start
 
 ### Option 1: Using the Batch Script (Easiest)

@@ -1,5 +1,9 @@
 # Build Scripts
 
+> Note: Build documentation has moved to the wiki.
+> See [Build-Teensy-CLI](../wiki/Build-Teensy-CLI.md) and
+> [Build-Teensy-HEX](../wiki/Build-Teensy-HEX.md).
+
 This directory contains scripts for building the Teensy 4.1 firmware into HEX format for use with the Teensy Loader application.
 
 ## Available Scripts

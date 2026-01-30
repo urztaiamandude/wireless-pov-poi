@@ -1,5 +1,8 @@
 # CLI Compilation Guide for Teensy 4.1 Firmware
 
+> Note: Build documentation has moved to the wiki.
+> See [Build-Teensy-CLI](../wiki/Build-Teensy-CLI.md).
+
 Complete guide for compiling Teensy firmware from the command line.
 
 ## Overview

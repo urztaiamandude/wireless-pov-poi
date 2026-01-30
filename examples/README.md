@@ -1,5 +1,8 @@
 # POV Image Converter Tools
 
+> Note: Build documentation has moved to the wiki.
+> See [Build-Image-Converter](../wiki/Build-Image-Converter.md).
+
 ## GUI Image Converter (Recommended for Desktop)
 
 ### Installation
