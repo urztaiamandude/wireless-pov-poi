@@ -93,9 +93,10 @@ See [docs/WIRING.md](docs/WIRING.md) for detailed wiring instructions.
 **Alternative: Build HEX file for Teensy Loader**
 - Use Sketch > Export Compiled Binary in Arduino IDE
 - Or use CLI build scripts: `./scripts/build_arduino_cli.sh` or `./scripts/build_teensy_hex.sh` (Linux/Mac)
+- **Build Wiki**: See [Build Overview](wiki/Build-Overview.md),
+  [Teensy HEX](wiki/Build-Teensy-HEX.md), and
+  [Teensy CLI](wiki/Build-Teensy-CLI.md)
 - **Quick Guide**: See [QUICK_HEX_GUIDE.md](QUICK_HEX_GUIDE.md) for fast start
-- **CLI Guide**: See [CLI Compilation](docs/CLI_COMPILATION.md) for command-line builds
-- **Detailed Guide**: See [Building HEX Files](docs/BUILDING_HEX.md) for complete instructions
 
 **Program the ESP32 or ESP32-S3:**
 

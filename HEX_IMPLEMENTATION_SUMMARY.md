@@ -1,5 +1,9 @@
 # HEX Compilation Implementation Summary
 
+> Note: Build documentation has moved to the wiki.
+> See [Build-Teensy-HEX](wiki/Build-Teensy-HEX.md) and
+> [Build-Teensy-CLI](wiki/Build-Teensy-CLI.md).
+
 This document summarizes the implementation for compiling Teensy 4.1 firmware to HEX format.
 
 ## What Was Implemented

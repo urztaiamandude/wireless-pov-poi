@@ -125,7 +125,9 @@ If you prefer to use the Teensy Loader application:
 4. Open Teensy Loader and load the generated `.hex` file
 5. Press the button on your Teensy to program it
 
-See [BUILDING_HEX.md](BUILDING_HEX.md) for detailed instructions on building and loading HEX files.
+See the build wiki for HEX and CLI instructions:
+[Build-Teensy-HEX](../wiki/Build-Teensy-HEX.md) and
+[Build-Teensy-CLI](../wiki/Build-Teensy-CLI.md).
 
 ### Programming the ESP32 or ESP32-S3
 

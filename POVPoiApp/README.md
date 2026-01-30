@@ -1,5 +1,8 @@
 # Nebula Poi Controller - Android App
 
+> Note: Build documentation has moved to the wiki.
+> See [Build-Android-App](../wiki/Build-Android-App.md).
+
 A complete Android application for controlling the Nebula Poi with advanced image conversion capabilities.
 
 ## Features
