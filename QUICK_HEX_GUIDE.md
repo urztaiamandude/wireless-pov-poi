@@ -1,5 +1,9 @@
 # Quick Guide: Compiling to HEX Format
 
+> Note: Build documentation has moved to the wiki.
+> See [Build-Teensy-HEX](wiki/Build-Teensy-HEX.md) and
+> [Build-Teensy-CLI](wiki/Build-Teensy-CLI.md).
+
 Need to compile the Teensy firmware to HEX format for the Teensy Loader? Here's the fastest way:
 
 ## 🎯 The Big Picture

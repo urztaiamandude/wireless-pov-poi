@@ -1,5 +1,9 @@
 # Building HEX Files for Teensy Loader
 
+> Note: Build documentation has moved to the wiki.
+> See [Build-Teensy-HEX](../wiki/Build-Teensy-HEX.md) and
+> [Build-Teensy-CLI](../wiki/Build-Teensy-CLI.md).
+
 This guide explains how to compile the Teensy 4.1 firmware into a HEX file format that can be loaded using the Teensy Loader application.
 
 ## Prerequisites
