@@ -152,6 +152,37 @@ Both ESP32 and ESP32-S3 use the same GPIO pins - **no wiring changes needed!**
    ```
    - Alternatively: Power via USB (development/testing)
 
+#### ESP32-S3 UART Wiring (PlatformIO Firmware)
+
+For the **Lonely Binary ESP32-S3 N16R8 Dev Kit** with PlatformIO firmware:
+
+**Recommended Pin Configuration (Default):**
+```
+Teensy TX1 (Pin 1) → ESP32-S3 GPIO 17 (RX)
+Teensy RX1 (Pin 0) → ESP32-S3 GPIO 18 (TX)
+Common GND         → ESP32-S3 GND
+```
+
+**Alternative Pin Configuration:**
+```
+Teensy TX1 (Pin 1) → ESP32-S3 GPIO 16 (RX)
+Teensy RX1 (Pin 0) → ESP32-S3 GPIO 17 (TX)
+Common GND         → ESP32-S3 GND
+```
+
+**UART Configuration:**
+- Baud rate: 115200
+- Format: 8N1 (8 data bits, no parity, 1 stop bit)
+- Logic level: 3.3V (compatible with Teensy 4.1)
+
+**Important Notes:**
+- **Avoid boot-strap pins**: Do NOT use GPIO0 or GPIO46 (used for boot mode selection)
+- **USB connections**: 
+  - Main USB-C CDC port: For flashing firmware and serial monitoring (no adapter needed)
+  - CH340K UART port (if present): Optional, only needed for extra console/sniffing
+  - Normal operation requires NO USB-to-UART adapter
+- **Common ground**: Always connect GND between Teensy and ESP32-S3
+
 ### Step 4: APA102 LED Strip
 
 1. **Signal Connections**
