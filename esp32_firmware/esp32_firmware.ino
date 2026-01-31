@@ -159,12 +159,9 @@ void setup() {
   state.brightness = 128;
   state.frameRate = 50;
   state.connected = false;
-<<<<<<< HEAD
   state.lastSync = 0;
   state.lastDiscovery = 0;
-=======
   state.sdCardPresent = false;
->>>>>>> session/agent_2e04f9ce-de7f-4893-bf0e-ebf078df6ecb
   
   Serial.println("ESP32 Nebula Poi Controller Ready!");
   Serial.print("IP Address: ");
@@ -241,7 +238,6 @@ void setupWebServer() {
     handleUploadImage);
   server.on("/api/live", HTTP_POST, handleLiveFrame);
   
-<<<<<<< HEAD
   // Sync API endpoints
   server.on("/api/sync/status", HTTP_GET, handleSyncStatus);
   server.on("/api/sync/discover", HTTP_POST, handleSyncDiscover);
@@ -252,13 +248,12 @@ void setupWebServer() {
   // Device configuration endpoints
   server.on("/api/device/config", HTTP_GET, handleDeviceConfig);
   server.on("/api/device/config", HTTP_POST, handleDeviceConfigUpdate);
-=======
+  
   // SD card management endpoints
   server.on("/api/sd/list", HTTP_GET, handleSDList);
   server.on("/api/sd/info", HTTP_GET, handleSDInfo);
   server.on("/api/sd/delete", HTTP_POST, handleSDDelete);
   server.on("/api/sd/load", HTTP_POST, handleSDLoad);
->>>>>>> session/agent_2e04f9ce-de7f-4893-bf0e-ebf078df6ecb
   
   // PWA support
   server.on("/manifest.json", HTTP_GET, handleManifest);
@@ -1916,6 +1911,9 @@ void sendTeensyCommand(uint8_t cmd, uint8_t dataLen) {
 
 void checkTeensyConnection() {
   // Request status from Teensy
+  // #region agent log
+  Serial.println("[DBG][H2] checkTeensyConnection: sending 0x10 status request to Teensy");
+  // #endregion
   sendTeensyCommand(0x10, 0);
   TEENSY_SERIAL.write(0xFE);
   
@@ -1923,18 +1921,34 @@ void checkTeensyConnection() {
   // Format: 0xFF 0xBB mode index sd_present 0xFE
   unsigned long start = millis();
   while (millis() - start < 100) {
-    if (TEENSY_SERIAL.available() >= 5) {
-      if (TEENSY_SERIAL.read() == 0xFF && TEENSY_SERIAL.read() == 0xBB) {
+    int av = TEENSY_SERIAL.available();
+    if (av >= 5) {
+      uint8_t b0 = TEENSY_SERIAL.read();
+      uint8_t b1 = TEENSY_SERIAL.read();
+      // #region agent log
+      Serial.printf("[DBG][H2] checkTeensyConnection: got %d bytes, header=0x%02X 0x%02X (expect FF BB)\n", av, b0, b1);
+      // #endregion
+      if (b0 == 0xFF && b1 == 0xBB) {
         state.currentMode = TEENSY_SERIAL.read();
         state.currentIndex = TEENSY_SERIAL.read();
         state.sdCardPresent = (TEENSY_SERIAL.read() != 0);
         state.connected = true;
+        // #region agent log
+        Serial.println("[DBG][H2] checkTeensyConnection: SUCCESS connected=true");
+        // #endregion
         return;
       }
     }
   }
   state.connected = false;
   state.sdCardPresent = false;
+  // #region agent log
+  static unsigned long _lastFailLog = 0;
+  if (millis() - _lastFailLog > 5000) {
+    Serial.println("[DBG][H2] checkTeensyConnection: FAILED no valid response (H1/H4: wiring or timeout)");
+    _lastFailLog = millis();
+  }
+  // #endregion
 }
 
 // ============================================================================
