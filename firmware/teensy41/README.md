@@ -44,6 +44,9 @@ The firmware manages:
 - APA102 LED strip (32 LEDs: 31 for display, 1 for level shifting)
 - ESP32 co-processor (connected via Serial1)
 - microSD card (Class 10 or higher, 16GB-64GB recommended)
+  - Format: FAT32 (recommended) or exFAT, single partition
+  - Quick format, keep 10–20% free space for optimal performance
+  - See [docs/SD_CARD_STORAGE.md](../../docs/SD_CARD_STORAGE.md) for detailed preparation guide
 - Power supply suitable for LED strip
 
 ## Pin Configuration
