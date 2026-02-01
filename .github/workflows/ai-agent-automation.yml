@@ -1,6 +1,6 @@
 name: AI Agent Automation
 
-on:
+"on":
   push:
     branches: [main, master]
   pull_request:
@@ -154,8 +154,10 @@ jobs:
       
       - name: Parse command
         id: parse
+        env:
+          COMMENT_BODY: ${{ github.event.comment.body }}
         run: |
-          COMMENT="${{ github.event.comment.body }}"
+          COMMENT="$COMMENT_BODY"
           if echo "$COMMENT" | grep -q "analyze"; then
             echo "task=analyze" >> $GITHUB_OUTPUT
           elif echo "$COMMENT" | grep -q "pattern"; then

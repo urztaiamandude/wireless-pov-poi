@@ -309,20 +309,25 @@ def dispatch_task(task_data: Dict) -> Dict:
     results = {
         "task": task_data["name"],
         "agent": agent_type,
-        "success": False,
+        "success": True,
         "output": "",
         "errors": []
     }
     
     # Run each script for the agent
+    ran_any = False
     for script_name in agent_config.get("scripts", []):
+        ran_any = True
         success, output = run_agent_script(agent_type, script_name, task_data)
         if success:
-            results["success"] = True
             results["output"] += output + "\n"
         else:
+            results["success"] = False
             results["errors"].append(f"{script_name}: {output}")
     
+    if not ran_any:
+        results["success"] = False
+
     return results
 
 
