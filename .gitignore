@@ -76,3 +76,6 @@ docs/latex/
 # Temporary test files
 /tmp/
 *.spec
+
+# AI Agent outputs
+scripts/ai_agent/output/

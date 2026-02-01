@@ -2,14 +2,75 @@
 """
 Error Detection Agent - Finds potential errors, faults, and failures
 Free-tier compatible with comprehensive error checking
+Runs pytest + py_compile + grep for TODOs
 """
 
 import sys
 import json
 import re
 import datetime
+import time
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional
+
+# Import common utilities
+try:
+    from common import (
+        run_command, write_json_output, safe_log, ensure_output_dir,
+        check_python_syntax, find_todos_in_file, get_file_list, format_duration
+    )
+except ImportError:
+    # Fallback implementations
+    def run_command(cmd, cwd=None, timeout=300, capture_output=True):
+        import subprocess
+        result = subprocess.run(cmd, cwd=cwd, capture_output=capture_output, text=True, timeout=timeout)
+        return result.returncode, result.stdout, result.stderr
+    
+    def write_json_output(data, filename):
+        path = Path(__file__).parent / "output" / filename
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "w") as f:
+            json.dump(data, f, indent=2)
+        return path
+    
+    def safe_log(msg, level="INFO", log_file=None):
+        print(f"[{level}] {msg}")
+    
+    def ensure_output_dir():
+        path = Path(__file__).parent / "output"
+        path.mkdir(parents=True, exist_ok=True)
+        return path
+    
+    def check_python_syntax(file_path):
+        import py_compile
+        try:
+            py_compile.compile(str(file_path), doraise=True)
+            return True, None
+        except Exception as e:
+            return False, str(e)
+    
+    def find_todos_in_file(file_path):
+        todos = []
+        try:
+            content = file_path.read_text(encoding='utf-8', errors='ignore')
+            for i, line in enumerate(content.split('\n'), 1):
+                if re.search(r'\b(TODO|FIXME|HACK|XXX)\b', line, re.IGNORECASE):
+                    todos.append((i, line.strip()))
+        except:
+            pass
+        return todos
+    
+    def get_file_list(extensions, exclude_dirs=None):
+        repo_root = Path(__file__).parent.parent.parent
+        files = []
+        for ext in extensions:
+            for f in repo_root.rglob(f"*{ext}"):
+                if not any(ex in f.parts for ex in (exclude_dirs or ['.git', '__pycache__'])):
+                    files.append(f)
+        return files
+    
+    def format_duration(seconds):
+        return f"{seconds:.1f}s"
 
 REPO_ROOT = Path(__file__).parent.parent.parent
 
@@ -207,13 +268,145 @@ def content_containing(line: str, keyword: str = None) -> str:
     return line
 
 
+def run_pytest_check() -> Dict:
+    """Run pytest for error detection"""
+    safe_log("Running pytest for error detection...", "INFO")
+    examples_dir = REPO_ROOT / "examples"
+    
+    if not examples_dir.exists():
+        return {"skipped": True, "reason": "examples/ directory not found"}
+    
+    start = time.time()
+    exit_code, stdout, stderr = run_command(
+        [sys.executable, "-m", "pytest", ".", "-k", "test_", "-v", "--tb=short"],
+        cwd=examples_dir,
+        timeout=180
+    )
+    duration = time.time() - start
+    
+    result = {
+        "exit_code": exit_code,
+        "duration": format_duration(duration),
+        "passed": exit_code == 0,
+        "output": stdout[-1000:] if stdout else "",
+        "errors": stderr[-1000:] if stderr else ""
+    }
+    
+    # Parse failures
+    failures = re.findall(r'FAILED (.+?) -', stdout) if stdout else []
+    result["failed_tests"] = failures
+    
+    safe_log(f"Pytest check: {'PASSED' if result['passed'] else 'FAILED'} ({result['duration']})", 
+             "INFO" if result['passed'] else "ERROR")
+    
+    return result
+
+
+def run_py_compile_check() -> Dict:
+    """Run py_compile on all Python files"""
+    safe_log("Running py_compile syntax check...", "INFO")
+    start = time.time()
+    
+    python_files = get_file_list(['.py'])
+    errors = []
+    checked = 0
+    
+    for py_file in python_files:
+        checked += 1
+        is_valid, error_msg = check_python_syntax(py_file)
+        if not is_valid:
+            errors.append({
+                "file": str(py_file.relative_to(REPO_ROOT)),
+                "error": error_msg
+            })
+    
+    duration = time.time() - start
+    
+    result = {
+        "files_checked": checked,
+        "errors": errors,
+        "passed": len(errors) == 0,
+        "duration": format_duration(duration)
+    }
+    
+    safe_log(f"Py_compile check: {checked} files, {len(errors)} errors ({result['duration']})", 
+             "INFO" if result['passed'] else "ERROR")
+    
+    return result
+
+
+def grep_todos() -> Dict:
+    """Find all TODO/FIXME/HACK comments"""
+    safe_log("Searching for TODO/FIXME/HACK comments...", "INFO")
+    start = time.time()
+    
+    # Search in Python, C/C++, and Arduino files
+    file_extensions = ['.py', '.cpp', '.c', '.h', '.ino']
+    all_files = get_file_list(file_extensions)
+    
+    todos_by_file = {}
+    total_todos = 0
+    
+    for file_path in all_files:
+        todos = find_todos_in_file(file_path)
+        if todos:
+            rel_path = str(file_path.relative_to(REPO_ROOT))
+            todos_by_file[rel_path] = [
+                {"line": line_num, "content": content}
+                for line_num, content in todos
+            ]
+            total_todos += len(todos)
+    
+    duration = time.time() - start
+    
+    result = {
+        "total_todos": total_todos,
+        "files_with_todos": len(todos_by_file),
+        "todos": todos_by_file,
+        "duration": format_duration(duration)
+    }
+    
+    safe_log(f"Found {total_todos} TODOs/FIXMEs in {len(todos_by_file)} files ({result['duration']})", "INFO")
+    
+    return result
+
+
 def detect_errors_task(task_data: Dict) -> Dict:
     """Main error detection function"""
-    detector = ErrorDetector()
-    results = detector.detect_project_errors()
+    safe_log("=== Starting Error Detection ===", "INFO")
+    start_time = time.time()
     
-    results["task"] = task_data.get("name", "error_detection")
-    results["timestamp"] = str(datetime.datetime.now())
+    # Run static error detection
+    detector = ErrorDetector()
+    static_results = detector.detect_project_errors()
+    
+    # Run real checks
+    checks = {
+        "pytest": run_pytest_check(),
+        "py_compile": run_py_compile_check(),
+        "todos": grep_todos()
+    }
+    
+    # Combine results
+    results = {
+        **static_results,
+        "checks": checks,
+        "task": task_data.get("name", "error_detection"),
+        "timestamp": str(datetime.datetime.now()),
+        "total_duration": format_duration(time.time() - start_time)
+    }
+    
+    # Overall status
+    all_passed = all(
+        check.get("passed", True) or check.get("skipped", False)
+        for check in [checks["pytest"], checks["py_compile"]]
+    )
+    results["overall_status"] = "PASSED" if all_passed else "FAILED"
+    
+    # Write output
+    output_file = write_json_output(results, "detect_errors.json")
+    safe_log(f"Error detection complete: {results['overall_status']}", "INFO")
+    safe_log(f"Results written to {output_file}", "INFO")
     
     return results
 

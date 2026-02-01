@@ -6,16 +6,21 @@ on:
   pull_request:
     branches: [main, master]
   schedule:
-    - cron: '0 0 * * 0'  # Weekly on Sunday
+    - cron: '0 0 * * 0'  # Weekly on Sunday midnight UTC
   workflow_dispatch:
   issue_comment:
     types: [created]
 
 jobs:
-  analyze_code:
-    name: AI Code Analysis
+  ai_agent_dispatcher:
+    name: AI Agent Dispatcher
     runs-on: ubuntu-latest
-    if: github.event_name != 'pull_request' || github.event.action != 'closed'
+    permissions:
+      contents: read
+    if: |
+      github.event_name == 'workflow_dispatch' || 
+      github.event_name == 'schedule' ||
+      (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'))
     
     steps:
       - name: Checkout repository
@@ -29,25 +34,28 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r examples/requirements.txt 2>/dev/null || pip install pytest
+          pip install -r scripts/ai_agent/requirements.txt
+        env:
+          SKIP_PIO: '1'  # Skip PlatformIO in CI by default
       
-      - name: Run AI Code Analysis
-        id: analysis
+      - name: Run AI Agent Dispatcher
         run: |
-          echo "Running comprehensive code analysis..."
-          python scripts/ai_agent/analyze_code.py '{"name":"github_actions_analysis"}'
-        continue-on-error: true
+          python scripts/ai_agent/agent_dispatcher.py
+        env:
+          SKIP_PIO: '1'
       
-      - name: Upload analysis results
+      - name: Upload dispatcher output
         uses: actions/upload-artifact@v4
         with:
-          name: code-analysis-results
+          name: dispatcher-output
           path: scripts/ai_agent/output/
 
-  detect_errors:
-    name: Error Detection
+  analyze_code:
+    name: AI Code Analysis
     runs-on: ubuntu-latest
-    needs: analyze_code
+    permissions:
+      contents: read
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
     
     steps:
       - name: Checkout repository
@@ -58,14 +66,64 @@ jobs:
         with:
           python-version: '3.10'
       
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r scripts/ai_agent/requirements.txt
+        env:
+          SKIP_PIO: '1'
+      
+      - name: Run AI Code Analysis
+        id: analysis
+        run: |
+          python scripts/ai_agent/analyze_code.py '{"name":"github_actions_analysis"}'
+        continue-on-error: true
+        env:
+          SKIP_PIO: '1'
+      
+      - name: Upload analysis results
+        uses: actions/upload-artifact@v4
+        with:
+          name: code-analysis-results
+          path: scripts/ai_agent/output/
+
+  detect_errors:
+    name: Error Detection
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r scripts/ai_agent/requirements.txt
+      
       - name: Run Error Detection
         run: |
-          echo "Running error detection..."
           python scripts/ai_agent/detect_errors.py '{"name":"github_actions_error_detection"}'
+        continue-on-error: true
+      
+      - name: Upload error detection results
+        uses: actions/upload-artifact@v4
+        with:
+          name: error-detection-results
+          path: scripts/ai_agent/output/
 
   generate_patterns:
     name: Pattern Generation
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     
     steps:
@@ -77,9 +135,13 @@ jobs:
         with:
           python-version: '3.10'
       
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r scripts/ai_agent/requirements.txt
+      
       - name: Generate new LED patterns
         run: |
-          echo "Generating new LED patterns..."
           python scripts/ai_agent/generate_patterns.py '{"name":"github_actions_patterns","num_patterns":4}'
       
       - name: Upload generated patterns
@@ -88,59 +150,11 @@ jobs:
           name: generated-patterns
           path: scripts/ai_agent/output/generated_patterns/
 
-  run_tests:
-    name: Testing & Quality
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
-      
-      - name: Install test dependencies
-        run: |
-          pip install pytest pytest-cov
-      
-      - name: Run image converter tests
-        run: |
-          echo "Running image converter tests..."
-          pytest examples/test_*.py -v --tb=short 2>/dev/null || echo "No tests found"
-
-      - name: Run integration tests
-        run: |
-          echo "Running integration tests..."
-          python test_teensy_standalone.py 2>/dev/null || echo "Standalone test completed"
-
-  firmware_build:
-    name: Firmware Build
-    runs-on: ubuntu-latest
-    needs: run_tests
-    
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      
-      - name: Build ESP32 Firmware
-        run: |
-          echo "Building ESP32 firmware..."
-          if [ -f "esp32_firmware/platformio.ini" ]; then
-            pio run -d esp32_firmware -e esp32dev --target build 2>/dev/null || echo "ESP32 build completed"
-          fi
-      
-      - name: Build Teensy Firmware
-        run: |
-          echo "Building Teensy firmware..."
-          if [ -f "firmware/teensy41/platformio.ini" ]; then
-            pio run -d firmware/teensy41 -e teensy41 --target build 2>/dev/null || echo "Teensy build completed"
-          fi
-
   on_demand_task:
     name: On-Demand Task
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     if: github.event_name == 'issue_comment' && contains(github.event.comment.body, '/ai-agent')
     
     steps:
@@ -152,15 +166,22 @@ jobs:
         with:
           python-version: '3.10'
       
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r scripts/ai_agent/requirements.txt
+        env:
+          SKIP_PIO: '1'
+      
       - name: Parse command
         id: parse
         run: |
           COMMENT="${{ github.event.comment.body }}"
-          if echo "$COMMENT" | grep -q "analyze"; then
+          if echo "$COMMENT" | grep -q "/ai-agent analyze"; then
             echo "task=analyze" >> $GITHUB_OUTPUT
-          elif echo "$COMMENT" | grep -q "pattern"; then
-            echo "task=patterns" >> $GITHUB_OUTPUT
-          elif echo "$COMMENT" | grep -q "test"; then
+          elif echo "$COMMENT" | grep -q "/ai-agent pattern"; then
+            echo "task=pattern" >> $GITHUB_OUTPUT
+          elif echo "$COMMENT" | grep -q "/ai-agent test"; then
             echo "task=test" >> $GITHUB_OUTPUT
           fi
       
@@ -171,10 +192,18 @@ jobs:
             analyze)
               python scripts/ai_agent/analyze_code.py '{"name":"comment_triggered"}'
               ;;
-            patterns)
-              python scripts/ai_agent/generate_patterns.py '{"name":"comment_triggered","num_patterns":2}'
+            pattern)
+              python scripts/ai_agent/generate_patterns.py '{"name":"comment_triggered","num_patterns":4}'
               ;;
             test)
-              pytest examples/test_*.py -v 2>/dev/null || echo "Tests completed"
+              python scripts/ai_agent/detect_errors.py '{"name":"comment_triggered"}'
               ;;
           esac
+        env:
+          SKIP_PIO: '1'
+      
+      - name: Upload task results
+        uses: actions/upload-artifact@v4
+        with:
+          name: on-demand-task-results
+          path: scripts/ai_agent/output/
