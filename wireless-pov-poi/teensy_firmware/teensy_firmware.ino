@@ -275,9 +275,6 @@ void parseCommand() {
   // For other commands, byte 2 is 8-bit length
   uint16_t dataLen = cmdBuffer[2];  // Used for simple commands
   
-  Serial.print("Command received: 0x");
-  Serial.println(cmd, HEX);
-  
   switch (cmd) {
     case 0x01:  // Set mode
       if (dataLen >= 2) {
