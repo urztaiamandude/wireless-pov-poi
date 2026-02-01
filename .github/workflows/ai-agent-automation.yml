@@ -15,6 +15,8 @@ jobs:
   ai_agent_dispatcher:
     name: AI Agent Dispatcher
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     if: |
       github.event_name == 'workflow_dispatch' || 
       github.event_name == 'schedule' ||
@@ -51,6 +53,8 @@ jobs:
   analyze_code:
     name: AI Code Analysis
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     if: github.event_name == 'pull_request' || github.event_name == 'push'
     
     steps:
@@ -86,6 +90,8 @@ jobs:
   detect_errors:
     name: Error Detection
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     if: github.event_name == 'pull_request' || github.event_name == 'push'
     
     steps:
@@ -116,6 +122,8 @@ jobs:
   generate_patterns:
     name: Pattern Generation
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     
     steps:
@@ -145,6 +153,8 @@ jobs:
   on_demand_task:
     name: On-Demand Task
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     if: github.event_name == 'issue_comment' && contains(github.event.comment.body, '/ai-agent')
     
     steps:
