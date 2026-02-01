@@ -3,6 +3,7 @@
 Comprehensive Code Analysis Agent for Wireless POV POI
 Detects errors, faults, potential failures, and suggests improvements
 Free-tier compatible with local analysis
+Runs real checks: Python compile, pytest, optional PlatformIO build
 """
 
 import sys
@@ -10,8 +11,49 @@ import json
 import ast
 import re
 import datetime
+import os
+import time
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional
+
+# Import common utilities
+try:
+    from common import (
+        run_command, write_json_output, safe_log, 
+        ensure_output_dir, check_python_syntax, format_duration
+    )
+except ImportError:
+    # Fallback if common not available
+    def run_command(cmd, cwd=None, timeout=300, capture_output=True):
+        import subprocess
+        result = subprocess.run(cmd, cwd=cwd, capture_output=capture_output, text=True, timeout=timeout)
+        return result.returncode, result.stdout, result.stderr
+    
+    def write_json_output(data, filename):
+        path = Path(__file__).parent / "output" / filename
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "w") as f:
+            json.dump(data, f, indent=2)
+        return path
+    
+    def safe_log(msg, level="INFO", log_file=None):
+        print(f"[{level}] {msg}")
+    
+    def ensure_output_dir():
+        path = Path(__file__).parent / "output"
+        path.mkdir(parents=True, exist_ok=True)
+        return path
+    
+    def check_python_syntax(file_path):
+        import py_compile
+        try:
+            py_compile.compile(str(file_path), doraise=True)
+            return True, None
+        except py_compile.PyCompileError as e:
+            return False, str(e)
+    
+    def format_duration(seconds):
+        return f"{seconds:.1f}s"
 
 # Project root
 REPO_ROOT = Path(__file__).parent.parent.parent
@@ -250,14 +292,152 @@ class CodeAnalyzer:
         return recommendations
 
 
+def run_python_compileall() -> Dict:
+    """Run Python compileall check on the repository"""
+    safe_log("Running Python compileall check...", "INFO")
+    start = time.time()
+    
+    exit_code, stdout, stderr = run_command(
+        [sys.executable, "-m", "compileall", ".", "-q"],
+        cwd=REPO_ROOT,
+        timeout=120
+    )
+    
+    duration = time.time() - start
+    
+    result = {
+        "exit_code": exit_code,
+        "duration": format_duration(duration),
+        "passed": exit_code == 0,
+        "errors": []
+    }
+    
+    if stderr:
+        result["errors"] = stderr.strip().split('\n')
+    
+    safe_log(f"Compileall check: {'PASSED' if result['passed'] else 'FAILED'} ({result['duration']})", 
+             "INFO" if result['passed'] else "ERROR")
+    
+    return result
+
+
+def run_pytest_examples() -> Dict:
+    """Run pytest on examples directory"""
+    safe_log("Running pytest on examples/...", "INFO")
+    examples_dir = REPO_ROOT / "examples"
+    
+    if not examples_dir.exists():
+        return {"skipped": True, "reason": "examples/ directory not found"}
+    
+    start = time.time()
+    exit_code, stdout, stderr = run_command(
+        [sys.executable, "-m", "pytest", "test_*.py", "-v", "--tb=short"],
+        cwd=examples_dir,
+        timeout=180
+    )
+    duration = time.time() - start
+    
+    # Parse pytest output
+    result = {
+        "exit_code": exit_code,
+        "duration": format_duration(duration),
+        "passed": exit_code == 0,
+        "output": stdout,
+        "errors": stderr
+    }
+    
+    # Try to extract test counts
+    passed_match = re.search(r'(\d+) passed', stdout)
+    failed_match = re.search(r'(\d+) failed', stdout)
+    
+    if passed_match:
+        result["tests_passed"] = int(passed_match.group(1))
+    if failed_match:
+        result["tests_failed"] = int(failed_match.group(1))
+    
+    safe_log(f"Pytest: {'PASSED' if result['passed'] else 'FAILED'} ({result['duration']})", 
+             "INFO" if result['passed'] else "ERROR")
+    
+    return result
+
+
+def run_platformio_build() -> Dict:
+    """Run optional PlatformIO build (skipped if SKIP_PIO=1)"""
+    if os.environ.get("SKIP_PIO") == "1":
+        safe_log("Skipping PlatformIO build (SKIP_PIO=1)", "INFO")
+        return {"skipped": True, "reason": "SKIP_PIO=1 environment variable set"}
+    
+    safe_log("Running PlatformIO build...", "INFO")
+    
+    # Check if platformio is available
+    exit_code, _, _ = run_command(["pio", "--version"], timeout=10)
+    if exit_code != 0:
+        safe_log("PlatformIO not found, skipping build", "WARNING")
+        return {"skipped": True, "reason": "PlatformIO not installed"}
+    
+    # Check if platformio.ini exists
+    pio_ini = REPO_ROOT / "platformio.ini"
+    if not pio_ini.exists():
+        return {"skipped": True, "reason": "platformio.ini not found"}
+    
+    start = time.time()
+    exit_code, stdout, stderr = run_command(
+        ["pio", "run", "-e", "teensy41"],
+        cwd=REPO_ROOT,
+        timeout=600  # 10 minutes for build
+    )
+    duration = time.time() - start
+    
+    result = {
+        "exit_code": exit_code,
+        "duration": format_duration(duration),
+        "passed": exit_code == 0,
+        "output": stdout[-500:] if stdout else "",  # Last 500 chars
+        "errors": stderr[-500:] if stderr else ""
+    }
+    
+    safe_log(f"PlatformIO build: {'PASSED' if result['passed'] else 'FAILED'} ({result['duration']})", 
+             "INFO" if result['passed'] else "ERROR")
+    
+    return result
+
+
 def analyze_code_task(task_data: Dict) -> Dict:
     """Main analysis function for the agent"""
-    analyzer = CodeAnalyzer()
-    results = analyzer.analyze_project()
+    safe_log("=== Starting Code Analysis ===", "INFO")
+    start_time = time.time()
     
-    # Add task context
-    results["task"] = task_data.get("name", "code_analysis")
-    results["timestamp"] = str(datetime.datetime.now())
+    # Run static code analysis
+    analyzer = CodeAnalyzer()
+    static_results = analyzer.analyze_project()
+    
+    # Run real checks
+    checks = {
+        "compileall": run_python_compileall(),
+        "pytest": run_pytest_examples(),
+        "platformio_build": run_platformio_build()
+    }
+    
+    # Combine results
+    results = {
+        **static_results,
+        "checks": checks,
+        "task": task_data.get("name", "code_analysis"),
+        "timestamp": str(datetime.datetime.now()),
+        "total_duration": format_duration(time.time() - start_time)
+    }
+    
+    # Determine overall status
+    all_passed = all(
+        check.get("passed", True) or check.get("skipped", False)
+        for check in checks.values()
+    )
+    results["overall_status"] = "PASSED" if all_passed else "FAILED"
+    
+    # Write output
+    output_file = write_json_output(results, "analyze_code.json")
+    safe_log(f"Analysis complete: {results['overall_status']}", "INFO")
+    safe_log(f"Results written to {output_file}", "INFO")
     
     return results
 
