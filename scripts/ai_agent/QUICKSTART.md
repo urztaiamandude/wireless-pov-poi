@@ -33,6 +33,7 @@ python scripts/ai_agent/agent_dispatcher.py
 ### Option 2: GitHub Actions (Automated)
 
 1. **Push to GitHub**:
+
    ```bash
    git add .
    git commit -m "Add AI agent team system"
@@ -40,7 +41,7 @@ python scripts/ai_agent/agent_dispatcher.py
    ```
 
 2. **Go to Actions Tab**:
-   - Visit: https://github.com/yourusername/wireless-pov-poi/actions
+   - Visit: <https://github.com/yourusername/wireless-pov-poi/actions>
    - Click "AI Agent Automation"
    - Click "Run workflow"
 
@@ -53,7 +54,7 @@ python scripts/ai_agent/agent_dispatcher.py
 ## What Each Agent Does
 
 | Agent | Command | What It Does |
-|-------|---------|--------------|
+| ----- | ------- | ------------ |
 | **Analysis** | `analyze_code.py` | Scans all code for errors, warnings, code quality issues |
 | **Error Detection** | `detect_errors.py` | Finds bugs, potential failures, security issues |
 | **Pattern Generator** | `generate_patterns.py` | Creates new LED patterns (Rainbow, Fire, Plasma, etc.) |
@@ -66,6 +67,7 @@ python scripts/ai_agent/agent_dispatcher.py
 3. Run dispatcher to process it
 
 Example task file (`.github/tasks/my-task.md`):
+
 ```markdown
 # Task: My New Task
 
@@ -83,6 +85,7 @@ What the task does
 ## Output Files
 
 Results are saved to `scripts/ai_agent/output/`:
+
 - `analyze_code.json` - Analysis results
 - `detect_errors.json` - Error detection results
 - `generated_patterns/` - New LED pattern files
@@ -90,6 +93,7 @@ Results are saved to `scripts/ai_agent/output/`:
 ## Weekly Automation
 
 The GitHub Actions workflow runs automatically:
+
 - **Every Sunday at midnight** - Full analysis
 - **On every push/PR** - Quick validation
 - **On demand** - Manual trigger or comment commands
@@ -101,16 +105,19 @@ The GitHub Actions workflow runs automatically:
 ## Troubleshooting
 
 **Python not found?**
+
 ```bash
 # Ensure Python is in PATH
 where python
 ```
 
 **No tasks found?**
+
 - Check tasks are in `.github/tasks/`
 - Files must have `.md` extension
 - Must have `status: ready`
 
 **GitHub Actions not running?**
+
 - Check repository Settings → Actions → Enable workflows
 - Verify workflow file syntax
