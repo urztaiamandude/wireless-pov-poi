@@ -331,7 +331,7 @@ def run_pytest_examples() -> Dict:
     
     start = time.time()
     exit_code, stdout, stderr = run_command(
-        [sys.executable, "-m", "pytest", "test_*.py", "-v", "--tb=short"],
+        [sys.executable, "-m", "pytest", ".", "-k", "test_", "-v", "--tb=short"],
         cwd=examples_dir,
         timeout=180
     )
