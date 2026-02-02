@@ -175,14 +175,15 @@ jobs:
       
       - name: Parse command
         id: parse
+        env:
+          COMMENT: ${{ github.event.comment.body }}
         run: |
-          COMMENT="${{ github.event.comment.body }}"
           if echo "$COMMENT" | grep -q "/ai-agent analyze"; then
-            echo "task=analyze" >> $GITHUB_OUTPUT
+            echo "task=analyze" >> "$GITHUB_OUTPUT"
           elif echo "$COMMENT" | grep -q "/ai-agent pattern"; then
-            echo "task=pattern" >> $GITHUB_OUTPUT
+            echo "task=pattern" >> "$GITHUB_OUTPUT"
           elif echo "$COMMENT" | grep -q "/ai-agent test"; then
-            echo "task=test" >> $GITHUB_OUTPUT
+            echo "task=test" >> "$GITHUB_OUTPUT"
           fi
       
       - name: Run requested task
