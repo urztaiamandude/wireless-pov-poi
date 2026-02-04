@@ -1,5 +1,16 @@
 # Wiring Diagram
 
+## ESP32 Variant Compatibility
+
+**📌 This wiring guide works for ALL ESP32 variants:**
+- ✅ **ESP32-WROOM-32** (original ESP32, 4MB flash)
+- ✅ **ESP32-DevKitC** (most common development board)
+- ✅ **ESP32-S3** (newer variant, 16MB flash recommended)
+
+**All use the same GPIO pins (16/17) - no wiring changes needed between variants!**
+
+See [ESP32-S3 Compatibility Guide](ESP32_S3_COMPATIBILITY.md) for detailed comparison and [ESP32-S3 Purchase Guide](../ESP32_S3_PURCHASE_GUIDE.md) for buying recommendations.
+
 ## Complete System Wiring
 
 ```
@@ -33,8 +44,9 @@
                        │ │
                        │ │
 ┌──────────────────┐   │ │
-│   ESP32/ESP32-S3 │   │ │
-│   DEV MODULE     │   │ │.j
+│   ESP32 / S3     │   │ │
+│   (All Variants) │   │ │
+│   DevKit/WROOM   │   │ │
 │                  │   │ │
 │  GPIO17 (TX2) ───┼───┘ │
 │  GPIO16 (RX2) ───┼─────┘
@@ -56,8 +68,8 @@
 └──────────────────┘
 ```
 
-**Note**: ESP32-S3 uses the same GPIO pins (16/17) as ESP32 - no wiring changes needed!  
-See [ESP32-S3 Compatibility Guide](ESP32_S3_COMPATIBILITY.md) for details.
+**Note**: All ESP32 variants (WROOM-32, DevKitC, ESP32-S3) use the same GPIO pins (16/17) - no wiring changes needed!  
+See [ESP32-S3 Compatibility Guide](ESP32_S3_COMPATIBILITY.md) for detailed variant comparison.
 
 ## Pin Connections Table
 
@@ -76,7 +88,12 @@ See [ESP32-S3 Compatibility Guide](ESP32_S3_COMPATIBILITY.md) for details.
 
 ### ESP32 / ESP32-S3 Pin Assignments
 
-Both ESP32 and ESP32-S3 use the same GPIO pins - **no wiring changes needed!**
+**Compatible ESP32 Variants**: This wiring works for ALL ESP32 variants including:
+- **ESP32-WROOM-32** (original ESP32, 4MB flash typical)
+- **ESP32-DevKitC** (most common development board)
+- **ESP32-S3** (newer, 16MB flash + 8MB PSRAM recommended)
+
+All variants use the same GPIO pins - **no wiring changes needed between variants!**
 
 | ESP32/S3 Pin | Function | Connects To | Notes |
 |--------------|----------|-------------|-------|
@@ -137,7 +154,7 @@ Both ESP32 and ESP32-S3 use the same GPIO pins - **no wiring changes needed!**
 
 ### Step 3: ESP32 or ESP32-S3 Connections
 
-**Note**: ESP32-S3 uses the same pins as ESP32 (GPIO 16/17) - no wiring changes needed!
+**Note**: All ESP32 variants (WROOM-32, DevKitC, ESP32-S3) use the same GPIO pins (16/17) - no wiring changes needed!
 
 1. **Serial Communication to Teensy**
    ```
