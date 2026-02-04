@@ -68,7 +68,7 @@ This project offers **two firmware implementations** for Teensy 4.1:
 ### 1. Hardware Setup
 See [docs/WIRING.md](docs/WIRING.md) for detailed wiring instructions.
 
-**Basic Connections:**
+**Basic Connections** (works for all ESP32 variants: WROOM-32, DevKitC, S3):
 - Teensy Pin 11 → APA102 Data (DI)
 - Teensy Pin 13 → APA102 Clock (CI)
 - Teensy TX1 (Pin 1) → ESP32 RX2 (GPIO 16)

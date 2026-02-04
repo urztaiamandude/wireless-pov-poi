@@ -35,7 +35,8 @@ A comprehensive visual guide for wiring the Nebula Poi with Teensy 4.1, ESP32, a
                              │ 192.168.4.1
                              │
                     ┌────────▼────────┐
-                    │     ESP32       │
+                    │  ESP32/ESP32-S3 │
+                    │   (All Variants)│
                     │   WiFi Module   │
                     │   Web Server    │
                     │   REST API      │
@@ -43,6 +44,7 @@ A comprehensive visual guide for wiring the Nebula Poi with Teensy 4.1, ESP32, a
                              │
                Serial UART   │ 115200 baud
                    (TX/RX)   │ GPIO 16/17
+                             │ (All Variants)
                              │
                     ┌────────▼────────┐
                     │   Teensy 4.1    │
@@ -115,9 +117,13 @@ Visual POV Display ✨
 
 ### ESP32 Development Board Pinout (Top View)
 
+**Note**: This pinout applies to all ESP32 variants (WROOM-32, DevKitC, ESP32-S3).
+GPIO 16/17 are available on all variants with the same wiring.
+
 ```
                     ┌────────────────────────┐
-                    │    ESP32 DEV MODULE    │
+                    │  ESP32 DEV MODULE      │
+                    │  (WROOM/DevKit/S3)     │
                     │                        │
     EN ─────┤ EN           (USB)       D23 ├───── 23
    VP/36 ───┤ VP                       D22 ├───── 22
@@ -141,11 +147,11 @@ Visual POV Display ✨
                     │                        │
                     └────────────────────────┘
 
-    ⭐ Key Pins Used in This Project:
+    ⭐ Key Pins Used in This Project (All ESP32 Variants):
     • GPIO 16 (RX2) - Serial receive from Teensy
     • GPIO 17 (TX2) - Serial transmit to Teensy
-    • VIN          - 5V power input
-    • GND          - Ground (connect to all)
+    • VIN           - 5V power input
+    • GND           - Ground (connect to all)
 ```
 
 ### APA102 LED Strip Connection Points

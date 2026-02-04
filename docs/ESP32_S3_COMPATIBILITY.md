@@ -117,6 +117,8 @@ ESP32-S3 GPIO 17 (U1_TX) ←→ Teensy RX1 (Pin 0)
 ```
 ✅ **No wiring changes needed!** GPIO 16 and 17 are available on ESP32-S3.
 
+✅ **Boot Mode Safety**: GPIO16/17 do NOT interfere with boot mode pins (GPIO0, GPIO46). Your board will boot normally.
+
 **Option 2: Use UART0 (Alternative)**
 ```
 ESP32-S3 GPIO 43 (U0_TX) ←→ Teensy RX1 (Pin 0)
@@ -133,9 +135,11 @@ ESP32-S3 GPIO 44 (U0_RX) ←→ Teensy TX1 (Pin 1)
 |------|-----------|---------------|-------|
 | UART0 | GPIO 1/3 | GPIO 43/44 | Usually used for programming |
 | UART1 | GPIO 9/10 | GPIO 17/18 | Available |
-| UART2 | **GPIO 16/17** | GPIO 16/17 | **Currently used** ✅ |
+| UART2 | **GPIO 16/17** | GPIO 16/17 | **Currently used** ✅ **Boot-safe** ✅ |
 
 **Important**: GPIO 16/17 work on both ESP32 and ESP32-S3, so **no code or wiring changes are required**.
+
+**Boot Mode Safety**: GPIO16/17 are completely safe - they do NOT interfere with boot mode pins (GPIO0, GPIO46).
 
 ## Software Compatibility
 
@@ -229,7 +233,17 @@ pio device monitor -e esp32s3
 - Release both
 - Or use auto-programming boards
 
-### Issue 4: Power Consumption
+**Note**: This is ONLY for programming/flashing. Once programmed, GPIO16/17 will NOT interfere with normal boot operation.
+
+### Issue 4: Boot Mode Pin Interference (RESOLVED)
+**Question**: Do GPIO16/17 interfere with boot mode?  
+**Answer**: ✅ **NO!** GPIO16 and GPIO17 are completely safe.
+- **Boot mode pins**: GPIO0 (BOOT button) and GPIO46 (strapping pin)
+- **Project pins**: GPIO16 and GPIO17 (UART2)
+- **Result**: Zero interference - board boots normally with GPIO16/17 connected
+- **Confirmation**: These pins are specifically chosen to avoid boot issues
+
+### Issue 5: Power Consumption
 **Problem**: ESP32-S3 may draw slightly more current  
 **Solution**: 
 - Current project uses ~200mA for ESP32

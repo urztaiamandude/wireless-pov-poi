@@ -81,6 +81,13 @@ This project offers two firmware options for Teensy 4.1:
 
 ### Step 2: Wire the Hardware (15 minutes)
 
+**📌 Important**: The wiring shown below works for **ALL ESP32 variants** including:
+- ESP32-WROOM-32 (original ESP32)
+- ESP32-DevKitC (most common development board)
+- ESP32-S3 (recommended for new builds)
+
+All variants use the same GPIO pins (16/17) - no wiring changes needed between variants!
+
 #### Power Connections
 ```
 5V Power Supply (+) → LED Strip 5V
@@ -103,7 +110,9 @@ Teensy Pin 13 → LED Strip CLOCK (CI)
 Teensy Pin 1 (TX1) → ESP32/S3 GPIO 16 (RX2)
 Teensy Pin 0 (RX1) → ESP32/S3 GPIO 17 (TX2)
 ```
-**Note**: ESP32-S3 uses the same GPIO pins as ESP32 - no wiring changes needed!
+**Note**: GPIO 16/17 are standard on all ESP32 variants (WROOM, DevKit, S3) - the same wiring works for all!
+
+**✅ Boot Mode Safety**: GPIO16 and GPIO17 do **NOT** interfere with boot mode. Your ESP32/ESP32-S3 will boot normally with these connections. (Boot mode uses GPIO0 and GPIO46, which are separate pins.)
 
 **Important**: All grounds must be connected together!
 

@@ -1,5 +1,22 @@
 # Wiring Diagram
 
+## ESP32 Variant Compatibility
+
+**📌 This wiring guide works for ALL ESP32 variants:**
+- ✅ **ESP32-WROOM-32** (original ESP32, 4MB flash)
+- ✅ **ESP32-DevKitC** (most common development board)
+- ✅ **ESP32-S3** (newer variant, 16MB flash recommended)
+
+**All use the same GPIO pins (16/17) - no wiring changes needed between variants!**
+
+**✅ Boot Mode Safety Confirmed:**
+- GPIO16 and GPIO17 do **NOT** interfere with boot mode
+- Boot mode uses separate pins: GPIO0 (BOOT button) and GPIO46 (strapping)
+- Your board will power on and boot normally with these connections
+- These pins were specifically chosen to avoid boot issues
+
+See [ESP32-S3 Compatibility Guide](ESP32_S3_COMPATIBILITY.md) for detailed comparison and [ESP32-S3 Purchase Guide](../ESP32_S3_PURCHASE_GUIDE.md) for buying recommendations.
+
 ## Complete System Wiring
 
 ```
@@ -33,8 +50,9 @@
                        │ │
                        │ │
 ┌──────────────────┐   │ │
-│   ESP32/ESP32-S3 │   │ │
-│   DEV MODULE     │   │ │.j
+│   ESP32 / S3     │   │ │
+│   (All Variants) │   │ │
+│   DevKit/WROOM   │   │ │
 │                  │   │ │
 │  GPIO17 (TX2) ───┼───┘ │
 │  GPIO16 (RX2) ───┼─────┘
@@ -56,8 +74,8 @@
 └──────────────────┘
 ```
 
-**Note**: ESP32-S3 uses the same GPIO pins (16/17) as ESP32 - no wiring changes needed!  
-See [ESP32-S3 Compatibility Guide](ESP32_S3_COMPATIBILITY.md) for details.
+**Note**: All ESP32 variants (WROOM-32, DevKitC, ESP32-S3) use the same GPIO pins (16/17) - no wiring changes needed!  
+See [ESP32-S3 Compatibility Guide](ESP32_S3_COMPATIBILITY.md) for detailed variant comparison.
 
 ## Pin Connections Table
 
@@ -76,12 +94,19 @@ See [ESP32-S3 Compatibility Guide](ESP32_S3_COMPATIBILITY.md) for details.
 
 ### ESP32 / ESP32-S3 Pin Assignments
 
-Both ESP32 and ESP32-S3 use the same GPIO pins - **no wiring changes needed!**
+**Compatible ESP32 Variants**: This wiring works for ALL ESP32 variants including:
+- **ESP32-WROOM-32** (original ESP32, 4MB flash typical)
+- **ESP32-DevKitC** (most common development board)
+- **ESP32-S3** (newer, 16MB flash + 8MB PSRAM recommended)
+
+All variants use the same GPIO pins - **no wiring changes needed between variants!**
+
+**⚠️ Boot Mode Safety**: GPIO16 and GPIO17 are **safe** to use - they do NOT interfere with boot mode pins (GPIO0, GPIO46). Your board will boot normally with these connections.
 
 | ESP32/S3 Pin | Function | Connects To | Notes |
 |--------------|----------|-------------|-------|
-| GPIO 16 | UART2 RX | Teensy Pin 1 (TX1) | Serial receive from Teensy |
-| GPIO 17 | UART2 TX | Teensy Pin 0 (RX1) | Serial transmit to Teensy |
+| GPIO 16 | UART2 RX | Teensy Pin 1 (TX1) | Serial receive from Teensy, **Boot-safe ✅** |
+| GPIO 17 | UART2 TX | Teensy Pin 0 (RX1) | Serial transmit to Teensy, **Boot-safe ✅** |
 | GND | Ground | Common Ground | Shared with Teensy and power |
 | VIN/5V | Power Input | 5V Power Supply | 5V input or USB power |
 
@@ -137,7 +162,7 @@ Both ESP32 and ESP32-S3 use the same GPIO pins - **no wiring changes needed!**
 
 ### Step 3: ESP32 or ESP32-S3 Connections
 
-**Note**: ESP32-S3 uses the same pins as ESP32 (GPIO 16/17) - no wiring changes needed!
+**Note**: All ESP32 variants (WROOM-32, DevKitC, ESP32-S3) use the same GPIO pins (16/17) - no wiring changes needed!
 
 1. **Serial Communication to Teensy**
    ```
@@ -176,7 +201,11 @@ Common GND         → ESP32-S3 GND
 - Logic level: 3.3V (compatible with Teensy 4.1)
 
 **Important Notes:**
-- **Avoid boot-strap pins**: Do NOT use GPIO0 or GPIO46 (used for boot mode selection)
+- **✅ Boot Mode Safety**: GPIO16 and GPIO17 are **safe** - they do NOT interfere with boot mode
+  - Boot mode pins on ESP32-S3: GPIO0 (BOOT button) and GPIO46 (strapping pin)
+  - GPIO16/17 can be freely used for serial communication without boot issues
+  - Your board will power on and boot normally with these connections
+- **⚠️ Avoid boot-strap pins**: Do NOT use GPIO0 or GPIO46 for project connections (reserved for boot mode selection)
 - **USB connections**: 
   - Main USB-C CDC port: For flashing firmware and serial monitoring (no adapter needed)
   - CH340K UART port (if present): Optional, only needed for extra console/sniffing
