@@ -112,6 +112,8 @@ Teensy Pin 0 (RX1) → ESP32/S3 GPIO 17 (TX2)
 ```
 **Note**: GPIO 16/17 are standard on all ESP32 variants (WROOM, DevKit, S3) - the same wiring works for all!
 
+**✅ Boot Mode Safety**: GPIO16 and GPIO17 do **NOT** interfere with boot mode. Your ESP32/ESP32-S3 will boot normally with these connections. (Boot mode uses GPIO0 and GPIO46, which are separate pins.)
+
 **Important**: All grounds must be connected together!
 
 ✅ **Checkpoint**: Hardware wired correctly
