@@ -140,8 +140,8 @@ Visual Output (POV Display) ✨
 Teensy Pin 11 ════════════════► APA102 DATA
 Teensy Pin 13 ════════════════► APA102 CLOCK
 
-Teensy TX1 (Pin 1) ═══════════► ESP32 RX2 (GPIO 16)
-Teensy RX1 (Pin 0) ◄═══════════ ESP32 TX2 (GPIO 17)
+Teensy TX1 (Pin 1) ═══════════► ESP32/S3 RX2 (GPIO 16)  [All ESP32 variants]
+Teensy RX1 (Pin 0) ◄═══════════ ESP32/S3 TX2 (GPIO 17)  [WROOM/DevKit/S3]
 
 Common GND ═══════════════════► All Components
 
