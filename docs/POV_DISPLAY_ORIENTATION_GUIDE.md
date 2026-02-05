@@ -73,12 +73,11 @@ Use simple patterns to confirm orientation before loading complex images:
 
 ## Quick Reference Commands
 ```bash
-# Convert image (31px tall)
-cd examples
-python image_converter.py path/to/image.png
+# Convert image (31px tall) from repo root
+python examples/image_converter.py path/to/image.png
 
 # Run orientation tests
-pytest test_vertical_flip.py -v
+pytest examples/test_vertical_flip.py -v
 
 # Build firmware
 pio run -e teensy41
