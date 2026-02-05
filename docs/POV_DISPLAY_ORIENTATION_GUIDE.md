@@ -1,44 +1,39 @@
 # POV Display Orientation Guide
 
 ## LED Strip Layout Diagrams
-![LED Strip Layout](led_strip_layout_diagram.png)
+- **Diagram**: ASCII representation of the 32 LED strip, showcasing how LED 0 is reserved for level shifting, LED 1 (bottom) displays row 0, and LED 31 (top) displays row 30.
 
-## Image Data Structure
-1. **Pixel Format**: RGB888
-2. **Image Dimensions**: Width x Height
-3. **Color Depth**: 24-bit
+```
+    LED 31 (Top)
+    +-------------+
+    |             |
+    |    LED 30   |
+    |             |
+    |    ...      |
+    |             |
+    |    LED 1    | <---- Row 0 of the image
+    |             |
+    +-------------+
+    LED 0 (Level Shifting)
+```
+
+## Image Data Structure Explanation
+- Describe how an image is structured for POV display, including pixel mappings to LEDs.
 
 ## POV Spinning Effect Visualization
-- Description: The spinning effect is achieved by rapidly refreshing the LED strips to create the illusion of a coherent image.
-- Formula: `Frame Rate = (Number of Strips) * (Revolutions per Second)`
+- Explain how the POV effect creates 2D images when spinning, possibly using diagrams to illustrate the concept.
 
 ## Coordinate System Mapping
-- X-Axis: Represents the width of the display.
-- Y-Axis: Represents the height of the display.
-- Origin: Top-left corner of the display.
+- **Mapping**: Image row 0 maps to LED 1, continuing up to LED 31 corresponding to image row 30.
 
 ## Test Pattern Verification Instructions
-1. Ensure all LEDs are functional.
-2. Display a checkerboard test pattern.
-3. Verify all colors align with expected results.
+- Offer instructions for verifying static and spinning displays using specific patterns.
 
-## Troubleshooting Common Orientation Issues
-- **Issue**: Image appears flipped.
-  - **Solution**: Verify the wiring of the LED strips.
-- **Issue**: Inconsistent brightness.
-  - **Solution**: Check power supply and connections.
+## Troubleshooting for Common Orientation Issues
+- List common issues like upside-down images, wrong colors, LED 0 showing data, and stretched images with their fixes.
 
-## Technical Specifications
-- **Power Supply Voltage**: 5V DC
-- **Maximum Current**: 20A
-- **Strip Length**: Up to 5 meters without voltage drop.
+## Technical Specifications Table
+- Provide a table summarizing technical specifications relevant to the display.
 
-## Verification Checklist
-- [ ] LED functionality tested
-- [ ] Patterns correctly displayed
-- [ ] Dimensions mapped successfully
-- [ ] Troubleshooting issues resolved
-
----
-
-This guide will help you orient your POV display properly, ensuring optimal performance and minimizing errors.
+## Quick Reference Commands
+- Include a section with important commands for quick reference.
