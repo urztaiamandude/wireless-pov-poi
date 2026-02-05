@@ -13,8 +13,8 @@ build_output/
 teensy_firmware/build/
 esp32_firmware/build/
 
-# PlatformIO source symlink (helper for building)
-src/
+# PlatformIO source symlink (helper for building in root)
+/src/
 
 # Temporary files
 *~
