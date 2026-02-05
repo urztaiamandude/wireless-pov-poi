@@ -54,8 +54,8 @@ void BLEBridge::setup() {
     BLEAdvertising* pAdvertising = BLEDevice::getAdvertising();
     pAdvertising->addServiceUUID(SERVICE_UUID);
     pAdvertising->setScanResponse(true);
-    pAdvertising->setMinPreferred(0x06);  // Apple connection interval guidelines
-    pAdvertising->setMinPreferred(0x12);
+    pAdvertising->setMinPreferred(0x06);  // Apple connection interval guidelines (min)
+    pAdvertising->setMaxPreferred(0x12);  // Apple connection interval guidelines (max)
     BLEDevice::startAdvertising();
     
     Serial.println("BLE Bridge initialized and advertising as: " + String(BLE_DEVICE_NAME));
@@ -78,9 +78,10 @@ void BLEBridge::loop() {
     if (teensySerial->available() && deviceConnected) {
         uint8_t response[256];
         size_t len = 0;
+        unsigned long startTime = millis();
         
-        // Read available data (up to 256 bytes)
-        while (teensySerial->available() && len < sizeof(response)) {
+        // Read available data (up to 256 bytes) with timeout
+        while (teensySerial->available() && len < sizeof(response) && (millis() - startTime < 100)) {
             response[len++] = teensySerial->read();
             
             // Check if we have a complete response (0xFF...0xFE)
@@ -107,13 +108,8 @@ void BLEBridge::loop() {
                 }
                 
                 len = 0; // Reset for next response
+                startTime = millis(); // Reset timeout
             }
-        }
-        
-        // Handle partial response timeout
-        if (len > 0 && len < sizeof(response)) {
-            // If we have partial data, wait a bit more
-            delay(10);
         }
     }
 }
