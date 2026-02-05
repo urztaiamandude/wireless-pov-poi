@@ -7,6 +7,7 @@
  * 
  * Features:
  * - WiFi Access Point mode
+ * - BLE support via Nordic UART Service
  * - Web server with file upload
  * - Image/pattern/sequence management
  * - Serial communication with Teensy
@@ -20,6 +21,11 @@
 #include <HTTPClient.h>
 #include <WiFiClient.h>
 #include <Preferences.h>
+
+// BLE support
+#ifdef BLE_ENABLED
+#include "src/ble_bridge.h"
+#endif
 
 // Forward declarations for PlatformIO compilation
 void setupWiFi();
@@ -77,6 +83,11 @@ WebServer server(80);
 
 // Preferences for persistent storage
 Preferences preferences;
+
+// BLE Bridge
+#ifdef BLE_ENABLED
+BLEBridge* bleBridge = nullptr;
+#endif
 
 // Device configuration
 struct DeviceConfig {
@@ -136,6 +147,13 @@ void setup() {
   Serial.print("Device Name: ");
   Serial.println(deviceConfig.deviceName);
   
+  // Initialize BLE Bridge (before WiFi to avoid conflicts)
+  #ifdef BLE_ENABLED
+  bleBridge = new BLEBridge(&TEENSY_SERIAL);
+  bleBridge->setup();
+  Serial.println("BLE Bridge initialized");
+  #endif
+  
   // Initialize WiFi Access Point
   setupWiFi();
   
@@ -169,6 +187,13 @@ void setup() {
 }
 
 void loop() {
+  // Handle BLE communications
+  #ifdef BLE_ENABLED
+  if (bleBridge) {
+    bleBridge->loop();
+  }
+  #endif
+  
   server.handleClient();
   
   // Check Teensy connection periodically
