@@ -48,7 +48,7 @@ Smooth rotation and consistent frame timing are required so the columns align in
 ## Test Pattern Verification Instructions
 Use simple patterns to confirm orientation before loading complex images:
 
-1. **Numbered ladder**: Create a 31 (height) × N (width) image with row labels (0 at bottom, 30 at top) using an image editor or adapting the Pillow-based generator in `examples/test_vertical_flip.py`. Confirm LED 1 shows row 0.
+1. **Numbered ladder**: Create a 31 (height) × N (width) image with row labels (0 at bottom, 30 at top) using an image editor or by adapting the gradient generator in `examples/test_vertical_flip.py` to draw row labels. Confirm LED 1 shows row 0.
 2. **Vertical gradient**: Bottom pixels red → top pixels blue to confirm vertical direction.
 3. **Single-row marker**: A bright line on row 0 should appear at LED 1 only.
 4. **Spin test**: Display the same pattern while spinning; the image should not flip vertically.
@@ -68,7 +68,7 @@ Use simple patterns to confirm orientation before loading complex images:
 | Level-shift LED | LED 0 |
 | Image height | 31 pixels (rows 0-30) |
 | Brightness range | 0-255 |
-| Frame rate range | 10-120 FPS (firmware limit; validate on hardware) |
+| Frame rate range | 10-120 FPS (firmware limit; validate stability/no flicker on hardware) |
 | LED type | APA102 |
 
 ## Quick Reference Commands
