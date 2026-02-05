@@ -30,9 +30,9 @@ This means the image array is indexed from row 0 at the bottom to row 30 at the 
 Each column of pixels is shown in sequence as the poi rotates. Persistence of vision blends those time slices into a full 2D image around the arc of the spin:
 
 ```
-Time →  [Col 0] [Col 1] [Col 2] ... [Col N]
-Spin →   |       |       |           |
-Result → 2D image appears when the columns are shown evenly in rotation
+Time   -> [Col 0]   [Col 1]   [Col 2] ... [Col N]
+Spin   ->    |         |         |          |
+Result -> 2D image appears when the columns are shown evenly in rotation
 ```
 
 Smooth rotation and consistent frame timing are required so the columns align into a stable image.
@@ -48,7 +48,7 @@ Smooth rotation and consistent frame timing are required so the columns align in
 ## Test Pattern Verification Instructions
 Use simple patterns to confirm orientation before loading complex images:
 
-1. **Numbered ladder**: Create a 31×N image with row labels (0 at bottom, 30 at top). Confirm LED 1 shows row 0.
+1. **Numbered ladder**: Create a 31 (height) × N (width) image with row labels (0 at bottom, 30 at top). Confirm LED 1 shows row 0.
 2. **Vertical gradient**: Bottom pixels red → top pixels blue to confirm vertical direction.
 3. **Single-row marker**: A bright line on row 0 should appear at LED 1 only.
 4. **Spin test**: Display the same pattern while spinning; the image should not flip vertically.
