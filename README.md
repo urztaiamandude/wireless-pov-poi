@@ -144,6 +144,7 @@ See [DEMO_CONTENT.md](DEMO_CONTENT.md) for complete details on built-in content.
 - **[Complete Setup Guide](docs/README.md)** - Detailed installation and usage instructions
 - **[Wiring Diagram](docs/WIRING.md)** - Hardware connections and assembly guide
 - **[API Documentation](docs/API.md)** - REST API reference for mobile app development
+- **[BLE Protocol](wireless_pov_poi_app/BLE_PROTOCOL.md)** 🆕 - Bluetooth protocol specification for Flutter app
 - **[POI Pairing Guide](docs/POI_PAIRING.md)** 🆕 - Setup and sync multiple poi devices
 - **[BMP Image Processing Guide](docs/BMP_IMAGE_PROCESSING.md)** 🆕 - BMPImageReader and BMPImageSequence usage
 - **[Image Conversion Guide](docs/IMAGE_CONVERSION.md)** - How automatic image conversion works
@@ -200,6 +201,47 @@ A complete, ready-to-build Android Studio project with advanced features:
 See [Android App README](POVPoiApp/README.md) for complete setup and usage instructions.
 
 **Example Files:** The `examples/android_app/` directory contains individual example files for reference.
+
+### Flutter App - Multi-Platform BLE Control 🆕
+
+A cross-platform Flutter application for direct Bluetooth Low Energy (BLE) control:
+
+- **Multi-Platform Support**:
+  - ✅ **Android** - Full BLE support (API 21+)
+  - ✅ **Windows** - BLE adapter required (Windows 10/11)
+  - ✅ **Web** - Chrome/Edge only (Web Bluetooth API)
+  - ⚠️ **iOS** - Web version unsupported (no Web Bluetooth)
+  
+- **BLE Direct Control** - No WiFi required, control via Bluetooth
+- **Pattern Management** - Import, edit, and organize LED patterns
+- **Pattern Creators** - Text, color, gradient, and stacked patterns
+- **Sequencer** - Automated pattern playback
+- **Multi-Device** - Control up to 7 poi simultaneously
+- **APA102 Optimized** - Designed for 31-pixel LED strips
+
+**Key Advantages over WiFi:**
+- Longer range (BLE: ~10m vs WiFi AP mode)
+- Lower latency for real-time control
+- Multi-device pairing support
+- Works in areas with WiFi interference
+
+**Quick Start:**
+```bash
+cd wireless_pov_poi_app
+flutter pub get
+flutter run  # On connected device
+```
+
+**Pattern Requirements:**
+- Max height: 31 pixels (LED strip length)
+- Max width: 400 pixels
+- Max total pixels: 40,000
+
+See [Flutter App README](wireless_pov_poi_app/README.md) for complete installation, usage, and development guide.
+
+**Note:** The Flutter app uses BLE protocol and complements the WiFi-based web interface. Choose based on your needs:
+- **WiFi (Web Portal)**: Best for single-device control, image upload, live drawing
+- **BLE (Flutter App)**: Best for multi-device control, portable use, lower latency
 
 ### REST API
 
