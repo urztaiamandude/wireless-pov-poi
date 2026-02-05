@@ -159,19 +159,101 @@ void BLEBridge::translateBLEtoInternalProtocol(uint8_t* cmd, size_t length) {
      * Translate BLE protocol to internal protocol:
      * BLE:      0xD0 [command_code] [data...] 0xD1
      * Internal: 0xFF [command_code] [len] [data...] 0xFE
+     * 
+     * Command code mapping:
+     * BLE Code -> Internal Code
+     * 0x02 (CC_SET_BRIGHTNESS) -> 0x06 (Set brightness)
+     * 0x03 (CC_SET_SPEED) -> 0x07 (Set frame rate)
+     * 0x04 (CC_SET_PATTERN) -> 0x03 (Upload pattern)
+     * 0x05 (CC_SET_PATTERN_SLOT) -> 0x01 (Set mode with pattern index)
+     * 0x06 (CC_SET_PATTERN_ALL) -> 0x01 (Set mode to auto-cycle)
+     * 0x0E (CC_SET_SEQUENCER) -> 0x04 (Upload sequence)
+     * 0x0F (CC_START_SEQUENCER) -> 0x01 (Set mode to sequence)
      */
     
     if (length < 1) return;
     
-    uint8_t commandCode = cmd[0];
+    uint8_t bleCommandCode = cmd[0];
     size_t dataLen = length - 1;  // Exclude command code
     
-    // Build internal protocol packet
+    // Map BLE command to internal command
+    uint8_t internalCommand = bleCommandCode;
+    
+    switch (bleCommandCode) {
+        case CC_SET_BRIGHTNESS:      // 0x02 -> 0x06
+            internalCommand = 0x06;
+            break;
+        case CC_SET_SPEED:           // 0x03 -> 0x07
+            internalCommand = 0x07;
+            break;
+        case CC_SET_PATTERN:         // 0x04 -> 0x03
+            internalCommand = 0x03;
+            break;
+        case CC_SET_PATTERN_SLOT:    // 0x05 -> 0x01 (mode 2 = pattern mode)
+            internalCommand = 0x01;
+            // Need to convert: [pattern_slot] -> [mode=2, pattern_index]
+            if (dataLen >= 1) {
+                uint8_t packet[8];
+                packet[0] = 0xFF;
+                packet[1] = 0x01;  // Set mode command
+                packet[2] = 0x02;  // Data length = 2
+                packet[3] = 0x02;  // Mode 2 = pattern mode
+                packet[4] = cmd[1]; // Pattern slot/index
+                packet[5] = 0xFE;
+                
+                Serial.println("BLE: Mapped SET_PATTERN_SLOT to SetMode(2, slot)");
+                teensySerial->write(packet, 6);
+                return;
+            }
+            break;
+        case CC_SET_PATTERN_ALL:     // 0x06 -> 0x01 (mode for auto-cycling)
+            internalCommand = 0x01;
+            // Auto-cycle patterns - use mode 2 with index 255 (special)
+            {
+                uint8_t packet[8];
+                packet[0] = 0xFF;
+                packet[1] = 0x01;  // Set mode command
+                packet[2] = 0x02;  // Data length = 2
+                packet[3] = 0x02;  // Mode 2 = pattern mode
+                packet[4] = 0xFF;  // 0xFF = auto-cycle all patterns
+                packet[5] = 0xFE;
+                
+                Serial.println("BLE: Mapped SET_PATTERN_ALL to SetMode(2, 255)");
+                teensySerial->write(packet, 6);
+                return;
+            }
+            break;
+        case CC_SET_SEQUENCER:       // 0x0E -> 0x04
+            internalCommand = 0x04;
+            break;
+        case CC_START_SEQUENCER:     // 0x0F -> 0x01 (mode 3 = sequence mode)
+            internalCommand = 0x01;
+            // Start sequencer - use mode 3 with sequence index
+            if (dataLen >= 1) {
+                uint8_t packet[8];
+                packet[0] = 0xFF;
+                packet[1] = 0x01;  // Set mode command
+                packet[2] = 0x02;  // Data length = 2
+                packet[3] = 0x03;  // Mode 3 = sequence mode
+                packet[4] = cmd[1]; // Sequence index
+                packet[5] = 0xFE;
+                
+                Serial.println("BLE: Mapped START_SEQUENCER to SetMode(3, seq_idx)");
+                teensySerial->write(packet, 6);
+                return;
+            }
+            break;
+        default:
+            // For other commands, pass through as-is
+            break;
+    }
+    
+    // Build internal protocol packet for simple pass-through commands
     uint8_t packet[1024];
     int packetLen = 0;
     
     packet[packetLen++] = 0xFF;  // Start marker
-    packet[packetLen++] = commandCode;
+    packet[packetLen++] = internalCommand;
     packet[packetLen++] = (uint8_t)dataLen;  // Length (8-bit for simple commands)
     
     // Copy data
