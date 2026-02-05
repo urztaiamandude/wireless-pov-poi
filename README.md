@@ -145,6 +145,7 @@ See [DEMO_CONTENT.md](DEMO_CONTENT.md) for complete details on built-in content.
 - **[Wiring Diagram](docs/WIRING.md)** - Hardware connections and assembly guide
 - **[API Documentation](docs/API.md)** - REST API reference for mobile app development
 - **[POI Pairing Guide](docs/POI_PAIRING.md)** 🆕 - Setup and sync multiple poi devices
+- **[BMP Image Processing Guide](docs/BMP_IMAGE_PROCESSING.md)** 🆕 - BMPImageReader and BMPImageSequence usage
 - **[Image Conversion Guide](docs/IMAGE_CONVERSION.md)** - How automatic image conversion works
 - **[Testing Guide](TESTING.md)** - Testing tools, environment setup, and test procedures
 
@@ -263,6 +264,78 @@ Upload directly through the POV device's web interface at http://192.168.4.1 - i
 
 ### Option 4: Online Tool
 - **POISonic Online Converter**: [https://web.archive.org/web/20210509110926/https://www.orchardelica.com/poisonic/poi_page.html](https://web.archive.org/web/20210509110926/https://www.orchardelica.com/poisonic/poi_page.html) - Browser-based converter
+
+## BMP Image Processing with BMPImageReader
+
+The firmware now includes `BMPImageReader` and `BMPImageSequence` classes from the pov-library for robust BMP image handling.
+
+### Features
+
+- **BMPImageReader**: Standalone BMP header parsing and line-by-line access
+- **BMPImageSequence**: Playlist management with durations
+- Works directly with Teensy 4.1's built-in SD card
+- Memory efficient with user-controlled buffers
+- Template-based design for maximum flexibility
+
+### Usage with SD Card
+
+```cpp
+#include "BMPImageReader.h"
+
+BMPImageReader reader;
+File bmpFile = SD.open("image.bmp");
+
+if (reader.begin(bmpFile)) {
+    Serial.print("Image: ");
+    Serial.print(reader.width());
+    Serial.print(" x ");
+    Serial.println(reader.height());
+    
+    uint8_t* buffer = new uint8_t[reader.bufferSize()];
+    reader.loadToBuffer(bmpFile, buffer);
+    
+    // Access line-by-line for POV display
+    for (int y = 0; y < reader.height(); y++) {
+        uint8_t* line = reader.getLine(buffer, y);
+        // Display line on LEDs
+    }
+    
+    delete[] buffer;
+}
+```
+
+### Image Sequences
+
+Create an `imagelist.txt` file on your SD card:
+```
+image1.bmp 20
+image2.bmp 15
+image3.bmp 10
+```
+
+Load and use sequences:
+```cpp
+#include "BMPImageSequence.h"
+
+BMPImageSequence sequence;
+File listFile = SD.open("imagelist.txt");
+sequence.loadFromFile(listFile);
+listFile.close();
+
+// In your display loop
+const char* filename = sequence.getCurrentFilename();
+uint16_t duration = sequence.getCurrentDuration();
+// ... display image ...
+sequence.next(); // Move to next image
+```
+
+### Requirements
+
+- Images must be 24-bit uncompressed BMP format
+- Width and height can be any size (limited by available RAM)
+- For POV display, height should match your LED count (31 pixels)
+
+See [BMP Image Processing Guide](docs/BMP_IMAGE_PROCESSING.md) for complete documentation and examples.
 
 ## Customization
 
