@@ -68,7 +68,7 @@ Use simple patterns to confirm orientation before loading complex images:
 | Level-shift LED | LED 0 |
 | Image height | 31 pixels (rows 0-30) |
 | Brightness range | 0-255 |
-| Frame rate range | 10-120 FPS (firmware limit) |
+| Frame rate range | 10-120 FPS (firmware limit; validate on hardware) |
 | LED type | APA102 |
 
 ## Quick Reference Commands
