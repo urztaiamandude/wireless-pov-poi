@@ -44,6 +44,7 @@ This system creates stunning POV light displays using a 32 LED APA102 strip cont
   - Device Name: `Wireless POV Poi`
   - Nordic UART Service (NUS) for cross-platform compatibility
   - Works with Android, Windows, and Web (Chrome/Edge)
+  - **Operates completely offline** - no internet required
   - See [BLE Protocol Documentation](docs/BLE_PROTOCOL.md)
 - **Web Portal** - Full-featured control interface accessible via browser
 - **REST API** - Complete API for mobile app integration (Android/iOS)

@@ -8,6 +8,10 @@ This document summarizes the implementation of Bluetooth Low Energy (BLE) suppor
 
 ✅ **Complete** - All software implementation and testing complete. Hardware validation pending physical setup.
 
+## Network Connectivity
+
+**Important:** The BLE implementation operates **completely offline** and requires **no external network connectivity** at runtime. All communication uses local Bluetooth LE radio (2.4 GHz) for direct device-to-device connections. See [NETWORK_CONNECTIVITY_FAQ.md](NETWORK_CONNECTIVITY_FAQ.md) for details about firewall/connectivity concerns.
+
 ## Architecture
 
 ```
