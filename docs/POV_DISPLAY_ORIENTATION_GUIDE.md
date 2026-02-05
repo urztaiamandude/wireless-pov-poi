@@ -48,7 +48,7 @@ Smooth rotation and consistent frame timing are required so the columns align in
 ## Test Pattern Verification Instructions
 Use simple patterns to confirm orientation before loading complex images:
 
-1. **Numbered ladder**: Create a 31 (height) × N (width) image with row labels (0 at bottom, 30 at top). Confirm LED 1 shows row 0.
+1. **Numbered ladder**: Create a 31 (height) × N (width) image with row labels (0 at bottom, 30 at top) using an image editor or a quick Pillow script. Confirm LED 1 shows row 0.
 2. **Vertical gradient**: Bottom pixels red → top pixels blue to confirm vertical direction.
 3. **Single-row marker**: A bright line on row 0 should appear at LED 1 only.
 4. **Spin test**: Display the same pattern while spinning; the image should not flip vertically.
@@ -73,7 +73,7 @@ Use simple patterns to confirm orientation before loading complex images:
 
 ## Quick Reference Commands
 ```bash
-# Convert image (31px tall) from repo root
+# Convert image (converter auto-resizes to 31px tall) from repo root
 python examples/image_converter.py path/to/image.png
 
 # Run orientation tests
