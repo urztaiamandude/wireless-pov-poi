@@ -40,6 +40,12 @@ This system creates stunning POV light displays using a 32 LED APA102 strip cont
   - SSID: `POV-POI-WiFi`
   - Password: `povpoi123`
   - IP: `192.168.4.1`
+- **Bluetooth Low Energy (BLE)** - Direct BLE connectivity for mobile apps
+  - Device Name: `Wireless POV Poi`
+  - Nordic UART Service (NUS) for cross-platform compatibility
+  - Works with Android, Windows, and Web (Chrome/Edge)
+  - **Operates completely offline** - no internet required
+  - See [BLE Protocol Documentation](docs/BLE_PROTOCOL.md)
 - **Web Portal** - Full-featured control interface accessible via browser
 - **REST API** - Complete API for mobile app integration (Android/iOS)
 - **mDNS Support** - Access via `http://povpoi.local`
@@ -120,10 +126,21 @@ See [ESP32-S3 Compatibility Guide](docs/ESP32_S3_COMPATIBILITY.md) for ESP32-S3 
 
 ### 3. Connect and Control
 
+**Option A: WiFi Connection**
 1. Power on the system
 2. Connect to WiFi network: **POV-POI-WiFi** (password: `povpoi123`)
 3. Open browser and navigate to: `http://192.168.4.1`
 4. Use the web interface to control patterns, upload images, and adjust settings
+
+**Option B: Bluetooth Low Energy (BLE) Connection**
+1. Power on the system
+2. Open a BLE-capable app (Flutter app, nRF Connect, etc.)
+3. Scan for BLE devices and look for: **Wireless POV Poi**
+4. Connect to the device
+5. Use the Nordic UART Service to send commands
+6. See [BLE Protocol Documentation](docs/BLE_PROTOCOL.md) for command reference
+
+**Note:** BLE and WiFi can operate simultaneously. BLE is more power-efficient and has lower latency for simple commands.
 
 **🎨 Demo Content Available!** The firmware comes pre-loaded with:
 - 3 demo images (Smiley, Rainbow, Heart)
@@ -144,6 +161,7 @@ See [DEMO_CONTENT.md](DEMO_CONTENT.md) for complete details on built-in content.
 - **[Complete Setup Guide](docs/README.md)** - Detailed installation and usage instructions
 - **[Wiring Diagram](docs/WIRING.md)** - Hardware connections and assembly guide
 - **[API Documentation](docs/API.md)** - REST API reference for mobile app development
+- **[BLE Protocol](docs/BLE_PROTOCOL.md)** - Bluetooth Low Energy command reference
 - **[BLE Protocol](wireless_pov_poi_app/BLE_PROTOCOL.md)** 🆕 - Bluetooth protocol specification for Flutter app
 - **[POI Pairing Guide](docs/POI_PAIRING.md)** 🆕 - Setup and sync multiple poi devices
 - **[BMP Image Processing Guide](docs/BMP_IMAGE_PROCESSING.md)** 🆕 - BMPImageReader and BMPImageSequence usage
