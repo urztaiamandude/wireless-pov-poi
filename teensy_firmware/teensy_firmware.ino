@@ -716,7 +716,7 @@ void displayPattern() {
   Pattern& pat = patterns[currentIndex];
   static uint32_t patternTime = 0;
   patternTime++;
-  const uint8_t speedDivisor = 20;
+  const uint8_t speedDivisor = 20;  // Tune split-spin/chase speed to match other animations.
   
   switch (pat.type) {
     case 0:  // Rainbow
