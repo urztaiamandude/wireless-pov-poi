@@ -24,8 +24,8 @@
 │                                                                 │
 │  ┌── Conversion Settings ───────────────────────────────────┐  │
 │  │                                                           │  │
-│  │  Width:        [31  ▼] pixels (default: 31)             │  │
-│  │  Max Height:   [64  ▼] pixels (default: 64)             │  │
+│  │  Width:        [64  ▼] pixels (default: 64)             │  │
+│  │  Max Height:   [31  ▼] pixels (default: 31)             │  │
 │  │  ☑ Enhance Contrast (recommended for better visibility) │  │
 │  │  ☑ Lock Aspect Ratio                                    │  │
 │  │                                                           │  │
