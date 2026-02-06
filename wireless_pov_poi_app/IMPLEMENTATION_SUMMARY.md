@@ -215,7 +215,7 @@ Technical protocol specification:
 - Protocol format
 - Command codes reference table
 - Display modes
-- Pattern types (16 total)
+- Pattern types (18 total)
 - Image upload sequence
 - Chunked transfer implementation
 - Error handling
