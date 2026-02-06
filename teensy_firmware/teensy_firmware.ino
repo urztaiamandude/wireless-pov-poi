@@ -53,6 +53,7 @@
 #define IMAGE_MAX_WIDTH 200     // Maximum width for stored images
 #define MAX_PATTERNS 18  // Total pattern slots (indexed 0-17)
 #define MAX_SEQUENCES 5
+const uint8_t kPatternSpeedDivisor = 20;  // Used for split-spin/theater chase speed scaling.
 
 #ifdef SD_SUPPORT
   // SD Card Configuration
@@ -716,7 +717,6 @@ void displayPattern() {
   Pattern& pat = patterns[currentIndex];
   static uint32_t patternTime = 0;
   patternTime++;
-  const uint8_t speedDivisor = 20;  // Tune split-spin/chase speed to match other animations.
   
   switch (pat.type) {
     case 0:  // Rainbow
@@ -1072,7 +1072,7 @@ void displayPattern() {
 
     case 16:  // Split Spin - rotating two-color halves
       {
-        uint8_t offset = (patternTime * pat.speed / speedDivisor) % DISPLAY_LEDS;
+        uint8_t offset = (patternTime * pat.speed / kPatternSpeedDivisor) % DISPLAY_LEDS;
         uint8_t splitPoint = DISPLAY_LEDS / 2;
         for (int i = DISPLAY_LED_START; i < NUM_LEDS; i++) {
           uint8_t pos = (i - 1 + offset) % DISPLAY_LEDS;
@@ -1083,7 +1083,7 @@ void displayPattern() {
 
     case 17:  // Theater Chase - dotted chase with background
       {
-        uint8_t chaseOffset = (patternTime * pat.speed / speedDivisor) % 3;
+        uint8_t chaseOffset = (patternTime * pat.speed / kPatternSpeedDivisor) % 3;
         for (int i = DISPLAY_LED_START; i < NUM_LEDS; i++) {
           uint8_t phase = (i - 1 + chaseOffset) % 3;
           leds[i] = (phase == 0) ? pat.color1 : pat.color2;

@@ -613,7 +613,7 @@ void handleRoot() {
                 <div style="margin-top: 10px; padding: 10px; background: rgba(102, 126, 234, 0.1); border-radius: 5px; font-size: 14px;">
                     <strong>Available Content:</strong><br>
                     📷 Images: 0=Smiley, 1=Rainbow, 2=Heart<br>
-                    🎨 Pattern slots (0-17; defaults 0-6): 0=Rainbow, 1=Fire, 2=Comet,<br>
+                    🎨 Pattern slots (0-17; preloaded 0-6): 0=Rainbow, 1=Fire, 2=Comet,<br>
                     3=Breathing, 4=Plasma, 5=Split Spin, 6=Theater Chase<br>
                     🎬 Sequences: 0=Demo Mix
                 </div>
