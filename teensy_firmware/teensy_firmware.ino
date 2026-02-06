@@ -370,15 +370,6 @@ void startupAnimation() {
 }
 
 void processSerialCommands() {
-  // #region agent log
-  static bool _loggedRx = false;
-  if (ESP32_SERIAL.available() > 0 && !_loggedRx) {
-    Serial.print("[DBG][H3] ESP32_SERIAL RX: ");
-    Serial.print(ESP32_SERIAL.available());
-    Serial.println(" bytes (Teensy receiving from ESP32)");
-    _loggedRx = true;
-  } else if (ESP32_SERIAL.available() == 0) { _loggedRx = false; }
-  // #endregion
   while (ESP32_SERIAL.available()) {
     uint8_t byte = ESP32_SERIAL.read();
     
@@ -475,9 +466,6 @@ void parseCommand() {
       break;
       
     case 0x10:  // Status request
-      // #region agent log
-      Serial.println("[DBG][H2] Cmd 0x10 received, calling sendStatus()");
-      // #endregion
       sendStatus();
       break;
       

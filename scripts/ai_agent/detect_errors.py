@@ -102,7 +102,7 @@ class ErrorDetector:
             
             # Check for various error patterns
             for line_num, line in enumerate(lines, 1):
-                line_errors = self._check_line(line, line_num, file_path.suffix)
+                line_errors = self._check_line(line, line_num, file_path.suffix, lines)
                 result["errors"].extend(line_errors["errors"])
                 result["warnings"].extend(line_errors["warnings"])
                 result["info"].extend(line_errors["info"])
@@ -122,7 +122,7 @@ class ErrorDetector:
             
         return result
     
-    def _check_line(self, line: str, line_num: int, suffix: str) -> Dict:
+    def _check_line(self, line: str, line_num: int, suffix: str, lines: List[str]) -> Dict:
         """Check a single line for errors"""
         result = {"errors": [], "warnings": [], "info": []}
         
@@ -150,7 +150,7 @@ class ErrorDetector:
             result["warnings"].append(f"Line {line_num}: Dynamic allocation detected - ensure proper deallocation")
         
         # Resource leaks - file/socket not closed
-        if re.search(r'fopen\s*\(', line) and 'fclose' not in content_containing(line):
+        if re.search(r'fopen\s*\(', line) and 'fclose' not in content_containing(lines, line_num, "fclose"):
             result["warnings"].append(f"Line {line_num}: File opened - ensure it's closed")
         
         # Infinite loops
@@ -174,7 +174,7 @@ class ErrorDetector:
         
         # LED strip issues
         if 'FastLED' in line or 'APA102' in line:
-            if 'show()' not in content_containing(line):
+            if 'show()' not in content_containing(lines, line_num, "show()"):
                 result["info"].append(f"Line {line_num}: LED operations without show() call")
         
         return result
@@ -262,10 +262,15 @@ class ErrorDetector:
         return fixes
 
 
-def content_containing(line: str, keyword: str = None) -> str:
+def content_containing(lines: List[str], line_num: int, keyword: str = None, window: int = 20) -> str:
     """Helper to get surrounding content context"""
-    # Simplified - in real implementation would return more context
-    return line
+    index = max(0, line_num - 1)
+    start = max(0, index - window)
+    end = min(len(lines), index + window + 1)
+    context = "\n".join(lines[start:end])
+    if keyword:
+        return context if keyword in context else ""
+    return context
 
 
 def run_pytest_check() -> Dict:

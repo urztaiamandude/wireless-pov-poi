@@ -82,35 +82,29 @@ def dispatch_task(task_data: Dict) -> Dict:
             "error": f"Script {script_name} not found"
         }
     
-    # Run the script
-    safe_log(f"Running {script_name} for task {task_name}")
-    start = time.time()
-    
-    exit_code, stdout, stderr = run_command(
-        [sys.executable, str(script_path), json.dumps(task_data)],
-        cwd=REPO_ROOT,
-        timeout=600  # 10 minute timeout
-    )
-    
-    duration = time.time() - start
-    
-    result = {
-        "task": task_name,
-        "type": task_type,
-        "script": script_name,
-        "exit_code": exit_code,
-        "success": exit_code == 0,
-        "duration": f"{duration:.1f}s",
-        "output": stdout[-1000:] if stdout else "",  # Last 1000 chars
-        "errors": stderr[-500:] if stderr else ""
+    results = {
+        "task": task_data["name"],
+        "agent": agent_type,
+        "success": True,
+        "output": "",
+        "errors": []
     }
     
-    if result["success"]:
-        safe_log(f"Task '{task_name}' completed successfully ({result['duration']})", "INFO")
-    else:
-        safe_log(f"Task '{task_name}' failed with exit code {exit_code}", "ERROR")
+    # Run each script for the agent
+    ran_any = False
+    for script_name in agent_config.get("scripts", []):
+        ran_any = True
+        success, output = run_agent_script(agent_type, script_name, task_data)
+        if success:
+            results["output"] += output + "\n"
+        else:
+            results["success"] = False
+            results["errors"].append(f"{script_name}: {output}")
     
-    return result
+    if not ran_any:
+        results["success"] = False
+
+    return results
 
 
 def main():
