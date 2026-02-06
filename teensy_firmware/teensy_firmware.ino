@@ -716,6 +716,7 @@ void displayPattern() {
   Pattern& pat = patterns[currentIndex];
   static uint32_t patternTime = 0;
   patternTime++;
+  const uint8_t speedDivisor = 20;
   
   switch (pat.type) {
     case 0:  // Rainbow
@@ -1071,7 +1072,7 @@ void displayPattern() {
 
     case 16:  // Split Spin - rotating two-color halves
       {
-        uint8_t offset = (patternTime * pat.speed / 20) % DISPLAY_LEDS;
+        uint8_t offset = (patternTime * pat.speed / speedDivisor) % DISPLAY_LEDS;
         uint8_t splitPoint = DISPLAY_LEDS / 2;
         for (int i = DISPLAY_LED_START; i < NUM_LEDS; i++) {
           uint8_t pos = (i - 1 + offset) % DISPLAY_LEDS;
@@ -1082,7 +1083,7 @@ void displayPattern() {
 
     case 17:  // Theater Chase - dotted chase with background
       {
-        uint8_t chaseOffset = (patternTime * pat.speed / 20) % 3;
+        uint8_t chaseOffset = (patternTime * pat.speed / speedDivisor) % 3;
         for (int i = DISPLAY_LED_START; i < NUM_LEDS; i++) {
           uint8_t phase = (i - 1 + chaseOffset) % 3;
           leds[i] = (phase == 0) ? pat.color1 : pat.color2;
