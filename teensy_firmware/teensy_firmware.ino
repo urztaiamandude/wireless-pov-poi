@@ -51,7 +51,7 @@
 #define IMAGE_WIDTH 31          // Fixed width for POV display (matches DISPLAY_LEDS)
 #define IMAGE_HEIGHT 31         // Fixed: matches DISPLAY_LEDS (one pixel per LED)
 #define IMAGE_MAX_WIDTH 200     // Maximum width for stored images
-#define MAX_PATTERNS 18  // 0-17: see "Pattern types (0-17)" comment below
+#define MAX_PATTERNS 18  // 0-17 pattern slots
 #define MAX_SEQUENCES 5
 
 #ifdef SD_SUPPORT
@@ -1073,7 +1073,7 @@ void displayPattern() {
       {
         uint8_t offset = (patternTime * pat.speed / 20) % DISPLAY_LEDS;
         uint8_t splitPoint = DISPLAY_LEDS / 2;
-        for (int i = 1; i < NUM_LEDS; i++) {
+        for (int i = DISPLAY_LED_START; i < NUM_LEDS; i++) {
           uint8_t pos = (i - 1 + offset) % DISPLAY_LEDS;
           leds[i] = (pos < splitPoint) ? pat.color1 : pat.color2;
         }
@@ -1083,7 +1083,7 @@ void displayPattern() {
     case 17:  // Theater Chase - dotted chase with background
       {
         uint8_t chaseOffset = (patternTime * pat.speed / 20) % 3;
-        for (int i = 1; i < NUM_LEDS; i++) {
+        for (int i = DISPLAY_LED_START; i < NUM_LEDS; i++) {
           uint8_t phase = (i - 1 + chaseOffset) % 3;
           leds[i] = (phase == 0) ? pat.color1 : pat.color2;
         }
