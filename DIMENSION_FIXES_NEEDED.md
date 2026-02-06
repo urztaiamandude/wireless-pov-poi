@@ -24,8 +24,6 @@ Throughout the repository, dimensions are incorrectly labeled. The LED strip is 
 - [ ] examples/BUILD_INSTALLER.md - Dimension references
 - [ ] examples/ORIENTATION_FIX.md - Verify dimension labels
 - [ ] DEMO_CONTENT.md - "31x31 pixels" needs W×H clarification
-- [ ] POVPoiApp/README.md - Dimension references
-- [ ] examples/android_app/README.md - Dimension references
 
 ### Firmware Documentation
 - [ ] teensy_firmware/README.md - "31x64 pixels max" needs clarification
@@ -40,8 +38,6 @@ Throughout the repository, dimensions are incorrectly labeled. The LED strip is 
 ### Code Files (Comments)
 - [ ] examples/image_converter.py - Already fixed ✓
 - [ ] examples/image_converter_gui.py - Already fixed ✓
-- [ ] examples/android_app/ImageConverterActivity.kt - Check dimension logic
-- [ ] examples/android_app/POVPoiAPI.kt - Check dimension logic
 
 ## Common Errors to Fix
 
@@ -65,9 +61,8 @@ Throughout the repository, dimensions are incorrectly labeled. The LED strip is 
 
 1. **Phase 1**: Fix all markdown documentation files
 2. **Phase 2**: Fix code comments in Python files
-3. **Phase 3**: Fix Android app code and comments
-4. **Phase 4**: Verify firmware comments (C++/Arduino)
-5. **Phase 5**: Create comprehensive dimension reference guide
+3. **Phase 3**: Verify firmware comments (C++/Arduino)
+4. **Phase 4**: Create comprehensive dimension reference guide
 
 ## Dimension Reference Guide (To Be Created)
 
@@ -84,7 +79,6 @@ Create a new file `DIMENSIONS_REFERENCE.md` that clearly explains:
 - [x] Tracking document created
 - [ ] Phase 1: Documentation fixes
 - [ ] Phase 2: Python code fixes
-- [ ] Phase 3: Android app fixes
-- [ ] Phase 4: Firmware comment fixes
-- [ ] Phase 5: Reference guide created
+- [ ] Phase 3: Firmware comment fixes
+- [ ] Phase 4: Reference guide created
 - [ ] All changes committed and pushed

@@ -1,6 +1,6 @@
 # Nebula Poi
 
-A complete persistence of vision (POV) LED poi system using Teensy 4.1 and ESP32 with wireless control via web interface and mobile app support.
+A complete persistence of vision (POV) LED poi system using Teensy 4.1 and ESP32 with wireless control via web interface and integrations.
 
 ## Features
 
@@ -17,7 +17,7 @@ A complete persistence of vision (POV) LED poi system using Teensy 4.1 and ESP32
 - Sequence support for playing multiple images/patterns
 - Live drawing mode for real-time display
 - Web-based control interface
-- Mobile app API support
+- REST API for web UI and integrations
 - Adjustable brightness and frame rate
 - WiFi Access Point for direct connection
 
@@ -207,9 +207,9 @@ See [ESP32-S3 Compatibility Guide](ESP32_S3_COMPATIBILITY.md) for detailed ESP32
 - Colors update in real-time on LEDs
 - Use "Clear" to reset canvas
 
-### Mobile App Integration
+### REST API Integration
 
-The system provides a REST API for mobile app development:
+The system provides a REST API for web UI and integrations:
 
 #### API Endpoints
 
@@ -353,7 +353,6 @@ Possible improvements and additions:
 - Battery power with charge management
 - SD card for storing more images
 - Bluetooth LE support
-- Mobile app (Android/iOS)
 - Pre-programmed sequences
 - Music synchronization
 - Multiple poi synchronization

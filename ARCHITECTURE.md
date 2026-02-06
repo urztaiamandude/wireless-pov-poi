@@ -70,8 +70,8 @@ Visual Output (POV Display) ✨
 │                │  │                │  │                │
 │  💡 Brightness │  │  📡 WiFi AP    │  │  🔌 REST       │
 │  ⚡ Frame Rate │  │  🌐 Web Portal │  │  📲 JSON       │
-│  🎮 Modes      │  │  🔐 Password   │  │  🤖 Android    │
-│  🎬 Sequences  │  │  📶 30m range  │  │  🍎 iOS        │
+│  🎮 Modes      │  │  🔐 Password   │  │  🌐 Web UI     │
+│  🎬 Sequences  │  │  📶 30m range  │  │               │
 └────────────────┘  └────────────────┘  └────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────────────┐
@@ -80,7 +80,7 @@ Visual Output (POV Display) ✨
 
  Layer 4: User Interface
  ┌─────────────────────────────────────────┐
- │  Web Browser / Mobile App               │
+│  Web Browser                            │
  │  HTML5 + CSS3 + JavaScript              │
  └─────────────────────────────────────────┘
                     ▲│▼
@@ -172,8 +172,7 @@ wireless-pov-poi/
 │   ├── WIRING.md             # Wiring diagrams
 │   └── API.md                # API reference
 ├── 🎨 examples/               # Example code and tools
-│   ├── image_converter.py    # Python image tool
-│   └── android_app/          # Android app example
+│   └── image_converter.py    # Python image tool
 ├── 🔧 scripts/                # Utility scripts
 │   └── verify_setup.sh       # Setup verification
 ├── 📖 README.md               # Project overview

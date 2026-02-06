@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document summarizes the implementation of Bluetooth Low Energy (BLE) support for the Wireless POV Poi project. The implementation enables direct BLE communication between Flutter apps (Android, Windows, Web) and the POI hardware via an ESP32 bridge.
+This document summarizes the implementation of Bluetooth Low Energy (BLE) support for the Wireless POV Poi project. The implementation enables direct BLE communication between Flutter apps (Windows, Web) and the POI hardware via an ESP32 bridge.
 
 ## Implementation Status
 
@@ -15,7 +15,7 @@ This document summarizes the implementation of Bluetooth Low Energy (BLE) suppor
 ## Architecture
 
 ```
-Flutter App (Android/Windows/Web)
+Flutter App (Windows/Web)
          ↓ BLE (Nordic UART Service)
     ESP32 Co-Processor (BLE Bridge)
          ↓ Serial UART (115200 baud)
@@ -81,7 +81,7 @@ Flutter App (Android/Windows/Web)
 
 ### 1. Nordic UART Service (NUS)
 - **Industry Standard**: Uses widely-supported Nordic UART Service
-- **Cross-Platform**: Works with Android, Windows, and Web (Chrome/Edge)
+- **Cross-Platform**: Works with Windows and Web (Chrome/Edge)
 - **Device Discovery**: Advertises as "Wireless POV Poi"
 - **UUIDs**:
   - Service: `6e400001-b5a3-f393-e0a9-e50e24dcca9e`
@@ -280,7 +280,7 @@ BLE Protocol Command Translation Tests
 When hardware becomes available:
 
 - [ ] **Discovery Test**: Device appears as "Wireless POV Poi" in BLE scan
-- [ ] **Connection Test**: Can connect from Android device
+- [ ] **Connection Test**: Can connect from Windows or Web client
 - [ ] **Connection Test**: Can connect from Windows device (if applicable)
 - [ ] **Connection Test**: Can connect from Web (Chrome/Edge with Web Bluetooth)
 - [ ] **Command Test**: Set brightness (0-255) works correctly

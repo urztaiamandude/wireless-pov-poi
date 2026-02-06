@@ -9,7 +9,6 @@ Before you begin, ensure you have:
    - Verify: `flutter doctor`
 
 2. **Platform-Specific Tools**
-   - **Android**: Android Studio + SDK
    - **Windows**: Visual Studio 2022 with C++ workload
    - **Web**: Chrome or Edge browser
 
@@ -41,7 +40,6 @@ flutter doctor -v
 
 Check for:
 - ✅ Flutter (Channel stable)
-- ✅ Android toolchain (if building for Android)
 - ✅ Visual Studio (if building for Windows)
 - ✅ Chrome (if building for Web)
 
@@ -63,7 +61,6 @@ These will be loaded into the database on first run.
 flutter run
 
 # Or select specific platform:
-flutter run -d android
 flutter run -d windows
 flutter run -d chrome
 ```
@@ -76,19 +73,6 @@ While app is running:
 - Press `q` to quit
 
 ## Building for Production
-
-### Android APK
-
-```bash
-flutter build apk --release
-
-# Output: build/app/outputs/flutter-apk/app-release.apk
-```
-
-Install on device:
-```bash
-adb install build/app/outputs/flutter-apk/app-release.apk
-```
 
 ### Windows Executable
 
@@ -246,13 +230,6 @@ Features:
 - Memory analyzer
 
 ### BLE Debugging
-
-On Android, enable Bluetooth HCI snoop logging:
-1. Settings → Developer Options
-2. Enable Bluetooth HCI snoop log
-3. Logs saved to `/data/misc/bluetooth/logs/`
-4. Analyze with Wireshark
-
 ## Troubleshooting
 
 ### "Package not found"
@@ -260,17 +237,6 @@ On Android, enable Bluetooth HCI snoop logging:
 ```bash
 flutter pub get
 flutter pub upgrade
-```
-
-### "Build failed" (Android)
-
-```bash
-cd android
-./gradlew clean
-cd ..
-flutter clean
-flutter pub get
-flutter build apk
 ```
 
 ### "BLE not working" (Windows)

@@ -11,13 +11,3 @@
   - [ ] Audio-reactive patterns (IDs 11-15) - Requires audio input hardware on pin A0. Currently falls back to sparkle pattern.
 - [x] Add ESP32 HTTP endpoints and wiring to drive Teensy SD image management commands (save/load/list/delete) and surface results in the web UI. ✅ COMPLETED
 
-## Android App Enhancements (Future)
-
-- [ ] Motion control - Use phone gyroscope/accelerometer to control patterns (tilt phone to change speed/direction)
-- [ ] Phone microphone audio-reactive patterns - Use phone mic instead of hardware mic on Teensy, process audio on phone and send pattern commands
-- [ ] Visual sequence builder - Drag-and-drop timeline editor for creating sequences
-- [ ] Pattern editor/creator - Visual pattern design tool with custom color gradients and timing
-- [ ] Background services - Keep connection alive in background, auto-reconnect on WiFi changes
-- [ ] Home screen widgets - Quick controls without opening app, one-tap pattern switching
-- [ ] Advanced image processing - Use Android image libraries (OpenCV, etc.) for better filters, dithering, edge detection
-

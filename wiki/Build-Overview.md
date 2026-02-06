@@ -8,7 +8,6 @@ points to detailed wiki pages for each target.
 - Teensy 4.1 firmware (Arduino IDE or PlatformIO)
 - ESP32 firmware (Arduino IDE or PlatformIO)
 - ESP32-S3 firmware (Arduino IDE or PlatformIO)
-- Android app (Android Studio or Gradle CLI)
 - Image converter tools (Python GUI and Windows executable)
 
 ## Quick links
@@ -17,7 +16,6 @@ points to detailed wiki pages for each target.
 - [Teensy HEX files](Build-Teensy-HEX.md)
 - [Teensy CLI compilation](Build-Teensy-CLI.md)
 - [ESP32 firmware build](Build-ESP32-Firmware.md)
-- [Android app build](Build-Android-App.md)
 - [Image converter builds](Build-Image-Converter.md)
 
 ## PlatformIO quick commands
@@ -44,7 +42,6 @@ pio run -e esp32s3 -t upload
   `.pio/build/teensy41/firmware.hex` and `build_output/teensy41_firmware.hex`
 - ESP32 build output (PlatformIO): `.pio/build/esp32/`
 - ESP32-S3 build output (PlatformIO): `.pio/build/esp32s3/`
-- Android APK (release): `POVPoiApp/app/release/app-release.apk`
 - Windows image converter EXE: `examples/dist/POV_POI_Image_Converter.exe`
 
 ## Tooling prerequisites
@@ -52,5 +49,4 @@ pio run -e esp32s3 -t upload
 - Arduino IDE 1.8.x or 2.x and Teensyduino
 - PlatformIO (via `pip install platformio`)
 - Arduino CLI (optional, for CLI builds)
-- Android Studio and the Android SDK
 - Python 3.7+ for image converter tools

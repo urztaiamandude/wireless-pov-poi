@@ -162,7 +162,6 @@ January 11, 2026
 - ✅ test_image_converter.py (original tests)
 - ✅ Any firmware code
 - ✅ Any web interface code
-- ✅ Any Android app code
 
 ## Dependencies
 

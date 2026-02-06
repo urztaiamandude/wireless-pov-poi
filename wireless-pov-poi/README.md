@@ -30,7 +30,7 @@ This system creates stunning POV light displays using a 32 LED APA102 strip cont
   - Password: `povpoi123`
   - IP: `192.168.4.1`
 - **Web Portal** - Full-featured control interface accessible via browser
-- **REST API** - Complete API for mobile app integration (Android/iOS)
+- **REST API** - Complete API for web UI and integrations
 - **mDNS Support** - Access via `http://povpoi.local`
 
 ## Firmware Architecture
@@ -109,7 +109,7 @@ See [docs/WIRING.md](docs/WIRING.md) for detailed wiring instructions.
 
 - **[Complete Setup Guide](docs/README.md)** - Detailed installation and usage instructions
 - **[Wiring Diagram](docs/WIRING.md)** - Hardware connections and assembly guide
-- **[API Documentation](docs/API.md)** - REST API reference for mobile app development
+- **[API Documentation](docs/API.md)** - REST API reference for web UI and integrations
 - **[Image Conversion Guide](docs/IMAGE_CONVERSION.md)** - How automatic image conversion works
 - **[Testing Guide](TESTING.md)** - Testing tools, environment setup, and test procedures
 
@@ -136,38 +136,9 @@ The LED strip forms the VERTICAL axis of the POV display:
 - **No flip needed** - The LED arrangement maps directly to image pixels
 - When poi are spun, images scroll naturally in correct orientation
 
-## Mobile App Support
-
-### Android App (Included!)
-
-A complete, ready-to-build Android Studio project with advanced features:
-- **Complete Android Studio Project** - Full project structure in `POVPoiApp/`
-  - Open directly in Android Studio
-  - All dependencies configured
-  - Ready to build and deploy
-- **Image Converter Activity** - Dedicated UI for image conversion
-  - Gallery and camera image selection
-  - Real-time before/after preview
-  - Adjustable conversion settings (width, height, contrast)
-  - Save to device gallery
-  - Direct upload to POV device
-- **Pattern and mode control** - Quick access to patterns and display modes
-- **Brightness and frame rate adjustment** - Real-time control sliders
-- **Status monitoring** - Connection and mode display
-
-**Quick Start:**
-1. Open `POVPoiApp/` in Android Studio
-2. Build and run on your Android device
-3. Connect to POV-POI-WiFi network
-4. Start controlling your Nebula Poi!
-
-See [Android App README](POVPoiApp/README.md) for complete setup and usage instructions.
-
-**Example Files:** The `examples/android_app/` directory contains individual example files for reference.
-
 ### REST API
 
-The system includes a complete REST API for building mobile apps:
+The system includes a complete REST API for the web UI and integrations:
 - Status monitoring
 - Mode control
 - Brightness adjustment
@@ -175,7 +146,7 @@ The system includes a complete REST API for building mobile apps:
 - Image upload with automatic conversion
 - Live frame updates
 
-See [API Documentation](docs/API.md) for detailed endpoint information and example code for Android and iOS.
+See [API Documentation](docs/API.md) for detailed endpoint information.
 
 ## Technical Specifications
 

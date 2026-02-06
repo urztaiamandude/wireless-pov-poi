@@ -165,19 +165,6 @@ ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
 // Result: targetWidth×31 image
 ```
 
-### Kotlin (Android)
-
-```kotlin
-val targetHeight = 31
-val scaleFactor = targetHeight.toFloat() / bitmap.height
-val targetWidth = (bitmap.width * scaleFactor).toInt()
-
-val resized = Bitmap.createScaledBitmap(
-    bitmap, targetWidth, targetHeight, false
-)
-// Result: targetWidth×31 image
-```
-
 ## Common Mistakes to Avoid
 
 ### Mistake 1: Swapping Width and Height
@@ -270,7 +257,6 @@ Example: 62×31 image
 
 - [Image Conversion Guide](docs/IMAGE_CONVERSION.md)
 - [Image Converter Scripts](examples/)
-- [Android App Documentation](examples/android_app/README.md)
 - [Firmware Architecture](FIRMWARE_ARCHITECTURE.md)
 
 ---

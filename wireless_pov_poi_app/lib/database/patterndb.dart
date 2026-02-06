@@ -1,4 +1,3 @@
-import 'dart:io' show Platform;
 import 'dart:math';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dbimage.dart';
@@ -25,7 +24,7 @@ class PatternDB {
   Future<void> getDB() async {
     if (kIsWeb) {
       databaseFactory = databaseFactoryFfiWeb;
-    } else if (!Platform.isAndroid) {
+    } else {
       sqfliteFfiInit();
       databaseFactory = databaseFactoryFfi;
     }

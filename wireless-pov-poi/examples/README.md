@@ -104,7 +104,6 @@ The system automatically converts images to POV-compatible format:
 
 - **GUI Converter**: Desktop application with visual preview (this tool)
 - **Web Interface**: Uses JavaScript Canvas API to resize images client-side before upload
-- **Android App**: Uses Android Bitmap API to resize images before upload  
 - **Command-Line Script**: Use `image_converter.py` to pre-convert images
 - **Teensy Processing**: Final image processing and storage handled by Teensy 4.1
 
@@ -131,7 +130,6 @@ This tool can help you convert regular images to POV-compatible formats directly
 The system automatically converts images when you upload them:
 
 1. **Web Interface**: Simply select any image and click upload - automatic client-side conversion
-2. **Android App**: Use the `uploadImage(bitmap)` method - automatic conversion before upload
 
 ### Manual Conversion
 

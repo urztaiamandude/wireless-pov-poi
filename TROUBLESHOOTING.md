@@ -160,8 +160,7 @@ Comprehensive solutions for common issues with the Nebula Poi.
 1. Use IP address directly: http://192.168.4.1
 2. Check device supports mDNS
 3. iOS/Mac: Usually works
-4. Android: May not support mDNS
-5. Windows: Install Bonjour service
+4. Windows: Install Bonjour service
 
 ---
 

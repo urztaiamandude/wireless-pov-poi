@@ -71,7 +71,7 @@ The repository has many strengths:
 ✅ **Clean Architecture** - Well-separated concerns  
 ✅ **Production Ready** - Arduino firmware fully functional  
 ✅ **Dual Firmware Options** - Beginner and advanced versions  
-✅ **Comprehensive Examples** - Python tools, Android app  
+✅ **Comprehensive Examples** - Python tools  
 ✅ **Mobile-First Design** - Responsive web interface  
 ✅ **PWA Support** - Install as native app  
 ✅ **Active Maintenance** - Recent commits
@@ -140,8 +140,7 @@ The repository has many strengths:
 3. ✅ Multiple firmware options for different users
 4. ✅ Mobile-responsive web interface
 5. ✅ Automatic image conversion and orientation
-6. ✅ Example code for Android integration
-7. ✅ SD card support for offline storage
+6. ✅ SD card support for offline storage
 
 ---
 

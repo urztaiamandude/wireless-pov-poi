@@ -9,7 +9,7 @@ This document describes the integration of the Wireless POV Poi Flutter app with
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                        Flutter App Layer                         │
-│  (Android / Windows / Web)                                      │
+│  (Windows / Web)                                                │
 │                                                                   │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐         │
 │  │   Welcome    │  │     Home     │  │   Pattern    │         │
@@ -56,8 +56,8 @@ The Wireless POV Poi system supports **two independent control methods**:
 #### BLE Control (Flutter App)
 - **Interface**: Direct BLE connection via Flutter app
 - **Protocol**: Nordic UART Service (custom protocol)
-- **Advantages**:
-  - Multi-platform app (Android, Windows, Web)
+**Advantages**:
+  - Multi-platform app (Windows, Web)
   - Control multiple devices simultaneously
   - Lower latency
   - Offline pattern management
@@ -169,13 +169,6 @@ lib/
 ### Platform-Specific Files
 
 ```
-android/
-├── app/
-│   ├── build.gradle                          # Build configuration
-│   └── src/main/
-│       ├── AndroidManifest.xml              # Permissions
-│       └── kotlin/.../MainActivity.kt       # Entry point
-
 windows/
 └── runner/
     └── main.cpp                              # Entry point + title
@@ -226,15 +219,6 @@ for (var poi in connectedPoi) {
 
 ## Building and Deployment
 
-### Android
-
-```bash
-cd wireless_pov_poi_app
-flutter build apk --release
-```
-
-Output: `build/app/outputs/flutter-apk/app-release.apk`
-
 ### Windows
 
 ```bash
@@ -276,7 +260,6 @@ The welcome page will show no devices during scan, which is expected.
 
 ### Platform-Specific Testing
 
-- **Android**: Test on API 21+ device or emulator (with BLE support)
 - **Windows**: Requires BLE adapter, test on Windows 10/11
 - **Web**: Test in Chrome/Edge only (Firefox/Safari unsupported)
 
@@ -385,7 +368,6 @@ No changes required to Teensy firmware. It receives commands via serial regardle
 
 ### Connection Failed
 
-- Check BLE permissions on Android
 - Restart app and retry
 - Power cycle the poi device
 - Check no other app is connected to device
@@ -417,7 +399,7 @@ No changes required to Teensy firmware. It receives commands via serial regardle
 When contributing to the Flutter app:
 
 1. Follow Flutter/Dart style guidelines
-2. Test on all target platforms (Android, Windows, Web)
+2. Test on all target platforms (Windows, Web)
 3. Validate pattern dimensions in `patterndb.dart`
 4. Update BLE_PROTOCOL.md if protocol changes
 5. Keep hardware constraints in `config.dart`

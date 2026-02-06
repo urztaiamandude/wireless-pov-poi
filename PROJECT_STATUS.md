@@ -24,7 +24,6 @@ Users can build and deploy the Nebula Poi today using the Arduino IDE firmware. 
 | **REST API** | ✅ **Complete** | 7 endpoints, all functional |
 | **Python CLI Converter** | ✅ **Complete** | Image conversion working |
 | **Python GUI Converter** | ✅ **Complete** | Visual converter with batch support |
-| **Android App Example** | ✅ **Complete** | Full source code provided |
 | **Documentation** | ✅ **Complete** | 40+ pages, comprehensive |
 | **Wiring Diagrams** | ✅ **Complete** | Detailed connection guides |
 | **Tests** | ✅ **Complete** | 13 tests, all passing |
@@ -48,10 +47,9 @@ Users can build and deploy the Nebula Poi today using the Arduino IDE firmware. 
 
 ### Software & Tools
 - ✅ Web-based control interface
-- ✅ REST API for mobile apps
+- ✅ REST API for web UI and integrations
 - ✅ Image conversion (CLI & GUI)
 - ✅ Automatic vertical flip for correct orientation
-- ✅ Android app integration example
 - ✅ Batch image processing
 
 ### Documentation & Support
@@ -131,7 +129,6 @@ These are documented as future plans, not current requirements:
 - ❌ Music synchronization
 - ❌ Multiple poi synchronization
 - ❌ OTA firmware updates
-- ❌ Native mobile apps (example code only)
 - ❌ Cloud storage
 - ❌ Video playback
 

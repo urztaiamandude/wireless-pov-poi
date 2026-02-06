@@ -44,7 +44,6 @@ This project provides a complete, production-ready wireless Persistence of Visio
 
 ### Examples and Tools
 - **Python Image Converter** - Convert images to POV-compatible format
-- **Android App Example** - Complete Kotlin source code
 - **Verification Script** - Check setup before starting
 - **Pattern Examples** - Sample configurations
 
@@ -71,7 +70,7 @@ This project provides a complete, production-ready wireless Persistence of Visio
 ### Wireless Control
 📡 WiFi Access Point (no router needed)  
 🌐 Web-based control interface  
-📲 REST API for mobile apps  
+📲 REST API for web UI and integrations  
 🔄 Real-time status updates  
 
 ### Performance
@@ -155,7 +154,7 @@ This project provides a complete, production-ready wireless Persistence of Visio
 - Platform for custom patterns
 - Testing ground for animations
 - API integration practice
-- Mobile app development
+- Web UI development
 
 ## Getting Started
 
@@ -205,7 +204,6 @@ See [QUICKSTART.md](QUICKSTART.md) for detailed step-by-step instructions.
 ### Optional
 - PlatformIO (alternative to Arduino IDE)
 - Python 3 (for image converter)
-- Android Studio (for mobile app)
 
 ## Customization Options
 
@@ -221,7 +219,7 @@ See [QUICKSTART.md](QUICKSTART.md) for detailed step-by-step instructions.
 - Implement new display modes
 - Extend REST API
 - Create custom web interface
-- Develop mobile apps
+- Develop web UI extensions
 - Add sensors (IMU, microphone)
 
 ## Community and Support
@@ -275,7 +273,7 @@ See [QUICKSTART.md](QUICKSTART.md) for detailed step-by-step instructions.
 
 ### Community Requests
 - Bluetooth support
-- Native mobile apps
+- Web UI enhancements
 - Cloud storage
 - Music synchronization
 - Multiple poi sync

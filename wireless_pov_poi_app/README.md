@@ -4,7 +4,7 @@ Multi-platform Flutter application for controlling Wireless POV Poi devices via 
 
 ## Features
 
-- ✅ **Multi-platform**: Android, Windows, Web (Chrome/Edge)
+- ✅ **Multi-platform**: Windows, Web (Chrome/Edge)
 - ✅ **BLE Control**: Direct Bluetooth connection (no WiFi required)
 - ✅ **Pattern Management**: Import, edit, and organize LED patterns
 - ✅ **Pattern Creators**: Text, color, gradient, and stacked patterns
@@ -16,18 +16,11 @@ Multi-platform Flutter application for controlling Wireless POV Poi devices via 
 
 | Platform | Status | Notes |
 |----------|--------|-------|
-| Android | ✅ Full support | API 21+ (Lollipop) |
 | Windows | ✅ Full support | Windows 10/11 with BLE adapter |
 | Web | ✅ Limited support | Chrome/Edge only, iOS unsupported |
 | iOS | ⚠️ Unsupported | Web Bluetooth not available |
 
 ## Installation
-
-### Android
-
-1. Download APK from [Releases](https://github.com/urztaiamandude/wireless-pov-poi/releases)
-2. Enable "Install from Unknown Sources" in Android settings
-3. Install APK
 
 ### Windows
 
@@ -44,7 +37,6 @@ Visit: [https://urztaiamandude.github.io/wireless-pov-poi-app](https://urztaiama
 ### Prerequisites
 
 - Flutter SDK ≥3.7.2
-- Android Studio (for Android builds)
 - Visual Studio 2022 (for Windows builds)
 - Chrome/Edge (for Web builds)
 
@@ -56,9 +48,6 @@ flutter pub get
 
 # Run on connected device
 flutter run
-
-# Build Android APK
-flutter build apk --release
 
 # Build Windows executable
 flutter build windows --release
@@ -184,7 +173,6 @@ for (col = 0; col < width; col++) {
 
 ### Connection Failed
 
-- Check BLE permissions are granted (Android)
 - Disable WiFi on poi (if active)
 - Restart poi and retry
 - Check Bluetooth adapter is BLE 4.0+ (Windows)

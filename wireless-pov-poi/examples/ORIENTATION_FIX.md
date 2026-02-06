@@ -66,7 +66,6 @@ Compare the original and converted images - you'll see the vertical flip has bee
 The vertical flip is implemented in all conversion tools:
 
 1. **Python**: `img.transpose(Image.FLIP_TOP_BOTTOM)`
-2. **Android**: Matrix with `preScale(1.0f, -1.0f)`
-3. **Web**: Manual pixel-by-pixel flip in JavaScript Canvas
+2. **Web**: Manual pixel-by-pixel flip in JavaScript Canvas
 
 See [IMAGE_CONVERSION.md](../docs/IMAGE_CONVERSION.md) for complete technical details.

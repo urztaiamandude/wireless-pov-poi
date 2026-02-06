@@ -10,7 +10,6 @@ project.
 - [Teensy HEX files](Build-Teensy-HEX.md)
 - [Teensy CLI compilation](Build-Teensy-CLI.md)
 - [ESP32 firmware build](Build-ESP32-Firmware.md)
-- [Android app build](Build-Android-App.md)
 - [Image converter builds](Build-Image-Converter.md)
 
 ## Other docs

@@ -2,7 +2,7 @@
  * BLE Bridge for Wireless POV Poi
  * 
  * Implements Nordic UART Service (NUS) to enable BLE communication
- * with Flutter apps (Android/Windows/Web).
+ * with Flutter apps (Windows/Web).
  * 
  * Architecture:
  *   Flutter App <--> BLE (NUS) <--> ESP32 <--> Serial UART <--> Teensy 4.1

@@ -5,8 +5,6 @@ import '../hardware/ble_uart.dart';
 import '../hardware/poi_hardware.dart';
 import '../model.dart';
 import 'home.dart';
-import 'dart:io' show Platform;
-import 'package:flutter/foundation.dart' show kIsWeb;
 
 class WelcomePage extends StatefulWidget {
   const WelcomePage({super.key});
@@ -24,10 +22,6 @@ class _WelcomePageState extends State<WelcomePage> {
   void initState() {
     super.initState();
     
-    // Request permissions on Android
-    if (!kIsWeb && Platform.isAndroid) {
-      FlutterBluePlus.turnOn();
-    }
   }
 
   void scan() async {
@@ -40,8 +34,7 @@ class _WelcomePageState extends State<WelcomePage> {
       await FlutterBluePlus.startScan(
         withKeywords: ["Wireless POV"], // Updated device name filter
         webOptionalServices: [Guid(BLEUart.SERVICE_UUID)],
-        timeout: Duration(seconds: 5),
-        androidUsesFineLocation: false
+        timeout: Duration(seconds: 5)
       );
 
       FlutterBluePlus.scanResults.listen((results) {

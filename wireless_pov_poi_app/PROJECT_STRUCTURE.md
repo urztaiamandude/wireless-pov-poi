@@ -32,15 +32,6 @@ wireless_pov_poi_app/
 │       ├── dbimage.dart              # Pattern data model (27 lines)
 │       └── patterndb.dart            # Pattern storage & validation (223 lines)
 │
-├── android/                          # Android platform
-│   ├── settings.gradle               # Gradle configuration
-│   └── app/
-│       ├── build.gradle              # Build configuration (36 lines)
-│       └── src/main/
-│           ├── AndroidManifest.xml   # Permissions & metadata (42 lines)
-│           └── kotlin/com/urztaiamandude/wireless_pov_poi_app/
-│               └── MainActivity.kt   # Android entry point (6 lines)
-│
 ├── windows/                          # Windows platform
 │   └── runner/
 │       └── main.cpp                  # Windows entry point (42 lines)
@@ -64,7 +55,7 @@ wireless_pov_poi_app/
 | Category | Files | Lines | Description |
 |----------|-------|-------|-------------|
 | **Core Dart Code** | 9 | 788 | Application logic |
-| **Platform Code** | 4 | 126 | Android/Windows/Web |
+| **Platform Code** | 4 | 126 | Windows/Web |
 | **Configuration** | 3 | 98 | pubspec, analysis, gitignore |
 | **Documentation** | 6 | 1,393 | User & developer guides |
 | **Total** | **22** | **2,405** | Complete project |
@@ -205,23 +196,6 @@ Holds connected device list, accessible via Provider.
 
 ## Platform-Specific Files
 
-### Android
-
-**AndroidManifest.xml**
-- Package: `com.urztaiamandude.wireless_pov_poi_app`
-- App name: "Wireless POV Poi"
-- Permissions:
-  - BLUETOOTH
-  - BLUETOOTH_ADMIN
-  - BLUETOOTH_SCAN (neverForLocation)
-  - BLUETOOTH_CONNECT
-  - ACCESS_FINE_LOCATION
-
-**build.gradle**
-- Min SDK: configurable (recommend 21)
-- Target SDK: latest
-- Namespace: com.urztaiamandude.wireless_pov_poi_app
-
 ### Windows
 
 **main.cpp**
@@ -243,16 +217,6 @@ Holds connected device list, accessible via Provider.
 - Theme: #0175C2
 
 ## Build Outputs
-
-### Android APK
-
-```
-build/
-└── app/
-    └── outputs/
-        └── flutter-apk/
-            └── app-release.apk     # ~20-30 MB
-```
 
 ### Windows Executable
 
@@ -292,7 +256,6 @@ CREATE TABLE images (
 ```
 
 **Storage Location:**
-- Android: `/data/data/com.urztaiamandude.wireless_pov_poi_app/databases/`
 - Windows: `%APPDATA%/com.urztaiamandude/wireless_pov_poi_app/`
 - Web: IndexedDB
 
@@ -402,8 +365,6 @@ Total: 5,958 bytes → Split into 12 chunks (509 bytes each)
 - [ ] Multi-device connection works
 
 ### Platform Tests
-- [ ] Android APK installs
-- [ ] Android app runs
 - [ ] Windows exe runs
 - [ ] Web loads in Chrome
 - [ ] Web loads in Edge

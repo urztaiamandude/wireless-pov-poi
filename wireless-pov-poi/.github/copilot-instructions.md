@@ -20,7 +20,6 @@ for (int i = 1; i < NUM_LEDS; i++) { leds[i] = color; }  // NEVER start from 0!
 | `firmware/teensy41/` | PlatformIO modular firmware | ⚠️ Incomplete - see note below |
 | `esp32_firmware/` | WiFi AP + web server + REST API | Production-ready |
 | `examples/` | Python image tools, GUI, tests | Complete with pytest suite |
-| `POVPoiApp/` | Android Kotlin app | Full Android Studio project |
 | `docs/` | `API.md`, `WIRING.md` | Reference documentation |
 
 **PlatformIO firmware gaps** (`firmware/teensy41/`): Missing full command handler parity with `teensy_firmware.ino`. The `esp32_interface.cpp` processes simple/structured protocols but sequence playback (mode 3) and some SD commands aren't fully wired. Use `teensy_firmware/` for production.
@@ -34,8 +33,6 @@ pio run -e teensy41 -e esp32
 # Python tests
 cd examples && pip install Pillow && pytest test_*.py -v
 
-# Android APK
-cd POVPoiApp && ./gradlew assembleDebug
 ```
 
 ## REST API Quick Reference
@@ -85,7 +82,7 @@ Audio config in `teensy_firmware.ino`: `AUDIO_PIN A0`, `AUDIO_SAMPLES 64`, `AUDI
 
 ## Image Conversion Flow
 
-All converters (Python/Web/Android) must flip vertically for correct POV display:
+All converters (Python/Web) must flip vertically for correct POV display:
 ```python
 img = img.transpose(Image.FLIP_TOP_BOTTOM)  # Required!
 ```
@@ -127,6 +124,5 @@ Enable: Uncomment `#define SD_SUPPORT` in `teensy_firmware.ino`
 
 - **C++**: `camelCase` functions, `UPPER_CASE` constants, LED loops from index 1
 - **Python**: PEP 8, type hints, Pillow for images
-- **Kotlin**: Standard Android conventions, coroutines for async
 - **Web**: Vanilla ES6+ JS, mobile-first responsive
 

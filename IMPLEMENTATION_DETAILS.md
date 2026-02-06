@@ -39,18 +39,7 @@ img = img.transpose(Image.FLIP_TOP_BOTTOM)
 - Preview shows flipped result in real-time
 - Maintains consistency with batch converter
 
-#### 3. Android App (`examples/android_app/POVPoiAPI.kt`)
-```kotlin
-// Create flip matrix
-val matrix = android.graphics.Matrix()
-matrix.preScale(1.0f, -1.0f)
-val flipped = Bitmap.createBitmap(resized, 0, 0, targetWidth, targetHeight, matrix, false)
-```
-- Uses Android's Matrix transformation
-- Implemented in both `convertBitmapToPOVFormat()` and `convertBitmapToPOVFormatEnhanced()`
-- Proper bitmap memory management with recycling
-
-#### 4. Web Interface (`esp32_firmware/esp32_firmware.ino`)
+#### 3. Web Interface (`esp32_firmware/esp32_firmware.ino`)
 ```javascript
 // Manual pixel-by-pixel flip
 const flippedData = ctx.createImageData(targetWidth, targetHeight);
@@ -116,7 +105,6 @@ Created demo images showing the fix:
 ## Code Review
 
 All code review issues addressed:
-- ✅ Fixed bitmap recycling order in Android code
 - ✅ Fixed image bounds in test gradient drawing
 - ✅ Proper exception handling with finally blocks
 - ✅ Memory management verified
@@ -131,7 +119,6 @@ All code review issues addressed:
 
 Minimal performance impact:
 - **Python**: `transpose()` is highly optimized in PIL
-- **Android**: Matrix transformation is native and fast
 - **Web**: Manual flip adds ~10-50ms for typical images
 - Overall conversion time remains under 1 second
 
@@ -155,10 +142,9 @@ For users with existing images:
 ### Modified Files
 1. `examples/image_converter.py` - Added vertical flip
 2. `examples/image_converter_gui.py` - Added vertical flip
-3. `examples/android_app/POVPoiAPI.kt` - Added flip to both conversion functions
-4. `esp32_firmware/esp32_firmware.ino` - Added JavaScript flip
-5. `docs/IMAGE_CONVERSION.md` - Updated documentation
-6. `README.md` - Added orientation section
+3. `esp32_firmware/esp32_firmware.ino` - Added JavaScript flip
+4. `docs/IMAGE_CONVERSION.md` - Updated documentation
+5. `README.md` - Added orientation section
 
 ### New Files
 1. `examples/test_vertical_flip.py` - Test for flip functionality

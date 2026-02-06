@@ -11,7 +11,7 @@
  * - Web server with file upload
  * - Image/pattern/sequence management
  * - Serial communication with Teensy
- * - REST API for mobile apps
+ * - REST API for web UI and integrations
  */
 
 #include <WiFi.h>

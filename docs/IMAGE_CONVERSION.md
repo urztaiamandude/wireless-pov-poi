@@ -33,25 +33,7 @@ This guide explains how images are automatically converted to POV-compatible for
 
 **Code Location:** `esp32_firmware/esp32_firmware.ino` (JavaScript section in HTML)
 
-### 2. Android App
-
-**Process:**
-1. User selects image from gallery or camera
-2. Android Bitmap API resizes image to 31 pixels **HIGH**
-3. Width is scaled proportionally using the same scale factor
-4. Image is converted to raw RGB byte array
-5. RGB data is uploaded to ESP32
-6. ESP32 forwards data to Teensy for final processing
-
-**Advantages:**
-- Fast conversion using Android's optimized Bitmap class
-- Reduces network transfer
-- Works with any Android-supported image format
-- Efficient memory usage
-
-**Code Location:** `examples/android_app/POVPoiAPI.kt` - `convertBitmapToPOVFormat()`
-
-### 3. Python GUI Converter (Recommended for Desktop)
+### 2. Python GUI Converter (Recommended for Desktop)
 
 **Process:**
 1. User runs `python image_converter_gui.py`
@@ -74,7 +56,7 @@ This guide explains how images are automatically converted to POV-compatible for
 
 **Code Location:** `examples/image_converter_gui.py`
 
-### 4. Python Script (Command-Line Pre-conversion)
+### 3. Python Script (Command-Line Pre-conversion)
 
 **Process:**
 1. User runs `python image_converter.py input.jpg`
@@ -94,7 +76,7 @@ This guide explains how images are automatically converted to POV-compatible for
 
 **Code Location:** `examples/image_converter.py`
 
-### 5. Teensy Processing (Final Stage)
+### 4. Teensy Processing (Final Stage)
 
 **Process:**
 1. Teensy receives image data from ESP32
@@ -198,13 +180,6 @@ Output: `image_pov.png` (31 pixels wide)
 3. Upload any image (will be auto-converted)
 4. Check ESP32 serial output for conversion details
 
-### Test Android App
-
-1. Load any image in the app
-2. Call `api.uploadImage(bitmap)`
-3. Image is automatically converted and uploaded
-4. Check logcat for conversion details
-
 ## Image Quality Tips
 
 ### For Best Results
@@ -264,11 +239,6 @@ User Image (Any Size)
     │                          ↓
     │                    ESP32 Receiver
     │                          │
-    ├─── Via Android App ──────┤
-    │    • Bitmap API          │
-    │    • Resize to 31px      │
-    │    • Convert to RGB      │
-    │                          ↓
     └─── Via Python Script ────┤
          • PIL/Pillow          │
          • Resize to 31px      │
@@ -312,31 +282,6 @@ async function convertImageToPOVFormat(file) {
     
     // Extract RGB data
     return convertToRGB(imageData);
-}
-```
-
-### Kotlin (Android App)
-
-```kotlin
-private fun convertBitmapToPOVFormat(bitmap: Bitmap): ByteArray {
-    // HEIGHT is fixed at 31 (matching display LEDs)
-    val targetHeight = 31
-    val scaleFactor = targetHeight.toFloat() / bitmap.height
-    var targetWidth = (bitmap.width * scaleFactor).toInt()
-    if (targetWidth > 200) targetWidth = 200
-    
-    // Resize with nearest neighbor
-    val resized = Bitmap.createScaledBitmap(
-        bitmap, targetWidth, targetHeight, false
-    )
-    
-    // No flip needed - LEDs map directly to image pixels
-    // Extract RGB bytes
-    val pixels = IntArray(targetWidth * targetHeight)
-    resized.getPixels(pixels, 0, targetWidth, 0, 0, 
-                      targetWidth, targetHeight)
-    
-    return extractRGBBytes(pixels)
 }
 ```
 
@@ -396,11 +341,6 @@ void receiveImage() {
 - **Upload Time:** 100-500ms (depends on WiFi)
 - **Total Time:** < 1 second typically
 
-### Android App
-- **Conversion Time:** 10-50ms (optimized native code)
-- **Upload Time:** 100-500ms (depends on WiFi)
-- **Total Time:** < 1 second typically
-
 ### Python Script
 - **Conversion Time:** 50-300ms (depends on image size)
 - **File I/O:** 10-50ms
@@ -415,15 +355,11 @@ void receiveImage() {
 ## Future Enhancements
 
 ### Completed Features ✓
-- [x] Android app with advanced image conversion
-- [x] Image preview before upload (Android app)
-- [x] Brightness/contrast adjustment (Android app)
 - [x] Mobile-responsive web interface
 - [x] PWA support for installable web app
 - [x] Touch-optimized controls for mobile
 
 ### Planned Features
-- [ ] iOS app with image conversion
 - [ ] Bulk image upload and conversion
 - [ ] Image rotation and flip options
 - [ ] Color palette optimization
@@ -438,30 +374,6 @@ void receiveImage() {
 - Multiple image slots
 
 ## Mobile-Friendly Features
-
-### Android App Image Converter
-
-The Android app now includes a dedicated Image Converter Activity with:
-
-**Features:**
-- Gallery and camera image selection
-- Real-time before/after preview
-- Adjustable conversion settings:
-  - Width: 10-100 pixels (default: 31px)
-  - Max Height: 10-128 pixels (default: 64px)
-  - Contrast enhancement toggle
-- Save converted images to device gallery
-- Direct upload to POV device
-- Enhanced contrast for better POV visibility
-
-**Usage:**
-1. Open Image Converter from main menu
-2. Select image from gallery or take photo
-3. Adjust conversion settings
-4. Click "Convert Image"
-5. Save or upload the converted image
-
-See [Android App README](../examples/android_app/README.md) for details.
 
 ### Mobile Web Interface
 
@@ -492,9 +404,6 @@ The web interface is now fully mobile-responsive with:
 
 - [Image Converter Source](../examples/image_converter.py)
 - [Test Suite](../examples/test_image_converter.py)
-- [Android App](../examples/android_app/)
-- [Android API](../examples/android_app/POVPoiAPI.kt)
-- [Android Image Converter](../examples/android_app/ImageConverterActivity.kt)
 - [ESP32 Firmware](../esp32_firmware/esp32_firmware.ino)
 - [Teensy Firmware](../teensy_firmware/teensy_firmware.ino)
 

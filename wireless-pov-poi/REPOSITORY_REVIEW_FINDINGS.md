@@ -166,7 +166,7 @@ def convert_image_for_pov(input_path, output_path=None, width=31, max_height=64,
 1. Rename parameter to `skip_default_flip` for clarity
 2. Document that default behavior is to flip
 3. Add visual examples in documentation
-4. Ensure consistency across all conversion tools (Python, Web, Android)
+4. Ensure consistency across all conversion tools (Python, Web)
 
 ---
 
@@ -455,7 +455,7 @@ The repository also has many strengths:
 1. **Excellent Documentation:** 40+ pages of comprehensive docs
 2. **Clean Architecture:** Well-separated concerns
 3. **Dual Firmware Options:** Caters to different user levels
-4. **Comprehensive Examples:** Python tools, Android app, tests
+4. **Comprehensive Examples:** Python tools, tests
 5. **Production Ready:** Arduino firmware fully functional
 6. **Good Code Comments:** Most code well-commented
 7. **Thoughtful Design:** LED 0 level shifter approach

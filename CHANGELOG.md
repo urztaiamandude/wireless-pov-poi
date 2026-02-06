@@ -54,10 +54,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Examples and Tools
 - Python image converter script
-- Android app example with complete source code
 - Pattern configuration examples
 - Image creation guidelines
-- Mobile app integration examples (Kotlin/Swift)
 
 #### Development Tools
 - PlatformIO configuration
@@ -159,7 +157,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Planned for v2.0.0
 - Bluetooth LE support
-- Native mobile apps (Android/iOS)
 - Cloud storage integration
 - Advanced pattern editor
 - Video playback support

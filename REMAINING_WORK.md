@@ -62,13 +62,6 @@ The **Nebula Poi is complete and production-ready** using the Arduino IDE firmwa
   - Cross-platform (Windows/Mac/Linux)
   - **Status**: ✅ Complete
 
-- **Android App Example** (`examples/android_app/`)
-  - Complete Kotlin source code
-  - Image converter activity
-  - Pattern and mode control
-  - REST API integration
-  - **Status**: ✅ Complete example code
-
 ### Documentation
 - **README.md** - Project overview (279 lines)
 - **QUICKSTART.md** - 30-minute setup guide
@@ -320,7 +313,6 @@ These items are explicitly documented as **future enhancements** and should NOT 
 
 ### Software Enhancements
 - ❌ OTA firmware updates
-- ❌ Native mobile apps (iOS/Android) - only example code exists
 - ❌ Cloud storage integration
 - ❌ Advanced pattern editor in web interface
 - ❌ Music synchronization

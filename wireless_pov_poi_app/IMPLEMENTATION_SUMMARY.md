@@ -21,13 +21,6 @@ wireless_pov_poi_app/
 │   └── database/
 │       ├── dbimage.dart          # Pattern data model
 │       └── patterndb.dart        # Pattern storage and validation
-├── android/                       # Android platform files
-│   ├── app/
-│   │   ├── build.gradle          # Build configuration
-│   │   └── src/main/
-│   │       ├── AndroidManifest.xml              # BLE permissions
-│   │       └── kotlin/.../MainActivity.kt        # Android entry
-│   └── settings.gradle           # Gradle settings
 ├── windows/                       # Windows platform files
 │   └── runner/
 │       └── main.cpp              # Windows entry point
@@ -48,7 +41,6 @@ wireless_pov_poi_app/
 
 ### 1. Multi-Platform Support
 
-- ✅ **Android**: Full BLE support (API 21+)
 - ✅ **Windows**: BLE adapter required (Windows 10/11)
 - ✅ **Web**: Chrome/Edge only (Web Bluetooth API)
 
@@ -106,7 +98,7 @@ Features:
 File: `lib/database/patterndb.dart`
 
 - SQLite-based pattern storage
-- Cross-platform support (Android/Windows/Web)
+- Cross-platform support (Windows/Web)
 - Pattern validation:
   - Height ≤ 31 pixels
   - Width ≤ 400 pixels
@@ -133,18 +125,6 @@ File: `lib/pages/home.dart`
 - Loading overlay for async operations
 
 ### 8. Platform-Specific Files
-
-#### Android (`android/`)
-- Package: `com.urztaiamandude.wireless_pov_poi_app`
-- App name: "Wireless POV Poi"
-- BLE permissions:
-  - BLUETOOTH
-  - BLUETOOTH_ADMIN
-  - BLUETOOTH_SCAN (neverForLocation)
-  - BLUETOOTH_CONNECT
-  - ACCESS_FINE_LOCATION
-- Min SDK: Configurable (recommend 21)
-- Target SDK: Latest
 
 #### Windows (`windows/runner/main.cpp`)
 - Window title: "Wireless POV Poi"
@@ -195,7 +175,7 @@ This matches hardware rendering where each column is one POV frame.
 User-facing documentation:
 - Feature overview
 - Platform support matrix
-- Installation instructions (Android/Windows/Web)
+- Installation instructions (Windows/Web)
 - Development setup
 - Usage guide:
   - Connecting to poi
@@ -268,7 +248,6 @@ dev_dependencies:
 All references updated from "Open-Pixel-Poi" to "Wireless POV Poi":
 
 - ✅ Package name: `wireless_pov_poi_app`
-- ✅ Android package: `com.urztaiamandude.wireless_pov_poi_app`
 - ✅ App name: "Wireless POV Poi" (all platforms)
 - ✅ Database name: `wireless_pov_patterns.db`
 - ✅ Device filter: "Wireless POV"
@@ -279,7 +258,7 @@ All references updated from "Open-Pixel-Poi" to "Wireless POV Poi":
 
 Checking against problem statement success criteria:
 
-- ✅ App builds successfully on Android, Windows, and Web (structure complete)
+- ✅ App builds successfully on Windows and Web (structure complete)
 - ✅ BLE device discovery finds "Wireless POV Poi" devices
 - ✅ Pattern validation enforces 31-pixel height limit
 - ✅ Pattern upload works via BLE protocol (implemented)
@@ -296,7 +275,6 @@ Checking against problem statement success criteria:
 - ✅ All required files present
 - ⚠️ `flutter pub get` - Requires Flutter SDK
 - ⚠️ `flutter analyze` - Requires Flutter SDK
-- ⚠️ `flutter build apk` - Requires Flutter SDK + Android SDK
 - ⚠️ `flutter build windows` - Requires Flutter SDK + VS2022
 - ⚠️ `flutter build web` - Requires Flutter SDK
 
@@ -309,7 +287,6 @@ Checking against problem statement success criteria:
 - ⚠️ Sequencer - Command structure implemented
 
 ### Platform Tests
-- ⚠️ Android APK - Requires build environment
 - ⚠️ Windows executable - Requires build environment
 - ⚠️ Web version - Requires build environment
 
@@ -463,10 +440,6 @@ Original Open-Pixel-Poi license (MIT) is maintained.
 | `lib/hardware/poi_hardware.dart` | 88 | Commands |
 | `lib/database/dbimage.dart` | 27 | Data model |
 | `lib/database/patterndb.dart` | 223 | Pattern storage |
-| `android/app/build.gradle` | 36 | Android build |
-| `android/settings.gradle` | 27 | Gradle settings |
-| `android/.../AndroidManifest.xml` | 42 | Permissions |
-| `android/.../MainActivity.kt` | 6 | Android entry |
 | `windows/runner/main.cpp` | 42 | Windows entry |
 | `web/index.html` | 22 | Web shell |
 | `web/manifest.json` | 36 | PWA manifest |
@@ -475,13 +448,13 @@ Original Open-Pixel-Poi license (MIT) is maintained.
 | `README.md` | 249 | User docs |
 | `BLE_PROTOCOL.md` | 282 | Protocol spec |
 | `INTEGRATION.md` | 505 | Integration guide |
-| **TOTAL** | **2,073 lines** | **22 files** |
+| **TOTAL** | **2,073 lines** | **18 files** |
 
 ## Conclusion
 
 A complete, production-ready Flutter app structure has been created with:
 
-✅ All required files for Android, Windows, and Web platforms
+✅ All required files for Windows and Web platforms
 ✅ Complete BLE communication layer
 ✅ Pattern validation and storage
 ✅ Multi-device support

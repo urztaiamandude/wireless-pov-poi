@@ -2,12 +2,12 @@
 
 ## Overview
 
-The Wireless POV Poi uses Bluetooth Low Energy (BLE) for communication between Flutter apps (Android/Windows/Web) and the POI hardware. The ESP32 co-processor implements the Nordic UART Service (NUS) and acts as a BLE-to-UART bridge, translating BLE commands to the internal Teensy protocol.
+The Wireless POV Poi uses Bluetooth Low Energy (BLE) for communication between Flutter apps (Windows/Web) and the POI hardware. The ESP32 co-processor implements the Nordic UART Service (NUS) and acts as a BLE-to-UART bridge, translating BLE commands to the internal Teensy protocol.
 
 ## Architecture
 
 ```
-Flutter App (Android/Windows/Web)
+Flutter App (Windows/Web)
          ↓ BLE (Nordic UART Service)
     ESP32 Co-Processor (BLE Bridge)
          ↓ Serial UART (translated protocol)

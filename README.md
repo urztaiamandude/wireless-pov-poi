@@ -40,14 +40,14 @@ This system creates stunning POV light displays using a 32 LED APA102 strip cont
   - SSID: `POV-POI-WiFi`
   - Password: `povpoi123`
   - IP: `192.168.4.1`
-- **Bluetooth Low Energy (BLE)** - Direct BLE connectivity for mobile apps
+- **Bluetooth Low Energy (BLE)** - Direct BLE connectivity for clients
   - Device Name: `Wireless POV Poi`
   - Nordic UART Service (NUS) for cross-platform compatibility
-  - Works with Android, Windows, and Web (Chrome/Edge)
+  - Works with Windows and Web (Chrome/Edge)
   - **Operates completely offline** - no internet required
   - See [BLE Protocol Documentation](docs/BLE_PROTOCOL.md)
 - **Web Portal** - Full-featured control interface accessible via browser
-- **REST API** - Complete API for mobile app integration (Android/iOS)
+- **REST API** - Complete API for web UI and integrations
 - **mDNS Support** - Access via `http://povpoi.local`
 
 ## Firmware Architecture
@@ -160,9 +160,8 @@ See [DEMO_CONTENT.md](DEMO_CONTENT.md) for complete details on built-in content.
 
 - **[Complete Setup Guide](docs/README.md)** - Detailed installation and usage instructions
 - **[Wiring Diagram](docs/WIRING.md)** - Hardware connections and assembly guide
-- **[API Documentation](docs/API.md)** - REST API reference for mobile app development
+- **[API Documentation](docs/API.md)** - REST API reference for web UI and integrations
 - **[BLE Protocol](docs/BLE_PROTOCOL.md)** - Bluetooth Low Energy command reference
-- **[BLE Protocol](wireless_pov_poi_app/BLE_PROTOCOL.md)** 🆕 - Bluetooth protocol specification for Flutter app
 - **[POI Pairing Guide](docs/POI_PAIRING.md)** 🆕 - Setup and sync multiple poi devices
 - **[BMP Image Processing Guide](docs/BMP_IMAGE_PROCESSING.md)** 🆕 - BMPImageReader and BMPImageSequence usage
 - **[Image Conversion Guide](docs/IMAGE_CONVERSION.md)** - How automatic image conversion works
@@ -191,79 +190,9 @@ The LED strip forms the VERTICAL axis of the POV display:
 - **No flip needed** - The LED arrangement maps directly to image pixels
 - When poi are spun, images scroll naturally in correct orientation
 
-## Mobile App Support
-
-### Android App (Included!)
-
-A complete, ready-to-build Android Studio project with advanced features:
-- **Complete Android Studio Project** - Full project structure in `POVPoiApp/`
-  - Open directly in Android Studio
-  - All dependencies configured
-  - Ready to build and deploy
-- **Image Converter Activity** - Dedicated UI for image conversion
-  - Gallery and camera image selection
-  - Real-time before/after preview
-  - Adjustable conversion settings (width, height, contrast)
-  - Save to device gallery
-  - Direct upload to POV device
-- **Pattern and mode control** - Quick access to patterns and display modes
-- **Brightness and frame rate adjustment** - Real-time control sliders
-- **Status monitoring** - Connection and mode display
-
-**Quick Start:**
-1. Open `POVPoiApp/` in Android Studio
-2. Build and run on your Android device
-3. Connect to POV-POI-WiFi network
-4. Start controlling your Nebula Poi!
-
-See [Android App README](POVPoiApp/README.md) for complete setup and usage instructions.
-
-**Example Files:** The `examples/android_app/` directory contains individual example files for reference.
-
-### Flutter App - Multi-Platform BLE Control 🆕
-
-A cross-platform Flutter application for direct Bluetooth Low Energy (BLE) control:
-
-- **Multi-Platform Support**:
-  - ✅ **Android** - Full BLE support (API 21+)
-  - ✅ **Windows** - BLE adapter required (Windows 10/11)
-  - ✅ **Web** - Chrome/Edge only (Web Bluetooth API)
-  - ⚠️ **iOS** - Web version unsupported (no Web Bluetooth)
-  
-- **BLE Direct Control** - No WiFi required, control via Bluetooth
-- **Pattern Management** - Import, edit, and organize LED patterns
-- **Pattern Creators** - Text, color, gradient, and stacked patterns
-- **Sequencer** - Automated pattern playback
-- **Multi-Device** - Control up to 7 poi simultaneously
-- **APA102 Optimized** - Designed for 31-pixel LED strips
-
-**Key Advantages over WiFi:**
-- Longer range (BLE: ~10m vs WiFi AP mode)
-- Lower latency for real-time control
-- Multi-device pairing support
-- Works in areas with WiFi interference
-
-**Quick Start:**
-```bash
-cd wireless_pov_poi_app
-flutter pub get
-flutter run  # On connected device
-```
-
-**Pattern Requirements:**
-- Max height: 31 pixels (LED strip length)
-- Max width: 400 pixels
-- Max total pixels: 40,000
-
-See [Flutter App README](wireless_pov_poi_app/README.md) for complete installation, usage, and development guide.
-
-**Note:** The Flutter app uses BLE protocol and complements the WiFi-based web interface. Choose based on your needs:
-- **WiFi (Web Portal)**: Best for single-device control, image upload, live drawing
-- **BLE (Flutter App)**: Best for multi-device control, portable use, lower latency
-
 ### REST API
 
-The system includes a complete REST API for building mobile apps:
+The system includes a complete REST API for the web UI and integrations:
 - Status monitoring
 - Mode control
 - Brightness adjustment
@@ -271,7 +200,7 @@ The system includes a complete REST API for building mobile apps:
 - Image upload with automatic conversion
 - Live frame updates
 
-See [API Documentation](docs/API.md) for detailed endpoint information and example code for Android and iOS.
+See [API Documentation](docs/API.md) for detailed endpoint information and example code.
 
 ## Technical Specifications
 
