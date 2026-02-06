@@ -64,7 +64,7 @@ SystemState state;
 
 void setup() {
     Serial.begin(115200);
-    TEENSY_SERIAL.begin(SERIAL_BAUD);
+    TEENSY_SERIAL.begin(SERIAL_BAUD, SERIAL_8N1, 44, 43);  // RX=GPIO44 (U0RXD), TX=GPIO43 (U0TXD)
     setupWiFi();
     setupWebServer();
 }

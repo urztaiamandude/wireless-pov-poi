@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
 AI Agent Dispatcher - Autonomous task routing and execution for Wireless POV POI
-Part of the free-tier AI agent team system
+Reads tasks from .github/tasks/*.md, parses Type field, runs corresponding scripts
+NO git mutations - read-only task processing
 """
 
 import os
@@ -9,302 +10,77 @@ import sys
 import json
 import subprocess
 import datetime
+import time
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+
+# Import common utilities
+try:
+    from common import (
+        load_all_tasks, run_command, write_json_output, 
+        safe_log, ensure_output_dir
+    )
+except ImportError:
+    # Fallback implementations
+    def load_all_tasks():
+        return []
+    
+    def run_command(cmd, cwd=None, timeout=300, capture_output=True):
+        import subprocess
+        result = subprocess.run(cmd, cwd=cwd, capture_output=capture_output, text=True, timeout=timeout)
+        return result.returncode, result.stdout, result.stderr
+    
+    def write_json_output(data, filename):
+        path = Path(__file__).parent / "output" / filename
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "w") as f:
+            json.dump(data, f, indent=2)
+        return path
+    
+    def safe_log(msg, level="INFO", log_file=None):
+        timestamp = datetime.datetime.now().isoformat()
+        print(f"[{timestamp}] [{level}] {msg}")
+    
+    def ensure_output_dir():
+        path = Path(__file__).parent / "output"
+        path.mkdir(parents=True, exist_ok=True)
+        return path
 
 # Configuration
 REPO_ROOT = Path(__file__).parent.parent.parent
 TASKS_DIR = REPO_ROOT / ".github" / "tasks"
 OUTPUT_DIR = REPO_ROOT / "scripts" / "ai_agent" / "output"
+SCRIPTS_DIR = REPO_ROOT / "scripts" / "ai_agent"
 
-# Agent definitions
-AGENTS = {
-    "firmware": {
-        "description": "Handles Teensy 4.1 and ESP32 firmware development",
-        "extensions": [".ino", ".cpp", ".c", ".h"],
-        "directories": ["firmware/", "esp32_firmware/", "teensy_firmware/"],
-        "scripts": ["analyze_firmware.py", "fix_firmware.py", "generate_patterns.py"]
-    },
-    "documentation": {
-        "description": "Maintains and improves all documentation",
-        "extensions": [".md", ".txt", ".rst"],
-        "directories": ["docs/", "wiki/", "README.md"],
-        "scripts": ["update_docs.py", "check_docs.py"]
-    },
-    "testing": {
-        "description": "Automated testing and quality assurance",
-        "extensions": [".py", ".sh"],
-        "directories": ["examples/", "scripts/", "test_*.py"],
-        "scripts": ["run_tests.py", "test_converter.py", "test_firmware.py"]
-    },
-    "analysis": {
-        "description": "Code analysis, bug detection, and error finding",
-        "extensions": [".py", ".ino", ".cpp", ".c", ".h", ".md"],
-        "directories": [".github/", "scripts/"],
-        "scripts": ["analyze_code.py", "detect_errors.py", "check_security.py"]
-    }
+# Map task types to scripts
+TASK_TYPE_SCRIPTS = {
+    "analysis": "analyze_code.py",
+    "test": "detect_errors.py",
+    "pattern": "generate_patterns.py",
+    "firmware": "generate_patterns.py",  # Firmware tasks often involve patterns
 }
 
 
-def log_message(message: str, level: str = "INFO") -> None:
-    """Log a message with timestamp and level"""
-    timestamp = datetime.datetime.now().isoformat()
-    print(f"[{timestamp}] [{level}] {message}")
-    
-    # Also write to log file
-    log_file = OUTPUT_DIR / "dispatcher.log"
-    log_file.parent.mkdir(parents=True, exist_ok=True)
-    with open(log_file, "a") as f:
-        f.write(f"[{timestamp}] [{level}] {message}\n")
-
-
-def analyze_task_type(task_content: str) -> str:
-    """Determine which agent should handle a task based on content"""
-    task_lower = task_content.lower()
-    
-    # Check keywords for each agent type
-    firmware_keywords = ["firmware", "teensy", "esp32", "led", "pov", "pattern", "arduino", "platformio"]
-    docs_keywords = ["documentation", "readme", "guide", "docs", "wiki", "comment"]
-    test_keywords = ["test", "bug", "error", "fix", "fail", "crash", "assertion"]
-    analysis_keywords = ["analyze", "review", "code", "structure", "performance", "security"]
-    
-    # Count keyword matches
-    firmware_count = sum(1 for kw in firmware_keywords if kw in task_lower)
-    docs_count = sum(1 for kw in docs_keywords if kw in task_lower)
-    test_count = sum(1 for kw in test_keywords if kw in task_lower)
-    analysis_count = sum(1 for kw in analysis_keywords if kw in task_lower)
-    
-    # Return agent with highest match count
-    counts = [
-        ("firmware", firmware_count),
-        ("documentation", docs_count),
-        ("testing", test_count),
-        ("analysis", analysis_count)
-    ]
-    
-    best_match = max(counts, key=lambda x: x[1])
-    return best_match[0] if best_match[1] > 0 else "analysis"
-
-
-def read_task_file(task_path: Path) -> Optional[Dict]:
-    """Read and parse a task file"""
-    try:
-        content = task_path.read_text()
-        return {
-            "path": str(task_path),
-            "content": content,
-            "type": analyze_task_type(content),
-            "name": task_path.stem
-        }
-    except Exception as e:
-        log_message(f"Error reading task {task_path}: {e}", "ERROR")
-        return None
-
-
-def get_pending_tasks() -> List[Dict]:
-    """Get all pending tasks from the tasks directory"""
-    tasks = []
-    if TASKS_DIR.exists():
-        for task_file in TASKS_DIR.glob("*.md"):
-            task_data = read_task_file(task_file)
-            if task_data:
-                tasks.append(task_data)
-    return tasks
-
-
-def run_agent_script(agent_type: str, script_name: str, task_data: Dict) -> Tuple[bool, str]:
-    """Run a specific agent script"""
-    agent_config = AGENTS.get(agent_type, {})
-    scripts_dir = OUTPUT_DIR / "scripts"
-    
-    # Look for the script in various locations
-    possible_paths = [
-        scripts_dir / script_name,
-        REPO_ROOT / "scripts" / "ai_agent" / script_name,
-        REPO_ROOT / "scripts" / script_name,
-    ]
-    
-    script_path = None
-    for path in possible_paths:
-        if path.exists():
-            script_path = path
-            break
-    
-    if not script_path:
-        log_message(f"Script {script_name} not found for agent {agent_type}", "WARNING")
-        # Create the script if it doesn't exist
-        script_path = scripts_dir / script_name
-        create_agent_script(agent_type, script_name, script_path)
-    
-    try:
-        result = subprocess.run(
-            [sys.executable, str(script_path), json.dumps(task_data)],
-            capture_output=True,
-            text=True,
-            timeout=300  # 5 minute timeout
-        )
-        
-        if result.returncode == 0:
-            return True, result.stdout
-        else:
-            return False, result.stderr
-    except subprocess.TimeoutExpired:
-        return False, "Script timed out after 5 minutes"
-    except Exception as e:
-        return False, str(e)
-
-
-def create_agent_script(agent_type: str, script_name: str, script_path: Path) -> None:
-    """Create a basic agent script if it doesn't exist"""
-    script_path.parent.mkdir(parents=True, exist_ok=True)
-    
-    script_templates = {
-        "analyze_firmware.py": '''#!/usr/bin/env python3
-"""
-Firmware Analysis Agent - Analyzes Teensy and ESP32 firmware for errors and improvements
-"""
-
-import sys
-import json
-from pathlib import Path
-
-def analyze_firmware(task_data):
-    """Analyze firmware code for potential issues"""
-    print(f"Analyzing firmware for task: {task_data.get('name', 'unknown')}")
-    # TODO: Implement firmware analysis
-    return {"issues_found": 0, "suggestions": []}
-
-if __name__ == "__main__":
-    task_data = json.loads(sys.argv[1]) if len(sys.argv) > 1 else {}
-    result = analyze_firmware(task_data)
-    print(json.dumps(result))
-''',
-        "fix_firmware.py": '''#!/usr/bin/env python3
-"""
-Firmware Fix Agent - Automatically fixes common firmware issues
-"""
-
-import sys
-import json
-
-def fix_firmware(task_data):
-    """Fix identified firmware issues"""
-    print(f"Fixing firmware for task: {task_data.get('name', 'unknown')}")
-    # TODO: Implement automatic fixes
-    return {"fixes_applied": 0}
-
-if __name__ == "__main__":
-    task_data = json.loads(sys.argv[1]) if len(sys.argv) > 1 else {}
-    result = fix_firmware(task_data)
-    print(json.dumps(result))
-''',
-        "generate_patterns.py": '''#!/usr/bin/env python3
-"""
-Pattern Generation Agent - Creates new LED patterns for POV display
-"""
-
-import sys
-import json
-import random
-
-PATTERNS = [
-    "rainbow_cycle",
-    "wave_sine",
-    "gradient_fade",
-    "sparkle_random",
-    "pulse_beat",
-    "fire_effect",
-    "comet_tail",
-    "plasma_wave"
-]
-
-def generate_patterns(task_data):
-    """Generate new LED patterns"""
-    num_patterns = task_data.get("num_patterns", 3)
-    new_patterns = random.sample(PATTERNS, min(num_patterns, len(PATTERNS)))
-    print(f"Generated {len(new_patterns)} new patterns")
-    return {"patterns": new_patterns}
-
-if __name__ == "__main__":
-    task_data = json.loads(sys.argv[1]) if len(sys.argv) > 1 else {}
-    result = generate_patterns(task_data)
-    print(json.dumps(result))
-''',
-        "analyze_code.py": '''#!/usr/bin/env python3
-"""
-Code Analysis Agent - Comprehensive code analysis and error detection
-"""
-
-import sys
-import json
-import ast
-from pathlib import Path
-
-def analyze_code(task_data):
-    """Perform comprehensive code analysis"""
-    print(f"Analyzing code for task: {task_data.get('name', 'unknown')}")
-    # TODO: Implement comprehensive analysis
-    return {"files_analyzed": 0, "issues": [], "score": 100}
-
-if __name__ == "__main__":
-    task_data = json.loads(sys.argv[1]) if len(sys.argv) > 1 else {}
-    result = analyze_code(task_data)
-    print(json.dumps(result))
-''',
-        "detect_errors.py": '''#!/usr/bin/env python3
-"""
-Error Detection Agent - Finds potential errors and faults in code
-"""
-
-import sys
-import json
-import re
-
-def detect_errors(task_data):
-    """Detect potential errors and faults"""
-    print(f"Detecting errors for task: {task_data.get('name', 'unknown')}")
-    # TODO: Implement error detection
-    return {"errors": [], "warnings": [], "info": []}
-
-if __name__ == "__main__":
-    task_data = json.loads(sys.argv[1]) if len(sys.argv) > 1 else {}
-    result = detect_errors(task_data)
-    print(json.dumps(result))
-''',
-        "run_tests.py": '''#!/usr/bin/env python3
-"""
-Testing Agent - Runs automated tests and reports results
-"""
-
-import sys
-import json
-import subprocess
-
-def run_tests(task_data):
-    """Run automated tests"""
-    print(f"Running tests for task: {task_data.get('name', 'unknown')}")
-    # TODO: Implement test execution
-    return {"passed": 0, "failed": 0, "skipped": 0}
-
-if __name__ == "__main__":
-    task_data = json.loads(sys.argv[1]) if len(sys.argv) > 1 else {}
-    result = run_tests(task_data)
-    print(json.dumps(result))
-'''
-    }
-    
-    template = script_templates.get(script_name, "# Placeholder script\n")
-    script_path.write_text(template)
-    script_path.chmod(0o755)
-    log_message(f"Created script: {script_path}", "INFO")
-
-
 def dispatch_task(task_data: Dict) -> Dict:
-    """Dispatch a task to the appropriate agent"""
-    agent_type = task_data.get("type", "analysis")
-    agent_config = AGENTS.get(agent_type, {})
+    """Dispatch a task to the appropriate script based on type"""
+    task_type = task_data.get("type", "analysis").lower()
+    task_name = task_data.get("name", "unknown")
     
-    log_message(f"Dispatching task '{task_data['name']}' to {agent_type} agent")
+    safe_log(f"Dispatching task '{task_name}' (type: {task_type})")
+    
+    # Get script for this task type
+    script_name = TASK_TYPE_SCRIPTS.get(task_type, "analyze_code.py")
+    script_path = SCRIPTS_DIR / script_name
+    
+    if not script_path.exists():
+        safe_log(f"Script not found: {script_path}", "ERROR")
+        return {
+            "task": task_name,
+            "type": task_type,
+            "script": script_name,
+            "success": False,
+            "error": f"Script {script_name} not found"
+        }
     
     results = {
         "task": task_data["name"],
@@ -333,38 +109,62 @@ def dispatch_task(task_data: Dict) -> Dict:
 
 def main():
     """Main entry point for the dispatcher"""
-    log_message("Starting AI Agent Dispatcher", "INFO")
+    safe_log("=== AI Agent Dispatcher Starting ===")
+    start_time = time.time()
     
-    # Get pending tasks
-    tasks = get_pending_tasks()
-    log_message(f"Found {len(tasks)} pending tasks")
+    ensure_output_dir()
+    
+    # Load all tasks from .github/tasks/
+    safe_log(f"Loading tasks from {TASKS_DIR}")
+    tasks = load_all_tasks(TASKS_DIR)
+    
+    if not tasks:
+        safe_log("No tasks found", "WARNING")
+        summary = {
+            "total_tasks": 0,
+            "successful": 0,
+            "failed": 0,
+            "skipped": 0,
+            "tasks": [],
+            "timestamp": str(datetime.datetime.now()),
+            "duration": "0.0s"
+        }
+        write_json_output(summary, "dispatcher_summary.json")
+        return 0
+    
+    safe_log(f"Found {len(tasks)} tasks to process")
     
     # Process each task
     results = []
     for task in tasks:
-        log_message(f"Processing task: {task['name']}")
+        safe_log(f"--- Processing task: {task['name']} ---")
         result = dispatch_task(task)
         results.append(result)
         
-        # Mark task as processed (rename to .done)
-        task_path = Path(task["path"])
-        if task_path.exists():
-            done_path = task_path.with_suffix(".done")
-            task_path.rename(done_path)
+        # Small delay between tasks
+        time.sleep(0.5)
     
     # Generate summary report
+    total_duration = time.time() - start_time
     summary = {
         "total_tasks": len(tasks),
         "successful": sum(1 for r in results if r["success"]),
         "failed": sum(1 for r in results if not r["success"]),
-        "results": results
+        "tasks": results,
+        "timestamp": str(datetime.datetime.now()),
+        "duration": f"{total_duration:.1f}s"
     }
     
-    # Save summary
-    summary_file = OUTPUT_DIR / "dispatcher_summary.json"
-    summary_file.write_text(json.dumps(summary, indent=2))
+    # Write summary
+    summary_file = write_json_output(summary, "dispatcher_summary.json")
     
-    log_message(f"Dispatcher complete. Success: {summary['successful']}/{summary['total_tasks']}", "INFO")
+    safe_log("=== Dispatcher Complete ===")
+    safe_log(f"Total: {summary['total_tasks']}, Success: {summary['successful']}, Failed: {summary['failed']}")
+    safe_log(f"Duration: {summary['duration']}")
+    safe_log(f"Summary written to {summary_file}")
+    
+    # NOTE: We do NOT mutate task files - they remain in .github/tasks/ for future runs
+    # This is a read-only dispatcher
     
     return 0 if summary["failed"] == 0 else 1
 

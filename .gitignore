@@ -13,8 +13,8 @@ build_output/
 teensy_firmware/build/
 esp32_firmware/build/
 
-# PlatformIO source symlink (helper for building)
-src/
+# PlatformIO source symlink (helper for building in root)
+/src/
 
 # Temporary files
 *~
@@ -76,3 +76,6 @@ docs/latex/
 # Temporary test files
 /tmp/
 *.spec
+
+# AI Agent outputs
+scripts/ai_agent/output/

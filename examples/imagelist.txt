@@ -1,0 +1,9 @@
+# POV Image Sequence Example
+# Format: filename.bmp duration_in_seconds
+# Lines starting with # are comments
+# Duration is optional; if omitted, defaults to 0 (manual control)
+
+rainbow_32x64.bmp 15
+checker_32x32.bmp 10
+stripes_32x48.bmp 8
+test_32x32.bmp 12

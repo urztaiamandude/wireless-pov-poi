@@ -19,8 +19,36 @@ This document describes the SD card storage implementation for the Teensy 4.1 PO
 - microSD card (recommended):
   - Class 10 or higher
   - UHS-I compatible (SanDisk Extreme, Samsung EVO Plus, Kingston Canvas React)
-  - 16GB-64GB capacity
+  - 16GB-64GB capacity (64GB microSDXC OK)
   - FAT32 or exFAT formatted
+
+## SD Card Preparation (PlatformIO Firmware)
+
+### Quick Setup
+
+For the PlatformIO firmware (`firmware/teensy41/`), prepare your SD card as follows:
+
+1. **Format the card**:
+   - Single partition: FAT32 (recommended) or exFAT
+   - Quick format is sufficient
+   - Keep 10–20% free space for optimal performance
+
+2. **Directory structure**:
+   - The firmware uses `/images` directory (auto-created on first save)
+   - Optional `/tmp` directory for temporary files
+   - No benefit to creating separate scratch partitions
+
+3. **Card specifications**:
+   - Type: Class 10 or UHS-I (UHS-I preferred)
+   - Capacity: 8GB–64GB (64GB microSDXC works fine)
+   - Avoid older/slower cards for best performance
+
+4. **SDIO configuration**:
+   - Teensy 4.1 uses built-in SDIO interface
+   - Firmware configured with `SdioConfig(FIFO_SDIO)` for best performance (~20-25 MB/s read)
+   - No SPI mode - always uses high-speed SDIO
+
+**Note**: The PlatformIO firmware uses `/images` as the storage directory (not `/poi_images/` used by Arduino IDE firmware). This directory is created automatically when you save your first image.
 
 ## File Format
 

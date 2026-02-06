@@ -29,9 +29,10 @@
 // SD Card Configuration
 #define SD_CARD_ENABLED true
 #define SD_CS_PIN BUILTIN_SDCARD  // Teensy 4.1 built-in SD slot
-#define SD_IMAGE_DIR "/images"
+#define SD_IMAGE_DIR "/images"    // PlatformIO firmware uses /images (auto-created; Arduino IDE uses /poi_images/)
 #define SD_CACHE_SIZE 2  // Number of images to cache in RAM
 #define SD_FILE_MAGIC 0x504F5631  // "POV1" in hex
+// Note: SDIO configured with SdioConfig(FIFO_SDIO) for best performance (~20-25 MB/s read)
 
 // Image Storage Configuration
 #define MAX_IMAGES 10  // Maximum number of images that can be stored in RAM

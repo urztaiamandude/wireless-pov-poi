@@ -7,6 +7,7 @@
  * 
  * Features:
  * - WiFi Access Point mode
+ * - BLE support via Nordic UART Service
  * - Web server with file upload
  * - Image/pattern/sequence management
  * - Serial communication with Teensy
@@ -20,6 +21,11 @@
 #include <HTTPClient.h>
 #include <WiFiClient.h>
 #include <Preferences.h>
+
+// BLE support
+#ifdef BLE_ENABLED
+#include "src/ble_bridge.h"
+#endif
 
 // Forward declarations for PlatformIO compilation
 void setupWiFi();
@@ -78,6 +84,11 @@ WebServer server(80);
 // Preferences for persistent storage
 Preferences preferences;
 
+// BLE Bridge
+#ifdef BLE_ENABLED
+BLEBridge* bleBridge = nullptr;
+#endif
+
 // Device configuration
 struct DeviceConfig {
   String deviceId;
@@ -120,7 +131,7 @@ void setup() {
   Serial.println("\n\nESP32 Nebula Poi Controller Starting...");
   
   // Initialize Teensy Serial
-  TEENSY_SERIAL.begin(SERIAL_BAUD, SERIAL_8N1, 16, 17);  // RX=16, TX=17
+  TEENSY_SERIAL.begin(SERIAL_BAUD, SERIAL_8N1, 44, 43);  // RX=GPIO44 (U0RXD), TX=GPIO43 (U0TXD)
   
   // Initialize SPIFFS for web files
   if (!SPIFFS.begin(true)) {
@@ -135,6 +146,13 @@ void setup() {
   Serial.println(deviceConfig.deviceId);
   Serial.print("Device Name: ");
   Serial.println(deviceConfig.deviceName);
+  
+  // Initialize BLE Bridge (before WiFi to avoid conflicts)
+  #ifdef BLE_ENABLED
+  bleBridge = new BLEBridge(&TEENSY_SERIAL);
+  bleBridge->setup();
+  Serial.println("BLE Bridge initialized");
+  #endif
   
   // Initialize WiFi Access Point
   setupWiFi();
@@ -169,6 +187,13 @@ void setup() {
 }
 
 void loop() {
+  // Handle BLE communications
+  #ifdef BLE_ENABLED
+  if (bleBridge) {
+    bleBridge->loop();
+  }
+  #endif
+  
   server.handleClient();
   
   // Check Teensy connection periodically

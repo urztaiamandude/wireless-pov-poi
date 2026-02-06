@@ -40,6 +40,12 @@ This system creates stunning POV light displays using a 32 LED APA102 strip cont
   - SSID: `POV-POI-WiFi`
   - Password: `povpoi123`
   - IP: `192.168.4.1`
+- **Bluetooth Low Energy (BLE)** - Direct BLE connectivity for mobile apps
+  - Device Name: `Wireless POV Poi`
+  - Nordic UART Service (NUS) for cross-platform compatibility
+  - Works with Android, Windows, and Web (Chrome/Edge)
+  - **Operates completely offline** - no internet required
+  - See [BLE Protocol Documentation](docs/BLE_PROTOCOL.md)
 - **Web Portal** - Full-featured control interface accessible via browser
 - **REST API** - Complete API for mobile app integration (Android/iOS)
 - **mDNS Support** - Access via `http://povpoi.local`
@@ -68,7 +74,7 @@ This project offers **two firmware implementations** for Teensy 4.1:
 ### 1. Hardware Setup
 See [docs/WIRING.md](docs/WIRING.md) for detailed wiring instructions.
 
-**Basic Connections:**
+**Basic Connections** (works for all ESP32 variants: WROOM-32, DevKitC, S3):
 - Teensy Pin 11 → APA102 Data (DI)
 - Teensy Pin 13 → APA102 Clock (CI)
 - Teensy TX1 (Pin 1) → ESP32 RX2 (GPIO 16)
@@ -120,10 +126,21 @@ See [ESP32-S3 Compatibility Guide](docs/ESP32_S3_COMPATIBILITY.md) for ESP32-S3 
 
 ### 3. Connect and Control
 
+**Option A: WiFi Connection**
 1. Power on the system
 2. Connect to WiFi network: **POV-POI-WiFi** (password: `povpoi123`)
 3. Open browser and navigate to: `http://192.168.4.1`
 4. Use the web interface to control patterns, upload images, and adjust settings
+
+**Option B: Bluetooth Low Energy (BLE) Connection**
+1. Power on the system
+2. Open a BLE-capable app (Flutter app, nRF Connect, etc.)
+3. Scan for BLE devices and look for: **Wireless POV Poi**
+4. Connect to the device
+5. Use the Nordic UART Service to send commands
+6. See [BLE Protocol Documentation](docs/BLE_PROTOCOL.md) for command reference
+
+**Note:** BLE and WiFi can operate simultaneously. BLE is more power-efficient and has lower latency for simple commands.
 
 **🎨 Demo Content Available!** The firmware comes pre-loaded with:
 - 3 demo images (Smiley, Rainbow, Heart)
@@ -144,7 +161,10 @@ See [DEMO_CONTENT.md](DEMO_CONTENT.md) for complete details on built-in content.
 - **[Complete Setup Guide](docs/README.md)** - Detailed installation and usage instructions
 - **[Wiring Diagram](docs/WIRING.md)** - Hardware connections and assembly guide
 - **[API Documentation](docs/API.md)** - REST API reference for mobile app development
+- **[BLE Protocol](docs/BLE_PROTOCOL.md)** - Bluetooth Low Energy command reference
+- **[BLE Protocol](wireless_pov_poi_app/BLE_PROTOCOL.md)** 🆕 - Bluetooth protocol specification for Flutter app
 - **[POI Pairing Guide](docs/POI_PAIRING.md)** 🆕 - Setup and sync multiple poi devices
+- **[BMP Image Processing Guide](docs/BMP_IMAGE_PROCESSING.md)** 🆕 - BMPImageReader and BMPImageSequence usage
 - **[Image Conversion Guide](docs/IMAGE_CONVERSION.md)** - How automatic image conversion works
 - **[Testing Guide](TESTING.md)** - Testing tools, environment setup, and test procedures
 
@@ -199,6 +219,47 @@ A complete, ready-to-build Android Studio project with advanced features:
 See [Android App README](POVPoiApp/README.md) for complete setup and usage instructions.
 
 **Example Files:** The `examples/android_app/` directory contains individual example files for reference.
+
+### Flutter App - Multi-Platform BLE Control 🆕
+
+A cross-platform Flutter application for direct Bluetooth Low Energy (BLE) control:
+
+- **Multi-Platform Support**:
+  - ✅ **Android** - Full BLE support (API 21+)
+  - ✅ **Windows** - BLE adapter required (Windows 10/11)
+  - ✅ **Web** - Chrome/Edge only (Web Bluetooth API)
+  - ⚠️ **iOS** - Web version unsupported (no Web Bluetooth)
+  
+- **BLE Direct Control** - No WiFi required, control via Bluetooth
+- **Pattern Management** - Import, edit, and organize LED patterns
+- **Pattern Creators** - Text, color, gradient, and stacked patterns
+- **Sequencer** - Automated pattern playback
+- **Multi-Device** - Control up to 7 poi simultaneously
+- **APA102 Optimized** - Designed for 31-pixel LED strips
+
+**Key Advantages over WiFi:**
+- Longer range (BLE: ~10m vs WiFi AP mode)
+- Lower latency for real-time control
+- Multi-device pairing support
+- Works in areas with WiFi interference
+
+**Quick Start:**
+```bash
+cd wireless_pov_poi_app
+flutter pub get
+flutter run  # On connected device
+```
+
+**Pattern Requirements:**
+- Max height: 31 pixels (LED strip length)
+- Max width: 400 pixels
+- Max total pixels: 40,000
+
+See [Flutter App README](wireless_pov_poi_app/README.md) for complete installation, usage, and development guide.
+
+**Note:** The Flutter app uses BLE protocol and complements the WiFi-based web interface. Choose based on your needs:
+- **WiFi (Web Portal)**: Best for single-device control, image upload, live drawing
+- **BLE (Flutter App)**: Best for multi-device control, portable use, lower latency
 
 ### REST API
 
@@ -263,6 +324,78 @@ Upload directly through the POV device's web interface at http://192.168.4.1 - i
 
 ### Option 4: Online Tool
 - **POISonic Online Converter**: [https://web.archive.org/web/20210509110926/https://www.orchardelica.com/poisonic/poi_page.html](https://web.archive.org/web/20210509110926/https://www.orchardelica.com/poisonic/poi_page.html) - Browser-based converter
+
+## BMP Image Processing with BMPImageReader
+
+The firmware now includes `BMPImageReader` and `BMPImageSequence` classes from the pov-library for robust BMP image handling.
+
+### Features
+
+- **BMPImageReader**: Standalone BMP header parsing and line-by-line access
+- **BMPImageSequence**: Playlist management with durations
+- Works directly with Teensy 4.1's built-in SD card
+- Memory efficient with user-controlled buffers
+- Template-based design for maximum flexibility
+
+### Usage with SD Card
+
+```cpp
+#include "BMPImageReader.h"
+
+BMPImageReader reader;
+File bmpFile = SD.open("image.bmp");
+
+if (reader.begin(bmpFile)) {
+    Serial.print("Image: ");
+    Serial.print(reader.width());
+    Serial.print(" x ");
+    Serial.println(reader.height());
+    
+    uint8_t* buffer = new uint8_t[reader.bufferSize()];
+    reader.loadToBuffer(bmpFile, buffer);
+    
+    // Access line-by-line for POV display
+    for (int y = 0; y < reader.height(); y++) {
+        uint8_t* line = reader.getLine(buffer, y);
+        // Display line on LEDs
+    }
+    
+    delete[] buffer;
+}
+```
+
+### Image Sequences
+
+Create an `imagelist.txt` file on your SD card:
+```
+image1.bmp 20
+image2.bmp 15
+image3.bmp 10
+```
+
+Load and use sequences:
+```cpp
+#include "BMPImageSequence.h"
+
+BMPImageSequence sequence;
+File listFile = SD.open("imagelist.txt");
+sequence.loadFromFile(listFile);
+listFile.close();
+
+// In your display loop
+const char* filename = sequence.getCurrentFilename();
+uint16_t duration = sequence.getCurrentDuration();
+// ... display image ...
+sequence.next(); // Move to next image
+```
+
+### Requirements
+
+- Images must be 24-bit uncompressed BMP format
+- Width and height can be any size (limited by available RAM)
+- For POV display, height should match your LED count (31 pixels)
+
+See [BMP Image Processing Guide](docs/BMP_IMAGE_PROCESSING.md) for complete documentation and examples.
 
 ## Customization
 

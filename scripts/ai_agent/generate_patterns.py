@@ -9,6 +9,7 @@ import sys
 import json
 import random
 import datetime
+import math
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -294,16 +295,133 @@ def generate_patterns_task(task_data: Dict) -> Dict:
         # Generate random patterns
         result["patterns"] = generator.generate_random_patterns(num_patterns)
     
-    # Save patterns to file
+    # Save patterns to files (both .h and .json)
     output_dir = REPO_ROOT / "scripts" / "ai_agent" / "output"
+    patterns_dir = output_dir / "generated_patterns"
+    patterns_dir.mkdir(parents=True, exist_ok=True)
+    
     for pattern in result["patterns"]:
-        filepath = generator.save_pattern_to_file(pattern, output_dir)
-        pattern["saved_to"] = str(filepath)
+        # Save as header file
+        h_filepath = generator.save_pattern_to_file(pattern, output_dir)
+        pattern["saved_to_h"] = str(h_filepath)
+        
+        # Also save as JSON with pattern data
+        json_data = {
+            "id": pattern["id"],
+            "name": pattern["name"],
+            "description": pattern["description"],
+            "parameters": pattern["parameters"],
+            "implementation_notes": pattern.get("implementation_notes", ""),
+            "pattern_data": generate_pattern_data(pattern["id"]),
+            "code_snippet": pattern["code"]
+        }
+        
+        json_filepath = patterns_dir / f"pattern_{pattern['id']}.json"
+        with open(json_filepath, "w") as f:
+            json.dump(json_data, f, indent=2)
+        pattern["saved_to_json"] = str(json_filepath)
     
     result["count"] = len(result["patterns"])
     result["timestamp"] = str(datetime.datetime.now())
+    result["output_directory"] = str(patterns_dir)
     
     return result
+
+
+def generate_pattern_data(pattern_id: str) -> Dict:
+    """Generate actual pattern data for a given pattern type"""
+    import math
+    
+    if pattern_id == "rainbow_cycle":
+        return {
+            "type": "rainbow_cycle",
+            "frames": 60,
+            "speed": 50,
+            "colors": [
+                {"hue": i * 256 // 31, "saturation": 255, "brightness": 255}
+                for i in range(31)
+            ]
+        }
+    
+    elif pattern_id == "wave_sine" or pattern_id == "sine_wave":
+        return {
+            "type": "sine_wave",
+            "amplitude": 128,
+            "frequency": 2,
+            "speed": 40,
+            "waveform": [
+                int(128 + 127 * math.sin(2 * math.pi * i / 31))
+                for i in range(31)
+            ]
+        }
+    
+    elif pattern_id == "comet_tail":
+        return {
+            "type": "comet_tail",
+            "tail_length": 8,
+            "speed": 60,
+            "color": {"r": 0, "g": 100, "b": 255},
+            "fade_rate": 32
+        }
+    
+    elif pattern_id == "fire_effect":
+        return {
+            "type": "fire_effect",
+            "cooling": 55,
+            "sparking": 120,
+            "speed": 30,
+            "color_palette": "heat",
+            "heat_map": [random.randint(0, 255) for _ in range(32)]
+        }
+    
+    elif pattern_id == "plasma_wave":
+        return {
+            "type": "plasma_wave",
+            "speed": 50,
+            "complexity": 3,
+            "color_shift": 10,
+            "wave_functions": [
+                {"amplitude": 5, "frequency": i+1, "phase": i*30}
+                for i in range(3)
+            ]
+        }
+    
+    elif pattern_id == "pulse_beat":
+        return {
+            "type": "pulse_beat",
+            "bpm": 120,
+            "min_brightness": 50,
+            "max_brightness": 255,
+            "beat_pattern": [30, 40, 70, 100],  # Phase thresholds
+            "double_beat": True
+        }
+    
+    elif pattern_id == "noise_shimmer":
+        return {
+            "type": "noise_shimmer",
+            "scale": 30,
+            "speed": 50,
+            "color_shift": 2,
+            "noise_octaves": 2,
+            "min_brightness": 50,
+            "max_brightness": 255
+        }
+    
+    elif pattern_id == "spiral_trace":
+        return {
+            "type": "spiral_trace",
+            "speed": 80,
+            "width": 5,
+            "direction": 1,
+            "bidirectional": True,
+            "color_cycle": True
+        }
+    
+    else:
+        return {
+            "type": pattern_id,
+            "generic": True
+        }
 
 
 if __name__ == "__main__":
