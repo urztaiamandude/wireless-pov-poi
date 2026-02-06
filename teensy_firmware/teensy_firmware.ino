@@ -716,7 +716,6 @@ void displayPattern() {
   Pattern& pat = patterns[currentIndex];
   static uint32_t patternTime = 0;
   patternTime++;
-  // LED 0 is reserved for level shifting; patterns start at LED 1.
   
   switch (pat.type) {
     case 0:  // Rainbow

@@ -71,6 +71,7 @@ const char* password = "povpoi123";
 // Serial Configuration
 #define TEENSY_SERIAL Serial2
 #define SERIAL_BAUD 115200
+const uint8_t kMaxPatternIndex = 17;
 
 // Sync Configuration
 #define AUTO_SYNC_ENABLED false
@@ -1453,8 +1454,8 @@ void handleUploadPattern() {
     }
     
     // Clamp the pattern index to the supported upper bound (0-17)
-    if (index > 17) {
-      index = 17;
+    if (index > kMaxPatternIndex) {
+      index = kMaxPatternIndex;
     }
     
     // Send pattern to Teensy (simple protocol)
