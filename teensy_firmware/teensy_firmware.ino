@@ -77,8 +77,8 @@ struct POVImage {
 // Pattern types (0-17):
 //   Basic:  0=rainbow, 1=wave, 2=gradient, 3=sparkle, 4=fire, 5=comet
 //           6=breathing, 7=strobe, 8=meteor, 9=wipe, 10=plasma
-//           16=split spin, 17=theater chase
 //   Music:  11=VU meter, 12=pulse, 13=rainbow, 14=center, 15=sparkle
+//   Extra:  16=split spin, 17=theater chase
 struct Pattern {
   uint8_t type;   // Pattern type (0-17), see types above
   CRGB color1;    // Primary color for pattern
