@@ -51,8 +51,9 @@
 #define IMAGE_WIDTH 31          // Fixed width for POV display (matches DISPLAY_LEDS)
 #define IMAGE_HEIGHT 31         // Fixed: matches DISPLAY_LEDS (one pixel per LED)
 #define IMAGE_MAX_WIDTH 200     // Maximum width for stored images
-#define MAX_PATTERNS 16  // 0-15: rainbow, wave, gradient, sparkle, fire, comet, breathing, strobe, meteor, wipe, plasma, music VU, music pulse, music rainbow, music center, music sparkle
+#define MAX_PATTERNS 18  // Total pattern slots (indexed 0-17)
 #define MAX_SEQUENCES 5
+const uint8_t kPatternSpeedDivisor = 20;  // Used for split-spin/theater chase speed scaling.
 
 #ifdef SD_SUPPORT
   // SD Card Configuration
@@ -74,12 +75,13 @@ struct POVImage {
 };
 
 // Pattern structure
-// Pattern types (0-15):
+// Pattern types (0-17):
 //   Basic:  0=rainbow, 1=wave, 2=gradient, 3=sparkle, 4=fire, 5=comet
 //           6=breathing, 7=strobe, 8=meteor, 9=wipe, 10=plasma
 //   Music:  11=VU meter, 12=pulse, 13=rainbow, 14=center, 15=sparkle
+//   Extra:  16=split spin, 17=theater chase
 struct Pattern {
-  uint8_t type;   // Pattern type (0-15), see types above
+  uint8_t type;   // Pattern type (0-17), see types above
   CRGB color1;    // Primary color for pattern
   CRGB color2;    // Secondary color for pattern
   uint8_t speed;  // Animation speed (1-255): higher = faster animation
@@ -223,6 +225,18 @@ void initStorage() {
   patterns[4].color1 = CRGB::Green;
   patterns[4].color2 = CRGB::Magenta;
   patterns[4].speed = 40;
+
+  patterns[5].active = true;
+  patterns[5].type = 16;  // Split Spin
+  patterns[5].color1 = CRGB::Blue;
+  patterns[5].color2 = CRGB::Red;
+  patterns[5].speed = 70;
+
+  patterns[6].active = true;
+  patterns[6].type = 17;  // Theater Chase
+  patterns[6].color1 = CRGB::White;
+  patterns[6].color2 = CRGB::Black;
+  patterns[6].speed = 90;
   
   // Initialize with default demo images
   createDemoImages();
@@ -1052,6 +1066,27 @@ void displayPattern() {
           uint8_t pos = random8(1, NUM_LEDS);
           uint8_t hue = patternTime * 2 + random8(64);  // Shifting colors
           leds[pos] = CHSV(hue, 255, 255);
+        }
+      }
+      break;
+
+    case 16:  // Split Spin - rotating two-color halves
+      {
+        uint8_t offset = (patternTime * pat.speed / kPatternSpeedDivisor) % DISPLAY_LEDS;
+        uint8_t splitPoint = DISPLAY_LEDS / 2;
+        for (int i = DISPLAY_LED_START; i < NUM_LEDS; i++) {
+          uint8_t pos = (i - 1 + offset) % DISPLAY_LEDS;
+          leds[i] = (pos < splitPoint) ? pat.color1 : pat.color2;
+        }
+      }
+      break;
+
+    case 17:  // Theater Chase - dotted chase with background
+      {
+        uint8_t chaseOffset = (patternTime * pat.speed / kPatternSpeedDivisor) % 3;
+        for (int i = DISPLAY_LED_START; i < NUM_LEDS; i++) {
+          uint8_t phase = (i - 1 + chaseOffset) % 3;
+          leds[i] = (phase == 0) ? pat.color1 : pat.color2;
         }
       }
       break;

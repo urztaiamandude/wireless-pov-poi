@@ -71,6 +71,7 @@ const char* password = "povpoi123";
 // Serial Configuration
 #define TEENSY_SERIAL Serial2
 #define SERIAL_BAUD 115200
+const uint8_t kMaxPatternIndex = 17;
 
 // Sync Configuration
 #define AUTO_SYNC_ENABLED false
@@ -612,12 +613,13 @@ void handleRoot() {
                 <div style="margin-top: 10px; padding: 10px; background: rgba(102, 126, 234, 0.1); border-radius: 5px; font-size: 14px;">
                     <strong>Available Content:</strong><br>
                     📷 Images: 0=Smiley, 1=Rainbow, 2=Heart<br>
-                    🎨 Patterns: 0=Rainbow, 1=Fire, 2=Comet, 3=Breathing, 4=Plasma<br>
+                    🎨 Pattern slots (0-17; preloaded 0-6): 0=Rainbow, 1=Fire, 2=Comet,<br>
+                    3=Breathing, 4=Plasma, 5=Split Spin, 6=Theater Chase<br>
                     🎬 Sequences: 0=Demo Mix
                 </div>
                 <div class="control-group" style="margin-top: 15px;">
-                    <label for="content-index">Content Index (0-15):</label>
-                    <input type="number" id="content-index" min="0" max="15" value="0" onchange="changeContentIndex()">
+                    <label for="content-index">Content Index (0-17):</label>
+                    <input type="number" id="content-index" min="0" max="17" value="0" onchange="changeContentIndex()">
                 </div>
             </div>
             
@@ -649,6 +651,8 @@ void handleRoot() {
                     <button class="pattern-btn" onclick="setPattern(8)">🌠 Meteor</button>
                     <button class="pattern-btn" onclick="setPattern(9)">🖌️ Wipe</button>
                     <button class="pattern-btn" onclick="setPattern(10)">🌀 Plasma</button>
+                    <button class="pattern-btn" onclick="setPattern(16)">🌓 Split Spin</button>
+                    <button class="pattern-btn" onclick="setPattern(17)">🎭 Theater Chase</button>
                 </div>
             </div>
             
@@ -1450,9 +1454,9 @@ void handleUploadPattern() {
       parseUintFieldLocal(c2Sub, "\"b\"", b2, b2);
     }
     
-    // Clamp the pattern index to the range supported by the Teensy engine (0-4)
-    if (index > 4) {
-      index = 4;
+    // Clamp the pattern index to the supported upper bound (0-17)
+    if (index > kMaxPatternIndex) {
+      index = kMaxPatternIndex;
     }
     
     // Send pattern to Teensy (simple protocol)

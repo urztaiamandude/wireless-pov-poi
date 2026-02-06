@@ -10,6 +10,8 @@ This document evaluates the compatibility of the **ESP32-S3 N16R8 Gold Edition K
 
 The ESP32-S3 with 16MB Flash and 8MB PSRAM is not only compatible but actually **exceeds** the requirements of the current implementation and provides room for future enhancements.
 
+**Storage model reminder:** The ESP32-S3 firmware forwards pattern and image data to the Teensy, which owns persistent storage. The ESP32-S3 should not store patterns or images locally.
+
 ## Hardware Specifications Comparison
 
 | Feature | ESP32 (Current) | ESP32-S3 N16R8 | Status |
@@ -63,7 +65,7 @@ This is the largest single allocation and it's well within the capabilities of b
    - Store more web assets locally (no need for SPIFFS in some cases)
    - Room for OTA updates without partition resizing
    - Can store multiple firmware versions
-   - Space for future features (image gallery, patterns library)
+   - Space for future features (sync UI, diagnostics, OTA improvements)
 
 2. **8MB PSRAM**
    - Handle much larger image buffers if needed
@@ -91,7 +93,7 @@ This is the largest single allocation and it's well within the capabilities of b
 
 With the ESP32-S3's additional resources, you could add:
 
-1. **Image Gallery**: Store 10-20 converted images locally
+1. **Image Gallery**: Only if the storage model changes; current firmware forwards images to Teensy storage
 2. **Advanced Patterns**: More complex animations with larger lookup tables
 3. **Video Playback**: Stream simple animations (low frame rate)
 4. **Multiple Poi Sync**: Coordinate multiple poi devices over WiFi
