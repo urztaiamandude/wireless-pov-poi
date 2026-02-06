@@ -51,7 +51,7 @@
 #define IMAGE_WIDTH 31          // Fixed width for POV display (matches DISPLAY_LEDS)
 #define IMAGE_HEIGHT 31         // Fixed: matches DISPLAY_LEDS (one pixel per LED)
 #define IMAGE_MAX_WIDTH 200     // Maximum width for stored images
-#define MAX_PATTERNS 18  // 0-17: see pattern type list below
+#define MAX_PATTERNS 18  // 0-17: see "Pattern types (0-17)" comment below
 #define MAX_SEQUENCES 5
 
 #ifdef SD_SUPPORT
