@@ -1452,7 +1452,7 @@ void handleUploadPattern() {
       parseUintFieldLocal(c2Sub, "\"b\"", b2, b2);
     }
     
-    // Clamp the pattern index to the range supported by the Teensy engine (0-17)
+    // Clamp the pattern index to the supported upper bound (0-17)
     if (index > 17) {
       index = 17;
     }

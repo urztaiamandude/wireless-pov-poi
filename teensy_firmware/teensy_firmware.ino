@@ -1073,6 +1073,7 @@ void displayPattern() {
       {
         uint8_t offset = (patternTime * pat.speed / 20) % DISPLAY_LEDS;
         uint8_t splitPoint = DISPLAY_LEDS / 2;
+        // Start at LED 1 (LED 0 reserved for level shifting).
         for (int i = 1; i < NUM_LEDS; i++) {
           uint8_t pos = (i - 1 + offset) % DISPLAY_LEDS;
           leds[i] = (pos < splitPoint) ? pat.color1 : pat.color2;
@@ -1083,6 +1084,7 @@ void displayPattern() {
     case 17:  // Theater Chase - dotted chase with background
       {
         uint8_t chaseOffset = (patternTime * pat.speed / 20) % 3;
+        // Start at LED 1 (LED 0 reserved for level shifting).
         for (int i = 1; i < NUM_LEDS; i++) {
           uint8_t phase = (i - 1 + chaseOffset) % 3;
           leds[i] = (phase == 0) ? pat.color1 : pat.color2;
