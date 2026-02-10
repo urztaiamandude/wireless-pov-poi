@@ -2,7 +2,19 @@
 Post-build script for Teensy 4.1 firmware
 Generates HEX file for use with Teensy Loader application
 """
+from typing import Any
+
+try:
+    from SCons.Script import Import  # type: ignore[reportMissingImports]
+except Exception:  # pragma: no cover - SCons available at build time
+    def Import(name: str) -> Any:
+        raise ImportError("SCons is required to run this script.")
+
 Import("env")
+
+env = globals().get("env")
+if env is None:
+    raise RuntimeError("SCons environment 'env' not available.")
 import shutil
 import os
 
