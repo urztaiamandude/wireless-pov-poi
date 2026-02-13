@@ -18,12 +18,6 @@ class _WelcomePageState extends State<WelcomePage> {
   List<ScanResult> selectedDevices = [];
   bool scanning = false;
 
-  @override
-  void initState() {
-    super.initState();
-    
-  }
-
   void scan() async {
     setState(() {
       scanning = true;
@@ -67,7 +61,7 @@ class _WelcomePageState extends State<WelcomePage> {
     for (var result in selectedDevices) {
       try {
         BLEUart uart = BLEUart(result.device);
-        await uart.isIntialized;
+        await uart.isInitialized;
         PoiHardware poi = PoiHardware(uart);
         poiList.add(poi);
       } catch (e) {

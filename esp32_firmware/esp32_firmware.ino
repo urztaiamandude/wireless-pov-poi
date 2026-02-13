@@ -2229,8 +2229,34 @@ void handleSyncData() {
   String json = "{";
   json += "\"deviceId\":\"" + deviceConfig.deviceId + "\",";
   json += "\"deviceName\":\"" + deviceConfig.deviceName + "\",";
-  json += "\"images\":[],";  // TODO: Implement image listing
-  json += "\"patterns\":[],";  // TODO: Implement pattern listing
+  // Image listing (built-in demo images)
+  json += "\"images\":[";
+  json += "{\"id\":0,\"name\":\"Smiley Face\"},";
+  json += "{\"id\":1,\"name\":\"Rainbow Gradient\"},";
+  json += "{\"id\":2,\"name\":\"Heart\"}";
+  json += "],";
+  // Pattern listing (built-in patterns)
+  json += "\"patterns\":[";
+  json += "{\"id\":0,\"name\":\"Rainbow\"},";
+  json += "{\"id\":1,\"name\":\"Wave\"},";
+  json += "{\"id\":2,\"name\":\"Gradient\"},";
+  json += "{\"id\":3,\"name\":\"Sparkle\"},";
+  json += "{\"id\":4,\"name\":\"Fire\"},";
+  json += "{\"id\":5,\"name\":\"Comet\"},";
+  json += "{\"id\":6,\"name\":\"Breathing\"},";
+  json += "{\"id\":7,\"name\":\"Strobe\"},";
+  json += "{\"id\":8,\"name\":\"Meteor\"},";
+  json += "{\"id\":9,\"name\":\"Wipe\"},";
+  json += "{\"id\":10,\"name\":\"Plasma\"},";
+  json += "{\"id\":11,\"name\":\"VU Meter\"},";
+  json += "{\"id\":12,\"name\":\"Pulse\"},";
+  json += "{\"id\":13,\"name\":\"Audio Rainbow\"},";
+  json += "{\"id\":14,\"name\":\"Center Burst\"},";
+  json += "{\"id\":15,\"name\":\"Audio Sparkle\"},";
+  json += "{\"id\":16,\"name\":\"Split Spin\"},";
+  json += "{\"id\":17,\"name\":\"Theater Chase\"}";
+  json += "],";
+
   json += "\"settings\":{";
   json += "\"brightness\":" + String(state.brightness) + ",";
   json += "\"framerate\":" + String(state.frameRate) + ",";

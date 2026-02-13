@@ -31,4 +31,3 @@ flutter:
   uses-material-design: true
   assets:
     - patterns/
-    - fonts/

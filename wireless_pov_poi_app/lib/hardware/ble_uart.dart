@@ -10,13 +10,13 @@ class BLEUart {
   BluetoothCharacteristic? rxCharacteristic;
   BluetoothCharacteristic? txCharacteristic;
   
-  late Future<void> isIntialized;
+  late Future<void> isInitialized;
   final StreamController<List<int>> _dataStreamController = StreamController<List<int>>.broadcast();
   
   Stream<List<int>> get dataStream => _dataStreamController.stream;
 
   BLEUart(this.device) {
-    isIntialized = _initialize();
+    isInitialized = _initialize();
   }
 
   Future<void> _initialize() async {
