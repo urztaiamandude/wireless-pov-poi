@@ -20,7 +20,7 @@ def test_proportional_scaling():
     # Test case 1: Square image
     print("Test 1: Square image (100x100)")
     original_width, original_height = 100, 100
-    target_height = 31
+    target_height = 32
     
     scale_factor = target_height / original_height
     new_width = int(original_width * scale_factor)
@@ -28,15 +28,15 @@ def test_proportional_scaling():
     print(f"  Original: {original_width}x{original_height}")
     print(f"  Scale factor: {scale_factor:.4f} ({target_height}/{original_height})")
     print(f"  New size: {new_width}x{target_height}")
-    print(f"  Expected: 31x31 (square should remain square)")
-    assert new_width == 31, f"Expected width 31, got {new_width}"
-    print("  ✓ PASS")
+    print(f"  Expected: 32x32 (square should remain square)")
+    assert new_width == 32, f"Expected width 32, got {new_width}"
+    print("  PASS")
     print()
     
     # Test case 2: Wide image
     print("Test 2: Wide image (200x100)")
     original_width, original_height = 200, 100
-    target_height = 31
+    target_height = 32
     
     scale_factor = target_height / original_height
     new_width = int(original_width * scale_factor)
@@ -44,15 +44,15 @@ def test_proportional_scaling():
     print(f"  Original: {original_width}x{original_height}")
     print(f"  Scale factor: {scale_factor:.4f} ({target_height}/{original_height})")
     print(f"  New size: {new_width}x{target_height}")
-    print(f"  Expected: 62x31 (2:1 aspect ratio preserved)")
-    assert new_width == 62, f"Expected width 62, got {new_width}"
-    print("  ✓ PASS")
+    print(f"  Expected: 64x32 (2:1 aspect ratio preserved)")
+    assert new_width == 64, f"Expected width 64, got {new_width}"
+    print("  PASS")
     print()
     
     # Test case 3: Tall image
     print("Test 3: Tall image (50x200)")
     original_width, original_height = 50, 200
-    target_height = 31
+    target_height = 32
     
     scale_factor = target_height / original_height
     new_width = int(original_width * scale_factor)
@@ -60,15 +60,15 @@ def test_proportional_scaling():
     print(f"  Original: {original_width}x{original_height}")
     print(f"  Scale factor: {scale_factor:.4f} ({target_height}/{original_height})")
     print(f"  New size: {new_width}x{target_height}")
-    print(f"  Expected: 7x31 (aspect ratio preserved)")
-    assert new_width == 7, f"Expected width 7, got {new_width}"
-    print("  ✓ PASS")
+    print(f"  Expected: 8x32 (aspect ratio preserved)")
+    assert new_width == 8, f"Expected width 8, got {new_width}"
+    print("  PASS")
     print()
     
-    # Test case 4: Already 31 pixels high
-    print("Test 4: Already correct height (93x31)")
-    original_width, original_height = 93, 31
-    target_height = 31
+    # Test case 4: Already 32 pixels high
+    print("Test 4: Already correct height (96x32)")
+    original_width, original_height = 96, 32
+    target_height = 32
     
     scale_factor = target_height / original_height
     new_width = int(original_width * scale_factor)
@@ -76,19 +76,20 @@ def test_proportional_scaling():
     print(f"  Original: {original_width}x{original_height}")
     print(f"  Scale factor: {scale_factor:.4f} ({target_height}/{original_height})")
     print(f"  New size: {new_width}x{target_height}")
-    print(f"  Expected: 93x31 (no change needed)")
-    assert new_width == 93, f"Expected width 93, got {new_width}"
-    print("  ✓ PASS")
+    print(f"  Expected: 96x32 (no change needed)")
+    assert new_width == 96, f"Expected width 96, got {new_width}"
+    print("  PASS")
     print()
     
     print("=" * 50)
-    print("All tests passed! ✓")
+    print("All tests passed!")
     print()
     print("Key points:")
-    print("  - Height is always fixed at 31 pixels")
+    print("  - Height is always fixed at 32 pixels (all 32 LEDs for display)")
     print("  - Width is scaled by the same factor as height")
     print("  - This prevents image warping/distortion")
     print("  - LEDs display vertical columns from left to right")
+    print("  - Hardware level shifter used (no LED sacrificed)")
 
 if __name__ == "__main__":
     test_proportional_scaling()
