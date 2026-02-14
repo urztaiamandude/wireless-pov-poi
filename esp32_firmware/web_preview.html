@@ -396,7 +396,7 @@
             <!-- Audio Reactive Patterns -->
             <div class="section">
                 <h2>🎵 Audio Reactive</h2>
-                <p style="font-size: 12px; color: #666; margin-bottom: 10px;">Requires microphone on Teensy pin A0</p>
+                <p style="font-size: 12px; color: #666; margin-bottom: 10px;">Requires MAX9814 microphone amplifier on Teensy pin A0</p>
                 <div class="pattern-grid">
                     <button class="pattern-btn" onclick="setPattern(11)" style="background: linear-gradient(135deg, #00ff88 0%, #ff0088 100%); color: white; border: none;">📊 VU Meter</button>
                     <button class="pattern-btn" onclick="setPattern(12)" style="background: linear-gradient(135deg, #ff0088 0%, #00ff88 100%); color: white; border: none;">💓 Pulse</button>
@@ -439,7 +439,7 @@
             <!-- Live Mode -->
             <div class="section">
                 <h2>Live Draw Mode</h2>
-                <canvas id="live-canvas" class="live-canvas" width="310" height="200"></canvas>
+                <canvas id="live-canvas" class="live-canvas" width="320" height="200"></canvas>
                 <button onclick="clearCanvas()" style="margin-top: 10px;">Clear</button>
             </div>
         </div>
@@ -458,7 +458,7 @@
         // =====================
         // LED Preview
         // =====================
-        const NUM_LEDS = 31;  // LEDs 1-31 (index 0 is level shifter)
+        const NUM_LEDS = 32;  // All 32 LEDs used for display (hardware level shifter)
         
         function initLEDPreview() {
             const container = document.getElementById('led-preview');
@@ -766,8 +766,8 @@
                 
                 reader.onload = (e) => {
                     img.onload = () => {
-                        canvas.width = 31;
-                        canvas.height = Math.min(64, Math.round(31 * img.height / img.width));
+                        canvas.width = 32;
+                        canvas.height = Math.min(64, Math.round(32 * img.height / img.width));
                         ctx.imageSmoothingEnabled = false;
                         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                         canvas.style.display = 'block';
