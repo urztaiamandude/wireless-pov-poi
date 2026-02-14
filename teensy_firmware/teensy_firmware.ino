@@ -2,12 +2,14 @@
  * Nebula Poi - Teensy 4.1 Firmware
  * 
  * This firmware controls a 32 LED APA102 strip for POV (Persistence of Vision) display.
- * LED 0 is used for level shifting, LEDs 1-31 are used for display.
+ * All 32 LEDs are used for display (hardware level shifter is used).
  * Communicates with ESP32 via Serial1 to receive images, patterns, and sequences.
  * 
  * Hardware:
  * - Teensy 4.1
  * - APA102 LED Strip (32 LEDs)
+ * - Hardware level shifter (3.3V -> 5V for data/clock)
+ * - MAX9814 Microphone Amplifier Module (for audio-reactive patterns)
  * - ESP32 connected via Serial1 (RX1=0, TX1=1)
  * - Optional: microSD card in Teensy 4.1 built-in slot (for SD_SUPPORT)
  */
@@ -24,32 +26,35 @@
 #endif
 
 // LED Configuration
-// ⚠️ CRITICAL: LED 0 is used for level shifting only - NEVER use for display!
-// All display loops MUST start from index 1, not 0.
-// Example: for (int i = 1; i < NUM_LEDS; i++) { leds[i] = color; }
+// All 32 LEDs are used for display (hardware level shifter handles 3.3V -> 5V)
+// All display loops start from index 0.
+// Example: for (int i = 0; i < NUM_LEDS; i++) { leds[i] = color; }
 #define NUM_LEDS 32
 #define DATA_PIN 11
 #define CLOCK_PIN 13
 #define LED_TYPE APA102
 #define COLOR_ORDER BGR
-#define DISPLAY_LEDS 31       // LEDs 1-31 used for display (LED 0 for level shifting)
-#define DISPLAY_LED_START 1   // First LED index used for display content
+#define DISPLAY_LEDS 32       // All 32 LEDs used for display (hardware level shifter)
+#define DISPLAY_LED_START 0   // First LED index used for display content
 
-// Audio Input Configuration (for music reactive patterns)
-#define AUDIO_PIN A0         // Analog microphone input
-#define AUDIO_SAMPLES 64     // Samples for averaging
-#define AUDIO_NOISE_FLOOR 50 // Minimum threshold to filter noise
+// Audio Input Configuration (MAX9814 Microphone Amplifier Module)
+// MAX9814 output connects through level shifter to Teensy analog input.
+// Gain: no connect = 60dB, GND = 50dB, VDD = 40dB
+// Output: biased at VDD/2 (~1.65V), swings +/- based on audio level
+#define AUDIO_PIN A0         // Analog input from MAX9814 via level shifter
+#define AUDIO_SAMPLES 64     // Samples for running average
+#define AUDIO_NOISE_FLOOR 50 // Minimum threshold to filter ambient noise
 
 // Communication
 #define SERIAL_BAUD 115200
 #define ESP32_SERIAL Serial1
 
 // Display Configuration
-// NOTE: IMAGE_HEIGHT = DISPLAY_LEDS = 31 (fixed, matches physical LEDs)
+// NOTE: IMAGE_HEIGHT = DISPLAY_LEDS = 32 (fixed, matches physical LEDs)
 //       IMAGE_MAX_WIDTH = variable (calculated from aspect ratio)
 #define MAX_IMAGES 10
-#define IMAGE_WIDTH 31          // Fixed width for POV display (matches DISPLAY_LEDS)
-#define IMAGE_HEIGHT 31         // Fixed: matches DISPLAY_LEDS (one pixel per LED)
+#define IMAGE_WIDTH 32          // Fixed width for POV display (matches DISPLAY_LEDS)
+#define IMAGE_HEIGHT 32         // Fixed: matches DISPLAY_LEDS (one pixel per LED)
 #define IMAGE_MAX_WIDTH 200     // Maximum width for stored images
 #define MAX_PATTERNS 18  // Total pattern slots (indexed 0-17)
 #define MAX_SEQUENCES 5
@@ -78,7 +83,7 @@ struct POVImage {
 // Pattern types (0-17):
 //   Basic:  0=rainbow, 1=wave, 2=gradient, 3=sparkle, 4=fire, 5=comet
 //           6=breathing, 7=strobe, 8=meteor, 9=wipe, 10=plasma
-//   Music:  11=VU meter, 12=pulse, 13=rainbow, 14=center, 15=sparkle
+//   Audio (MAX9814): 11=VU meter, 12=pulse, 13=rainbow, 14=center burst, 15=sparkle
 //   Extra:  16=split spin, 17=theater chase
 struct Pattern {
   uint8_t type;   // Pattern type (0-17), see types above
@@ -122,10 +127,10 @@ bool sequencePlaying = false;
 CRGB liveBuffer[DISPLAY_LEDS];
 
 // Serial command buffer
-// Buffer size calculation: 31 (width) × 64 (height) × 3 (RGB bytes) = 5,952 bytes
+// Buffer size calculation: 32 (width) × 64 (height) × 3 (RGB bytes) = 6,144 bytes
 // Plus protocol overhead (~100 bytes): 0xFF start, cmd, len, 0xFE end markers
-// Rounded up to 6144 for safety margin
-#define CMD_BUFFER_SIZE 6144
+// Rounded up to 6400 for safety margin
+#define CMD_BUFFER_SIZE 6400
 uint8_t cmdBuffer[CMD_BUFFER_SIZE];
 uint16_t cmdBufferIndex = 0;
 
@@ -371,9 +376,9 @@ void createDemoSequence() {
 }
 
 void startupAnimation() {
-  // Rainbow sweep animation
+  // Rainbow sweep animation (all 32 display LEDs)
   for (int hue = 0; hue < 256; hue += 4) {
-    for (int i = 1; i < NUM_LEDS; i++) {
+    for (int i = DISPLAY_LED_START; i < NUM_LEDS; i++) {
       leds[i] = CHSV(hue + (i * 8), 255, 255);
     }
     FastLED.show();
@@ -546,7 +551,7 @@ void receiveImage() {
   Serial.print(cmdBufferIndex);
   Serial.println(" bytes)");
   
-  // If image is already 31 pixels wide, use it directly
+  // If image is already 32 pixels wide, use it directly
   if (srcWidth == IMAGE_WIDTH && srcHeight <= 64) {
     Serial.println("Image is already POV-compatible size");
     images[imgIndex].width = srcWidth;
@@ -574,8 +579,8 @@ void receiveImage() {
       }
     }
   } else {
-    // Image needs conversion - resize to 31 pixels wide
-    Serial.println("Converting image to POV format (31 pixels wide)");
+    // Image needs conversion - resize to 32 pixels wide
+    Serial.println("Converting image to POV format (32 pixels wide)");
     
     // Calculate target height maintaining aspect ratio
     uint8_t targetHeight = (uint16_t)srcHeight * IMAGE_WIDTH / srcWidth;
@@ -656,16 +661,13 @@ void receiveSequence() {
 }
 
 void receiveLiveFrame() {
-  // Receive live frame data for immediate display
-  // Each LED needs 3 bytes (RGB), starting at cmdBuffer[3]
+  // Receive live frame data for immediate display (32 LEDs * 3 bytes RGB = 96 bytes)
   for (int i = 0; i < DISPLAY_LEDS && (3 + (i + 1) * 3 - 1) < CMD_BUFFER_SIZE; i++) {
     liveBuffer[i] = CRGB(cmdBuffer[3 + i * 3], cmdBuffer[4 + i * 3], cmdBuffer[5 + i * 3]);
   }
 }
 
 void updateDisplay() {
-  // Clear LED 0 (level shifter)
-  leds[0] = CRGB::Black;
   
   switch (currentMode) {
     case 0:  // Idle - off
@@ -700,9 +702,9 @@ void displayImage() {
   
   POVImage& img = images[currentIndex];
   
-  // Display current column of the image
+  // Display current column of the image (all 32 LEDs are display LEDs)
   for (int i = 0; i < DISPLAY_LEDS && i < img.height; i++) {
-    leds[i + 1] = img.pixels[currentColumn][i];
+    leds[i + DISPLAY_LED_START] = img.pixels[currentColumn][i];
   }
   
   currentColumn = (currentColumn + 1) % img.width;
@@ -720,14 +722,14 @@ void displayPattern() {
   
   switch (pat.type) {
     case 0:  // Rainbow
-      for (int i = 1; i < NUM_LEDS; i++) {
+      for (int i = DISPLAY_LED_START; i < NUM_LEDS; i++) {
         uint8_t hue = (patternTime * pat.speed / 10 + i * 255 / DISPLAY_LEDS) % 256;
         leds[i] = CHSV(hue, 255, 255);
       }
       break;
       
     case 1:  // Wave
-      for (int i = 1; i < NUM_LEDS; i++) {
+      for (int i = DISPLAY_LED_START; i < NUM_LEDS; i++) {
         uint8_t brightness = (sin8(patternTime * pat.speed / 10 + i * 255 / DISPLAY_LEDS));
         leds[i] = pat.color1;
         leds[i].nscale8(brightness);
@@ -735,7 +737,7 @@ void displayPattern() {
       break;
       
     case 2:  // Gradient
-      for (int i = 1; i < NUM_LEDS; i++) {
+      for (int i = DISPLAY_LED_START; i < NUM_LEDS; i++) {
         uint8_t blendAmount = (i * 255) / DISPLAY_LEDS;
         leds[i] = blend(pat.color1, pat.color2, blendAmount);
       }
@@ -743,16 +745,16 @@ void displayPattern() {
       
     case 3:  // Sparkle
       if (random8() < pat.speed) {
-        leds[random8(1, NUM_LEDS)] = pat.color1;
+        leds[random8(DISPLAY_LED_START, NUM_LEDS)] = pat.color1;
       }
       fadeToBlackBy(leds, NUM_LEDS, 20);
       break;
       
-    case 4:  // Fire - heat rises from LED 1 upward
+    case 4:  // Fire - heat rises from bottom upward
       {
         static uint8_t heat[NUM_LEDS];
         // Cool down every cell
-        for (int i = 1; i < NUM_LEDS; i++) {
+        for (int i = DISPLAY_LED_START; i < NUM_LEDS; i++) {
           heat[i] = qsub8(heat[i], random8(0, ((55 * 10) / DISPLAY_LEDS) + 2));
         }
         // Heat rises - drift heat upward
@@ -761,11 +763,11 @@ void displayPattern() {
         }
         // Random ignition at the bottom
         if (random8() < pat.speed) {
-          int y = random8(1, 4);
+          int y = random8(DISPLAY_LED_START, DISPLAY_LED_START + 3);
           heat[y] = qadd8(heat[y], random8(160, 255));
         }
         // Map heat to colors
-        for (int i = 1; i < NUM_LEDS; i++) {
+        for (int i = DISPLAY_LED_START; i < NUM_LEDS; i++) {
           leds[i] = HeatColor(heat[i]);
         }
       }
@@ -773,23 +775,26 @@ void displayPattern() {
       
     case 5:  // Comet - single bright head with fading tail
       {
-        static uint8_t cometPos = 1;
-        static uint8_t direction = 1;
+        static uint8_t cometPos = DISPLAY_LED_START;
+        static int8_t direction = 1;
         fadeToBlackBy(leds, NUM_LEDS, 60);  // Fade creates tail
         cometPos += direction;
-        if (cometPos >= NUM_LEDS - 1 || cometPos <= 1) {
+        if (cometPos >= NUM_LEDS - 1 || cometPos <= DISPLAY_LED_START) {
           direction = -direction;
         }
         leds[cometPos] = pat.color1;
-        leds[cometPos - direction] = pat.color1;
-        leds[cometPos - direction].nscale8(128);
+        int8_t tailPos = cometPos - direction;
+        if (tailPos >= DISPLAY_LED_START && tailPos < NUM_LEDS) {
+          leds[tailPos] = pat.color1;
+          leds[tailPos].nscale8(128);
+        }
       }
       break;
       
     case 6:  // Breathing - smooth pulse on/off
       {
         uint8_t breath = beatsin8(pat.speed / 4, 20, 255);
-        for (int i = 1; i < NUM_LEDS; i++) {
+        for (int i = DISPLAY_LED_START; i < NUM_LEDS; i++) {
           leds[i] = pat.color1;
           leds[i].nscale8(breath);
         }
@@ -805,7 +810,7 @@ void displayPattern() {
           strobeOn = !strobeOn;
           lastStrobe = patternTime;
         }
-        for (int i = 1; i < NUM_LEDS; i++) {
+        for (int i = DISPLAY_LED_START; i < NUM_LEDS; i++) {
           leds[i] = strobeOn ? pat.color1 : CRGB::Black;
         }
       }
@@ -815,38 +820,42 @@ void displayPattern() {
       {
         static uint8_t meteorPos = NUM_LEDS - 1;
         // Fade all LEDs randomly for sparkly tail
-        for (int i = 1; i < NUM_LEDS; i++) {
+        for (int i = DISPLAY_LED_START; i < NUM_LEDS; i++) {
           if (random8() < 80) {
             leds[i].fadeToBlackBy(64);
           }
         }
         // Draw meteor head
         for (int i = 0; i < 4; i++) {
-          if (meteorPos - i >= 1 && meteorPos - i < NUM_LEDS) {
-            leds[meteorPos - i] = pat.color1;
-            leds[meteorPos - i].nscale8(255 - (i * 60));
+          int16_t pos = (int16_t)meteorPos - i;
+          if (pos >= DISPLAY_LED_START && pos < NUM_LEDS) {
+            leds[pos] = pat.color1;
+            leds[pos].nscale8(255 - (i * 60));
           }
         }
-        meteorPos--;
-        if (meteorPos < 1) meteorPos = NUM_LEDS - 1;
+        if (meteorPos <= DISPLAY_LED_START) {
+          meteorPos = NUM_LEDS - 1;
+        } else {
+          meteorPos--;
+        }
       }
       break;
       
     case 9:  // Color Wipe - progressive fill then clear
       {
-        static uint8_t wipePos = 1;
+        static uint8_t wipePos = DISPLAY_LED_START;
         static bool filling = true;
         leds[wipePos] = filling ? pat.color1 : CRGB::Black;
         wipePos++;
         if (wipePos >= NUM_LEDS) {
-          wipePos = 1;
+          wipePos = DISPLAY_LED_START;
           filling = !filling;
         }
       }
       break;
       
     case 10:  // Plasma - organic color mixing
-      for (int i = 1; i < NUM_LEDS; i++) {
+      for (int i = DISPLAY_LED_START; i < NUM_LEDS; i++) {
         uint8_t hue = sin8(i * 10 + patternTime * pat.speed / 20) + 
                       sin8(i * 15 - patternTime * pat.speed / 15) +
                       sin8(patternTime * pat.speed / 10);
@@ -854,7 +863,7 @@ void displayPattern() {
       }
       break;
       
-    case 11:  // Music Reactive - VU meter style with beat detection
+    case 11:  // Music Reactive - VU meter style with beat detection (MAX9814)
       {
         static uint16_t audioSamples[AUDIO_SAMPLES];
         static uint8_t sampleIndex = 0;
@@ -862,7 +871,7 @@ void displayPattern() {
         static uint8_t peakDecay = 0;
         static uint8_t beatHue = 0;
         
-        // Read audio sample
+        // Read audio sample from MAX9814
         uint16_t rawSample = analogRead(AUDIO_PIN);
         audioSamples[sampleIndex] = rawSample;
         sampleIndex = (sampleIndex + 1) % AUDIO_SAMPLES;
@@ -900,9 +909,9 @@ void displayPattern() {
         // Map audio level to number of LEDs to light
         uint8_t ledsToLight = map(audioLevel, 0, 255, 0, DISPLAY_LEDS);
         
-        // Draw VU meter with color gradient
-        for (int i = 1; i < NUM_LEDS; i++) {
-          uint8_t ledIndex = i - 1;  // 0-30 for display
+        // Draw VU meter with color gradient (all 32 display LEDs)
+        for (int i = DISPLAY_LED_START; i < NUM_LEDS; i++) {
+          uint8_t ledIndex = i - DISPLAY_LED_START;
           if (ledIndex < ledsToLight) {
             // Gradient from green to yellow to red based on position
             uint8_t hue;
@@ -922,21 +931,21 @@ void displayPattern() {
         }
         
         // Draw peak indicator
-        uint8_t peakPos = map(peakLevel, 0, 255, 1, NUM_LEDS - 1);
-        if (peakPos >= 1 && peakPos < NUM_LEDS) {
+        uint8_t peakPos = map(peakLevel, 0, 255, DISPLAY_LED_START, NUM_LEDS - 1);
+        if (peakPos >= DISPLAY_LED_START && peakPos < NUM_LEDS) {
           leds[peakPos] = CRGB::White;
         }
       }
       break;
       
-    case 12:  // Music Pulse - whole strip pulses with beat
+    case 12:  // Music Pulse - whole strip pulses with beat (MAX9814)
       {
         static uint16_t audioSamples[AUDIO_SAMPLES];
         static uint8_t sampleIndex = 0;
         static uint8_t pulseVal = 0;
         static uint8_t lastLevel = 0;
         
-        // Read audio sample
+        // Read audio sample from MAX9814
         uint16_t rawSample = analogRead(AUDIO_PIN);
         audioSamples[sampleIndex] = rawSample;
         sampleIndex = (sampleIndex + 1) % AUDIO_SAMPLES;
@@ -957,8 +966,8 @@ void displayPattern() {
         }
         lastLevel = audioLevel;
         
-        // Apply pulse to all LEDs
-        for (int i = 1; i < NUM_LEDS; i++) {
+        // Apply pulse to all display LEDs
+        for (int i = DISPLAY_LED_START; i < NUM_LEDS; i++) {
           leds[i] = pat.color1;
           leds[i].nscale8(pulseVal);
         }
@@ -968,13 +977,13 @@ void displayPattern() {
       }
       break;
       
-    case 13:  // Music Rainbow - audio controls rainbow speed
+    case 13:  // Music Rainbow - audio controls rainbow speed (MAX9814)
       {
         static uint16_t audioSamples[AUDIO_SAMPLES];
         static uint8_t sampleIndex = 0;
         static uint16_t rainbowOffset = 0;
         
-        // Read audio sample
+        // Read audio sample from MAX9814
         uint16_t rawSample = analogRead(AUDIO_PIN);
         audioSamples[sampleIndex] = rawSample;
         sampleIndex = (sampleIndex + 1) % AUDIO_SAMPLES;
@@ -992,8 +1001,8 @@ void displayPattern() {
         // Audio level controls rainbow speed
         rainbowOffset += map(audioLevel, 0, 255, 1, 20);
         
-        // Draw rainbow with audio-controlled speed
-        for (int i = 1; i < NUM_LEDS; i++) {
+        // Draw rainbow with audio-controlled speed (all 32 display LEDs)
+        for (int i = DISPLAY_LED_START; i < NUM_LEDS; i++) {
           uint8_t hue = (rainbowOffset / 4 + i * 255 / DISPLAY_LEDS) % 256;
           uint8_t brightness = constrain(audioLevel + 50, 50, 255);
           leds[i] = CHSV(hue, 255, brightness);
@@ -1001,12 +1010,12 @@ void displayPattern() {
       }
       break;
       
-    case 14:  // Music Center - expands from center based on audio
+    case 14:  // Music Center - expands from center based on audio (MAX9814)
       {
         static uint16_t audioSamples[AUDIO_SAMPLES];
         static uint8_t sampleIndex = 0;
         
-        // Read audio sample
+        // Read audio sample from MAX9814
         uint16_t rawSample = analogRead(AUDIO_PIN);
         audioSamples[sampleIndex] = rawSample;
         sampleIndex = (sampleIndex + 1) % AUDIO_SAMPLES;
@@ -1023,26 +1032,26 @@ void displayPattern() {
         
         // Map level to expansion from center
         uint8_t expansion = map(audioLevel, 0, 255, 0, DISPLAY_LEDS / 2);
-        uint8_t center = NUM_LEDS / 2;
+        uint8_t center = DISPLAY_LED_START + DISPLAY_LEDS / 2;
         
         // Fade all first
         fadeToBlackBy(leds, NUM_LEDS, 80);
         
-        // Draw expanding from center
+        // Draw expanding from center (all 32 display LEDs)
         for (int i = 0; i <= expansion; i++) {
           uint8_t hue = patternTime * pat.speed / 20 + i * 10;
           if (center + i < NUM_LEDS) leds[center + i] = CHSV(hue, 255, 255);
-          if (center - i >= 1) leds[center - i] = CHSV(hue, 255, 255);
+          if ((int16_t)center - i >= DISPLAY_LED_START) leds[center - i] = CHSV(hue, 255, 255);
         }
       }
       break;
       
-    case 15:  // Music Sparkle - sparkles intensity based on audio
+    case 15:  // Music Sparkle - sparkles intensity based on audio (MAX9814)
       {
         static uint16_t audioSamples[AUDIO_SAMPLES];
         static uint8_t sampleIndex = 0;
         
-        // Read audio sample
+        // Read audio sample from MAX9814
         uint16_t rawSample = analogRead(AUDIO_PIN);
         audioSamples[sampleIndex] = rawSample;
         sampleIndex = (sampleIndex + 1) % AUDIO_SAMPLES;
@@ -1060,10 +1069,10 @@ void displayPattern() {
         // Fade existing
         fadeToBlackBy(leds, NUM_LEDS, 40);
         
-        // Add sparkles based on audio - more audio = more sparkles
+        // Add sparkles based on audio - more audio = more sparkles (all 32 display LEDs)
         uint8_t numSparkles = map(audioLevel, 0, 255, 0, 8);
         for (int s = 0; s < numSparkles; s++) {
-          uint8_t pos = random8(1, NUM_LEDS);
+          uint8_t pos = random8(DISPLAY_LED_START, NUM_LEDS);
           uint8_t hue = patternTime * 2 + random8(64);  // Shifting colors
           leds[pos] = CHSV(hue, 255, 255);
         }
@@ -1185,9 +1194,9 @@ void displaySequence() {
 }
 
 void displayLive() {
-  // Display the live buffer
+  // Display the live buffer (all 32 LEDs)
   for (int i = 0; i < DISPLAY_LEDS; i++) {
-    leds[i + 1] = liveBuffer[i];
+    leds[i + DISPLAY_LED_START] = liveBuffer[i];
   }
 }
 
