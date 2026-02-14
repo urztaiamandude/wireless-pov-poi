@@ -19,7 +19,16 @@ POVEngine::POVEngine(LEDDriver& ledDriver)
       patternTime(0),
       currentSequenceItem(0),
       sequenceStartTime(0),
-      sequencePlaying(false) {
+      sequencePlaying(false),
+      audioSampleIndex(0),
+      audioPeakLevel(0),
+      audioPeakDecay(0),
+      audioBeatHue(0) {
+    
+    // Initialize audio sample buffer
+    for (int i = 0; i < AUDIO_SAMPLES; i++) {
+        audioSamples[i] = 512; // Center bias (MAX9814 outputs ~VDD/2 at rest)
+    }
     
     // Initialize image storage
     for (int i = 0; i < MAX_IMAGES; i++) {
@@ -352,13 +361,13 @@ void POVEngine::renderColumn(uint16_t column, uint8_t imageSlot) {
     }
     
     // Render column of pixels to LED strip
-    // LED 0 is for level shifting, LEDs 1-31 are for display
-    for (uint16_t y = 0; y < img.height && y < leds.getNumLEDs() - 1; y++) {
+    // All 32 LEDs are display LEDs (hardware level shifter used)
+    for (uint16_t y = 0; y < img.height && y < leds.getNumLEDs(); y++) {
         size_t pixelIndex = (y * img.width + column) * 3;
         uint8_t r = img.data[pixelIndex];
         uint8_t g = img.data[pixelIndex + 1];
         uint8_t b = img.data[pixelIndex + 2];
-        leds.setPixel(y + 1, r, g, b);  // +1 to skip LED 0
+        leds.setPixel(y, r, g, b);
     }
     
     // Advance column for next frame (for image mode rotation)
@@ -424,18 +433,36 @@ void POVEngine::renderPattern() {
             break;
 
         // Audio-reactive patterns (IDs 11-15)
-        // Note: These require audio input on pin A0. For now, they fall back to
-        // visual-only effects. Full audio support requires microphone hardware.
-        case 11:  // VU Meter (audio-reactive)
-        case 12:  // Pulse (audio-reactive)
-        case 13:  // Audio Rainbow (audio-reactive)
-        case 14:  // Center Burst (audio-reactive)
-        case 15:  // Audio Sparkle (audio-reactive)
-            // TODO: Implement audio-reactive patterns when audio input is configured
-            // For now, use sparkle as fallback
-            renderSparklePattern(pattern);
+        // Require MAX9814 microphone amplifier on AUDIO_PIN (A0)
+        case PATTERN_AUDIO_VU_METER:
+            renderAudioVUMeter(pattern);
             break;
-            
+
+        case PATTERN_AUDIO_PULSE:
+            renderAudioPulse(pattern);
+            break;
+
+        case PATTERN_AUDIO_RAINBOW:
+            renderAudioRainbow(pattern);
+            break;
+
+        case PATTERN_AUDIO_CENTER_BURST:
+            renderAudioCenterBurst(pattern);
+            break;
+
+        case PATTERN_AUDIO_SPARKLE:
+            renderAudioSparkle(pattern);
+            break;
+
+        // Extended patterns
+        case PATTERN_SPLIT_SPIN:
+            renderSplitSpinPattern(pattern);
+            break;
+
+        case PATTERN_THEATER_CHASE:
+            renderTheaterChasePattern(pattern);
+            break;
+
         default:
             leds.clear();
             break;
@@ -446,9 +473,9 @@ void POVEngine::renderPattern() {
 
 void POVEngine::renderRainbowPattern(const Pattern& pattern) {
     // Rainbow pattern - rotating hue across LEDs
-    for (uint16_t i = 1; i < leds.getNumLEDs(); i++) {
+    for (uint16_t i = 0; i < leds.getNumLEDs(); i++) {
         // Calculate hue based on position and time
-        uint8_t hue = (patternTime * pattern.speed / 10 + i * 255 / (leds.getNumLEDs() - 1)) % 256;
+        uint8_t hue = (patternTime * pattern.speed / 10 + i * 255 / leds.getNumLEDs()) % 256;
         
         // Convert HSV to RGB (simplified)
         uint8_t sector = hue / 43;  // 0-5
@@ -482,9 +509,9 @@ void POVEngine::renderRainbowPattern(const Pattern& pattern) {
 
 void POVEngine::renderWavePattern(const Pattern& pattern) {
     // Wave pattern - animated sine wave
-    for (uint16_t i = 1; i < leds.getNumLEDs(); i++) {
+    for (uint16_t i = 0; i < leds.getNumLEDs(); i++) {
         // Calculate brightness using sine wave approximation
-        float angle = (patternTime * pattern.speed / 10.0 + i * 255.0 / (leds.getNumLEDs() - 1)) * 0.0245; // Convert to radians
+        float angle = (patternTime * pattern.speed / 10.0 + i * 255.0 / leds.getNumLEDs()) * 0.0245; // Convert to radians
         float sinValue = sin(angle);
         uint8_t brightness = (uint8_t)((sinValue + 1.0) * 127.5);  // Convert -1..1 to 0..255
         
@@ -499,9 +526,9 @@ void POVEngine::renderWavePattern(const Pattern& pattern) {
 
 void POVEngine::renderGradientPattern(const Pattern& pattern) {
     // Gradient pattern - smooth transition between two colors
-    for (uint16_t i = 1; i < leds.getNumLEDs(); i++) {
+    for (uint16_t i = 0; i < leds.getNumLEDs(); i++) {
         // Calculate blend factor (0-255)
-        uint8_t blend = (i * 255) / (leds.getNumLEDs() - 1);
+        uint8_t blend = (i * 255) / (leds.getNumLEDs() > 1 ? leds.getNumLEDs() - 1 : 1);
         
         // Blend between color1 and color2
         uint8_t r = pattern.r1 + ((pattern.r2 - pattern.r1) * blend) / 255;
@@ -516,13 +543,13 @@ void POVEngine::renderSparklePattern(const Pattern& pattern) {
     // Sparkle pattern - random sparkles that fade
     // Fade all LEDs
     CRGB* ledsArray = leds.getLEDs();
-    for (uint16_t i = 1; i < leds.getNumLEDs(); i++) {
+    for (uint16_t i = 0; i < leds.getNumLEDs(); i++) {
         ledsArray[i].fadeToBlackBy(25);  // Fade by ~10%
     }
     
     // Add random sparkles based on speed
     if (random8() < pattern.speed) {
-        uint16_t led = random(1, leds.getNumLEDs());
+        uint16_t led = random(0, leds.getNumLEDs());
         leds.setPixel(led, pattern.r1, pattern.g1, pattern.b1);
     }
 }
@@ -531,53 +558,54 @@ void POVEngine::renderFirePattern(const Pattern& pattern) {
     // Fire pattern - heat simulation rising upward
     static uint8_t heat[NUM_LEDS];
     CRGB* ledsArray = leds.getLEDs();
-    uint16_t displayLEDs = leds.getNumLEDs() - 1;  // LEDs 1-31
+    uint16_t numLEDs = leds.getNumLEDs();
     
     // Cool down every cell
-    for (uint16_t i = 1; i < leds.getNumLEDs(); i++) {
-        heat[i] = qsub8(heat[i], random8(0, ((55 * 10) / displayLEDs) + 2));
+    for (uint16_t i = 0; i < numLEDs; i++) {
+        heat[i] = qsub8(heat[i], random8(0, ((55 * 10) / numLEDs) + 2));
     }
     
     // Heat rises - drift heat upward
-    for (uint16_t i = leds.getNumLEDs() - 1; i >= 2; i--) {
+    for (uint16_t i = numLEDs - 1; i >= 2; i--) {
         heat[i] = (heat[i - 1] + heat[i - 2] + heat[i - 2]) / 3;
     }
     
     // Random ignition at the bottom
     if (random8() < pattern.speed) {
-        uint16_t y = random8(1, 4);
+        uint16_t y = random8(0, 3);
         heat[y] = qadd8(heat[y], random8(160, 255));
     }
     
     // Map heat to colors using FastLED HeatColor
-    for (uint16_t i = 1; i < leds.getNumLEDs(); i++) {
+    for (uint16_t i = 0; i < numLEDs; i++) {
         ledsArray[i] = HeatColor(heat[i]);
     }
 }
 
 void POVEngine::renderCometPattern(const Pattern& pattern) {
     // Comet pattern - single bright head with fading tail
-    static uint8_t cometPos = 1;
+    static uint8_t cometPos = 0;
     static int8_t direction = 1;
     CRGB* ledsArray = leds.getLEDs();
     
     // Fade creates tail (fade all LEDs)
-    for (uint16_t i = 1; i < leds.getNumLEDs(); i++) {
+    for (uint16_t i = 0; i < leds.getNumLEDs(); i++) {
         ledsArray[i].fadeToBlackBy(60);
     }
     
     // Move comet
     cometPos += direction;
-    if (cometPos >= leds.getNumLEDs() - 1 || cometPos <= 1) {
+    if (cometPos >= leds.getNumLEDs() - 1 || cometPos == 0) {
         direction = -direction;
     }
     
     // Draw comet head and tail
     CRGB color(pattern.r1, pattern.g1, pattern.b1);
     ledsArray[cometPos] = color;
-    if (cometPos - direction >= 1 && cometPos - direction < leds.getNumLEDs()) {
-        ledsArray[cometPos - direction] = color;
-        ledsArray[cometPos - direction].nscale8(128);
+    int8_t tailPos = cometPos - direction;
+    if (tailPos >= 0 && tailPos < (int8_t)leds.getNumLEDs()) {
+        ledsArray[tailPos] = color;
+        ledsArray[tailPos].nscale8(128);
     }
 }
 
@@ -587,7 +615,7 @@ void POVEngine::renderBreathingPattern(const Pattern& pattern) {
     uint8_t breath = beatsin8(pattern.speed / 4, 20, 255);
     CRGB color(pattern.r1, pattern.g1, pattern.b1);
     
-    for (uint16_t i = 1; i < leds.getNumLEDs(); i++) {
+    for (uint16_t i = 0; i < leds.getNumLEDs(); i++) {
         CRGB ledColor = color;
         ledColor.nscale8(breath);
         leds.setPixel(i, ledColor);
@@ -608,7 +636,7 @@ void POVEngine::renderStrobePattern(const Pattern& pattern) {
     }
     
     CRGB color = strobeOn ? CRGB(pattern.r1, pattern.g1, pattern.b1) : CRGB::Black;
-    for (uint16_t i = 1; i < leds.getNumLEDs(); i++) {
+    for (uint16_t i = 0; i < leds.getNumLEDs(); i++) {
         leds.setPixel(i, color);
     }
 }
@@ -620,7 +648,7 @@ void POVEngine::renderMeteorPattern(const Pattern& pattern) {
     CRGB color(pattern.r1, pattern.g1, pattern.b1);
     
     // Fade all LEDs randomly for sparkly tail
-    for (uint16_t i = 1; i < leds.getNumLEDs(); i++) {
+    for (uint16_t i = 0; i < leds.getNumLEDs(); i++) {
         if (random8() < 80) {
             ledsArray[i].fadeToBlackBy(64);
         }
@@ -628,23 +656,25 @@ void POVEngine::renderMeteorPattern(const Pattern& pattern) {
     
     // Draw meteor head with fading tail
     for (uint8_t i = 0; i < 4; i++) {
-        if (meteorPos - i >= 1 && meteorPos - i < leds.getNumLEDs()) {
+        int16_t pos = (int16_t)meteorPos - i;
+        if (pos >= 0 && pos < (int16_t)leds.getNumLEDs()) {
             CRGB meteorColor = color;
             meteorColor.nscale8(255 - (i * 60));
-            ledsArray[meteorPos - i] = meteorColor;
+            ledsArray[pos] = meteorColor;
         }
     }
     
     // Move meteor down
-    meteorPos--;
-    if (meteorPos < 1) {
+    if (meteorPos == 0) {
         meteorPos = leds.getNumLEDs() - 1;
+    } else {
+        meteorPos--;
     }
 }
 
 void POVEngine::renderWipePattern(const Pattern& pattern) {
     // Color Wipe pattern - progressive fill then clear
-    static uint8_t wipePos = 1;
+    static uint8_t wipePos = 0;
     static bool filling = true;
     CRGB* ledsArray = leds.getLEDs();
     CRGB color(pattern.r1, pattern.g1, pattern.b1);
@@ -653,7 +683,7 @@ void POVEngine::renderWipePattern(const Pattern& pattern) {
     
     wipePos++;
     if (wipePos >= leds.getNumLEDs()) {
-        wipePos = 1;
+        wipePos = 0;
         filling = !filling;
     }
 }
@@ -662,11 +692,210 @@ void POVEngine::renderPlasmaPattern(const Pattern& pattern) {
     // Plasma pattern - organic color mixing
     CRGB* ledsArray = leds.getLEDs();
     
-    for (uint16_t i = 1; i < leds.getNumLEDs(); i++) {
+    for (uint16_t i = 0; i < leds.getNumLEDs(); i++) {
         uint8_t hue = sin8(i * 10 + patternTime * pattern.speed / 20) + 
                       sin8(i * 15 - patternTime * pattern.speed / 15) +
                       sin8(patternTime * pattern.speed / 10);
         ledsArray[i] = CHSV(hue, 255, 255);
+    }
+}
+
+// =============================================================================
+// Audio Helper - Read and process audio level from MAX9814
+// =============================================================================
+uint8_t POVEngine::readAudioLevel() {
+    #if AUDIO_ENABLED
+    // Read raw analog sample from MAX9814
+    uint16_t rawSample = analogRead(AUDIO_PIN);
+    audioSamples[audioSampleIndex] = rawSample;
+    audioSampleIndex = (audioSampleIndex + 1) % AUDIO_SAMPLES;
+    
+    // Calculate running average (DC offset of MAX9814 output)
+    uint32_t sum = 0;
+    for (int i = 0; i < AUDIO_SAMPLES; i++) {
+        sum += audioSamples[i];
+    }
+    uint16_t avg = sum / AUDIO_SAMPLES;
+    
+    // Calculate amplitude (deviation from average)
+    int16_t level = abs((int16_t)rawSample - (int16_t)avg);
+    level = constrain(level - AUDIO_NOISE_FLOOR, 0, 512);
+    uint8_t audioLevel = map(level, 0, 512, 0, 255);
+    
+    // Beat detection - sudden increase triggers hue shift
+    if (audioLevel > audioPeakLevel + 30) {
+        audioBeatHue += 32;
+    }
+    
+    // Update peak with decay
+    if (audioLevel > audioPeakLevel) {
+        audioPeakLevel = audioLevel;
+        audioPeakDecay = 0;
+    } else {
+        audioPeakDecay++;
+        if (audioPeakDecay > 5) {
+            audioPeakLevel = qsub8(audioPeakLevel, 3);
+        }
+    }
+    
+    return audioLevel;
+    #else
+    return 0;
+    #endif
+}
+
+// =============================================================================
+// Audio-Reactive Patterns (require MAX9814 on AUDIO_PIN)
+// =============================================================================
+
+void POVEngine::renderAudioVUMeter(const Pattern& pattern) {
+    // VU Meter - audio level displayed as bar graph with color gradient
+    uint8_t audioLevel = readAudioLevel();
+    uint16_t numLEDs = leds.getNumLEDs();
+    CRGB* ledsArray = leds.getLEDs();
+    
+    // Map audio level to number of LEDs to light
+    uint8_t ledsToLight = map(audioLevel, 0, 255, 0, numLEDs);
+    
+    // Draw VU meter with green->yellow->red gradient
+    for (uint16_t i = 0; i < numLEDs; i++) {
+        if (i < ledsToLight) {
+            uint8_t hue;
+            if (i < numLEDs / 3) {
+                hue = 96;  // Green
+            } else if (i < 2 * numLEDs / 3) {
+                hue = 64;  // Yellow
+            } else {
+                hue = 0;   // Red
+            }
+            // Add beat-triggered color shift
+            hue = (hue + audioBeatHue) % 256;
+            ledsArray[i] = CHSV(hue, 255, 255);
+        } else {
+            ledsArray[i].fadeToBlackBy(50);  // Smooth fade for off LEDs
+        }
+    }
+    
+    // Draw peak indicator (white dot at highest recent level)
+    uint8_t peakPos = map(audioPeakLevel, 0, 255, 0, numLEDs - 1);
+    if (peakPos < numLEDs) {
+        ledsArray[peakPos] = CRGB::White;
+    }
+}
+
+void POVEngine::renderAudioPulse(const Pattern& pattern) {
+    // Pulse - whole strip flashes with beat, color from pattern
+    uint8_t audioLevel = readAudioLevel();
+    static uint8_t pulseVal = 0;
+    static uint8_t lastLevel = 0;
+    
+    // Beat detection: pulse up on sudden increase
+    if (audioLevel > lastLevel + 20 && audioLevel > 100) {
+        pulseVal = 255;
+    }
+    lastLevel = audioLevel;
+    
+    // Apply pulse brightness to all LEDs
+    CRGB color(pattern.r1, pattern.g1, pattern.b1);
+    for (uint16_t i = 0; i < leds.getNumLEDs(); i++) {
+        CRGB ledColor = color;
+        ledColor.nscale8(pulseVal);
+        leds.setPixel(i, ledColor);
+    }
+    
+    // Decay pulse smoothly
+    pulseVal = scale8(pulseVal, 220);
+}
+
+void POVEngine::renderAudioRainbow(const Pattern& pattern) {
+    // Audio Rainbow - rainbow speed and brightness controlled by audio level
+    uint8_t audioLevel = readAudioLevel();
+    static uint16_t rainbowOffset = 0;
+    uint16_t numLEDs = leds.getNumLEDs();
+    CRGB* ledsArray = leds.getLEDs();
+    
+    // Audio level controls rainbow scroll speed
+    rainbowOffset += map(audioLevel, 0, 255, 1, 20);
+    
+    // Draw rainbow with audio-controlled brightness
+    for (uint16_t i = 0; i < numLEDs; i++) {
+        uint8_t hue = (rainbowOffset / 4 + i * 255 / numLEDs) % 256;
+        uint8_t brightness = constrain(audioLevel + 50, 50, 255);
+        ledsArray[i] = CHSV(hue, 255, brightness);
+    }
+}
+
+void POVEngine::renderAudioCenterBurst(const Pattern& pattern) {
+    // Center Burst - expands from center based on audio level
+    uint8_t audioLevel = readAudioLevel();
+    uint16_t numLEDs = leds.getNumLEDs();
+    CRGB* ledsArray = leds.getLEDs();
+    
+    // Map level to expansion radius from center
+    uint8_t expansion = map(audioLevel, 0, 255, 0, numLEDs / 2);
+    uint8_t center = numLEDs / 2;
+    
+    // Fade all LEDs first for smooth decay
+    for (uint16_t i = 0; i < numLEDs; i++) {
+        ledsArray[i].fadeToBlackBy(80);
+    }
+    
+    // Draw expanding burst from center
+    for (uint8_t i = 0; i <= expansion; i++) {
+        uint8_t hue = patternTime * pattern.speed / 20 + i * 10;
+        if (center + i < numLEDs) ledsArray[center + i] = CHSV(hue, 255, 255);
+        if ((int16_t)center - i >= 0) ledsArray[center - i] = CHSV(hue, 255, 255);
+    }
+}
+
+void POVEngine::renderAudioSparkle(const Pattern& pattern) {
+    // Audio Sparkle - sparkle density and intensity controlled by audio
+    uint8_t audioLevel = readAudioLevel();
+    uint16_t numLEDs = leds.getNumLEDs();
+    CRGB* ledsArray = leds.getLEDs();
+    
+    // Fade existing sparkles
+    for (uint16_t i = 0; i < numLEDs; i++) {
+        ledsArray[i].fadeToBlackBy(40);
+    }
+    
+    // More audio = more sparkles
+    uint8_t numSparkles = map(audioLevel, 0, 255, 0, 8);
+    for (uint8_t s = 0; s < numSparkles; s++) {
+        uint8_t pos = random8(0, numLEDs);
+        uint8_t hue = patternTime * 2 + random8(64);
+        ledsArray[pos] = CHSV(hue, 255, 255);
+    }
+}
+
+// =============================================================================
+// Extended Patterns
+// =============================================================================
+
+void POVEngine::renderSplitSpinPattern(const Pattern& pattern) {
+    // Split Spin - rotating two-color halves
+    uint16_t numLEDs = leds.getNumLEDs();
+    uint8_t offset = (patternTime * pattern.speed / 20) % numLEDs;
+    uint8_t splitPoint = numLEDs / 2;
+    
+    for (uint16_t i = 0; i < numLEDs; i++) {
+        uint8_t pos = (i + offset) % numLEDs;
+        CRGB color = (pos < splitPoint) ? CRGB(pattern.r1, pattern.g1, pattern.b1) 
+                                         : CRGB(pattern.r2, pattern.g2, pattern.b2);
+        leds.setPixel(i, color);
+    }
+}
+
+void POVEngine::renderTheaterChasePattern(const Pattern& pattern) {
+    // Theater Chase - dotted chase with background color
+    uint16_t numLEDs = leds.getNumLEDs();
+    uint8_t chaseOffset = (patternTime * pattern.speed / 20) % 3;
+    
+    for (uint16_t i = 0; i < numLEDs; i++) {
+        uint8_t phase = (i + chaseOffset) % 3;
+        CRGB color = (phase == 0) ? CRGB(pattern.r1, pattern.g1, pattern.b1) 
+                                   : CRGB(pattern.r2, pattern.g2, pattern.b2);
+        leds.setPixel(i, color);
     }
 }
 
