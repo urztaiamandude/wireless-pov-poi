@@ -4,10 +4,10 @@ POV Image Converter
 Converts regular images to POV-compatible format.
 
 IMPORTANT: The LED strip forms the VERTICAL axis of the display.
-- HEIGHT is FIXED at 31 pixels (matching 31 display LEDs)
+- HEIGHT is FIXED at 32 pixels (matching 32 display LEDs)
 - WIDTH is scaled proportionally using the same scale factor as height
 - LED 1 (bottom of strip) = bottom of image
-- LED 31 (top of strip) = top of image
+- LED 32 (top of strip) = top of image
 - LEDs display vertical columns from left to right
 - No vertical flip is needed - the LED arrangement maps directly to image pixels
 """
@@ -23,28 +23,28 @@ import sys
 import os
 
 # The number of display LEDs determines the fixed HEIGHT of POV images
-POV_HEIGHT = 31  # LEDs 1-31 are used for display (LED 0 is level shifter)
+POV_HEIGHT = 32
 
-def convert_image_for_pov(input_path, output_path=None, height=31, max_width=200, 
+def convert_image_for_pov(input_path, output_path=None, height=32, max_width=200,
                          enhance_contrast=True, flip_horizontal=False):
     """
     Convert an image to POV-compatible format
     
     The LED strip forms the VERTICAL axis, so:
-    - HEIGHT is FIXED at 31 pixels (one pixel per display LED)
+    - HEIGHT is FIXED at 32 pixels (one pixel per display LED)
     - WIDTH is scaled proportionally using the same scale factor as height
     - LEDs display vertical columns from left to right
     
     Args:
         input_path: Path to input image
         output_path: Path to save converted image (optional)
-        height: Target height in pixels (default 31, matching display LEDs)
+        height: Target height in pixels (default 32, matching display LEDs)
         max_width: Maximum width in pixels (default 200)
         enhance_contrast: Whether to enhance contrast (default True)
         flip_horizontal: Flip image horizontally (default False)
     
     Note: No vertical flip is applied because the LED arrangement already
-    maps correctly: LED 1 (bottom) displays bottom of image, LED 31 (top)
+    maps correctly: LED 1 (bottom) displays bottom of image, LED 32 (top)
     displays top of image.
     """
     
@@ -87,7 +87,7 @@ def convert_image_for_pov(input_path, output_path=None, height=31, max_width=200
             print("Flipping image horizontally")
             img = img.transpose(Image.FLIP_LEFT_RIGHT)
         
-        # No vertical flip needed - LED 1 is bottom, LED 31 is top
+        # No vertical flip needed - LED 1 is bottom, LED 32 is top
         # This maps directly to image coordinates (y=0 is top, but LED 1 shows row 0)
         
         # Enhance contrast if requested
@@ -126,13 +126,13 @@ def print_usage():
     print("  python image_converter.py photo.jpg pov_photo.png")
     print()
     print("The script will:")
-    print("  - Resize image to 31 pixels HIGH (matching 31 display LEDs)")
+    print("  - Resize image to 32 pixels HIGH (matching 32 display LEDs)")
     print("  - Scale width proportionally using the same scale factor")
     print("  - Enhance contrast for better visibility")
     print("  - Save as PNG format")
     print()
     print("Note: The LED strip forms the VERTICAL axis of the display.")
-    print("  - HEIGHT is fixed at 31 pixels (one per LED)")
+    print("  - HEIGHT is fixed at 32 pixels (one per LED)")
     print("  - WIDTH is scaled proportionally to prevent warping")
     print("  - LEDs display vertical columns from left to right")
     print()

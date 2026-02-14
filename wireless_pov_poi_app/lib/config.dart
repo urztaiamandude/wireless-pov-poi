@@ -1,11 +1,11 @@
 class WirelessPOVConfig {
   // Hardware specifications
-  static const int LED_COUNT = 31;  // APA102 strip length
+  static const int LED_COUNT = 32;  // APA102 strip length
   static const String LED_TYPE = "APA102";
   
   // Pattern constraints
   static const int MAX_PATTERN_WIDTH = 400;
-  static const int MAX_PATTERN_HEIGHT = 31;
+  static const int MAX_PATTERN_HEIGHT = 32;
   static const int MAX_PATTERN_PIXELS = 40000; // width * height <= 40000
   
   // Pattern storage

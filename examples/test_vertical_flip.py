@@ -4,7 +4,7 @@ Test script to verify image conversion maintains correct orientation.
 
 NOTE: No vertical flip is needed because the LED arrangement maps directly:
 - LED 1 (bottom of strip) displays bottom of image
-- LED 31 (top of strip) displays top of image
+- LED 32 (top of strip) displays top of image
 
 This test verifies that images maintain their original top-to-bottom orientation.
 """
@@ -40,7 +40,7 @@ def test_vertical_flip():
     print("Testing image orientation...")
     print("=" * 60)
     print("NOTE: No vertical flip is applied - LEDs map directly to image pixels")
-    print("  LED 1 (bottom) = image bottom, LED 31 (top) = image top")
+    print("  LED 1 (bottom) = image bottom, LED 32 (top) = image top")
     print()
     
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -53,7 +53,7 @@ def test_vertical_flip():
         
         # Convert image (no flip is applied)
         success = convert_image_for_pov(test_img, output_img, 
-                                       height=31, max_width=200, 
+                                       height=32, max_width=200,
                                        enhance_contrast=False)
         
         if not success:
@@ -87,7 +87,7 @@ def test_vertical_flip():
             print("✓ PASSED: Image orientation correctly preserved!")
             print("  - Top of image (y=0) is dark (as in original)")
             print("  - Bottom of image is bright (as in original)")
-            print("  - LED 1 (bottom) will show bright, LED 31 (top) will show dark")
+            print("  - LED 1 (bottom) will show bright, LED 32 (top) will show dark")
             return True
         else:
             print("❌ FAILED: Image orientation may not be correct")

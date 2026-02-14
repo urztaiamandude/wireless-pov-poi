@@ -5,7 +5,7 @@ This is the **recommended firmware** for the Nebula Poi. It provides a complete,
 ## Features
 
 ✅ **Complete Implementation**
-- Image display (31x64 pixels max)
+- Image display (32x64 pixels max)
 - Pattern generation (rainbow, wave, gradient, sparkle, fire, comet, breathing, strobe, meteor, wipe, plasma, music reactive)
 - Sequence playback with timing and looping
 - Live drawing mode
@@ -22,7 +22,7 @@ This is the **recommended firmware** for the Nebula Poi. It provides a complete,
 ## Hardware Requirements
 
 - **Teensy 4.1** development board
-- **APA102 LED Strip** (32 LEDs: 31 display + 1 level shifter)
+- **APA102 LED Strip** (32 display LEDs)
 - **ESP32** for WiFi communication (via Serial1)
 - **5V Power Supply** (2-3A recommended)
 - **Optional**: microSD card (for SD_SUPPORT feature)
@@ -61,7 +61,7 @@ To enable SD card features, uncomment this line near the top of the file:
 ### Adjust LED Configuration
 
 ```cpp
-#define NUM_LEDS 32        // Total LEDs (including level shifter)
+#define NUM_LEDS 32        // Total display LEDs
 #define DATA_PIN 11        // APA102 data pin
 #define CLOCK_PIN 13       // APA102 clock pin
 ```
@@ -84,7 +84,7 @@ The firmware communicates with ESP32 using a binary protocol:
 | Command | Code | Description |
 |---------|------|-------------|
 | Set Mode | 0x01 | Change display mode (idle/image/pattern/sequence/live) |
-| Upload Image | 0x02 | Transfer image data (31x64 max) |
+| Upload Image | 0x02 | Transfer image data (32x64 max) |
 | Upload Pattern | 0x03 | Configure pattern parameters |
 | Upload Sequence | 0x04 | Define sequence of items |
 | Live Frame | 0x05 | Real-time frame data |

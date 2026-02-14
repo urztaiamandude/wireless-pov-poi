@@ -893,9 +893,8 @@ bool ESP32Interface::handleSimpleLiveFrame(const uint8_t* data, size_t len) {
         return false;
     }
     
-    // Data format: 31 LEDs * 3 bytes (RGB) = 93 bytes
-    // Note: LED 0 is reserved for level shifting, so we use LEDs 1-31
-    const uint8_t displayLEDCount = NUM_LEDS - 1;  // 31 display LEDs
+    // Data format: DISPLAY_LED_COUNT LEDs * 3 bytes (RGB)
+    const uint8_t displayLEDCount = DISPLAY_LED_COUNT;
     size_t expectedSize = displayLEDCount * 3;
     if (len < expectedSize) {
         #if DEBUG_ENABLED
@@ -911,12 +910,12 @@ bool ESP32Interface::handleSimpleLiveFrame(const uint8_t* data, size_t len) {
     DEBUG_SERIAL.println("Live frame received");
     #endif
     
-    // Set LED pixels (skip LED 0 which is for level shifting)
+    // Set LED pixels across full active display range.
     for (uint8_t i = 0; i < displayLEDCount && i * 3 + 2 < len; i++) {
         uint8_t r = data[i * 3];
         uint8_t g = data[i * 3 + 1];
         uint8_t b = data[i * 3 + 2];
-        ledDriver->setPixel(i + 1, r, g, b);  // +1 to skip LED 0 (level shifter)
+        ledDriver->setPixel(i + DISPLAY_LED_START, r, g, b);
     }
     
     ledDriver->show();

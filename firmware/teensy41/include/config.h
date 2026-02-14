@@ -4,7 +4,9 @@
 // Hardware Configuration
 #define LED_DATA_PIN 11       // APA102 data pin
 #define LED_CLOCK_PIN 13      // APA102 clock pin
-#define NUM_LEDS 32           // Number of LEDs in the strip (31 for display, 1 for level shifting)
+#define NUM_LEDS 32           // Number of LEDs in the strip
+#define DISPLAY_LED_START 0   // First LED index used for display
+#define DISPLAY_LED_COUNT NUM_LEDS
 
 // ESP32 Communication
 #define ESP32_SERIAL Serial1  // Hardware serial for ESP32
@@ -15,7 +17,12 @@
 // POV Configuration
 #define POV_FRAME_RATE 60     // Frames per second
 #define POV_IMAGE_WIDTH 360   // Angular resolution (degrees)
-#define POV_IMAGE_HEIGHT NUM_LEDS
+#define POV_IMAGE_HEIGHT DISPLAY_LED_COUNT
+
+// Audio input (MAX9814 microphone module)
+#define AUDIO_PIN A0
+#define AUDIO_SAMPLES 64
+#define AUDIO_NOISE_FLOOR 50
 
 // Performance Settings
 #define LED_BRIGHTNESS 128    // Default brightness (0-255)

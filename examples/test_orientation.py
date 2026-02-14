@@ -3,7 +3,7 @@
 POV Display Orientation Test Pattern Generator
 
 Generates test images to verify LED strip orientation and POV display accuracy.
-Creates multiple test patterns optimized for 31-pixel tall displays.
+Creates multiple test patterns optimized for 32-pixel tall displays.
 
 Usage:
     python test_orientation.py              # Generate all test patterns
@@ -29,7 +29,7 @@ import os
 import argparse
 
 # Constants
-POV_HEIGHT = 31  # Fixed height for POV display (LEDs 1-31)
+POV_HEIGHT = 32  # Fixed height for POV display
 DEFAULT_WIDTH = 64  # Standard width for test patterns
 
 def create_bar_test(width=DEFAULT_WIDTH, height=POV_HEIGHT):
@@ -42,7 +42,7 @@ def create_bar_test(width=DEFAULT_WIDTH, height=POV_HEIGHT):
     - Rows 20-30: Blue (bottom of image file)
     
     Expected on LED strip (static, not spinning):
-    - LED 31 (top):    Blue
+    - LED 32 (top):    Blue
     - LED 16 (middle): Green
     - LED 1 (bottom):  Red
     
@@ -246,7 +246,7 @@ Test Patterns:
     print("Next steps:")
     print("1. Upload test_orientation.png to your POV poi device")
     print("2. Observe LED strip (stationary, not spinning):")
-    print("   - LED 31 (top):    Should show BLUE")
+    print("   - LED 32 (top):    Should show BLUE")
     print("   - LED 16 (middle): Should show GREEN")
     print("   - LED 1 (bottom):  Should show RED")
     print("3. Spin the poi and verify POV display:")

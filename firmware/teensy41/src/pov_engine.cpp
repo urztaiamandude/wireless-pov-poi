@@ -351,14 +351,13 @@ void POVEngine::renderColumn(uint16_t column, uint8_t imageSlot) {
         return;
     }
     
-    // Render column of pixels to LED strip
-    // LED 0 is for level shifting, LEDs 1-31 are for display
-    for (uint16_t y = 0; y < img.height && y < leds.getNumLEDs() - 1; y++) {
+    // Render one image column onto the active display LED range.
+    for (uint16_t y = 0; y < img.height && y < (leds.getNumLEDs() - DISPLAY_LED_START); y++) {
         size_t pixelIndex = (y * img.width + column) * 3;
         uint8_t r = img.data[pixelIndex];
         uint8_t g = img.data[pixelIndex + 1];
         uint8_t b = img.data[pixelIndex + 2];
-        leds.setPixel(y + 1, r, g, b);  // +1 to skip LED 0
+        leds.setPixel(y + DISPLAY_LED_START, r, g, b);
     }
     
     // Advance column for next frame (for image mode rotation)
@@ -423,18 +422,210 @@ void POVEngine::renderPattern() {
             renderPlasmaPattern(pattern);
             break;
 
-        // Audio-reactive patterns (IDs 11-15)
-        // Note: These require audio input on pin A0. For now, they fall back to
-        // visual-only effects. Full audio support requires microphone hardware.
-        case 11:  // VU Meter (audio-reactive)
-        case 12:  // Pulse (audio-reactive)
-        case 13:  // Audio Rainbow (audio-reactive)
-        case 14:  // Center Burst (audio-reactive)
-        case 15:  // Audio Sparkle (audio-reactive)
-            // TODO: Implement audio-reactive patterns when audio input is configured
-            // For now, use sparkle as fallback
-            renderSparklePattern(pattern);
+        // Audio-reactive patterns (IDs 11-15), driven by microphone input on AUDIO_PIN.
+        case 11:  // VU Meter
+        {
+            static uint16_t audioSamples[AUDIO_SAMPLES] = {0};
+            static uint8_t sampleIndex = 0;
+            static uint8_t peakLevel = 0;
+            static uint8_t peakDecay = 0;
+            static uint8_t beatHue = 0;
+
+            const uint16_t rawSample = analogRead(AUDIO_PIN);
+            audioSamples[sampleIndex] = rawSample;
+            sampleIndex = (sampleIndex + 1) % AUDIO_SAMPLES;
+
+            uint32_t sum = 0;
+            for (int i = 0; i < AUDIO_SAMPLES; i++) {
+                sum += audioSamples[i];
+            }
+            const uint16_t avg = sum / AUDIO_SAMPLES;
+
+            int16_t level = abs((int16_t)rawSample - (int16_t)avg);
+            level = constrain(level - AUDIO_NOISE_FLOOR, 0, 512);
+            const uint8_t audioLevel = map(level, 0, 512, 0, 255);
+            const uint16_t displayLEDCount = leds.getNumLEDs() - DISPLAY_LED_START;
+
+            if (audioLevel > peakLevel + 30) {
+                beatHue += 32;
+            }
+
+            if (audioLevel > peakLevel) {
+                peakLevel = audioLevel;
+                peakDecay = 0;
+            } else if (++peakDecay > 5) {
+                peakLevel = qsub8(peakLevel, 3);
+            }
+
+            const uint8_t ledsToLight = map(audioLevel, 0, 255, 0, displayLEDCount);
+
+            CRGB* ledsArray = leds.getLEDs();
+            for (uint16_t i = DISPLAY_LED_START; i < leds.getNumLEDs(); i++) {
+                const uint16_t ledIndex = i - DISPLAY_LED_START;
+                if (ledIndex < ledsToLight) {
+                    uint8_t hue = 0;
+                    if (ledIndex < displayLEDCount / 3) {
+                        hue = 96;   // Green
+                    } else if (ledIndex < (2 * displayLEDCount) / 3) {
+                        hue = 64;   // Yellow
+                    }
+                    hue = (hue + beatHue) % 256;
+                    ledsArray[i] = CHSV(hue, 255, 255);
+                } else {
+                    ledsArray[i].fadeToBlackBy(50);
+                }
+            }
+
+            const uint16_t peakPos = map(peakLevel, 0, 255, DISPLAY_LED_START, leds.getNumLEDs() - 1);
+            if (peakPos >= DISPLAY_LED_START && peakPos < leds.getNumLEDs()) {
+                ledsArray[peakPos] = CRGB::White;
+            }
             break;
+        }
+
+        case 12:  // Pulse
+        {
+            static uint16_t audioSamples[AUDIO_SAMPLES] = {0};
+            static uint8_t sampleIndex = 0;
+            static uint8_t pulseVal = 0;
+            static uint8_t lastLevel = 0;
+
+            const uint16_t rawSample = analogRead(AUDIO_PIN);
+            audioSamples[sampleIndex] = rawSample;
+            sampleIndex = (sampleIndex + 1) % AUDIO_SAMPLES;
+
+            uint32_t sum = 0;
+            for (int i = 0; i < AUDIO_SAMPLES; i++) {
+                sum += audioSamples[i];
+            }
+            const uint16_t avg = sum / AUDIO_SAMPLES;
+
+            int16_t level = abs((int16_t)rawSample - (int16_t)avg);
+            level = constrain(level - AUDIO_NOISE_FLOOR, 0, 512);
+            const uint8_t audioLevel = map(level, 0, 512, 0, 255);
+
+            if (audioLevel > lastLevel + 20 && audioLevel > 100) {
+                pulseVal = 255;
+            }
+            lastLevel = audioLevel;
+
+            CRGB baseColor(pattern.r1, pattern.g1, pattern.b1);
+            for (uint16_t i = DISPLAY_LED_START; i < leds.getNumLEDs(); i++) {
+                CRGB c = baseColor;
+                c.nscale8(pulseVal);
+                leds.setPixel(i, c);
+            }
+
+            pulseVal = scale8(pulseVal, 220);
+            break;
+        }
+
+        case 13:  // Audio Rainbow
+        {
+            static uint16_t audioSamples[AUDIO_SAMPLES] = {0};
+            static uint8_t sampleIndex = 0;
+            static uint16_t rainbowOffset = 0;
+
+            const uint16_t rawSample = analogRead(AUDIO_PIN);
+            audioSamples[sampleIndex] = rawSample;
+            sampleIndex = (sampleIndex + 1) % AUDIO_SAMPLES;
+
+            uint32_t sum = 0;
+            for (int i = 0; i < AUDIO_SAMPLES; i++) {
+                sum += audioSamples[i];
+            }
+            const uint16_t avg = sum / AUDIO_SAMPLES;
+
+            int16_t level = abs((int16_t)rawSample - (int16_t)avg);
+            level = constrain(level - AUDIO_NOISE_FLOOR, 0, 512);
+            const uint8_t audioLevel = map(level, 0, 512, 0, 255);
+            const uint16_t displayLEDCount = leds.getNumLEDs() - DISPLAY_LED_START;
+
+            rainbowOffset += map(audioLevel, 0, 255, 1, 20);
+
+            for (uint16_t i = DISPLAY_LED_START; i < leds.getNumLEDs(); i++) {
+                const uint16_t ledIndex = i - DISPLAY_LED_START;
+                const uint8_t hue = (rainbowOffset / 4 + ledIndex * 255 / displayLEDCount) % 256;
+                const uint8_t brightness = constrain(audioLevel + 50, 50, 255);
+                leds.setPixel(i, CHSV(hue, 255, brightness));
+            }
+            break;
+        }
+
+        case 14:  // Center Burst
+        {
+            static uint16_t audioSamples[AUDIO_SAMPLES] = {0};
+            static uint8_t sampleIndex = 0;
+
+            const uint16_t rawSample = analogRead(AUDIO_PIN);
+            audioSamples[sampleIndex] = rawSample;
+            sampleIndex = (sampleIndex + 1) % AUDIO_SAMPLES;
+
+            uint32_t sum = 0;
+            for (int i = 0; i < AUDIO_SAMPLES; i++) {
+                sum += audioSamples[i];
+            }
+            const uint16_t avg = sum / AUDIO_SAMPLES;
+
+            int16_t level = abs((int16_t)rawSample - (int16_t)avg);
+            level = constrain(level - AUDIO_NOISE_FLOOR, 0, 512);
+            const uint8_t audioLevel = map(level, 0, 512, 0, 255);
+            const uint16_t displayLEDCount = leds.getNumLEDs() - DISPLAY_LED_START;
+
+            const uint8_t expansion = map(audioLevel, 0, 255, 0, displayLEDCount / 2);
+            const int16_t center = DISPLAY_LED_START + (displayLEDCount / 2);
+
+            CRGB* ledsArray = leds.getLEDs();
+            for (uint16_t i = DISPLAY_LED_START; i < leds.getNumLEDs(); i++) {
+                ledsArray[i].fadeToBlackBy(80);
+            }
+
+            for (uint8_t i = 0; i <= expansion; i++) {
+                const uint8_t hue = patternTime * pattern.speed / 20 + i * 10;
+                const int16_t right = center + i;
+                const int16_t left = center - i;
+                if (right < (int16_t)leds.getNumLEDs()) {
+                    ledsArray[right] = CHSV(hue, 255, 255);
+                }
+                if (left >= DISPLAY_LED_START) {
+                    ledsArray[left] = CHSV(hue, 255, 255);
+                }
+            }
+            break;
+        }
+
+        case 15:  // Audio Sparkle
+        {
+            static uint16_t audioSamples[AUDIO_SAMPLES] = {0};
+            static uint8_t sampleIndex = 0;
+
+            const uint16_t rawSample = analogRead(AUDIO_PIN);
+            audioSamples[sampleIndex] = rawSample;
+            sampleIndex = (sampleIndex + 1) % AUDIO_SAMPLES;
+
+            uint32_t sum = 0;
+            for (int i = 0; i < AUDIO_SAMPLES; i++) {
+                sum += audioSamples[i];
+            }
+            const uint16_t avg = sum / AUDIO_SAMPLES;
+
+            int16_t level = abs((int16_t)rawSample - (int16_t)avg);
+            level = constrain(level - AUDIO_NOISE_FLOOR, 0, 512);
+            const uint8_t audioLevel = map(level, 0, 512, 0, 255);
+
+            CRGB* ledsArray = leds.getLEDs();
+            for (uint16_t i = DISPLAY_LED_START; i < leds.getNumLEDs(); i++) {
+                ledsArray[i].fadeToBlackBy(40);
+            }
+
+            const uint8_t numSparkles = map(audioLevel, 0, 255, 0, 8);
+            for (uint8_t s = 0; s < numSparkles; s++) {
+                const uint16_t pos = random8(DISPLAY_LED_START, leds.getNumLEDs());
+                const uint8_t hue = patternTime * 2 + random8(64);
+                ledsArray[pos] = CHSV(hue, 255, 255);
+            }
+            break;
+        }
             
         default:
             leds.clear();
@@ -446,9 +637,11 @@ void POVEngine::renderPattern() {
 
 void POVEngine::renderRainbowPattern(const Pattern& pattern) {
     // Rainbow pattern - rotating hue across LEDs
-    for (uint16_t i = 1; i < leds.getNumLEDs(); i++) {
+    for (uint16_t i = DISPLAY_LED_START; i < leds.getNumLEDs(); i++) {
         // Calculate hue based on position and time
-        uint8_t hue = (patternTime * pattern.speed / 10 + i * 255 / (leds.getNumLEDs() - 1)) % 256;
+        uint16_t ledIndex = i - DISPLAY_LED_START;
+        uint16_t displayLEDCount = leds.getNumLEDs() - DISPLAY_LED_START;
+        uint8_t hue = (patternTime * pattern.speed / 10 + ledIndex * 255 / displayLEDCount) % 256;
         
         // Convert HSV to RGB (simplified)
         uint8_t sector = hue / 43;  // 0-5
@@ -482,9 +675,11 @@ void POVEngine::renderRainbowPattern(const Pattern& pattern) {
 
 void POVEngine::renderWavePattern(const Pattern& pattern) {
     // Wave pattern - animated sine wave
-    for (uint16_t i = 1; i < leds.getNumLEDs(); i++) {
+    for (uint16_t i = DISPLAY_LED_START; i < leds.getNumLEDs(); i++) {
         // Calculate brightness using sine wave approximation
-        float angle = (patternTime * pattern.speed / 10.0 + i * 255.0 / (leds.getNumLEDs() - 1)) * 0.0245; // Convert to radians
+        uint16_t ledIndex = i - DISPLAY_LED_START;
+        uint16_t displayLEDCount = leds.getNumLEDs() - DISPLAY_LED_START;
+        float angle = (patternTime * pattern.speed / 10.0 + ledIndex * 255.0 / displayLEDCount) * 0.0245; // Convert to radians
         float sinValue = sin(angle);
         uint8_t brightness = (uint8_t)((sinValue + 1.0) * 127.5);  // Convert -1..1 to 0..255
         
@@ -499,9 +694,11 @@ void POVEngine::renderWavePattern(const Pattern& pattern) {
 
 void POVEngine::renderGradientPattern(const Pattern& pattern) {
     // Gradient pattern - smooth transition between two colors
-    for (uint16_t i = 1; i < leds.getNumLEDs(); i++) {
+    for (uint16_t i = DISPLAY_LED_START; i < leds.getNumLEDs(); i++) {
         // Calculate blend factor (0-255)
-        uint8_t blend = (i * 255) / (leds.getNumLEDs() - 1);
+        uint16_t ledIndex = i - DISPLAY_LED_START;
+        uint16_t displayLEDCount = leds.getNumLEDs() - DISPLAY_LED_START;
+        uint8_t blend = (ledIndex * 255) / displayLEDCount;
         
         // Blend between color1 and color2
         uint8_t r = pattern.r1 + ((pattern.r2 - pattern.r1) * blend) / 255;
@@ -516,13 +713,13 @@ void POVEngine::renderSparklePattern(const Pattern& pattern) {
     // Sparkle pattern - random sparkles that fade
     // Fade all LEDs
     CRGB* ledsArray = leds.getLEDs();
-    for (uint16_t i = 1; i < leds.getNumLEDs(); i++) {
+    for (uint16_t i = DISPLAY_LED_START; i < leds.getNumLEDs(); i++) {
         ledsArray[i].fadeToBlackBy(25);  // Fade by ~10%
     }
     
     // Add random sparkles based on speed
     if (random8() < pattern.speed) {
-        uint16_t led = random(1, leds.getNumLEDs());
+        uint16_t led = random(DISPLAY_LED_START, leds.getNumLEDs());
         leds.setPixel(led, pattern.r1, pattern.g1, pattern.b1);
     }
 }
@@ -531,10 +728,10 @@ void POVEngine::renderFirePattern(const Pattern& pattern) {
     // Fire pattern - heat simulation rising upward
     static uint8_t heat[NUM_LEDS];
     CRGB* ledsArray = leds.getLEDs();
-    uint16_t displayLEDs = leds.getNumLEDs() - 1;  // LEDs 1-31
+    uint16_t displayLEDs = leds.getNumLEDs() - DISPLAY_LED_START;
     
     // Cool down every cell
-    for (uint16_t i = 1; i < leds.getNumLEDs(); i++) {
+    for (uint16_t i = DISPLAY_LED_START; i < leds.getNumLEDs(); i++) {
         heat[i] = qsub8(heat[i], random8(0, ((55 * 10) / displayLEDs) + 2));
     }
     
@@ -545,39 +742,42 @@ void POVEngine::renderFirePattern(const Pattern& pattern) {
     
     // Random ignition at the bottom
     if (random8() < pattern.speed) {
-        uint16_t y = random8(1, 4);
+        uint16_t y = random8(DISPLAY_LED_START, DISPLAY_LED_START + 3);
         heat[y] = qadd8(heat[y], random8(160, 255));
     }
     
     // Map heat to colors using FastLED HeatColor
-    for (uint16_t i = 1; i < leds.getNumLEDs(); i++) {
+    for (uint16_t i = DISPLAY_LED_START; i < leds.getNumLEDs(); i++) {
         ledsArray[i] = HeatColor(heat[i]);
     }
 }
 
 void POVEngine::renderCometPattern(const Pattern& pattern) {
     // Comet pattern - single bright head with fading tail
-    static uint8_t cometPos = 1;
+    static int16_t cometPos = DISPLAY_LED_START;
     static int8_t direction = 1;
     CRGB* ledsArray = leds.getLEDs();
     
     // Fade creates tail (fade all LEDs)
-    for (uint16_t i = 1; i < leds.getNumLEDs(); i++) {
+    for (uint16_t i = DISPLAY_LED_START; i < leds.getNumLEDs(); i++) {
         ledsArray[i].fadeToBlackBy(60);
     }
     
     // Move comet
     cometPos += direction;
-    if (cometPos >= leds.getNumLEDs() - 1 || cometPos <= 1) {
+    if (cometPos >= (int16_t)leds.getNumLEDs() - 1 || cometPos <= DISPLAY_LED_START) {
         direction = -direction;
     }
     
     // Draw comet head and tail
     CRGB color(pattern.r1, pattern.g1, pattern.b1);
-    ledsArray[cometPos] = color;
-    if (cometPos - direction >= 1 && cometPos - direction < leds.getNumLEDs()) {
-        ledsArray[cometPos - direction] = color;
-        ledsArray[cometPos - direction].nscale8(128);
+    if (cometPos >= DISPLAY_LED_START && cometPos < (int16_t)leds.getNumLEDs()) {
+        ledsArray[cometPos] = color;
+    }
+    int16_t tailPos = cometPos - direction;
+    if (tailPos >= DISPLAY_LED_START && tailPos < (int16_t)leds.getNumLEDs()) {
+        ledsArray[tailPos] = color;
+        ledsArray[tailPos].nscale8(128);
     }
 }
 
@@ -587,7 +787,7 @@ void POVEngine::renderBreathingPattern(const Pattern& pattern) {
     uint8_t breath = beatsin8(pattern.speed / 4, 20, 255);
     CRGB color(pattern.r1, pattern.g1, pattern.b1);
     
-    for (uint16_t i = 1; i < leds.getNumLEDs(); i++) {
+    for (uint16_t i = DISPLAY_LED_START; i < leds.getNumLEDs(); i++) {
         CRGB ledColor = color;
         ledColor.nscale8(breath);
         leds.setPixel(i, ledColor);
@@ -608,19 +808,19 @@ void POVEngine::renderStrobePattern(const Pattern& pattern) {
     }
     
     CRGB color = strobeOn ? CRGB(pattern.r1, pattern.g1, pattern.b1) : CRGB::Black;
-    for (uint16_t i = 1; i < leds.getNumLEDs(); i++) {
+    for (uint16_t i = DISPLAY_LED_START; i < leds.getNumLEDs(); i++) {
         leds.setPixel(i, color);
     }
 }
 
 void POVEngine::renderMeteorPattern(const Pattern& pattern) {
     // Meteor pattern - falling with random decay
-    static uint8_t meteorPos = NUM_LEDS - 1;
+    static int16_t meteorPos = NUM_LEDS - 1;
     CRGB* ledsArray = leds.getLEDs();
     CRGB color(pattern.r1, pattern.g1, pattern.b1);
     
     // Fade all LEDs randomly for sparkly tail
-    for (uint16_t i = 1; i < leds.getNumLEDs(); i++) {
+    for (uint16_t i = DISPLAY_LED_START; i < leds.getNumLEDs(); i++) {
         if (random8() < 80) {
             ledsArray[i].fadeToBlackBy(64);
         }
@@ -628,23 +828,24 @@ void POVEngine::renderMeteorPattern(const Pattern& pattern) {
     
     // Draw meteor head with fading tail
     for (uint8_t i = 0; i < 4; i++) {
-        if (meteorPos - i >= 1 && meteorPos - i < leds.getNumLEDs()) {
+        int16_t headPos = meteorPos - i;
+        if (headPos >= DISPLAY_LED_START && headPos < (int16_t)leds.getNumLEDs()) {
             CRGB meteorColor = color;
             meteorColor.nscale8(255 - (i * 60));
-            ledsArray[meteorPos - i] = meteorColor;
+            ledsArray[headPos] = meteorColor;
         }
     }
     
     // Move meteor down
     meteorPos--;
-    if (meteorPos < 1) {
+    if (meteorPos < DISPLAY_LED_START) {
         meteorPos = leds.getNumLEDs() - 1;
     }
 }
 
 void POVEngine::renderWipePattern(const Pattern& pattern) {
     // Color Wipe pattern - progressive fill then clear
-    static uint8_t wipePos = 1;
+    static uint8_t wipePos = DISPLAY_LED_START;
     static bool filling = true;
     CRGB* ledsArray = leds.getLEDs();
     CRGB color(pattern.r1, pattern.g1, pattern.b1);
@@ -653,7 +854,7 @@ void POVEngine::renderWipePattern(const Pattern& pattern) {
     
     wipePos++;
     if (wipePos >= leds.getNumLEDs()) {
-        wipePos = 1;
+        wipePos = DISPLAY_LED_START;
         filling = !filling;
     }
 }
@@ -662,7 +863,7 @@ void POVEngine::renderPlasmaPattern(const Pattern& pattern) {
     // Plasma pattern - organic color mixing
     CRGB* ledsArray = leds.getLEDs();
     
-    for (uint16_t i = 1; i < leds.getNumLEDs(); i++) {
+    for (uint16_t i = DISPLAY_LED_START; i < leds.getNumLEDs(); i++) {
         uint8_t hue = sin8(i * 10 + patternTime * pattern.speed / 20) + 
                       sin8(i * 15 - patternTime * pattern.speed / 15) +
                       sin8(patternTime * pattern.speed / 10);

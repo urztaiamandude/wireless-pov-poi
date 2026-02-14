@@ -4,7 +4,7 @@ Test script for GUI image converter
 Tests the core functionality without requiring tkinter display
 
 NOTE: The POV display uses LEDs as the VERTICAL axis:
-- HEIGHT is FIXED at 31 pixels (matching 31 display LEDs)
+- HEIGHT is FIXED at 32 pixels (matching 32 display LEDs)
 - WIDTH is calculated to maintain aspect ratio
 """
 
@@ -41,11 +41,11 @@ def test_gui_conversion_logic():
         output_img = os.path.join(tmpdir, "test_output.png")
         
         # Test with GUI default settings
-        # HEIGHT is fixed at 31, WIDTH is calculated
+        # HEIGHT is fixed at 32, WIDTH is calculated
         success = convert_image_for_pov(
             test_img, 
             output_img, 
-            height=31, 
+            height=32,
             max_width=200, 
             enhance_contrast=True
         )
@@ -54,10 +54,10 @@ def test_gui_conversion_logic():
             print("❌ FAILED: Conversion returned False")
             return False
         
-        # Verify output - HEIGHT should be 31 (fixed)
+        # Verify output - HEIGHT should be 32 (fixed)
         result = Image.open(output_img)
-        if result.height != 31:
-            print(f"❌ FAILED: Expected height 31, got {result.height}")
+        if result.height != 32:
+            print(f"❌ FAILED: Expected height 32, got {result.height}")
             return False
         
         print(f"✓ PASSED: GUI conversion logic works correctly ({result.width}x{result.height})")
@@ -85,11 +85,11 @@ def test_batch_conversion():
             base_name = os.path.splitext(filename)[0]
             output_path = os.path.join(output_dir, f"{base_name}_pov.png")
             
-            # HEIGHT is fixed at 31, WIDTH is calculated
+            # HEIGHT is fixed at 32, WIDTH is calculated
             success = convert_image_for_pov(
                 test_file,
                 output_path,
-                height=31,
+                height=32,
                 max_width=200,
                 enhance_contrast=True
             )
@@ -114,9 +114,9 @@ def test_different_settings():
         
         # Test different settings (HEIGHT is always fixed)
         test_cases = [
-            {"height": 31, "max_width": 200, "enhance_contrast": True, "name": "default"},
+            {"height": 32, "max_width": 200, "enhance_contrast": True, "name": "default"},
             {"height": 20, "max_width": 200, "enhance_contrast": False, "name": "custom height"},
-            {"height": 31, "max_width": 50, "enhance_contrast": True, "name": "limited width"},
+            {"height": 32, "max_width": 50, "enhance_contrast": True, "name": "limited width"},
         ]
         
         all_passed = True

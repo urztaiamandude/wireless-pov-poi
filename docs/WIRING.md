@@ -219,8 +219,8 @@ Common GND         → ESP32-S3 GND
    APA102 DI → Teensy Pin 11 (MOSI)
    APA102 CI → Teensy Pin 13 (SCK)
    ```
-   - LED 0 can be used as level shifter if needed
-   - LEDs 1-31 are used for display
+   - Use an external level shifter module between Teensy and APA102 DI
+   - All 32 LEDs are used for display
 
 2. **Power Connections**
    ```

@@ -14,7 +14,7 @@ This system creates stunning POV light displays using a 32 LED APA102 strip cont
   - ESP32-S3 N16R8 (16MB Flash, 8MB PSRAM) recommended for new builds ✨
   - 📋 [ESP32-S3 Purchase Guide](ESP32_S3_PURCHASE_GUIDE.md) - Should I buy ESP32-S3?
   - 🔧 [ESP32-S3 Compatibility Guide](docs/ESP32_S3_COMPATIBILITY.md) - Technical details
-- **APA102 LED Strip** - 32 addressable RGB LEDs (31 for display, 1 for level shifting)
+- **APA102 LED Strip** - 32 addressable RGB LEDs (all used for display)
 - **MAX9814 Microphone** (optional) - For music-reactive pattern modes
 - Serial communication (115200 baud) between Teensy and ESP32/ESP32-S3
 
@@ -174,7 +174,7 @@ The web portal provides a modern, **mobile-responsive** interface with:
 - System controls (brightness and frame rate sliders)
 - Quick pattern buttons (Rainbow, Wave, Gradient, Sparkle)
 - Color picker for custom pattern colors
-- **Image upload with automatic conversion** (any size → 31px HIGH, width calculated from aspect ratio)
+- **Image upload with automatic conversion** (any size → 32px HIGH, width calculated from aspect ratio)
 - Live drawing canvas for real-time control
 - Real-time status display
 - **PWA support** - Install as native app on mobile devices
@@ -183,10 +183,10 @@ The web portal provides a modern, **mobile-responsive** interface with:
 ### Image Orientation
 
 The LED strip forms the VERTICAL axis of the POV display:
-- **HEIGHT is FIXED at 31 pixels** - One pixel per display LED
+- **HEIGHT is FIXED at 32 pixels** - One pixel per display LED
 - **WIDTH is CALCULATED** - Based on original image aspect ratio
-- **LED 1** (bottom of strip) displays the **bottom** of the image
-- **LED 31** (top of strip) displays the **top** of the image
+- **Bottom LED** displays the **bottom** of the image
+- **Top LED** displays the **top** of the image
 - **No flip needed** - The LED arrangement maps directly to image pixels
 - When poi are spun, images scroll naturally in correct orientation
 
@@ -208,8 +208,8 @@ See [API Documentation](docs/API.md) for detailed endpoint information and examp
 - **WiFi Module**: ESP32 or ESP32-S3 (2.4 GHz)
   - ESP32: 4MB Flash typical
   - ESP32-S3 N16R8: 16MB Flash + 8MB PSRAM (recommended) ✨
-- **LED Strip**: APA102 (32 LEDs, 31 for display + 1 for level shifting)
-- **Display Resolution**: HEIGHT = 31 pixels (fixed), WIDTH = variable
+- **LED Strip**: APA102 (32 display LEDs)
+- **Display Resolution**: HEIGHT = 32 pixels (fixed), WIDTH = variable
 - **Frame Rate**: 10-120 FPS (adjustable)
 - **Brightness**: 0-255 (adjustable)
 - **Serial Baudrate**: 115200 bps
@@ -227,7 +227,7 @@ For best results with persistence of vision:
 
 ## Image Conversion
 
-Convert images to POV-compatible format (31 pixels HIGH):
+Convert images to POV-compatible format (32 pixels HIGH):
 
 ### Option 1: GUI Converter (Recommended for Desktop)
 ```bash
@@ -322,7 +322,7 @@ sequence.next(); // Move to next image
 
 - Images must be 24-bit uncompressed BMP format
 - Width and height can be any size (limited by available RAM)
-- For POV display, height should match your LED count (31 pixels)
+- For POV display, height should match your LED count (32 pixels)
 
 See [BMP Image Processing Guide](docs/BMP_IMAGE_PROCESSING.md) for complete documentation and examples.
 

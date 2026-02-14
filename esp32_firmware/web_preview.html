@@ -458,7 +458,7 @@
         // =====================
         // LED Preview
         // =====================
-        const NUM_LEDS = 31;  // LEDs 1-31 (index 0 is level shifter)
+        const NUM_LEDS = 32;
         
         function initLEDPreview() {
             const container = document.getElementById('led-preview');
@@ -766,8 +766,8 @@
                 
                 reader.onload = (e) => {
                     img.onload = () => {
-                        canvas.width = 31;
-                        canvas.height = Math.min(64, Math.round(31 * img.height / img.width));
+                        canvas.width = 32;
+                        canvas.height = Math.min(64, Math.round(32 * img.height / img.width));
                         ctx.imageSmoothingEnabled = false;
                         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                         canvas.style.display = 'block';

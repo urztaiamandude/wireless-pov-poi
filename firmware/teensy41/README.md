@@ -12,11 +12,11 @@ This directory contains a **modular PlatformIO-based** firmware for the Teensy 4
 - **POV Engine**: Persistence of vision rendering with pattern support
 - **Serial Protocol**: Both simple and structured message protocols
 - **ESP32 Command Processing**: All commands implemented
-- **Pattern Generation**: 4 pattern types (rainbow, wave, gradient, sparkle)
+- **Pattern Generation**: 16 pattern types (basic + audio reactive)
 - **Frame Rate Control**: Dynamic adjustment (10-120 FPS)
 - **Mode Management**: Full mode and index support
 - **Brightness Control**: 0-255 adjustable
-- **Image Display**: 31x64 pixel POV images
+- **Image Display**: 32x64 pixel POV images
 
 ### ⚠️ Needs Testing
 - **Integration Testing**: Hardware validation with ESP32 web interface
@@ -41,7 +41,7 @@ The firmware manages:
 ## Hardware Requirements
 
 - Teensy 4.1 development board
-- APA102 LED strip (32 LEDs: 31 for display, 1 for level shifting)
+- APA102 LED strip (32 display LEDs)
 - ESP32 co-processor (connected via Serial1)
 - microSD card (Class 10 or higher, 16GB-64GB recommended)
   - Format: FAT32 (recommended) or exFAT, single partition

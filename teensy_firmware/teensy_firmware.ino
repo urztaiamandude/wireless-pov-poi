@@ -2,7 +2,7 @@
  * Nebula Poi - Teensy 4.1 Firmware
  * 
  * This firmware controls a 32 LED APA102 strip for POV (Persistence of Vision) display.
- * LED 0 is used for level shifting, LEDs 1-31 are used for display.
+ * All 32 LEDs are active display pixels (use an external level shifter module).
  * Communicates with ESP32 via Serial1 to receive images, patterns, and sequences.
  * 
  * Hardware:
@@ -24,16 +24,13 @@
 #endif
 
 // LED Configuration
-// ⚠️ CRITICAL: LED 0 is used for level shifting only - NEVER use for display!
-// All display loops MUST start from index 1, not 0.
-// Example: for (int i = 1; i < NUM_LEDS; i++) { leds[i] = color; }
 #define NUM_LEDS 32
 #define DATA_PIN 11
 #define CLOCK_PIN 13
 #define LED_TYPE APA102
 #define COLOR_ORDER BGR
-#define DISPLAY_LEDS 31       // LEDs 1-31 used for display (LED 0 for level shifting)
-#define DISPLAY_LED_START 1   // First LED index used for display content
+#define DISPLAY_LEDS NUM_LEDS
+#define DISPLAY_LED_START 0
 
 // Audio Input Configuration (for music reactive patterns)
 #define AUDIO_PIN A0         // Analog microphone input
@@ -45,11 +42,10 @@
 #define ESP32_SERIAL Serial1
 
 // Display Configuration
-// NOTE: IMAGE_HEIGHT = DISPLAY_LEDS = 31 (fixed, matches physical LEDs)
-//       IMAGE_MAX_WIDTH = variable (calculated from aspect ratio)
+// NOTE: Current upload path uses fixed width with variable height.
 #define MAX_IMAGES 10
-#define IMAGE_WIDTH 31          // Fixed width for POV display (matches DISPLAY_LEDS)
-#define IMAGE_HEIGHT 31         // Fixed: matches DISPLAY_LEDS (one pixel per LED)
+#define IMAGE_WIDTH 32          // Fixed width expected by ESP32 upload path
+#define IMAGE_HEIGHT 64         // Maximum stored image height
 #define IMAGE_MAX_WIDTH 200     // Maximum width for stored images
 #define MAX_PATTERNS 18  // Total pattern slots (indexed 0-17)
 #define MAX_SEQUENCES 5
@@ -70,7 +66,7 @@ CRGB leds[NUM_LEDS];
 struct POVImage {
   uint8_t width;
   uint8_t height;
-  CRGB pixels[IMAGE_WIDTH][IMAGE_HEIGHT];  // Max 31x64 image
+  CRGB pixels[IMAGE_WIDTH][IMAGE_HEIGHT];  // Max 32x64 image
   bool active;
 };
 
@@ -122,10 +118,9 @@ bool sequencePlaying = false;
 CRGB liveBuffer[DISPLAY_LEDS];
 
 // Serial command buffer
-// Buffer size calculation: 31 (width) × 64 (height) × 3 (RGB bytes) = 5,952 bytes
-// Plus protocol overhead (~100 bytes): 0xFF start, cmd, len, 0xFE end markers
-// Rounded up to 6144 for safety margin
-#define CMD_BUFFER_SIZE 6144
+// Buffer size calculation: 32 (width) × 64 (height) × 3 (RGB bytes) = 6,144 bytes
+// Plus protocol overhead for framing and command bytes
+#define CMD_BUFFER_SIZE 6400
 uint8_t cmdBuffer[CMD_BUFFER_SIZE];
 uint16_t cmdBufferIndex = 0;
 
@@ -247,7 +242,7 @@ void initStorage() {
 
 // Create demo images for testing
 void createDemoImages() {
-  // Demo Image 0: Simple smiley face (31x31)
+  // Demo Image 0: Simple smiley face
   images[0].active = true;
   images[0].width = IMAGE_WIDTH;
   images[0].height = IMAGE_HEIGHT;
@@ -296,7 +291,7 @@ void createDemoImages() {
   
   Serial.println("Demo image 0 created: Smiley Face");
   
-  // Demo Image 1: Rainbow gradient (31x31)
+  // Demo Image 1: Rainbow gradient
   images[1].active = true;
   images[1].width = IMAGE_WIDTH;
   images[1].height = IMAGE_HEIGHT;
@@ -310,7 +305,7 @@ void createDemoImages() {
   
   Serial.println("Demo image 1 created: Rainbow Gradient");
   
-  // Demo Image 2: Heart shape (31x31)
+  // Demo Image 2: Heart shape
   images[2].active = true;
   images[2].width = IMAGE_WIDTH;
   images[2].height = IMAGE_HEIGHT;
@@ -373,7 +368,7 @@ void createDemoSequence() {
 void startupAnimation() {
   // Rainbow sweep animation
   for (int hue = 0; hue < 256; hue += 4) {
-    for (int i = 1; i < NUM_LEDS; i++) {
+    for (int i = DISPLAY_LED_START; i < NUM_LEDS; i++) {
       leds[i] = CHSV(hue + (i * 8), 255, 255);
     }
     FastLED.show();
@@ -546,7 +541,7 @@ void receiveImage() {
   Serial.print(cmdBufferIndex);
   Serial.println(" bytes)");
   
-  // If image is already 31 pixels wide, use it directly
+  // If image is already POV-compatible width, use it directly
   if (srcWidth == IMAGE_WIDTH && srcHeight <= 64) {
     Serial.println("Image is already POV-compatible size");
     images[imgIndex].width = srcWidth;
@@ -574,8 +569,10 @@ void receiveImage() {
       }
     }
   } else {
-    // Image needs conversion - resize to 31 pixels wide
-    Serial.println("Converting image to POV format (31 pixels wide)");
+    // Image needs conversion - resize to POV width
+    Serial.print("Converting image to POV format (");
+    Serial.print(IMAGE_WIDTH);
+    Serial.println(" pixels wide)");
     
     // Calculate target height maintaining aspect ratio
     uint8_t targetHeight = (uint16_t)srcHeight * IMAGE_WIDTH / srcWidth;
@@ -664,9 +661,6 @@ void receiveLiveFrame() {
 }
 
 void updateDisplay() {
-  // Clear LED 0 (level shifter)
-  leds[0] = CRGB::Black;
-  
   switch (currentMode) {
     case 0:  // Idle - off
       FastLED.clear();
@@ -702,7 +696,7 @@ void displayImage() {
   
   // Display current column of the image
   for (int i = 0; i < DISPLAY_LEDS && i < img.height; i++) {
-    leds[i + 1] = img.pixels[currentColumn][i];
+    leds[i + DISPLAY_LED_START] = img.pixels[currentColumn][i];
   }
   
   currentColumn = (currentColumn + 1) % img.width;
@@ -720,14 +714,14 @@ void displayPattern() {
   
   switch (pat.type) {
     case 0:  // Rainbow
-      for (int i = 1; i < NUM_LEDS; i++) {
+      for (int i = DISPLAY_LED_START; i < NUM_LEDS; i++) {
         uint8_t hue = (patternTime * pat.speed / 10 + i * 255 / DISPLAY_LEDS) % 256;
         leds[i] = CHSV(hue, 255, 255);
       }
       break;
       
     case 1:  // Wave
-      for (int i = 1; i < NUM_LEDS; i++) {
+      for (int i = DISPLAY_LED_START; i < NUM_LEDS; i++) {
         uint8_t brightness = (sin8(patternTime * pat.speed / 10 + i * 255 / DISPLAY_LEDS));
         leds[i] = pat.color1;
         leds[i].nscale8(brightness);
@@ -735,7 +729,7 @@ void displayPattern() {
       break;
       
     case 2:  // Gradient
-      for (int i = 1; i < NUM_LEDS; i++) {
+      for (int i = DISPLAY_LED_START; i < NUM_LEDS; i++) {
         uint8_t blendAmount = (i * 255) / DISPLAY_LEDS;
         leds[i] = blend(pat.color1, pat.color2, blendAmount);
       }
@@ -743,16 +737,16 @@ void displayPattern() {
       
     case 3:  // Sparkle
       if (random8() < pat.speed) {
-        leds[random8(1, NUM_LEDS)] = pat.color1;
+        leds[random8(DISPLAY_LED_START, NUM_LEDS)] = pat.color1;
       }
       fadeToBlackBy(leds, NUM_LEDS, 20);
       break;
       
-    case 4:  // Fire - heat rises from LED 1 upward
+    case 4:  // Fire - heat rises upward
       {
         static uint8_t heat[NUM_LEDS];
         // Cool down every cell
-        for (int i = 1; i < NUM_LEDS; i++) {
+        for (int i = DISPLAY_LED_START; i < NUM_LEDS; i++) {
           heat[i] = qsub8(heat[i], random8(0, ((55 * 10) / DISPLAY_LEDS) + 2));
         }
         // Heat rises - drift heat upward
@@ -761,11 +755,11 @@ void displayPattern() {
         }
         // Random ignition at the bottom
         if (random8() < pat.speed) {
-          int y = random8(1, 4);
+          int y = random8(DISPLAY_LED_START, DISPLAY_LED_START + 3);
           heat[y] = qadd8(heat[y], random8(160, 255));
         }
         // Map heat to colors
-        for (int i = 1; i < NUM_LEDS; i++) {
+        for (int i = DISPLAY_LED_START; i < NUM_LEDS; i++) {
           leds[i] = HeatColor(heat[i]);
         }
       }
@@ -773,23 +767,28 @@ void displayPattern() {
       
     case 5:  // Comet - single bright head with fading tail
       {
-        static uint8_t cometPos = 1;
-        static uint8_t direction = 1;
+        static int16_t cometPos = DISPLAY_LED_START;
+        static int8_t direction = 1;
         fadeToBlackBy(leds, NUM_LEDS, 60);  // Fade creates tail
         cometPos += direction;
-        if (cometPos >= NUM_LEDS - 1 || cometPos <= 1) {
+        if (cometPos >= NUM_LEDS - 1 || cometPos <= DISPLAY_LED_START) {
           direction = -direction;
         }
-        leds[cometPos] = pat.color1;
-        leds[cometPos - direction] = pat.color1;
-        leds[cometPos - direction].nscale8(128);
+        if (cometPos >= DISPLAY_LED_START && cometPos < NUM_LEDS) {
+          leds[cometPos] = pat.color1;
+        }
+        int16_t tailPos = cometPos - direction;
+        if (tailPos >= DISPLAY_LED_START && tailPos < NUM_LEDS) {
+          leds[tailPos] = pat.color1;
+          leds[tailPos].nscale8(128);
+        }
       }
       break;
       
     case 6:  // Breathing - smooth pulse on/off
       {
         uint8_t breath = beatsin8(pat.speed / 4, 20, 255);
-        for (int i = 1; i < NUM_LEDS; i++) {
+        for (int i = DISPLAY_LED_START; i < NUM_LEDS; i++) {
           leds[i] = pat.color1;
           leds[i].nscale8(breath);
         }
@@ -805,7 +804,7 @@ void displayPattern() {
           strobeOn = !strobeOn;
           lastStrobe = patternTime;
         }
-        for (int i = 1; i < NUM_LEDS; i++) {
+        for (int i = DISPLAY_LED_START; i < NUM_LEDS; i++) {
           leds[i] = strobeOn ? pat.color1 : CRGB::Black;
         }
       }
@@ -813,40 +812,41 @@ void displayPattern() {
       
     case 8:  // Meteor - falling with random decay
       {
-        static uint8_t meteorPos = NUM_LEDS - 1;
+        static int16_t meteorPos = NUM_LEDS - 1;
         // Fade all LEDs randomly for sparkly tail
-        for (int i = 1; i < NUM_LEDS; i++) {
+        for (int i = DISPLAY_LED_START; i < NUM_LEDS; i++) {
           if (random8() < 80) {
             leds[i].fadeToBlackBy(64);
           }
         }
         // Draw meteor head
         for (int i = 0; i < 4; i++) {
-          if (meteorPos - i >= 1 && meteorPos - i < NUM_LEDS) {
-            leds[meteorPos - i] = pat.color1;
-            leds[meteorPos - i].nscale8(255 - (i * 60));
+          int16_t headPos = meteorPos - i;
+          if (headPos >= DISPLAY_LED_START && headPos < NUM_LEDS) {
+            leds[headPos] = pat.color1;
+            leds[headPos].nscale8(255 - (i * 60));
           }
         }
         meteorPos--;
-        if (meteorPos < 1) meteorPos = NUM_LEDS - 1;
+        if (meteorPos < DISPLAY_LED_START) meteorPos = NUM_LEDS - 1;
       }
       break;
       
     case 9:  // Color Wipe - progressive fill then clear
       {
-        static uint8_t wipePos = 1;
+        static uint8_t wipePos = DISPLAY_LED_START;
         static bool filling = true;
         leds[wipePos] = filling ? pat.color1 : CRGB::Black;
         wipePos++;
         if (wipePos >= NUM_LEDS) {
-          wipePos = 1;
+          wipePos = DISPLAY_LED_START;
           filling = !filling;
         }
       }
       break;
       
     case 10:  // Plasma - organic color mixing
-      for (int i = 1; i < NUM_LEDS; i++) {
+      for (int i = DISPLAY_LED_START; i < NUM_LEDS; i++) {
         uint8_t hue = sin8(i * 10 + patternTime * pat.speed / 20) + 
                       sin8(i * 15 - patternTime * pat.speed / 15) +
                       sin8(patternTime * pat.speed / 10);
@@ -901,8 +901,8 @@ void displayPattern() {
         uint8_t ledsToLight = map(audioLevel, 0, 255, 0, DISPLAY_LEDS);
         
         // Draw VU meter with color gradient
-        for (int i = 1; i < NUM_LEDS; i++) {
-          uint8_t ledIndex = i - 1;  // 0-30 for display
+        for (int i = DISPLAY_LED_START; i < NUM_LEDS; i++) {
+          uint8_t ledIndex = i - DISPLAY_LED_START;
           if (ledIndex < ledsToLight) {
             // Gradient from green to yellow to red based on position
             uint8_t hue;
@@ -922,8 +922,8 @@ void displayPattern() {
         }
         
         // Draw peak indicator
-        uint8_t peakPos = map(peakLevel, 0, 255, 1, NUM_LEDS - 1);
-        if (peakPos >= 1 && peakPos < NUM_LEDS) {
+        uint8_t peakPos = map(peakLevel, 0, 255, DISPLAY_LED_START, NUM_LEDS - 1);
+        if (peakPos >= DISPLAY_LED_START && peakPos < NUM_LEDS) {
           leds[peakPos] = CRGB::White;
         }
       }
@@ -958,7 +958,7 @@ void displayPattern() {
         lastLevel = audioLevel;
         
         // Apply pulse to all LEDs
-        for (int i = 1; i < NUM_LEDS; i++) {
+        for (int i = DISPLAY_LED_START; i < NUM_LEDS; i++) {
           leds[i] = pat.color1;
           leds[i].nscale8(pulseVal);
         }
@@ -993,7 +993,7 @@ void displayPattern() {
         rainbowOffset += map(audioLevel, 0, 255, 1, 20);
         
         // Draw rainbow with audio-controlled speed
-        for (int i = 1; i < NUM_LEDS; i++) {
+        for (int i = DISPLAY_LED_START; i < NUM_LEDS; i++) {
           uint8_t hue = (rainbowOffset / 4 + i * 255 / DISPLAY_LEDS) % 256;
           uint8_t brightness = constrain(audioLevel + 50, 50, 255);
           leds[i] = CHSV(hue, 255, brightness);
@@ -1032,7 +1032,7 @@ void displayPattern() {
         for (int i = 0; i <= expansion; i++) {
           uint8_t hue = patternTime * pat.speed / 20 + i * 10;
           if (center + i < NUM_LEDS) leds[center + i] = CHSV(hue, 255, 255);
-          if (center - i >= 1) leds[center - i] = CHSV(hue, 255, 255);
+          if (center - i >= DISPLAY_LED_START) leds[center - i] = CHSV(hue, 255, 255);
         }
       }
       break;
@@ -1063,7 +1063,7 @@ void displayPattern() {
         // Add sparkles based on audio - more audio = more sparkles
         uint8_t numSparkles = map(audioLevel, 0, 255, 0, 8);
         for (int s = 0; s < numSparkles; s++) {
-          uint8_t pos = random8(1, NUM_LEDS);
+          uint8_t pos = random8(DISPLAY_LED_START, NUM_LEDS);
           uint8_t hue = patternTime * 2 + random8(64);  // Shifting colors
           leds[pos] = CHSV(hue, 255, 255);
         }
@@ -1075,7 +1075,7 @@ void displayPattern() {
         uint8_t offset = (patternTime * pat.speed / kPatternSpeedDivisor) % DISPLAY_LEDS;
         uint8_t splitPoint = DISPLAY_LEDS / 2;
         for (int i = DISPLAY_LED_START; i < NUM_LEDS; i++) {
-          uint8_t pos = (i - 1 + offset) % DISPLAY_LEDS;
+          uint8_t pos = (i - DISPLAY_LED_START + offset) % DISPLAY_LEDS;
           leds[i] = (pos < splitPoint) ? pat.color1 : pat.color2;
         }
       }
@@ -1085,7 +1085,7 @@ void displayPattern() {
       {
         uint8_t chaseOffset = (patternTime * pat.speed / kPatternSpeedDivisor) % 3;
         for (int i = DISPLAY_LED_START; i < NUM_LEDS; i++) {
-          uint8_t phase = (i - 1 + chaseOffset) % 3;
+          uint8_t phase = (i - DISPLAY_LED_START + chaseOffset) % 3;
           leds[i] = (phase == 0) ? pat.color1 : pat.color2;
         }
       }
@@ -1187,7 +1187,7 @@ void displaySequence() {
 void displayLive() {
   // Display the live buffer
   for (int i = 0; i < DISPLAY_LEDS; i++) {
-    leds[i + 1] = liveBuffer[i];
+    leds[i + DISPLAY_LED_START] = liveBuffer[i];
   }
 }
 
