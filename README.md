@@ -14,7 +14,9 @@ This system creates stunning POV light displays using a 32 LED APA102 strip cont
   - ESP32-S3 N16R8 (16MB Flash, 8MB PSRAM) recommended for new builds ✨
   - 📋 [ESP32-S3 Purchase Guide](ESP32_S3_PURCHASE_GUIDE.md) - Should I buy ESP32-S3?
   - 🔧 [ESP32-S3 Compatibility Guide](docs/ESP32_S3_COMPATIBILITY.md) - Technical details
-- **APA102 LED Strip** - 32 addressable RGB LEDs (31 for display, 1 for level shifting)
+- **APA102 LED Strip** - 32 addressable RGB LEDs (all 32 for display, hardware level shifter)
+- **MAX9814 Microphone Amplifier** - Audio input for music-reactive LED patterns
+- **Level Shifter** - 3.3V to 5V signal conversion for LED data/clock
 - **MAX9814 Microphone** (optional) - For music-reactive pattern modes
 - Serial communication (115200 baud) between Teensy and ESP32/ESP32-S3
 
@@ -183,10 +185,10 @@ The web portal provides a modern, **mobile-responsive** interface with:
 ### Image Orientation
 
 The LED strip forms the VERTICAL axis of the POV display:
-- **HEIGHT is FIXED at 31 pixels** - One pixel per display LED
+- **HEIGHT is FIXED at 32 pixels** - One pixel per display LED
 - **WIDTH is CALCULATED** - Based on original image aspect ratio
 - **LED 1** (bottom of strip) displays the **bottom** of the image
-- **LED 31** (top of strip) displays the **top** of the image
+- **LED 31** (top of 32-LED strip) displays the **top** of the image
 - **No flip needed** - The LED arrangement maps directly to image pixels
 - When poi are spun, images scroll naturally in correct orientation
 
@@ -208,7 +210,7 @@ See [API Documentation](docs/API.md) for detailed endpoint information and examp
 - **WiFi Module**: ESP32 or ESP32-S3 (2.4 GHz)
   - ESP32: 4MB Flash typical
   - ESP32-S3 N16R8: 16MB Flash + 8MB PSRAM (recommended) ✨
-- **LED Strip**: APA102 (32 LEDs, 31 for display + 1 for level shifting)
+- **LED Strip**: APA102 (32 LEDs, all for display with hardware level shifter)
 - **Display Resolution**: HEIGHT = 31 pixels (fixed), WIDTH = variable
 - **Frame Rate**: 10-120 FPS (adjustable)
 - **Brightness**: 0-255 (adjustable)
@@ -322,7 +324,7 @@ sequence.next(); // Move to next image
 
 - Images must be 24-bit uncompressed BMP format
 - Width and height can be any size (limited by available RAM)
-- For POV display, height should match your LED count (31 pixels)
+- For POV display, height should match your LED count (32 pixels)
 
 See [BMP Image Processing Guide](docs/BMP_IMAGE_PROCESSING.md) for complete documentation and examples.
 
