@@ -59,7 +59,7 @@ struct Pattern {
 for (int i = 1; i < NUM_LEDS; i++) {  // Correctly starts at 1
 
 // Potential issue areas:
-#define DISPLAY_LEDS 31  // LEDs 1-31 used for display
+#define DISPLAY_LEDS 32  // All 32 LEDs used for display (hardware level shifter)
 CRGB liveBuffer[DISPLAY_LEDS];  // Only 31 elements, indexed 0-30
 ```
 
