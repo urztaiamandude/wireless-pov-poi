@@ -659,7 +659,7 @@ void handleRoot() {
             <!-- Audio Reactive Patterns -->
             <div class="section">
                 <h2>🎵 Audio Reactive</h2>
-                <p style="font-size: 12px; color: #666; margin-bottom: 10px;">Requires microphone on Teensy pin A0</p>
+                <p style="font-size: 12px; color: #666; margin-bottom: 10px;">Requires MAX9814 microphone amplifier on Teensy pin A0</p>
                 <div class="pattern-grid">
                     <button class="pattern-btn" onclick="setPattern(11)" style="background: linear-gradient(135deg, #00ff88 0%, #ff0088 100%); color: white; border: none;">📊 VU Meter</button>
                     <button class="pattern-btn" onclick="setPattern(12)" style="background: linear-gradient(135deg, #ff0088 0%, #00ff88 100%); color: white; border: none;">💓 Pulse</button>
@@ -704,7 +704,7 @@ void handleRoot() {
                 <div class="control-group" style="display: flex; gap: 10px;">
                     <div style="flex: 1;">
                         <label for="image-width">Width (px):</label>
-                        <input type="number" id="image-width" min="1" max="100" value="31" style="width: 100%; padding: 8px;" oninput="updateImageDimensions('width')">
+                        <input type="number" id="image-width" min="1" max="100" value="32" style="width: 100%; padding: 8px;" oninput="updateImageDimensions('width')">
                     </div>
                     <div style="flex: 1;">
                         <label for="image-height">Height (px):</label>
@@ -729,7 +729,7 @@ void handleRoot() {
             <!-- Live Mode -->
             <div class="section">
                 <h2>Live Draw Mode</h2>
-                <canvas id="live-canvas" class="live-canvas" width="310" height="200"></canvas>
+                <canvas id="live-canvas" class="live-canvas" width="320" height="200"></canvas>
                 <button onclick="clearCanvas()" style="margin-top: 10px;">Clear</button>
             </div>
             
@@ -775,7 +775,7 @@ void handleRoot() {
                         // physical LED count stays authoritative.
                         const heightInput = document.getElementById('image-height');
                         const widthInput = document.getElementById('image-width');
-                        let targetHeight = parseInt(heightInput.value) || 31;
+                        let targetHeight = parseInt(heightInput.value) || 32;
                         targetHeight = Math.min(200, Math.max(1, targetHeight));
                         heightInput.value = targetHeight;
 
@@ -802,7 +802,7 @@ void handleRoot() {
             if (aspectLock) {
                 // If the user changes height, recompute width from height.
                 if (changedField === 'height') {
-                    let newHeight = parseInt(heightInput.value) || 31;
+                    let newHeight = parseInt(heightInput.value) || 32;
                     newHeight = Math.min(200, Math.max(1, newHeight));
                     heightInput.value = newHeight;
 
@@ -812,7 +812,7 @@ void handleRoot() {
                     // If the user changes width while locked, ignore that as a
                     // source of truth and instead snap width back to the value
                     // implied by the current LED count (height).
-                    let ledCount = parseInt(heightInput.value) || 31;
+                    let ledCount = parseInt(heightInput.value) || 32;
                     ledCount = Math.min(200, Math.max(1, ledCount));
                     heightInput.value = ledCount;
 
@@ -871,10 +871,10 @@ void handleRoot() {
         }
         
         function sendLiveFrame() {
-            const imageData = ctx.getImageData(0, 0, 31, 1);
+            const imageData = ctx.getImageData(0, 0, 32, 1);
             const pixels = [];
             
-            for (let i = 0; i < 31; i++) {
+            for (let i = 0; i < 32; i++) {
                 const idx = i * 4;
                 pixels.push({
                     r: imageData.data[idx],
@@ -1045,10 +1045,10 @@ void handleRoot() {
                             // Get user-specified dimensions
                             // Height is the physical LED count; width is derived
                             // from it (or directly used if aspect lock is off).
-                            let targetHeight = parseInt(document.getElementById('image-height').value) || 31;
+                            let targetHeight = parseInt(document.getElementById('image-height').value) || 32;
                             targetHeight = Math.min(200, Math.max(1, targetHeight));
 
-                            let targetWidth = parseInt(document.getElementById('image-width').value) || 31;
+                            let targetWidth = parseInt(document.getElementById('image-width').value) || 32;
                             const aspectLock = document.getElementById('aspect-ratio-lock').checked;
                             if (aspectLock) {
                                 // Derive width from LED count and original aspect ratio.
@@ -1486,7 +1486,7 @@ void handleUploadImage() {
   // Format: raw RGB bytes (width * height * 3)
   
   HTTPUpload& upload = server.upload();
-  static uint8_t imageBuffer[31 * 64 * 3];  // Max image: 31x64 RGB
+  static uint8_t imageBuffer[32 * 64 * 3];  // Max image: 32x64 RGB
   static uint16_t bufferIndex = 0;
   
   if (upload.status == UPLOAD_FILE_START) {
@@ -1509,8 +1509,8 @@ void handleUploadImage() {
     Serial.printf("Upload End: %d bytes\n", bufferIndex);
     
     // Detect image dimensions from data size
-    // Expected: 31 * height * 3 bytes
-    uint16_t imageWidth = 31;
+    // Expected: 32 * height * 3 bytes
+    uint16_t imageWidth = 32;
     uint16_t imageHeight = bufferIndex / (imageWidth * 3);
     
     if (imageHeight > 64) imageHeight = 64;
@@ -1593,7 +1593,7 @@ void handleLiveFrame() {
     String body = server.arg("plain");
     
     // Parse JSON payload: {"pixels":[{"r":R,"g":G,"b":B}, ...]}
-    const int ledCount = 31;  // Display LEDs (Teensy uses 31 display LEDs)
+    const int ledCount = 32;  // Display LEDs (all 32 LEDs used for display)
     uint8_t rgb[ledCount * 3];
     for (int i = 0; i < ledCount * 3; i++) {
       rgb[i] = 0;
@@ -1651,7 +1651,7 @@ void handleLiveFrame() {
     }
 
     // Send live frame command to Teensy
-    sendTeensyCommand(0x05, ledCount * 3);  // 31 LEDs * 3 bytes
+    sendTeensyCommand(0x05, ledCount * 3);  // 32 LEDs * 3 bytes
     for (int i = 0; i < ledCount * 3; i++) {
       TEENSY_SERIAL.write(rgb[i]);
     }

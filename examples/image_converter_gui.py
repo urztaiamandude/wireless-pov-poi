@@ -58,8 +58,8 @@ class POVImageConverterGUI:
         self.original_aspect_ratio = 1.0  # Store original aspect ratio
         
         # Settings variables
-        # NOTE: HEIGHT is FIXED at 31 (matching display LEDs), WIDTH is scaled proportionally
-        self.height_var = tk.IntVar(value=31)  # Fixed: matches 31 display LEDs
+        # NOTE: HEIGHT is FIXED at 32 (matching display LEDs), WIDTH is scaled proportionally
+        self.height_var = tk.IntVar(value=32)  # Fixed: matches 32 display LEDs
         self.max_width_var = tk.IntVar(value=200)  # Max width limit
         self.contrast_var = tk.BooleanVar(value=True)
         self.aspect_ratio_lock_var = tk.BooleanVar(value=True)
@@ -181,7 +181,7 @@ class POVImageConverterGUI:
         
         self.after_label = tk.Label(
             after_frame,
-            text="POV Format (31px high)",
+            text="POV Format (32px high)",
             font=("Arial", 9),
             fg="#7f8c8d"
         )
@@ -223,7 +223,7 @@ class POVImageConverterGUI:
         
         tk.Label(
             height_frame,
-            text="pixels (FIXED: 31 = display LEDs)",
+            text="pixels (FIXED: 32 = display LEDs)",
             font=("Arial", 9),
             fg="#e74c3c"
         ).pack(side=tk.LEFT)
@@ -548,7 +548,7 @@ class POVImageConverterGUI:
                 img = img.transpose(Image.FLIP_LEFT_RIGHT)
             
             # No vertical flip needed - LED 1 (bottom) maps to image bottom,
-            # LED 31 (top) maps to image top
+            # LED 31 (top of 32-LED strip) maps to image top
             
             # Enhance contrast if requested
             if enhance_contrast:

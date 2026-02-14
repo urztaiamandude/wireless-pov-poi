@@ -4,7 +4,7 @@
 
 | Dimension | Value | Notes |
 |-----------|-------|-------|
-| **Height** | **31 pixels** | **FIXED** - Matches 31 display LEDs |
+| **Height** | **32 pixels** | **FIXED** - Matches 32 display LEDs |
 | **Width** | Variable | Calculated proportionally from source image |
 | **Max Width** | ~200 pixels | Configurable limit |
 | **Format** | Width×Height (W×H) | Standard image dimension notation |
@@ -15,44 +15,44 @@
         TOP (LED 31)
             ↑
             │
-            │  31 LEDs
+            │  32 LEDs
             │  VERTICAL
             │
             ↓
-      BOTTOM (LED 1)
+      BOTTOM (LED 0)
     [Teensy Board]
 ```
 
 ### Key Points:
 - **LED strip is VERTICAL** (not horizontal)
-- **31 LEDs** from bottom to top
-- **LED 1** (bottom) = bottom of image
+- **32 LEDs** from bottom to top
+- **LED 0** (bottom) = bottom of image
 - **LED 31** (top) = top of image
-- **LED 0** is used for level shifting (not display)
+- **All 32 LEDs** are display LEDs (hardware level shifter used)
 
 ## Image Dimensions
 
 ### Correct Terminology
 
 ✅ **CORRECT:**
-- "31 pixels **tall**" or "31 pixels **high**"
-- "Height is **fixed** at 31 pixels"
+- "32 pixels **tall**" or "32 pixels **high**"
+- "Height is **fixed** at 32 pixels"
 - "Width is **variable** and calculated proportionally"
 - "Format: Width×Height (W×H)"
-- "Example: 62×31 means 62 wide, 31 tall"
+- "Example: 64×32 means 64 wide, 32 tall"
 
 ❌ **INCORRECT:**
-- "31 pixels wide" ← **WRONG!**
-- "31×64" without clarifying which is W vs H
+- "32 pixels wide" ← **WRONG!**
+- "32×64" without clarifying which is W vs H
 - "Height is variable" ← **WRONG!**
 - "Width is fixed" ← **WRONG!**
 
 ### Dimension Format
 
 Always use **Width×Height (W×H)** format:
-- `15×31` = 15 pixels wide, 31 pixels tall
-- `62×31` = 62 pixels wide, 31 pixels tall
-- `200×31` = 200 pixels wide, 31 pixels tall
+- `16×32` = 16 pixels wide, 32 pixels tall
+- `64×32` = 64 pixels wide, 32 pixels tall
+- `200×32` = 200 pixels wide, 32 pixels tall
 
 ## How Images Are Displayed
 
@@ -63,7 +63,7 @@ Poi spinning clockwise (viewed from above):
 
     Column 1  Column 2  Column 3  ...  Column N
        ↓         ↓         ↓              ↓
-    [31 LEDs] [31 LEDs] [31 LEDs]    [31 LEDs]
+    [32 LEDs] [32 LEDs] [32 LEDs]    [32 LEDs]
        ↓         ↓         ↓              ↓
     Displayed as poi spins left to right
 ```
@@ -74,60 +74,60 @@ Poi spinning clockwise (viewed from above):
 3. Columns are shown left-to-right as poi moves
 4. Human eye perceives complete image due to persistence of vision
 
-### Example: 62×31 Image
+### Example: 64×32 Image
 
 ```
-Original Image (62×31):
-- 62 columns (width)
-- 31 rows (height)
-- Each column = 31 pixels tall
+Original Image (64×32):
+- 64 columns (width)
+- 32 rows (height)
+- Each column = 32 pixels tall
 
 Display:
-- Column 1: LEDs show pixels [0,0] to [0,30]
-- Column 2: LEDs show pixels [1,0] to [1,30]
+- Column 1: LEDs show pixels [0,0] to [0,31]
+- Column 2: LEDs show pixels [1,0] to [1,31]
 - ...
-- Column 62: LEDs show pixels [61,0] to [61,30]
+- Column 64: LEDs show pixels [63,0] to [63,31]
 ```
 
 ## Image Scaling Logic
 
 ### Proportional Scaling
 
-**Goal:** Resize image so height = 31 pixels, while maintaining proportions
+**Goal:** Resize image so height = 32 pixels, while maintaining proportions
 
 **Formula:**
 ```
-scale_factor = 31 / original_height
+scale_factor = 32 / original_height
 new_width = original_width × scale_factor
-new_height = 31 (fixed)
+new_height = 32 (fixed)
 ```
 
 **Example 1:** Square image (100×100)
 ```
-scale_factor = 31 / 100 = 0.31
-new_width = 100 × 0.31 = 31
-Result: 31×31 (square preserved)
+scale_factor = 32 / 100 = 0.32
+new_width = 100 × 0.32 = 32
+Result: 32×32 (square preserved)
 ```
 
 **Example 2:** Wide image (200×100)
 ```
-scale_factor = 31 / 100 = 0.31
-new_width = 200 × 0.31 = 62
-Result: 62×31 (2:1 ratio preserved)
+scale_factor = 32 / 100 = 0.32
+new_width = 200 × 0.32 = 64
+Result: 64×32 (2:1 ratio preserved)
 ```
 
 **Example 3:** Tall image (50×200)
 ```
-scale_factor = 31 / 200 = 0.155
-new_width = 50 × 0.155 = 7.75 ≈ 8
-Result: 8×31 (proportions preserved)
+scale_factor = 32 / 200 = 0.16
+new_width = 50 × 0.16 = 8
+Result: 8×32 (proportions preserved)
 ```
 
 ### Why This Matters
 
 **Prevents warping:** Both dimensions scaled by same percentage
 **Maintains aspect ratio:** Original proportions preserved
-**Optimizes display:** Uses all 31 LEDs efficiently
+**Optimizes display:** Uses all 32 LEDs efficiently
 
 ## Code Examples
 
@@ -140,29 +140,29 @@ from PIL import Image
 img = Image.open('photo.jpg')
 
 # Calculate scale factor based on height
-target_height = 31
+target_height = 32
 scale_factor = target_height / img.height
 
 # Apply same scale to width
 new_width = int(img.width * scale_factor)
-new_height = target_height  # Always 31
+new_height = target_height  # Always 32
 
 # Resize
 img = img.resize((new_width, new_height), Image.NEAREST)
-# Result: new_width×31 image
+# Result: new_width×32 image
 ```
 
 ### JavaScript (Canvas API)
 
 ```javascript
-const targetHeight = 31;
+const targetHeight = 32;
 const scaleFactor = targetHeight / img.height;
 const targetWidth = Math.round(img.width * scaleFactor);
 
 canvas.width = targetWidth;
 canvas.height = targetHeight;
 ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
-// Result: targetWidth×31 image
+// Result: targetWidth×32 image
 ```
 
 ## Common Mistakes to Avoid
@@ -172,12 +172,12 @@ ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
 ❌ **WRONG:**
 ```python
 new_height = int(width * aspect_ratio)  # Height should be fixed!
-new_width = 31  # Width should be variable!
+new_width = 32  # Width should be variable!
 ```
 
 ✅ **CORRECT:**
 ```python
-new_height = 31  # Height is always 31
+new_height = 32  # Height is always 32
 new_width = int(width * scale_factor)  # Width is calculated
 ```
 
@@ -186,19 +186,19 @@ new_width = int(width * scale_factor)  # Width is calculated
 ❌ **WRONG:**
 ```python
 aspect_ratio = img.width / img.height
-new_width = int(31 * aspect_ratio)  # This works but is less clear
+new_width = int(32 * aspect_ratio)  # This works but is less clear
 ```
 
 ✅ **CORRECT:**
 ```python
-scale_factor = 31 / img.height
+scale_factor = 32 / img.height
 new_width = int(img.width * scale_factor)  # Clearer: same scale for both
 ```
 
-### Mistake 3: Saying "31 pixels wide"
+### Mistake 3: Saying "32 pixels wide"
 
-❌ **WRONG:** "Images must be 31 pixels wide"
-✅ **CORRECT:** "Images must be 31 pixels tall (height)"
+❌ **WRONG:** "Images must be 32 pixels wide"
+✅ **CORRECT:** "Images must be 32 pixels tall (height)"
 
 ## Maximum Dimensions
 
@@ -206,21 +206,21 @@ new_width = int(img.width * scale_factor)  # Clearer: same scale for both
 
 | Dimension | Typical | Maximum | Notes |
 |-----------|---------|---------|-------|
-| Height | 31 pixels | 31 pixels | Fixed, matches LED count |
-| Width | 31-100 pixels | ~200 pixels | Limited by memory and display time |
-| File Size | 3-10 KB | ~20 KB | Width × 31 × 3 bytes (RGB) |
+| Height | 32 pixels | 32 pixels | Fixed, matches LED count |
+| Width | 32-100 pixels | ~200 pixels | Limited by memory and display time |
+| File Size | 3-10 KB | ~20 KB | Width × 32 × 3 bytes (RGB) |
 
 ### Why Width Limits Exist
 
 1. **Memory:** Teensy 4.1 has limited RAM
 2. **Display Time:** Wider images take longer to display per rotation
-3. **Practical Use:** Most POV images work best at 31-100 pixels wide
+3. **Practical Use:** Most POV images work best at 32-100 pixels wide
 
 ## File Format Specifications
 
 ### PNG/JPG Input
 - Any size accepted
-- Automatically resized to W×31
+- Automatically resized to W×32
 - RGB color space
 
 ### POV Binary Format
@@ -228,10 +228,10 @@ new_width = int(img.width * scale_factor)  # Clearer: same scale for both
 [Width: 1 byte][Height: 1 byte][RGB Data: W×H×3 bytes]
 ```
 
-Example: 62×31 image
+Example: 64×32 image
 ```
-[0x3E][0x1F][RGB data: 5,766 bytes]
- 62    31    62×31×3
+[0x40][0x20][RGB data: 6,144 bytes]
+ 64    32    64×32×3
 ```
 
 ## Testing Your Understanding
@@ -239,19 +239,19 @@ Example: 62×31 image
 ### Quiz
 
 1. Q: What is the fixed dimension?
-   A: Height (31 pixels)
+   A: Height (32 pixels)
 
-2. Q: What format is "62×31"?
-   A: Width×Height (62 wide, 31 tall)
+2. Q: What format is "64×32"?
+   A: Width×Height (64 wide, 32 tall)
 
 3. Q: How is width calculated?
-   A: width = original_width × (31 / original_height)
+   A: width = original_width × (32 / original_height)
 
-4. Q: Why 31 pixels?
-   A: Matches the 31 display LEDs on the strip
+4. Q: Why 32 pixels?
+   A: Matches the 32 display LEDs on the strip (hardware level shifter used)
 
-5. Q: Are images "31 pixels wide"?
-   A: NO! Images are "31 pixels TALL (height)"
+5. Q: Are images "32 pixels wide"?
+   A: NO! Images are "32 pixels TALL (height)"
 
 ## See Also
 
@@ -261,4 +261,4 @@ Example: 62×31 image
 
 ---
 
-**Remember:** Height is FIXED at 31 pixels. Width is VARIABLE and calculated proportionally.
+**Remember:** Height is FIXED at 32 pixels. Width is VARIABLE and calculated proportionally.

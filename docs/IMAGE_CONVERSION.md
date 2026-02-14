@@ -6,10 +6,10 @@ This guide explains how images are automatically converted to POV-compatible for
 
 **IMPORTANT: The LED strip forms the VERTICAL axis of the POV display.**
 
-- **HEIGHT is FIXED at 31 pixels** - This matches the 31 display LEDs (LED 0 is level shifter)
+- **HEIGHT is FIXED at 32 pixels** - This matches the 32 display LEDs (hardware level shifter used)
 - **WIDTH is SCALED PROPORTIONALLY** - Using the same scale factor as height to prevent warping
-- **LED 1 (bottom)** displays the **bottom** of the image
-- **LED 31 (top)** displays the **top** of the image
+- **LED 0 (bottom)** displays the **bottom** of the image
+- **LED 31 (top of 32-LED strip)** displays the **top** of the image
 - **LEDs display vertical columns** from left to right
 - **No vertical flip is needed** - The LED arrangement maps directly to image pixels
 
@@ -19,7 +19,7 @@ This guide explains how images are automatically converted to POV-compatible for
 
 **Process:**
 1. User selects any image file (JPG, PNG, etc.)
-2. JavaScript Canvas API resizes image to 31 pixels **HIGH**
+2. JavaScript Canvas API resizes image to 32 pixels **HIGH**
 3. Width is scaled proportionally using the same scale factor
 4. Image is converted to raw RGB data
 5. RGB data is uploaded to ESP32
@@ -39,7 +39,7 @@ This guide explains how images are automatically converted to POV-compatible for
 1. User runs `python image_converter_gui.py`
 2. Select image(s) through file browser
 3. Preview before/after conversion in real-time
-4. Height is fixed at 31 (matching display LEDs)
+4. Height is fixed at 32 (matching display LEDs)
 5. Width is scaled proportionally using the same scale factor
 6. PIL/Pillow library resizes image with settings
 7. Save converted image(s) to chosen location
@@ -61,7 +61,7 @@ This guide explains how images are automatically converted to POV-compatible for
 **Process:**
 1. User runs `python image_converter.py input.jpg`
 2. PIL/Pillow library loads and resizes image
-3. Image resized to 31 pixels **HIGH**
+3. Image resized to 32 pixels **HIGH**
 4. Width scaled proportionally using the same scale factor
 5. Contrast enhancement applied (optional)
 6. Output saved as PNG file
@@ -80,7 +80,7 @@ This guide explains how images are automatically converted to POV-compatible for
 
 **Process:**
 1. Teensy receives image data from ESP32
-2. If image is already 31px high: store directly
+2. If image is already 32px high: store directly
 3. If image needs conversion: perform nearest-neighbor resize
 4. Store in LED display buffer
 5. Ready for POV display
@@ -96,13 +96,13 @@ This guide explains how images are automatically converted to POV-compatible for
 ## Conversion Specifications
 
 ### Target Dimensions
-- **Height:** 31 pixels (FIXED - matches 31 display LEDs)
+- **Height:** 32 pixels (FIXED - matches 32 display LEDs)
 - **Width:** Scaled proportionally using the same scale factor as height (max configurable)
 - **Proportions:** Maintained from source image to prevent warping
 
 ### LED Orientation
 - **LED 1** (bottom of strip): Displays **bottom** of image
-- **LED 31** (top of strip): Displays **top** of image
+- **LED 31** (top of 32-LED strip): Displays **top** of image
 - **No flip needed:** The LED arrangement maps directly to image coordinates
 - **When spinning:** Image scrolls naturally in correct orientation
 
@@ -118,10 +118,10 @@ This guide explains how images are automatically converted to POV-compatible for
 - **Storage:** 3 bytes per pixel
 
 ### Size Limits
-- **Height:** Always 31 pixels (fixed)
+- **Height:** Always 32 pixels (fixed)
 - **Width:** Variable based on aspect ratio
-- **Minimum:** 1×31 pixels = 93 bytes
-- **Typical:** 62×31 pixels = 5,766 bytes (2:1 aspect ratio)
+- **Minimum:** 1×32 pixels = 96 bytes
+- **Typical:** 64×32 pixels = 6,144 bytes (2:1 aspect ratio)
 
 ## Testing Image Conversion
 
@@ -138,7 +138,7 @@ python3 image_converter_gui.py
 1. Click "Select Image" and choose a test image
 2. Verify before/after previews display correctly
 3. Adjust settings:
-   - Height is fixed at 31 (matching display LEDs)
+   - Height is fixed at 32 (matching display LEDs)
    - Max width can be adjusted
    - Horizontal flip option
    - Contrast enhancement
@@ -171,7 +171,7 @@ cd examples
 python3 image_converter.py ../path/to/your/image.jpg
 ```
 
-Output: `image_pov.png` (31 pixels wide)
+Output: `image_pov.png` (32 pixels tall)
 
 ### Test Web Interface
 
@@ -185,7 +185,7 @@ Output: `image_pov.png` (31 pixels wide)
 ### For Best Results
 
 1. **High Contrast:** Use bright colors on dark backgrounds
-2. **Simple Designs:** Complex photos don't work well at 31 pixels
+2. **Simple Designs:** Complex photos don't work well at 32 pixels
 3. **Bold Shapes:** Large, clear shapes are most visible
 4. **Test First:** Try simple patterns before complex images
 
@@ -234,14 +234,14 @@ User Image (Any Size)
     │
     ├─── Via Web Browser ─────┐
     │    • Canvas API          │
-    │    • Resize to 31px      │
+    │    • Resize to 32px      │
     │    • Convert to RGB      │
     │                          ↓
     │                    ESP32 Receiver
     │                          │
     └─── Via Python Script ────┤
          • PIL/Pillow          │
-         • Resize to 31px      │
+         • Resize to 32px      │
          • Save as PNG         │
                                ↓
                         Teensy 4.1 Processor
@@ -252,7 +252,7 @@ User Image (Any Size)
                                │
                                ↓
                         APA102 LED Display
-                         31 LEDs × RGB
+                         32 LEDs × RGB
 ```
 
 ## Code Examples
@@ -265,9 +265,9 @@ async function convertImageToPOVFormat(file) {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     
-    // HEIGHT is fixed at 31 (matching display LEDs)
+    // HEIGHT is fixed at 32 (matching display LEDs)
     // WIDTH is scaled proportionally using the same scale factor
-    const targetHeight = 31;
+    const targetHeight = 32;
     const scaleFactor = targetHeight / img.height;
     const targetWidth = Math.round(img.width * scaleFactor);
     
@@ -289,7 +289,7 @@ async function convertImageToPOVFormat(file) {
 
 ```python
 def convert_image_for_pov(input_path, output_path=None,
-                         height=31, max_width=200):
+                         height=32, max_width=200):
     img = Image.open(input_path)
     
     # HEIGHT is fixed (display LEDs), WIDTH is scaled proportionally
@@ -316,7 +316,7 @@ void receiveImage() {
     uint8_t srcHeight = cmdBuffer[5];
     
     // HEIGHT is fixed (DISPLAY_LEDS), WIDTH is scaled proportionally
-    uint8_t targetHeight = DISPLAY_LEDS;  // 31
+    uint8_t targetHeight = DISPLAY_LEDS;  // 32
     float scaleFactor = (float)targetHeight / srcHeight;
     uint8_t targetWidth = (uint8_t)(srcWidth * scaleFactor);
     if (targetWidth > MAX_IMAGE_WIDTH) targetWidth = MAX_IMAGE_WIDTH;

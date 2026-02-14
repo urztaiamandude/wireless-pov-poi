@@ -4,13 +4,24 @@
 // Hardware Configuration
 #define LED_DATA_PIN 11       // APA102 data pin
 #define LED_CLOCK_PIN 13      // APA102 clock pin
-#define NUM_LEDS 32           // Number of LEDs in the strip (31 for display, 1 for level shifting)
+#define NUM_LEDS 32           // Number of LEDs in the strip (all 32 for display)
+#define DISPLAY_LEDS NUM_LEDS // All LEDs are display LEDs (hardware level shifter used)
 
 // ESP32 Communication
 #define ESP32_SERIAL Serial1  // Hardware serial for ESP32
 #define ESP32_BAUD 115200     // Baud rate for ESP32 communication
 #define ESP32_RX_PIN 0        // RX pin for ESP32
 #define ESP32_TX_PIN 1        // TX pin for ESP32
+
+// Audio Input Configuration (MAX9814 Microphone Amplifier)
+// The MAX9814 output connects through a level shifter to Teensy analog input.
+// MAX9814 Gain: set via GAIN pin (no connect = 60dB, GND = 50dB, VDD = 40dB)
+// MAX9814 A/R: set via A/R pin (no connect = default attack/release)
+// Output: biased at VDD/2 (~1.65V), swings +/- based on audio level
+#define AUDIO_PIN A0           // Analog input from MAX9814 via level shifter
+#define AUDIO_SAMPLES 64       // Number of samples for running average
+#define AUDIO_NOISE_FLOOR 50   // Minimum threshold to filter ambient noise
+#define AUDIO_ENABLED true     // Set false to disable audio input reads
 
 // POV Configuration
 #define POV_FRAME_RATE 60     // Frames per second

@@ -43,7 +43,7 @@ def test_basic_conversion():
         output_img = os.path.join(tmpdir, "test_output.png")
         
         # Convert image - HEIGHT is fixed at 31
-        success = convert_image_for_pov(test_img, output_img, height=31, max_width=200)
+        success = convert_image_for_pov(test_img, output_img, height=32, max_width=200)
         
         if not success:
             print("❌ FAILED: Conversion returned False")
@@ -56,8 +56,8 @@ def test_basic_conversion():
         
         # Verify dimensions - HEIGHT should be 31 (fixed)
         result = Image.open(output_img)
-        if result.height != 31:
-            print(f"❌ FAILED: Expected height 31, got {result.height}")
+        if result.height != 32:
+            print(f"❌ FAILED: Expected height 32, got {result.height}")
             return False
         
         print(f"✓ PASSED: Output is {result.width}x{result.height}")
@@ -83,8 +83,8 @@ def test_large_image():
         
         # Verify dimensions - HEIGHT should be 31 (fixed)
         result = Image.open(output_img)
-        if result.height != 31:
-            print(f"❌ FAILED: Expected height 31, got {result.height}")
+        if result.height != 32:
+            print(f"❌ FAILED: Expected height 32, got {result.height}")
             return False
         
         print(f"✓ PASSED: Large image converted to {result.width}x{result.height}")
@@ -152,8 +152,8 @@ def test_width_limiting():
             return False
         
         # Height should still be 31 (fixed)
-        if result.height != 31:
-            print(f"❌ FAILED: Expected height 31, got {result.height}")
+        if result.height != 32:
+            print(f"❌ FAILED: Expected height 32, got {result.height}")
             return False
         
         print(f"✓ PASSED: Width limited to {result.width}, height is {result.height}")
@@ -229,8 +229,8 @@ def test_different_formats():
                 all_passed = False
             else:
                 result = Image.open(output_img)
-                if result.height != 31:
-                    print(f"❌ FAILED: {fmt} output has wrong height (expected 31, got {result.height})")
+                if result.height != 32:
+                    print(f"❌ FAILED: {fmt} output has wrong height (expected 32, got {result.height})")
                     all_passed = False
                 else:
                     print(f"  ✓ {fmt} format converted successfully")

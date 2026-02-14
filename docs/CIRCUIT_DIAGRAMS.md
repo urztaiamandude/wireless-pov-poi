@@ -59,8 +59,8 @@ A comprehensive visual guide for wiring the Nebula Poi with Teensy 4.1, ESP32, a
                     ┌────────▼────────┐
                     │  APA102 LEDs    │
                     │   32 RGB LEDs   │
-                    │  (31 display +  │
-                    │   1 shifter)    │
+                    │  (all 32 for    │
+                    │   display)      │
                     └─────────────────┘
 ```
 
@@ -176,11 +176,10 @@ GPIO 16/17 are available on all variants with the same wiring.
     │ 5V │ CO │ DO │GND │
     └────┴────┴────┴────┘
 
-    LED Layout:
+    LED Layout (hardware level shifter used):
     [LED 0] → [LED 1] → [LED 2] → ... → [LED 31]
-       ↑         ↑─────────────────────────↑
-    Level      Display LEDs (31 pixels)
-    Shifter
+       ↑─────────────────────────────────────↑
+              All 32 LEDs for Display
 ```
 
 ---

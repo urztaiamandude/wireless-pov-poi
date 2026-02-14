@@ -176,7 +176,7 @@ runApp(WirelessPOVPoiApp)
 
 **Hardware Specs:**
 ```dart
-LED_COUNT = 31
+LED_COUNT = 32
 LED_TYPE = "APA102"
 MAX_PATTERN_HEIGHT = 31
 MAX_PATTERN_WIDTH = 400

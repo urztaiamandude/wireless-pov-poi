@@ -338,8 +338,8 @@ def generate_pattern_data(pattern_id: str) -> Dict:
             "frames": 60,
             "speed": 50,
             "colors": [
-                {"hue": i * 256 // 31, "saturation": 255, "brightness": 255}
-                for i in range(31)
+                {"hue": i * 256 // 32, "saturation": 255, "brightness": 255}
+                for i in range(32)
             ]
         }
     
@@ -350,8 +350,8 @@ def generate_pattern_data(pattern_id: str) -> Dict:
             "frequency": 2,
             "speed": 40,
             "waveform": [
-                int(128 + 127 * math.sin(2 * math.pi * i / 31))
-                for i in range(31)
+                int(128 + 127 * math.sin(2 * math.pi * i / 32))
+                for i in range(32)
             ]
         }
     

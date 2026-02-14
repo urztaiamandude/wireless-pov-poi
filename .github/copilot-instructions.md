@@ -7,7 +7,7 @@ Dual-microcontroller wireless POV LED poi system:
 User → Web/App → ESP32 (WiFi AP @ 192.168.4.1) → Serial (115200 baud) → Teensy 4.1 → FastLED → APA102 LEDs
 ```
 
-**⚠️ Critical LED Rule**: LED 0 is level-shifter only; LEDs 1-31 are display pixels. Always iterate from index 1:
+**⚠️ LED Configuration**: All 32 LEDs (0-31) are display pixels (hardware level shifter used). Iterate from index 0:
 ```cpp
 for (int i = 1; i < NUM_LEDS; i++) { leds[i] = color; }  // NEVER start from 0!
 ```
@@ -93,7 +93,7 @@ All converters (Python/Web) must flip vertically for correct POV display:
 ```python
 img = img.transpose(Image.FLIP_TOP_BOTTOM)  # Required!
 ```
-Target size: **31 pixels tall (height fixed)** matching the 31 DISPLAY_LEDS, with width calculated proportionally (variable, typically up to ~200 pixels).
+Target size: **32 pixels tall (height fixed)** matching the 32 DISPLAY_LEDS, with width calculated proportionally (variable, typically up to ~200 pixels).
 
 ## Testing
 

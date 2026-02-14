@@ -53,7 +53,7 @@ def test_vertical_flip():
         
         # Convert image (no flip is applied)
         success = convert_image_for_pov(test_img, output_img, 
-                                       height=31, max_width=200, 
+                                       height=32, max_width=200, 
                                        enhance_contrast=False)
         
         if not success:

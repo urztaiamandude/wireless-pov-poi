@@ -29,7 +29,7 @@ import os
 import argparse
 
 # Constants
-POV_HEIGHT = 31  # Fixed height for POV display (LEDs 1-31)
+POV_HEIGHT = 32  # Fixed height for POV display (all 32 LEDs)
 DEFAULT_WIDTH = 64  # Standard width for test patterns
 
 def create_bar_test(width=DEFAULT_WIDTH, height=POV_HEIGHT):

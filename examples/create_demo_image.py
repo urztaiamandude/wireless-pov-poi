@@ -57,5 +57,5 @@ if __name__ == "__main__":
     print("  - 'BOTTOM' text at the bottom (blue)")
     print("\nAfter conversion with vertical flip:")
     print("  - LED 1 (closest to board) will show 'BOTTOM'")
-    print("  - LED 31 (farthest from board) will show 'TOP'")
+    print("  - LED 31 (top of 32-LED strip) will show 'TOP'")
     print("  - When held vertically and moved, the arrow will point up correctly!")

@@ -14,7 +14,23 @@ enum PatternType {
     PATTERN_RAINBOW = 0,
     PATTERN_WAVE = 1,
     PATTERN_GRADIENT = 2,
-    PATTERN_SPARKLE = 3
+    PATTERN_SPARKLE = 3,
+    PATTERN_FIRE = 4,
+    PATTERN_COMET = 5,
+    PATTERN_BREATHING = 6,
+    PATTERN_STROBE = 7,
+    PATTERN_METEOR = 8,
+    PATTERN_WIPE = 9,
+    PATTERN_PLASMA = 10,
+    // Audio-reactive patterns (require MAX9814 microphone on AUDIO_PIN)
+    PATTERN_AUDIO_VU_METER = 11,
+    PATTERN_AUDIO_PULSE = 12,
+    PATTERN_AUDIO_RAINBOW = 13,
+    PATTERN_AUDIO_CENTER_BURST = 14,
+    PATTERN_AUDIO_SPARKLE = 15,
+    // Extended patterns
+    PATTERN_SPLIT_SPIN = 16,
+    PATTERN_THEATER_CHASE = 17
 };
 
 // Pattern data structure
@@ -139,6 +155,25 @@ private:
     void renderMeteorPattern(const Pattern& pattern);
     void renderWipePattern(const Pattern& pattern);
     void renderPlasmaPattern(const Pattern& pattern);
+
+    // Audio-reactive pattern rendering (MAX9814 microphone input)
+    void renderAudioVUMeter(const Pattern& pattern);
+    void renderAudioPulse(const Pattern& pattern);
+    void renderAudioRainbow(const Pattern& pattern);
+    void renderAudioCenterBurst(const Pattern& pattern);
+    void renderAudioSparkle(const Pattern& pattern);
+
+    // Extended pattern rendering
+    void renderSplitSpinPattern(const Pattern& pattern);
+    void renderTheaterChasePattern(const Pattern& pattern);
+
+    // Audio processing helpers
+    uint8_t readAudioLevel();   // Read and process audio from MAX9814
+    uint16_t audioSamples[AUDIO_SAMPLES]; // Running sample buffer
+    uint8_t audioSampleIndex;   // Current index into sample buffer
+    uint8_t audioPeakLevel;     // Peak level with decay
+    uint8_t audioPeakDecay;     // Decay counter for peak
+    uint8_t audioBeatHue;       // Hue shift on beat detection
 
     // Sequence rendering
     void renderSequence();
