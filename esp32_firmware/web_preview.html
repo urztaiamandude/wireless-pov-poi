@@ -797,7 +797,9 @@
         
         function changeContentIndex() {
             // When index changes, update the current mode with new index
+            const index = document.getElementById('content-index').value;
             changeMode();
+            showToast(`Content Index: ${index}`);
         }
         
         function updateBrightness(value) {

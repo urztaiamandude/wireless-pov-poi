@@ -73,6 +73,10 @@ const char* password = "povpoi123";
 #define SERIAL_BAUD 115200
 const uint8_t kMaxPatternIndex = 17;
 
+// Image dimension limits
+#define MAX_IMAGE_WIDTH 100
+#define MAX_IMAGE_HEIGHT 200
+
 // Sync Configuration
 #define AUTO_SYNC_ENABLED false
 #define AUTO_SYNC_INTERVAL 30000  // 30 seconds
@@ -1490,7 +1494,7 @@ void handleUploadImage() {
   // Filename encodes dimensions: image_WxH.rgb
   
   HTTPUpload& upload = server.upload();
-  static uint8_t imageBuffer[100 * 200 * 3];  // Max image: 100x200 RGB
+  static uint8_t imageBuffer[MAX_IMAGE_WIDTH * MAX_IMAGE_HEIGHT * 3];  // Max image buffer
   static uint16_t bufferIndex = 0;
   static uint16_t imageWidth = 32;
   static uint16_t imageHeight = 32;
@@ -1513,9 +1517,9 @@ void handleUploadImage() {
       }
       // Clamp to valid range
       if (imageWidth < 1) imageWidth = 1;
-      if (imageWidth > 100) imageWidth = 100;
+      if (imageWidth > MAX_IMAGE_WIDTH) imageWidth = MAX_IMAGE_WIDTH;
       if (imageHeight < 1) imageHeight = 1;
-      if (imageHeight > 200) imageHeight = 200;
+      if (imageHeight > MAX_IMAGE_HEIGHT) imageHeight = MAX_IMAGE_HEIGHT;
     }
     Serial.printf("Parsed dimensions: %dx%d\n", imageWidth, imageHeight);
     
