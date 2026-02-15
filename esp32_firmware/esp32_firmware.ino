@@ -1007,13 +1007,16 @@ void handleRoot() {
             try {
                 const povImageData = await convertImageToPOVFormat(file);
                 
-                // Create blob from raw RGB data
+                // Create blob from raw RGB data and wrap in FormData
+                // Encode dimensions in filename so the server can parse them
                 const blob = new Blob([povImageData.data], { type: 'application/octet-stream' });
+                const formData = new FormData();
+                formData.append('file', blob, `image_${povImageData.width}x${povImageData.height}.rgb`);
                 
-                // Send raw RGB data to server
+                // Send as multipart form upload
                 const response = await fetch('/api/image', {
                     method: 'POST',
-                    body: blob
+                    body: formData
                 });
                 
                 if (response.ok) {
@@ -1484,14 +1487,37 @@ void handleUploadImage() {
   // Handle image upload from web interface
   // Images are pre-converted to RGB data by the web interface
   // Format: raw RGB bytes (width * height * 3)
+  // Filename encodes dimensions: image_WxH.rgb
   
   HTTPUpload& upload = server.upload();
-  static uint8_t imageBuffer[32 * 64 * 3];  // Max image: 32x64 RGB
+  static uint8_t imageBuffer[100 * 200 * 3];  // Max image: 100x200 RGB
   static uint16_t bufferIndex = 0;
+  static uint16_t imageWidth = 32;
+  static uint16_t imageHeight = 32;
   
   if (upload.status == UPLOAD_FILE_START) {
     Serial.printf("Upload Start: %s\n", upload.filename.c_str());
     bufferIndex = 0;
+    
+    // Parse dimensions from filename (format: image_WxH.rgb)
+    String fname = upload.filename;
+    int underscoreIdx = fname.indexOf('_');
+    int xIdx = fname.indexOf('x', underscoreIdx);
+    int dotIdx = fname.indexOf('.', xIdx);
+    if (underscoreIdx != -1 && xIdx != -1) {
+      imageWidth = fname.substring(underscoreIdx + 1, xIdx).toInt();
+      if (dotIdx != -1) {
+        imageHeight = fname.substring(xIdx + 1, dotIdx).toInt();
+      } else {
+        imageHeight = fname.substring(xIdx + 1).toInt();
+      }
+      // Clamp to valid range
+      if (imageWidth < 1) imageWidth = 1;
+      if (imageWidth > 100) imageWidth = 100;
+      if (imageHeight < 1) imageHeight = 1;
+      if (imageHeight > 200) imageHeight = 200;
+    }
+    Serial.printf("Parsed dimensions: %dx%d\n", imageWidth, imageHeight);
     
   } else if (upload.status == UPLOAD_FILE_WRITE) {
     // Accumulate image data
@@ -1508,15 +1534,17 @@ void handleUploadImage() {
   } else if (upload.status == UPLOAD_FILE_END) {
     Serial.printf("Upload End: %d bytes\n", bufferIndex);
     
-    // Detect image dimensions from data size
-    // Expected: 32 * height * 3 bytes
-    uint16_t imageWidth = 32;
-    uint16_t imageHeight = bufferIndex / (imageWidth * 3);
-    
-    if (imageHeight > 64) imageHeight = 64;
-    if (imageHeight < 1) imageHeight = 1;
+    // Use dimensions parsed from filename
+    // Verify against actual data size
+    uint16_t expectedSize = imageWidth * imageHeight * 3;
+    if (bufferIndex < expectedSize) {
+      // Adjust height to match actual data if needed
+      imageHeight = bufferIndex / (imageWidth * 3);
+      if (imageHeight < 1) imageHeight = 1;
+    }
     
     uint16_t actualSize = imageWidth * imageHeight * 3;
+    if (actualSize > bufferIndex) actualSize = bufferIndex;
     
     Serial.printf("Detected image: %dx%d (%d bytes)\n", imageWidth, imageHeight, actualSize);
     

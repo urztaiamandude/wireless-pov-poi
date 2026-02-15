@@ -77,7 +77,7 @@
             font-weight: 600;
             color: #333;
         }
-        select, input[type="range"], input[type="file"], button {
+        select, input[type="range"], input[type="file"], input[type="number"], button {
             width: 100%;
             padding: 12px;
             border: 2px solid #ddd;
@@ -85,7 +85,7 @@
             font-size: 16px;
             transition: all 0.3s;
         }
-        select:focus, input[type="file"]:focus {
+        select:focus, input[type="file"]:focus, input[type="number"]:focus {
             outline: none;
             border-color: #667eea;
         }
@@ -360,6 +360,17 @@
                         <option value="4">Live Mode</option>
                     </select>
                 </div>
+                <div style="margin-top: 10px; padding: 10px; background: rgba(102, 126, 234, 0.1); border-radius: 5px; font-size: 14px;">
+                    <strong>Available Content:</strong><br>
+                    📷 Images: 0=Smiley, 1=Rainbow, 2=Heart<br>
+                    🎨 Pattern slots (0-17; preloaded 0-6): 0=Rainbow, 1=Fire, 2=Comet,<br>
+                    3=Breathing, 4=Plasma, 5=Split Spin, 6=Theater Chase<br>
+                    🎬 Sequences: 0=Demo Mix
+                </div>
+                <div class="control-group" style="margin-top: 15px;">
+                    <label for="content-index">Content Index (0-17):</label>
+                    <input type="number" id="content-index" min="0" max="17" value="0" onchange="changeContentIndex()">
+                </div>
             </div>
             
             <!-- System Controls -->
@@ -390,6 +401,8 @@
                     <button class="pattern-btn" onclick="setPattern(8)">🌠 Meteor</button>
                     <button class="pattern-btn" onclick="setPattern(9)">🖌️ Wipe</button>
                     <button class="pattern-btn" onclick="setPattern(10)">🌀 Plasma</button>
+                    <button class="pattern-btn" onclick="setPattern(16)">🌓 Split Spin</button>
+                    <button class="pattern-btn" onclick="setPattern(17)">🎭 Theater Chase</button>
                 </div>
             </div>
             
@@ -431,7 +444,35 @@
                 <div class="control-group">
                     <label for="image-upload">Select Image:</label>
                     <input type="file" id="image-upload" accept="image/*" onchange="previewImage()">
-                    <button onclick="uploadImage()" style="margin-top: 10px;">Upload & Display</button>
+                </div>
+                <div class="control-group">
+                    <label style="display: flex; align-items: center; gap: 10px;">
+                        <input type="checkbox" id="aspect-ratio-lock" checked style="width: auto; margin: 0;">
+                        Lock Aspect Ratio
+                    </label>
+                </div>
+                <div class="control-group" style="display: flex; gap: 10px;">
+                    <div style="flex: 1;">
+                        <label for="image-width">Width (px):</label>
+                        <input type="number" id="image-width" min="1" max="100" value="32" style="width: 100%; padding: 8px;">
+                    </div>
+                    <div style="flex: 1;">
+                        <label for="image-height">Height (px):</label>
+                        <input type="number" id="image-height" min="1" max="200" value="64" style="width: 100%; padding: 8px;">
+                    </div>
+                </div>
+                <div class="control-group" style="display: flex; gap: 15px;">
+                    <label style="display: flex; align-items: center; gap: 5px;">
+                        <input type="checkbox" id="flip-vertical" style="width: auto; margin: 0;">
+                        Flip Vertical
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 5px;">
+                        <input type="checkbox" id="flip-horizontal" style="width: auto; margin: 0;">
+                        Flip Horizontal
+                    </label>
+                </div>
+                <div class="control-group">
+                    <button onclick="uploadImage()" style="margin-top: 5px;">Upload & Display</button>
                 </div>
                 <canvas id="image-preview-canvas" style="width: 100%; max-height: 100px; margin-top: 10px; display: none; border: 1px solid #ddd; border-radius: 4px;"></canvas>
             </div>
@@ -441,6 +482,21 @@
                 <h2>Live Draw Mode</h2>
                 <canvas id="live-canvas" class="live-canvas" width="320" height="200"></canvas>
                 <button onclick="clearCanvas()" style="margin-top: 10px;">Clear</button>
+            </div>
+            
+            <!-- SD Card Management -->
+            <div class="section">
+                <h2>💾 SD Card Storage</h2>
+                <div id="sd-status" style="margin-bottom: 15px; padding: 10px; background: rgba(102, 126, 234, 0.1); border-radius: 5px;">
+                    <div>Status: <span id="sd-status-text">Not Available (Preview Mode)</span></div>
+                    <div id="sd-info" style="margin-top: 5px; font-size: 14px; color: #666;"></div>
+                </div>
+                <div class="control-group">
+                    <button onclick="showToast('SD card not available in preview mode')" style="margin-bottom: 10px;">🔄 Refresh List</button>
+                    <div id="sd-file-list" style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; border-radius: 5px; padding: 10px; background: white;">
+                        <div style="text-align: center; color: #999;">No files loaded</div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -677,6 +733,26 @@
                         }
                     }
                     break;
+                    
+                case 16: // Split Spin
+                    for (let i = 0; i < NUM_LEDS; i++) {
+                        const half = Math.floor(NUM_LEDS / 2);
+                        const offset = i < half ? hue : hue + 128;
+                        const [r, g, b] = hsvToRgb(((offset + i * 4) % 256) / 256, 1, 1);
+                        setLED(i, r, g, b);
+                    }
+                    hue = (hue + 2) % 256;
+                    break;
+                    
+                case 17: // Theater Chase
+                    for (let i = 0; i < NUM_LEDS; i++) {
+                        if ((i + Math.floor(time * 0.2)) % 3 === 0) {
+                            setLED(i, color1[0], color1[1], color1[2]);
+                        } else {
+                            setLED(i, 0, 0, 0);
+                        }
+                    }
+                    break;
             }
             
             if (currentMode === 2) {
@@ -719,6 +795,11 @@
             showToast(`Mode: ${['Idle', 'Image', 'Pattern', 'Sequence', 'Live'][currentMode]}`);
         }
         
+        function changeContentIndex() {
+            // When index changes, update the current mode with new index
+            changeMode();
+        }
+        
         function updateBrightness(value) {
             brightness = parseInt(value);
             document.getElementById('brightness-value').textContent = value;
@@ -746,7 +827,8 @@
             
             const patternNames = ['Rainbow', 'Wave', 'Gradient', 'Sparkle', 'Fire', 'Comet', 
                                   'Breathing', 'Strobe', 'Meteor', 'Wipe', 'Plasma',
-                                  'VU Meter', 'Pulse', 'Audio Rainbow', 'Center Burst', 'Audio Sparkle'];
+                                  'VU Meter', 'Pulse', 'Audio Rainbow', 'Center Burst', 'Audio Sparkle',
+                                  'Split Spin', 'Theater Chase'];
             showToast(`Pattern: ${patternNames[type] || 'Unknown'}`);
         }
         
