@@ -581,7 +581,8 @@ void receiveImage() {
   uint8_t imgIndex = 0;
   
   // Calculate expected data size
-  uint32_t expectedBytes = 8 + (uint32_t)srcWidth * srcHeight * 3 + 1; // header + pixels + end marker
+  // Cast to uint32_t to prevent overflow: max is 400*64*3 = 76,800 bytes
+  uint32_t expectedBytes = 8 + ((uint32_t)srcWidth * (uint32_t)srcHeight * 3) + 1; // header + pixels + end marker
   
   if (imgIndex >= MAX_IMAGES) {
     Serial.println("Error: Invalid image index");
