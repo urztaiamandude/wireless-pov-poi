@@ -74,8 +74,9 @@ const char* password = "povpoi123";
 const uint8_t kMaxPatternIndex = 17;
 
 // Image dimension limits
-#define MAX_IMAGE_WIDTH 100
-#define MAX_IMAGE_HEIGHT 200
+// Updated to match Teensy PSRAM capabilities: 400px width, 64px height (2x32 LEDs)
+#define MAX_IMAGE_WIDTH 400
+#define MAX_IMAGE_HEIGHT 64
 
 // Sync Configuration
 #define AUTO_SYNC_ENABLED false
@@ -1553,13 +1554,16 @@ void handleUploadImage() {
     Serial.printf("Detected image: %dx%d (%d bytes)\n", imageWidth, imageHeight, actualSize);
     
     // Send image data to Teensy for processing
-    // Protocol: 0xFF 0x02 dataLen_high dataLen_low width height [RGB data...] 0xFE
+    // Protocol: 0xFF 0x02 dataLen_high dataLen_low width_low width_high height_low height_high [RGB data...] 0xFE
+    // Updated to support 16-bit dimensions for PSRAM support
     TEENSY_SERIAL.write(0xFF);  // Start marker
     TEENSY_SERIAL.write(0x02);  // Upload Image command
     TEENSY_SERIAL.write((actualSize >> 8) & 0xFF);  // Data length high byte
     TEENSY_SERIAL.write(actualSize & 0xFF);  // Data length low byte
-    TEENSY_SERIAL.write(imageWidth);  // Image width
-    TEENSY_SERIAL.write(imageHeight);  // Image height
+    TEENSY_SERIAL.write(imageWidth & 0xFF);  // Image width low byte
+    TEENSY_SERIAL.write((imageWidth >> 8) & 0xFF);  // Image width high byte
+    TEENSY_SERIAL.write(imageHeight & 0xFF);  // Image height low byte
+    TEENSY_SERIAL.write((imageHeight >> 8) & 0xFF);  // Image height high byte
     
     // Send pixel data
     for (uint16_t i = 0; i < actualSize && i < bufferIndex; i++) {

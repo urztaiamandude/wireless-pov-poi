@@ -158,8 +158,18 @@ void POVEngine::loadImageData(const uint8_t* data, size_t width, size_t height) 
     freeImageSlot(slot);
     
     // Allocate new buffer
+    // Use EXTMEM (PSRAM) for large image buffers if available on Teensy 4.1
     size_t bufferSize = width * height * 3; // RGB data
-    images[slot].data = new (std::nothrow) uint8_t[bufferSize];
+    #ifdef ARDUINO_TEENSY41
+        // Always use malloc/free pair for consistency with PSRAM allocations
+        if (external_psram_size > 0) {
+            images[slot].data = (uint8_t*)extmem_malloc(bufferSize);
+        } else {
+            images[slot].data = (uint8_t*)malloc(bufferSize);
+        }
+    #else
+        images[slot].data = (uint8_t*)malloc(bufferSize);
+    #endif
     
     if (images[slot].data && data) {
         memcpy(images[slot].data, data, bufferSize);
@@ -221,8 +231,18 @@ SDError POVEngine::loadImageFromSD(const char* filename, SDStorageManager* sdSto
     }
     
     // Allocate buffer for image data
+    // Use EXTMEM (PSRAM) for large image buffers if available on Teensy 4.1
     size_t bufferSize = width * height * 3;
-    images[slot].data = new (std::nothrow) uint8_t[bufferSize];
+    #ifdef ARDUINO_TEENSY41
+        // Always use malloc/free pair for consistency with PSRAM allocations
+        if (external_psram_size > 0) {
+            images[slot].data = (uint8_t*)extmem_malloc(bufferSize);
+        } else {
+            images[slot].data = (uint8_t*)malloc(bufferSize);
+        }
+    #else
+        images[slot].data = (uint8_t*)malloc(bufferSize);
+    #endif
     
     if (!images[slot].data) {
         #if DEBUG_ENABLED
@@ -1036,7 +1056,8 @@ void POVEngine::freeImageSlot(uint8_t slot) {
     }
     
     if (images[slot].data) {
-        delete[] images[slot].data;
+        // Use free() since we're using malloc/extmem_malloc for allocation
+        free(images[slot].data);
         images[slot].data = nullptr;
     }
     
