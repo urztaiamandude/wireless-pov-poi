@@ -1,0 +1,4 @@
+CompileFlags:
+  Add:
+    - --query-driver=C:/Users/urzam/.platformio/packages/toolchain-xtensa-esp32s3/bin/xtensa-esp32s3-elf-gcc*
+    - --query-driver=C:/Users/urzam/.platformio/packages/toolchain-xtensa-esp32s3/bin/xtensa-esp32s3-elf-g++*
