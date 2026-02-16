@@ -46,7 +46,16 @@
 // Note: SDIO configured with SdioConfig(FIFO_SDIO) for best performance (~20-25 MB/s read)
 
 // Image Storage Configuration
-#define MAX_IMAGES 10  // Maximum number of images that can be stored in RAM
+// PSRAM Support: With 16MB PSRAM (2x 8MB chips), we can store more and larger images
+#ifdef ARDUINO_TEENSY41
+  // With PSRAM: 50 images at variable sizes up to 400 pixels wide
+  #define MAX_IMAGES 50  // Maximum number of images that can be stored in RAM
+  #define IMAGE_MAX_WIDTH 400  // Maximum width for stored images (with PSRAM)
+#else
+  // Without PSRAM: Conservative limits
+  #define MAX_IMAGES 10
+  #define IMAGE_MAX_WIDTH 200
+#endif
 #define MAX_FILENAME_LEN 32  // Maximum length for SD image filenames
 
 #endif // CONFIG_H

@@ -12,9 +12,17 @@
  * - MAX9814 Microphone Amplifier Module (for audio-reactive patterns)
  * - ESP32 connected via Serial1 (RX1=0, TX1=1)
  * - Optional: microSD card in Teensy 4.1 built-in slot (for SD_SUPPORT)
+ * - Optional: 2x 8MB PSRAM chips for 16MB external RAM (for PSRAM support)
  */
 
 #include <FastLED.h>
+
+// Teensy 4.1 PSRAM support - declare external_psram_size if not already declared
+#ifdef ARDUINO_TEENSY41
+  #ifndef external_psram_size
+    extern "C" uint32_t external_psram_size;
+  #endif
+#endif
 
 // SD Card Support - Uncomment to enable SD card features
 // Requires microSD card in Teensy 4.1's built-in SD card slot
@@ -52,10 +60,19 @@
 // Display Configuration
 // NOTE: IMAGE_HEIGHT = DISPLAY_LEDS = 32 (fixed, matches physical LEDs)
 //       IMAGE_MAX_WIDTH = variable (calculated from aspect ratio)
-#define MAX_IMAGES 10
+// PSRAM Support: With 16MB PSRAM (2x 8MB chips), we can store more and larger images
+#ifdef ARDUINO_TEENSY41
+  // Check for PSRAM at runtime with external_psram_size
+  // Without PSRAM: 10 images at 32x200 (~60KB)
+  // With 16MB PSRAM: 50 images at 32x400 (~1.8MB, only 11% of PSRAM)
+  #define MAX_IMAGES 50
+  #define IMAGE_MAX_WIDTH 400     // Maximum width for stored images (with PSRAM)
+#else
+  #define MAX_IMAGES 10
+  #define IMAGE_MAX_WIDTH 200     // Conservative limit without PSRAM
+#endif
 #define IMAGE_WIDTH 32          // Fixed width for POV display (matches DISPLAY_LEDS)
 #define IMAGE_HEIGHT 32         // Fixed: matches DISPLAY_LEDS (one pixel per LED)
-#define IMAGE_MAX_WIDTH 200     // Maximum width for stored images
 #define MAX_PATTERNS 18  // Total pattern slots (indexed 0-17)
 #define MAX_SEQUENCES 5
 const uint8_t kPatternSpeedDivisor = 20;  // Used for split-spin/theater chase speed scaling.
@@ -72,10 +89,11 @@ const uint8_t kPatternSpeedDivisor = 20;  // Used for split-spin/theater chase s
 CRGB leds[NUM_LEDS];
 
 // Image storage structure
+// Note: With PSRAM, pixels array can be much larger (IMAGE_MAX_WIDTH x IMAGE_HEIGHT)
 struct POVImage {
-  uint8_t width;
-  uint8_t height;
-  CRGB pixels[IMAGE_WIDTH][IMAGE_HEIGHT];  // Max 31x64 image
+  uint16_t width;   // Changed to uint16_t to support IMAGE_MAX_WIDTH up to 400
+  uint16_t height;  // Changed to uint16_t for consistency
+  CRGB pixels[IMAGE_MAX_WIDTH][IMAGE_HEIGHT];  // Max size based on PSRAM availability
   bool active;
 };
 
@@ -106,7 +124,13 @@ struct Sequence {
 };
 
 // Storage arrays
+// EXTMEM places these large arrays in external PSRAM (if installed)
+// Without PSRAM, they will be in regular RAM (may cause issues if too large)
+#ifdef ARDUINO_TEENSY41
+EXTMEM POVImage images[MAX_IMAGES];
+#else
 POVImage images[MAX_IMAGES];
+#endif
 Pattern patterns[MAX_PATTERNS];
 Sequence sequences[MAX_SEQUENCES];
 
@@ -127,11 +151,18 @@ bool sequencePlaying = false;
 CRGB liveBuffer[DISPLAY_LEDS];
 
 // Serial command buffer
-// Buffer size calculation: 32 (width) × 64 (height) × 3 (RGB bytes) = 6,144 bytes
-// Plus protocol overhead (~100 bytes): 0xFF start, cmd, len, 0xFE end markers
-// Rounded up to 6400 for safety margin
-#define CMD_BUFFER_SIZE 6400
-uint8_t cmdBuffer[CMD_BUFFER_SIZE];
+// Buffer size calculation for larger images:
+//   Max image: IMAGE_MAX_WIDTH (400) × IMAGE_HEIGHT (32) × 3 (RGB bytes) = 38,400 bytes
+//   Plus protocol overhead (~100 bytes): 0xFF start, cmd, len, 0xFE end markers
+//   Rounded up to 40,000 for safety margin
+// With PSRAM: can afford larger buffer; without PSRAM: use smaller buffer
+#ifdef ARDUINO_TEENSY41
+  #define CMD_BUFFER_SIZE 40000
+  EXTMEM uint8_t cmdBuffer[CMD_BUFFER_SIZE];
+#else
+  #define CMD_BUFFER_SIZE 6400
+  uint8_t cmdBuffer[CMD_BUFFER_SIZE];
+#endif
 uint16_t cmdBufferIndex = 0;
 
 void setup() {
@@ -139,6 +170,27 @@ void setup() {
   Serial.begin(115200);
   while (!Serial && millis() < 3000);
   Serial.println("Teensy 4.1 Nebula Poi Initializing...");
+  
+  // Check for PSRAM (Teensy 4.1 only)
+  #ifdef ARDUINO_TEENSY41
+    uint32_t psram_size = external_psram_size;
+    Serial.print("PSRAM detected: ");
+    if (psram_size > 0) {
+      Serial.print(psram_size / (1024*1024));
+      Serial.println(" MB");
+      Serial.print("Image capacity: ");
+      Serial.print(MAX_IMAGES);
+      Serial.print(" images at ");
+      Serial.print(IMAGE_MAX_WIDTH);
+      Serial.print("x");
+      Serial.print(IMAGE_HEIGHT);
+      Serial.println(" max");
+    } else {
+      Serial.println("NONE - Using internal RAM only");
+      Serial.println("WARNING: Large image arrays may cause issues without PSRAM!");
+      Serial.println("Consider reducing MAX_IMAGES or IMAGE_MAX_WIDTH in code");
+    }
+  #endif
   
   // Initialize ESP32 Serial
   ESP32_SERIAL.begin(SERIAL_BAUD);
@@ -518,17 +570,19 @@ void parseCommand() {
 
 void receiveImage() {
   // Parse image header from command buffer
-  // Protocol: 0xFF 0x02 dataLen_high dataLen_low width height [RGB data...] 0xFE
+  // Protocol: 0xFF 0x02 dataLen_high dataLen_low width_low width_high height_low height_high [RGB data...] 0xFE
+  // Updated to support 16-bit width/height values
   uint16_t dataLen = (cmdBuffer[2] << 8) | cmdBuffer[3];
-  uint8_t srcWidth = cmdBuffer[4];
-  uint8_t srcHeight = cmdBuffer[5];
+  uint16_t srcWidth = cmdBuffer[4] | (cmdBuffer[5] << 8);   // 16-bit width
+  uint16_t srcHeight = cmdBuffer[6] | (cmdBuffer[7] << 8);  // 16-bit height
   
   // Always store uploaded images in slot 0 (most recent upload)
   // This simplifies the web/app interface - they don't need to manage slots
   uint8_t imgIndex = 0;
   
   // Calculate expected data size
-  uint16_t expectedBytes = 6 + srcWidth * srcHeight * 3 + 1; // header + pixels + end marker
+  // Cast to uint32_t to prevent overflow: max is 400*64*3 = 76,800 bytes
+  uint32_t expectedBytes = 8 + ((uint32_t)srcWidth * (uint32_t)srcHeight * 3) + 1; // header + pixels + end marker
   
   if (imgIndex >= MAX_IMAGES) {
     Serial.println("Error: Invalid image index");
@@ -551,72 +605,63 @@ void receiveImage() {
   Serial.print(cmdBufferIndex);
   Serial.println(" bytes)");
   
-  // If image is already 32 pixels wide, use it directly
-  if (srcWidth == IMAGE_WIDTH && srcHeight <= 64) {
-    Serial.println("Image is already POV-compatible size");
-    images[imgIndex].width = srcWidth;
-    images[imgIndex].height = srcHeight;
-    images[imgIndex].active = true;
+  // Check if image fits within limits
+  if (srcWidth > IMAGE_MAX_WIDTH || srcHeight > IMAGE_HEIGHT * 2) {
+    Serial.print("Image too large. Max: ");
+    Serial.print(IMAGE_MAX_WIDTH);
+    Serial.print("x");
+    Serial.println(IMAGE_HEIGHT * 2);
+    Serial.println("Resizing to fit...");
     
-    // Read pixel data directly
-    uint16_t pixelCount = srcWidth * srcHeight;
-    for (uint16_t i = 0; i < pixelCount; i++) {
-      uint16_t bufferPos = 6 + i * 3;
-      // Ensure we have all 3 bytes for this pixel
-      if (bufferPos + 2 < cmdBufferIndex - 1) { // -1 for end marker
-        uint8_t x = i % srcWidth;
-        uint8_t y = i / srcWidth;
+    // Resize to fit within limits
+    uint16_t targetWidth = srcWidth;
+    uint16_t targetHeight = srcHeight;
+    
+    if (srcWidth > IMAGE_MAX_WIDTH) {
+      targetWidth = IMAGE_MAX_WIDTH;
+      targetHeight = (uint32_t)srcHeight * IMAGE_MAX_WIDTH / srcWidth;
+    }
+    if (targetHeight > IMAGE_HEIGHT * 2) {
+      targetHeight = IMAGE_HEIGHT * 2;
+      targetWidth = (uint32_t)srcWidth * (IMAGE_HEIGHT * 2) / srcHeight;
+      if (targetWidth > IMAGE_MAX_WIDTH) targetWidth = IMAGE_MAX_WIDTH;
+    }
+    
+    srcWidth = targetWidth;
+    srcHeight = targetHeight;
+  }
+  
+  // Store image with original dimensions (no forced resize to IMAGE_WIDTH)
+  Serial.print("Storing image at: ");
+  Serial.print(srcWidth);
+  Serial.print("x");
+  Serial.println(srcHeight);
+  
+  images[imgIndex].width = srcWidth;
+  images[imgIndex].height = srcHeight;
+  images[imgIndex].active = true;
+  
+  // Read pixel data directly
+  uint32_t pixelCount = (uint32_t)srcWidth * srcHeight;
+  for (uint32_t i = 0; i < pixelCount; i++) {
+    uint32_t bufferPos = 8 + i * 3;  // 8-byte header
+    // Ensure we have all 3 bytes for this pixel
+    if (bufferPos + 2 < (uint32_t)(cmdBufferIndex - 1)) { // -1 for end marker
+      uint16_t x = i % srcWidth;
+      uint16_t y = i / srcWidth;
+      if (x < IMAGE_MAX_WIDTH && y < IMAGE_HEIGHT * 2) {  // Safety bounds check
         images[imgIndex].pixels[x][y] = CRGB(
           cmdBuffer[bufferPos],
           cmdBuffer[bufferPos + 1],
           cmdBuffer[bufferPos + 2]
         );
-      } else {
-        // Fill remaining with black if data is incomplete
-        uint8_t x = i % srcWidth;
-        uint8_t y = i / srcWidth;
-        images[imgIndex].pixels[x][y] = CRGB::Black;
       }
-    }
-  } else {
-    // Image needs conversion - resize to 32 pixels wide
-    Serial.println("Converting image to POV format (32 pixels wide)");
-    
-    // Calculate target height maintaining aspect ratio
-    uint8_t targetHeight = (uint16_t)srcHeight * IMAGE_WIDTH / srcWidth;
-    if (targetHeight > 64) targetHeight = 64;
-    if (targetHeight < 1) targetHeight = 1;
-    
-    Serial.print("Target size: ");
-    Serial.print(IMAGE_WIDTH);
-    Serial.print("x");
-    Serial.println(targetHeight);
-    
-    images[imgIndex].width = IMAGE_WIDTH;
-    images[imgIndex].height = targetHeight;
-    images[imgIndex].active = true;
-    
-    // Perform nearest-neighbor resize
-    for (uint8_t ty = 0; ty < targetHeight; ty++) {
-      for (uint8_t tx = 0; tx < IMAGE_WIDTH; tx++) {
-        // Map target pixel to source pixel
-        uint8_t sx = (uint16_t)tx * srcWidth / IMAGE_WIDTH;
-        uint8_t sy = (uint16_t)ty * srcHeight / targetHeight;
-        
-        // Get source pixel index
-        uint16_t srcIndex = sy * srcWidth + sx;
-        uint16_t bufferPos = 6 + srcIndex * 3;
-        
-        // Read and store pixel (with bounds checking)
-        if (bufferPos + 2 < cmdBufferIndex - 1) { // -1 for end marker
-          images[imgIndex].pixels[tx][ty] = CRGB(
-            cmdBuffer[bufferPos],
-            cmdBuffer[bufferPos + 1],
-            cmdBuffer[bufferPos + 2]
-          );
-        } else {
-          images[imgIndex].pixels[tx][ty] = CRGB::Black;
-        }
+    } else {
+      // Fill remaining with black if data is incomplete
+      uint16_t x = i % srcWidth;
+      uint16_t y = i / srcWidth;
+      if (x < IMAGE_MAX_WIDTH && y < IMAGE_HEIGHT * 2) {
+        images[imgIndex].pixels[x][y] = CRGB::Black;
       }
     }
   }
@@ -1296,9 +1341,12 @@ void saveImageToSD() {
   
   POVImage& img = images[imgIndex];
   
-  // Write header: width (1 byte), height (1 byte)
-  file.write(img.width);
-  file.write(img.height);
+  // Write header: width (2 bytes), height (2 bytes) for supporting larger images
+  // Note: This changes the file format. Old files (1 byte width/height) won't be compatible.
+  file.write((uint8_t)(img.width & 0xFF));        // Low byte
+  file.write((uint8_t)((img.width >> 8) & 0xFF)); // High byte
+  file.write((uint8_t)(img.height & 0xFF));       // Low byte
+  file.write((uint8_t)((img.height >> 8) & 0xFF));// High byte
   
   // Write pixel data (RGB, row by row)
   for (int x = 0; x < img.width; x++) {
@@ -1354,11 +1402,13 @@ void loadImageFromSD() {
     return;
   }
   
-  // Read header
-  uint8_t width = file.read();
-  uint8_t height = file.read();
+  // Read header: width (2 bytes), height (2 bytes)
+  uint16_t width = file.read();           // Low byte
+  width |= (file.read() << 8);            // High byte
+  uint16_t height = file.read();          // Low byte
+  height |= (file.read() << 8);           // High byte
   
-  if (width > IMAGE_WIDTH || height > IMAGE_HEIGHT) {
+  if (width > IMAGE_MAX_WIDTH || height > IMAGE_HEIGHT) {
     Serial.println("Image dimensions too large");
     file.close();
     sendAck(0x21);
