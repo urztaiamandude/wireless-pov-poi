@@ -207,11 +207,16 @@ See [API Documentation](docs/API.md) for detailed endpoint information and examp
 ## Technical Specifications
 
 - **LED Controller**: Teensy 4.1 @ 600 MHz
+  - 1MB Internal RAM
+  - Optional: 16MB PSRAM (2× 8MB chips) for expanded image storage
+  - **With PSRAM**: 50 images at 32×400 pixels (~1.8MB)
+  - **Without PSRAM**: 10 images at 32×200 pixels (~60KB)
+  - See [PSRAM Installation Guide](docs/PSRAM_INSTALLATION.md) for upgrade instructions
 - **WiFi Module**: ESP32 or ESP32-S3 (2.4 GHz)
   - ESP32: 4MB Flash typical
   - ESP32-S3 N16R8: 16MB Flash + 8MB PSRAM (recommended) ✨
 - **LED Strip**: APA102 (32 LEDs, all for display with hardware level shifter)
-- **Display Resolution**: HEIGHT = 31 pixels (fixed), WIDTH = variable
+- **Display Resolution**: HEIGHT = 32 pixels (fixed), WIDTH = variable up to 400 pixels (with PSRAM)
 - **Frame Rate**: 10-120 FPS (adjustable)
 - **Brightness**: 0-255 (adjustable)
 - **Serial Baudrate**: 115200 bps

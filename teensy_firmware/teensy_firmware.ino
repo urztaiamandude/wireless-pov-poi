@@ -12,9 +12,17 @@
  * - MAX9814 Microphone Amplifier Module (for audio-reactive patterns)
  * - ESP32 connected via Serial1 (RX1=0, TX1=1)
  * - Optional: microSD card in Teensy 4.1 built-in slot (for SD_SUPPORT)
+ * - Optional: 2x 8MB PSRAM chips for 16MB external RAM (for PSRAM support)
  */
 
 #include <FastLED.h>
+
+// Teensy 4.1 PSRAM support - declare external_psram_size if not already declared
+#ifdef ARDUINO_TEENSY41
+  #ifndef external_psram_size
+    extern "C" uint32_t external_psram_size;
+  #endif
+#endif
 
 // SD Card Support - Uncomment to enable SD card features
 // Requires microSD card in Teensy 4.1's built-in SD card slot
@@ -637,7 +645,7 @@ void receiveImage() {
   for (uint32_t i = 0; i < pixelCount; i++) {
     uint32_t bufferPos = 8 + i * 3;  // 8-byte header
     // Ensure we have all 3 bytes for this pixel
-    if (bufferPos + 2 < cmdBufferIndex - 1) { // -1 for end marker
+    if (bufferPos + 2 < (uint32_t)(cmdBufferIndex - 1)) { // -1 for end marker
       uint16_t x = i % srcWidth;
       uint16_t y = i / srcWidth;
       if (x < IMAGE_MAX_WIDTH && y < IMAGE_HEIGHT * 2) {  // Safety bounds check

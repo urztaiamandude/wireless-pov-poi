@@ -5,6 +5,13 @@
 #include <FastLED.h>
 #include <math.h>
 
+// Teensy 4.1 PSRAM support
+#ifdef ARDUINO_TEENSY41
+  #ifndef external_psram_size
+    extern "C" uint32_t external_psram_size;
+  #endif
+#endif
+
 POVEngine::POVEngine(LEDDriver& ledDriver) 
     : leds(ledDriver), 
       currentAngle(0),

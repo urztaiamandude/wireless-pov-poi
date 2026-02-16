@@ -11,11 +11,15 @@
 
 ### Core Hardware
 - **Main Controller**: Teensy 4.1 @ 600MHz (ARM Cortex-M7)
+  - 1MB Internal RAM
+  - **Optional**: 16MB PSRAM (2× 8MB chips) for expanded storage
+  - With PSRAM: 50 images at 32×400px, without: 10 images at 32×200px
 - **WiFi Co-processor**: ESP32-S3 N16R8 (16MB Flash, 8MB PSRAM) *recommended*, or standard ESP32
 - **Display**: APA102 RGB LED strip (32 LEDs total)
-  - LED 0: Level shifting ONLY (never used for display)
-  - LEDs 1-31: Display pixels (31 pixels vertical)
+  - All 32 LEDs used for display (hardware level shifter)
+  - LED 0-31: Display pixels (32 pixels vertical)
 - **Optional**: MAX9814 microphone for music-reactive patterns
+- **Optional**: microSD card (Teensy 4.1 built-in slot) for image storage
 
 ### System Architecture
 ```
@@ -289,10 +293,14 @@ for (int y = 1; y < NUM_LEDS; y++) {
 ## Memory Considerations
 
 ### Teensy 4.1
-- **RAM**: 1MB total
+- **Internal RAM**: 1MB total
 - **Flash**: 8MB total
-- **Image storage**: ~200KB for max 10 images (31×200 pixels each)
+- **PSRAM (Optional)**: 16MB (2× 8MB chips soldered to board)
+  - **With PSRAM**: ~1.8MB for 50 images (32×400 pixels each)
+  - **Without PSRAM**: ~60KB for 10 images (32×200 pixels each)
+  - See [PSRAM Installation Guide](docs/PSRAM_INSTALLATION.md)
 - **Pattern storage**: Minimal (~100 bytes per pattern)
+- **Performance**: PSRAM is 2-3x slower than internal RAM but sufficient for image storage
 
 ### ESP32-S3 N16R8
 - **Flash**: 16MB (recommended for future expansion)
