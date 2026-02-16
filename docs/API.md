@@ -239,14 +239,14 @@ curl -X POST http://192.168.4.1/api/pattern \
 ### Image Management
 
 #### Upload Image
-Upload an image for POV display.
+Upload an image for POV display. The web UI pre-converts images to raw RGB format; external clients may send raw RGB or use the same format.
 
 **Endpoint:** `POST /api/image`
 
 **Request:** Multipart form data
 
 **Form Fields:**
-- `image` (file, required): Image file (JPG, PNG, etc.)
+- `file` (file, required): Raw RGB data with filename encoding dimensions as `image_WxH.rgb` (e.g. `image_32x64.rgb`)
 
 **Response:**
 ```json
@@ -291,9 +291,9 @@ Send real-time LED data for immediate display.
 ```
 
 **Request Fields:**
-- `pixels` (array, required): Array of 31 RGB color objects
+- `pixels` (array, required): Array of 32 RGB color objects
   - Each object has `r`, `g`, `b` fields (0-255)
-  - Array length must be exactly 31 (matching display LEDs)
+  - Array length must be exactly 32 (matching display LEDs)
 
 **Response:**
 ```json

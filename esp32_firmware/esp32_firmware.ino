@@ -570,6 +570,23 @@ void handleRoot() {
             line-height: 1.6;
         }
         
+        /* LED Preview Strip */
+        .led-preview {
+            display: flex;
+            gap: 2px;
+            padding: 10px;
+            background: #111;
+            border-radius: 8px;
+            margin-top: 5px;
+            overflow-x: auto;
+        }
+        .led {
+            width: 15px;
+            height: 30px;
+            border-radius: 3px;
+            background: #222;
+            transition: background 0.1s;
+        }
         /* PWA Install Button */
         #installButton {
             display: none;
@@ -602,6 +619,12 @@ void handleRoot() {
         </div>
         
         <div class="content">
+            <!-- LED Preview -->
+            <div class="section">
+                <h2>🔮 LED Preview</h2>
+                <div class="led-preview" id="led-preview"></div>
+            </div>
+            
             <!-- Mode Selection -->
             <div class="section">
                 <h2>Display Mode</h2>
@@ -645,19 +668,19 @@ void handleRoot() {
             <div class="section">
                 <h2>Visual Patterns</h2>
                 <div class="pattern-grid">
-                    <button class="pattern-btn" onclick="setPattern(0)">🌈 Rainbow</button>
-                    <button class="pattern-btn" onclick="setPattern(1)">🌊 Wave</button>
-                    <button class="pattern-btn" onclick="setPattern(2)">🎨 Gradient</button>
-                    <button class="pattern-btn" onclick="setPattern(3)">✨ Sparkle</button>
-                    <button class="pattern-btn" onclick="setPattern(4)">🔥 Fire</button>
-                    <button class="pattern-btn" onclick="setPattern(5)">☄️ Comet</button>
-                    <button class="pattern-btn" onclick="setPattern(6)">💨 Breathing</button>
-                    <button class="pattern-btn" onclick="setPattern(7)">⚡ Strobe</button>
-                    <button class="pattern-btn" onclick="setPattern(8)">🌠 Meteor</button>
-                    <button class="pattern-btn" onclick="setPattern(9)">🖌️ Wipe</button>
-                    <button class="pattern-btn" onclick="setPattern(10)">🌀 Plasma</button>
-                    <button class="pattern-btn" onclick="setPattern(16)">🌓 Split Spin</button>
-                    <button class="pattern-btn" onclick="setPattern(17)">🎭 Theater Chase</button>
+                    <button class="pattern-btn" data-pattern="0" onclick="setPattern(0)">🌈 Rainbow</button>
+                    <button class="pattern-btn" data-pattern="1" onclick="setPattern(1)">🌊 Wave</button>
+                    <button class="pattern-btn" data-pattern="2" onclick="setPattern(2)">🎨 Gradient</button>
+                    <button class="pattern-btn" data-pattern="3" onclick="setPattern(3)">✨ Sparkle</button>
+                    <button class="pattern-btn" data-pattern="4" onclick="setPattern(4)">🔥 Fire</button>
+                    <button class="pattern-btn" data-pattern="5" onclick="setPattern(5)">☄️ Comet</button>
+                    <button class="pattern-btn" data-pattern="6" onclick="setPattern(6)">💨 Breathing</button>
+                    <button class="pattern-btn" data-pattern="7" onclick="setPattern(7)">⚡ Strobe</button>
+                    <button class="pattern-btn" data-pattern="8" onclick="setPattern(8)">🌠 Meteor</button>
+                    <button class="pattern-btn" data-pattern="9" onclick="setPattern(9)">🖌️ Wipe</button>
+                    <button class="pattern-btn" data-pattern="10" onclick="setPattern(10)">🌀 Plasma</button>
+                    <button class="pattern-btn" data-pattern="16" onclick="setPattern(16)">🌓 Split Spin</button>
+                    <button class="pattern-btn" data-pattern="17" onclick="setPattern(17)">🎭 Theater Chase</button>
                 </div>
             </div>
             
@@ -666,11 +689,11 @@ void handleRoot() {
                 <h2>🎵 Audio Reactive</h2>
                 <p style="font-size: 12px; color: #666; margin-bottom: 10px;">Requires MAX9814 microphone amplifier on Teensy pin A0</p>
                 <div class="pattern-grid">
-                    <button class="pattern-btn" onclick="setPattern(11)" style="background: linear-gradient(135deg, #00ff88 0%, #ff0088 100%); color: white; border: none;">📊 VU Meter</button>
-                    <button class="pattern-btn" onclick="setPattern(12)" style="background: linear-gradient(135deg, #ff0088 0%, #00ff88 100%); color: white; border: none;">💓 Pulse</button>
-                    <button class="pattern-btn" onclick="setPattern(13)" style="background: linear-gradient(135deg, #ff0000 0%, #00ff00 50%, #0000ff 100%); color: white; border: none;">🌈 Audio Rainbow</button>
-                    <button class="pattern-btn" onclick="setPattern(14)" style="background: linear-gradient(135deg, #8800ff 0%, #ff8800 100%); color: white; border: none;">🎯 Center Burst</button>
-                    <button class="pattern-btn" onclick="setPattern(15)" style="background: linear-gradient(135deg, #ffff00 0%, #ff00ff 100%); color: white; border: none;">✨ Audio Sparkle</button>
+                    <button class="pattern-btn" data-pattern="11" onclick="setPattern(11)" style="background: linear-gradient(135deg, #00ff88 0%, #ff0088 100%); color: white; border: none;">📊 VU Meter</button>
+                    <button class="pattern-btn" data-pattern="12" onclick="setPattern(12)" style="background: linear-gradient(135deg, #ff0088 0%, #00ff88 100%); color: white; border: none;">💓 Pulse</button>
+                    <button class="pattern-btn" data-pattern="13" onclick="setPattern(13)" style="background: linear-gradient(135deg, #ff0000 0%, #00ff00 50%, #0000ff 100%); color: white; border: none;">🌈 Audio Rainbow</button>
+                    <button class="pattern-btn" data-pattern="14" onclick="setPattern(14)" style="background: linear-gradient(135deg, #8800ff 0%, #ff8800 100%); color: white; border: none;">🎯 Center Burst</button>
+                    <button class="pattern-btn" data-pattern="15" onclick="setPattern(15)" style="background: linear-gradient(135deg, #ffff00 0%, #ff00ff 100%); color: white; border: none;">✨ Audio Sparkle</button>
                 </div>
             </div>
             
@@ -756,12 +779,46 @@ void handleRoot() {
     </div>
     
     <script>
+        const NUM_LEDS = 32;
         let currentMode = 2;
         let currentPattern = 0;
+        let brightness = 128;
         // aspect ratio is stored as height / width
         let originalImageAspectRatio = 1.0;
         
+        // LED Preview
+        function initLEDPreview() {
+            const container = document.getElementById('led-preview');
+            container.innerHTML = '';
+            for (let i = 0; i < NUM_LEDS; i++) {
+                const led = document.createElement('div');
+                led.className = 'led';
+                led.id = 'led-' + i;
+                container.appendChild(led);
+            }
+        }
+        function setLEDPreview(i, r, g, b) {
+            const led = document.getElementById('led-' + i);
+            if (led) {
+                const s = brightness / 255;
+                led.style.background = 'rgb(' + Math.round(r*s) + ',' + Math.round(g*s) + ',' + Math.round(b*s) + ')';
+            }
+        }
+        function updateLEDPreviewFromStatus(mode, index) {
+            for (let i = 0; i < NUM_LEDS; i++) setLEDPreview(i, 40, 40, 40);
+            if (mode === 0) return;
+            const hue = (index * 16) % 256;
+            for (let i = 0; i < NUM_LEDS; i++) {
+                const h = ((i * 8 + hue) % 256) / 256;
+                const r = h < 0.333 ? 1 : (h < 0.666 ? 1 - (h - 0.333) * 3 : 0);
+                const g = h < 0.333 ? h * 3 : (h < 0.666 ? 1 : 1 - (h - 0.666) * 3);
+                const b = h < 0.333 ? 0 : (h < 0.666 ? (h - 0.333) * 3 : 1);
+                setLEDPreview(i, r*255, g*255, b*255);
+            }
+        }
+        
         // Initialize
+        initLEDPreview();
         updateStatus();
         setInterval(updateStatus, 2000);
         
@@ -876,18 +933,16 @@ void handleRoot() {
         }
         
         function sendLiveFrame() {
-            const imageData = ctx.getImageData(0, 0, 32, 1);
+            const cw = canvas.width;
+            const ch = canvas.height;
+            const midY = Math.floor(ch / 2);
             const pixels = [];
-            
-            for (let i = 0; i < 32; i++) {
-                const idx = i * 4;
-                pixels.push({
-                    r: imageData.data[idx],
-                    g: imageData.data[idx + 1],
-                    b: imageData.data[idx + 2]
-                });
+            for (let i = 0; i < NUM_LEDS; i++) {
+                const x = Math.min(cw - 1, Math.floor(i * (cw / NUM_LEDS) + (cw / NUM_LEDS) / 2));
+                const p = ctx.getImageData(x, midY, 1, 1).data;
+                pixels.push({ r: p[0], g: p[1], b: p[2] });
+                setLEDPreview(i, p[0], p[1], p[2]);
             }
-            
             fetch('/api/live', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
@@ -904,7 +959,22 @@ void handleRoot() {
                 document.getElementById('mode-status').textContent = 
                     ['Idle', 'Image', 'Pattern', 'Sequence', 'Live'][data.mode] || 'Unknown';
                 
-                // Update SD card status if available
+                currentMode = data.mode;
+                brightness = data.brightness !== undefined ? data.brightness : brightness;
+                
+                document.getElementById('mode-select').value = String(data.mode);
+                document.getElementById('content-index').value = data.index;
+                document.getElementById('brightness').value = brightness;
+                document.getElementById('brightness-value').textContent = brightness;
+                document.getElementById('framerate').value = data.framerate;
+                document.getElementById('framerate-value').textContent = data.framerate;
+                
+                if (data.mode === 2) {
+                    currentPattern = data.index;
+                    updatePatternActiveState();
+                }
+                updateLEDPreviewFromStatus(data.mode, data.index);
+                
                 if (data.sdCardPresent !== undefined) {
                     const sdStatusText = document.getElementById('sd-status-text');
                     if (data.sdCardPresent) {
@@ -918,6 +988,12 @@ void handleRoot() {
             } catch (e) {
                 document.getElementById('connection-status').textContent = 'Error';
             }
+        }
+        function updatePatternActiveState() {
+            document.querySelectorAll('.pattern-btn').forEach(function(btn) {
+                const p = parseInt(btn.getAttribute('data-pattern'), 10);
+                btn.classList.toggle('active', p === currentPattern);
+            });
         }
         
         async function changeMode() {
@@ -961,6 +1037,7 @@ void handleRoot() {
         
         async function setPattern(type) {
             currentPattern = type;
+            updatePatternActiveState();
             const color1 = document.getElementById('color1').value;
             const color2 = document.getElementById('color2').value;
             const speed = document.getElementById('pattern-speed').value;
@@ -969,7 +1046,7 @@ void handleRoot() {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
-                    index: 0,
+                    index: type,
                     type: type,
                     color1: hexToRgb(color1),
                     color2: hexToRgb(color2),
@@ -977,7 +1054,7 @@ void handleRoot() {
                 })
             });
             
-            // Switch to pattern mode
+            document.getElementById('content-index').value = type;
             document.getElementById('mode-select').value = '2';
             await changeMode();
         }
@@ -1245,8 +1322,9 @@ void handleRoot() {
         
         // Update SD status on page load and periodically
         updateSDStatus();
+        refreshSDList();
         setInterval(updateSDStatus, 5000);
-        setInterval(refreshSDList, 10000);  // Refresh list every 10 seconds
+        setInterval(refreshSDList, 10000);
         
         // PWA Install Prompt
         let deferredPrompt;
@@ -1416,50 +1494,37 @@ void handleUploadPattern() {
     parseUintField("\"type\"", type, 0);
     parseUintField("\"speed\"", speed, 50);
 
-    // color1 components
+    auto parseUintFieldIn = [&](const String& src, const char* key, uint8_t& outValue, uint8_t defaultValue) {
+      int k = src.indexOf(key);
+      if (k == -1) { outValue = defaultValue; return; }
+      int start = src.indexOf(":", k);
+      if (start == -1) { outValue = defaultValue; return; }
+      int end = src.indexOf(",", start);
+      int endBrace = src.indexOf("}", start);
+      if (end == -1 || (endBrace != -1 && endBrace < end)) end = endBrace;
+      if (end == -1) end = src.length();
+      String num = src.substring(start + 1, end);
+      num.trim();
+      long v = num.toInt();
+      if (v < 0) v = 0;
+      if (v > 255) v = 255;
+      outValue = (uint8_t)v;
+    };
+
     int c1 = body.indexOf("\"color1\"");
     if (c1 != -1) {
       String c1Sub = body.substring(c1);
-      parseUintField("\"r\"", r1, r1);
-      parseUintField("\"g\"", g1, g1);
-      parseUintField("\"b\"", b1, b1);
+      parseUintFieldIn(c1Sub, "\"r\"", r1, r1);
+      parseUintFieldIn(c1Sub, "\"g\"", g1, g1);
+      parseUintFieldIn(c1Sub, "\"b\"", b1, b1);
     }
 
-    // color2 components
     int c2 = body.indexOf("\"color2\"");
     if (c2 != -1) {
       String c2Sub = body.substring(c2);
-      // Temporarily operate on c2Sub for parsing
-      auto parseUintFieldLocal = [&](String& src, const char* key, uint8_t& outValue, uint8_t defaultValue) {
-        int k = src.indexOf(key);
-        if (k == -1) {
-          outValue = defaultValue;
-          return;
-        }
-        int start = src.indexOf(":", k);
-        if (start == -1) {
-          outValue = defaultValue;
-          return;
-        }
-        int end = src.indexOf(",", start);
-        int endBrace = src.indexOf("}", start);
-        if (end == -1 || (endBrace != -1 && endBrace < end)) {
-          end = endBrace;
-        }
-        if (end == -1) {
-          end = src.length();
-        }
-        String num = src.substring(start + 1, end);
-        num.trim();
-        long v = num.toInt();
-        if (v < 0) v = 0;
-        if (v > 255) v = 255;
-        outValue = (uint8_t)v;
-      };
-
-      parseUintFieldLocal(c2Sub, "\"r\"", r2, r2);
-      parseUintFieldLocal(c2Sub, "\"g\"", g2, g2);
-      parseUintFieldLocal(c2Sub, "\"b\"", b2, b2);
+      parseUintFieldIn(c2Sub, "\"r\"", r2, r2);
+      parseUintFieldIn(c2Sub, "\"g\"", g2, g2);
+      parseUintFieldIn(c2Sub, "\"b\"", b2, b2);
     }
     
     // Clamp the pattern index to the supported upper bound (0-17)

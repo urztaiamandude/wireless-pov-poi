@@ -78,9 +78,47 @@ The executable will be created at `examples/dist/POV_POI_Image_Converter.exe`
 - Share directly via cloud storage
 - No installation required by users
 
-## Command-Line Image Converter
+## POV SD Card Converter (Direct SD Upload)
 
-For automated/batch processing via command line:
+Convert images to `.pov` format for **direct upload to the microSD card**—no web interface needed. Copy `.pov` files to the SD card, then load them via the web UI.
+
+### GUI (Recommended)
+
+```bash
+python pov_sd_converter.py
+```
+
+**Windows:** Double-click `run_pov_sd_converter.bat` to launch the GUI.
+
+- Select image(s) and output folder
+- Adjust height (32 = LEDs), max width (up to 1024 for PSRAM)
+- Convert & Save or Batch Convert All
+- Copy `.pov` files to SD card `/images/` folder
+- Load via web UI → SD Card Storage → Refresh List → Load
+
+### Command Line
+
+```bash
+# Single image to .pov
+python image_converter.py --pov photo.jpg
+
+# Specify output path
+python image_converter.py --pov photo.jpg ./sd_images/heart.pov
+
+# Batch convert folder
+python image_converter.py --pov --batch ./photos ./sd_images
+
+# Options
+python image_converter.py --pov --height 32 --max-width 400 photo.jpg
+```
+
+**SD card setup:** Create `/images/` on the SD card (PlatformIO firmware). Arduino IDE firmware may use `/poi_images/`. Copy `.pov` files there, insert into Teensy, then use the web UI to load them.
+
+---
+
+## Command-Line Image Converter (PNG for Web Upload)
+
+For PNG output to upload via the web interface:
 
 ```bash
 python image_converter.py input.jpg [output.png]
@@ -88,7 +126,7 @@ python image_converter.py input.jpg [output.png]
 
 **Examples:**
 ```bash
-# Convert single image
+# Convert single image (PNG for web upload)
 python image_converter.py photo.jpg
 
 # Convert with custom output name
