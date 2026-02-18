@@ -21,7 +21,7 @@ const CodeViewer: React.FC<CodeViewerProps> = ({ sketch }) => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${sketch.title.replace(/\s+/g, '_')}.ino`;
+    a.download = 'arduino_sketch.ino';
     a.click();
     URL.revokeObjectURL(url);
   };
