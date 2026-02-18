@@ -1,11 +1,12 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Play, Square, Sun, Smartphone,
   Wifi, Upload, Terminal, Dices, Sparkles, Monitor, Activity,
   Crown, Users
 } from 'lucide-react';
 import { Device } from '../types';
+import { useDebounce } from '../hooks';
 
 interface DashboardProps {
   previewUrl: string | null;
@@ -25,9 +26,15 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [isOnline, setIsOnline] = useState(false);
   const [logs, setLogs] = useState<{time: string, msg: string, color: string}[]>([]);
+  const [localBrightness, setLocalBrightness] = useState<number>(128);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const activeDevice = devices.find(d => d.id === selectedDeviceId) || devices[0];
+
+  // Sync local brightness with active device
+  useEffect(() => {
+    setLocalBrightness(activeDevice.brightness);
+  }, [activeDevice.brightness]);
 
   // Poll connection status using the firmware's /api/status endpoint
   useEffect(() => {
@@ -45,12 +52,29 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
   }, [activeDevice.ip]);
 
   const addLog = (msg: string, color: string = 'text-slate-400') => {
-    const time = new Date().toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    // Simplified time formatting (faster than toLocaleTimeString)
+    const now = new Date();
+    const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
     setLogs(prev => [{ time, msg, color }, ...prev].slice(0, 50));
   };
 
   const updateDevice = (id: string, updates: Partial<Device>) => {
     setDevices(prev => prev.map(d => d.id === id ? { ...d, ...updates } : d));
+  };
+
+  // Debounced brightness update - delays API call until user stops moving slider
+  const debouncedBrightnessUpdate = useDebounce(
+    useCallback((brightness: number) => {
+      handleGlobalAction('brightness', brightness);
+    }, []), // handleGlobalAction is defined below
+    200 // 200ms debounce delay
+  );
+
+  const handleBrightnessChange = (value: number) => {
+    setLocalBrightness(value);
+    // Update UI immediately but debounce the API call
+    updateDevice(activeDevice.id, { brightness: value });
+    debouncedBrightnessUpdate(value);
   };
 
   // Upload BMP image via POST /api/image (matches existing firmware)
@@ -265,11 +289,11 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
                     <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
                       <Sun size={14} className="text-yellow-500" /> Global Intensity
                     </label>
-                    <span className="text-cyan-400 font-mono text-sm">{Math.round((activeDevice.brightness / 255) * 100)}%</span>
+                    <span className="text-cyan-400 font-mono text-sm">{Math.round((localBrightness / 255) * 100)}%</span>
                   </div>
                   <input
-                    type="range" min="0" max="255" value={activeDevice.brightness}
-                    onChange={(e) => handleGlobalAction('brightness', parseInt(e.target.value))}
+                    type="range" min="0" max="255" value={localBrightness}
+                    onChange={(e) => handleBrightnessChange(parseInt(e.target.value))}
                     className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-500"
                   />
                 </div>
