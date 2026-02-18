@@ -119,11 +119,13 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
             body: JSON.stringify({ mode, index }),
           });
         } else if (action === 'brightness') {
-          // POST /api/brightness with val param
+          // POST /api/brightness with JSON { brightness }
           url = `http://${dev.ip}/api/brightness`;
-          const body = new FormData();
-          body.append('val', String(value));
-          await fetch(url, { method, body });
+          await fetch(url, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ brightness: Number(value) })
+          });
         } else if (action === 'load') {
           // POST /api/sd/load with file param
           url = `http://${dev.ip}/api/sd/load`;
