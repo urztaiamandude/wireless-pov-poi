@@ -96,12 +96,28 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
         let method = 'POST';
 
         if (action === 'play' || action === 'stop' || action === 'random') {
-          // Map to /api/mode endpoint with mode parameter
-          const modeVal = action === 'stop' ? 'idle' : action === 'random' ? 'random' : 'playback';
+          // Map to /api/mode endpoint with numeric mode/index per firmware:
+          // 0=Idle, 1=Image, 2=Pattern, 3=Sequence, 4=Live
+          let mode = 0;
+          let index = 0;
+
+          if (action === 'stop') {
+            mode = 0; // Idle
+            index = 0;
+          } else if (action === 'play') {
+            mode = 3; // Sequence playback
+            index = 0;
+          } else if (action === 'random') {
+            mode = 2; // Pattern mode (firmware can choose/randomize pattern)
+            index = 0;
+          }
+
           url = `http://${dev.ip}/api/mode`;
-          const body = new FormData();
-          body.append('mode', modeVal);
-          await fetch(url, { method, body });
+          await fetch(url, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mode, index }),
+          });
         } else if (action === 'brightness') {
           // POST /api/brightness with val param
           url = `http://${dev.ip}/api/brightness`;
