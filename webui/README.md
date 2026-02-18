@@ -43,6 +43,7 @@ npm run build
 ```
 
 The output will be in the `dist/` directory, optimized for ESP32's SPIFFS/LittleFS filesystem with:
+
 - Single-chunk bundle (no code splitting for embedded systems)
 - Minified JavaScript and CSS
 - Optimized assets
