@@ -9,7 +9,6 @@ A comprehensive React-based web interface for controlling and configuring the Ne
 - **Advanced Settings**: Configure hardware parameters (LED count, GPIO pins, refresh rates)
 - **Code Viewers**: Browse ESP32 and Teensy Arduino sketch templates
 - **Wiring Guide**: Visual reference for hardware connections
-- **AI Assistant**: Integration with Google Gemini for expansion suggestions (optional)
 - **Firmware Manager**: OTA update interface (UI ready, backend pending)
 
 ## Prerequisites
@@ -73,19 +72,6 @@ pio run --target uploadfs
 A deployment script will be added to automate the build and filesystem upload process.
 
 ## Configuration
-
-### Environment Variables
-
-Create a `.env` file in the `webui/` directory (optional):
-
-```bash
-# Google Gemini API (for AI Assistant feature)
-# NOTE: For security, this should NOT be used in production.
-# Implement a backend proxy instead to keep API keys server-side.
-GEMINI_API_KEY=your_api_key_here
-```
-
-**⚠️ Security Warning**: The current implementation intentionally does NOT expose the API key to the client bundle. To enable AI features in production, you must implement a backend proxy endpoint on the ESP32 that forwards requests to the Gemini API without exposing your API key.
 
 ### Tailwind CSS Setup
 
@@ -157,10 +143,7 @@ webui/
 │   ├── AdvancedSettings.tsx  # Hardware configuration
 │   ├── CodeViewer.tsx   # Arduino sketch display
 │   ├── WiringGuide.tsx  # Hardware connection guide
-│   ├── AIAssistant.tsx  # Gemini AI integration
 │   └── FirmwareManager.tsx   # OTA updates (UI only)
-├── services/
-│   └── geminiService.ts # Google GenAI wrapper
 ├── constants.tsx        # Arduino sketch templates
 ├── types.ts            # TypeScript interfaces
 ├── App.tsx             # Main application

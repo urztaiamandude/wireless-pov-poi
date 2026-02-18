@@ -26,13 +26,6 @@ export default defineConfig(({ mode }) => {
       }
     },
     plugins: [react()],
-    define: {
-      // Do not inline the real GEMINI_API_KEY into the client bundle to avoid exposing secrets.
-      // Provide empty string placeholders so client code can safely reference these values.
-      // For AI features to work, implement a backend proxy that keeps the API key server-side.
-      'process.env.API_KEY': JSON.stringify(''),
-      'process.env.GEMINI_API_KEY': JSON.stringify('')
-    },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
