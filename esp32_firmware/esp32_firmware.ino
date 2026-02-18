@@ -2113,22 +2113,27 @@ void handleSDList() {
   if (readTeensyResponse(0xCC, buffer, sizeof(buffer), bytesRead, 500)) {
     if (bytesRead > 0) {
       uint8_t count = buffer[0];
-      String json = "{\"files\":[";
+      
+      // Use ArduinoJson for efficient array building
+      JsonDocument doc;
+      JsonArray files = doc["files"].to<JsonArray>();
       
       size_t pos = 1;
       for (uint8_t i = 0; i < count && pos < bytesRead; i++) {
-        if (i > 0) json += ",";
         uint8_t nameLen = buffer[pos++];
         if (pos + nameLen <= bytesRead) {
-          String filename = "";
-          for (uint8_t j = 0; j < nameLen; j++) {
-            filename += (char)buffer[pos++];
+          char filename[64];
+          for (uint8_t j = 0; j < nameLen && j < 63; j++) {
+            filename[j] = (char)buffer[pos++];
           }
-          json += "\"" + filename + "\"";
+          filename[nameLen < 63 ? nameLen : 63] = '\0';
+          files.add(filename);
         }
       }
-      json += "]}";
-      server.send(200, "application/json", json);
+      
+      String response;
+      serializeJson(doc, response);
+      server.send(200, "application/json", response);
       return;
     }
   }
@@ -2156,12 +2161,15 @@ void handleSDInfo() {
         freeSpace = (freeSpace << 8) | buffer[9 + i];
       }
       
-      String json = "{";
-      json += "\"present\":" + String(present ? "true" : "false") + ",";
-      json += "\"totalSpace\":" + String(totalSpace) + ",";
-      json += "\"freeSpace\":" + String(freeSpace);
-      json += "}";
-      server.send(200, "application/json", json);
+      // Use ArduinoJson for efficient serialization
+      JsonDocument doc;
+      doc["present"] = present;
+      doc["totalSpace"] = totalSpace;
+      doc["freeSpace"] = freeSpace;
+      
+      String response;
+      serializeJson(doc, response);
+      server.send(200, "application/json", response);
       return;
     }
   }
