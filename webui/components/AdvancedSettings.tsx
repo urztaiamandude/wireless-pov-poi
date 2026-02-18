@@ -19,6 +19,9 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCou
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
 
   // Deploy config to the firmware via POST /api/device/config
+  // NOTE: Current firmware implementation only accepts deviceName, syncGroup, and autoSync.
+  // Hardware parameters (ledCount, pins, etc.) are not yet supported by the backend.
+  // This is a UI-ready implementation pending firmware support.
   const handleSave = async () => {
     setIsSaving(true);
     setSaveStatus(null);
@@ -30,7 +33,12 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCou
         body: JSON.stringify(payload),
         signal: AbortSignal.timeout(3000)
       });
-      setSaveStatus(res.ok ? 'Config deployed successfully.' : `Error: HTTP ${res.status}`);
+      if (res.ok) {
+        setSaveStatus('Config deployed successfully.');
+      } else {
+        const text = await res.text();
+        setSaveStatus(`Warning: Endpoint exists but may not support all parameters. Response: ${text.substring(0, 50)}`);
+      }
     } catch {
       setSaveStatus('Could not reach device. Verify POV-POI-WiFi connection.');
     } finally {

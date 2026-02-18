@@ -1,12 +1,16 @@
 
 import React, { useState } from 'react';
-import { Upload, Cpu, Zap, ShieldCheck, AlertTriangle, Loader2, CheckCircle2 } from 'lucide-react';
+import { Upload, Cpu, Zap, ShieldCheck, AlertTriangle, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 
-// Firmware upload endpoints on the existing ESP32 firmware
+// NOTE: These OTA endpoints are not yet implemented in the current ESP32 firmware.
+// The FirmwareManager component provides the UI for future OTA functionality.
+// To enable OTA updates, implement these endpoints in esp32_firmware/esp32_firmware.ino
 const OTA_ENDPOINTS: Record<string, string> = {
   ESP32: 'http://192.168.4.1/api/ota/esp32',
   Teensy: 'http://192.168.4.1/api/ota/teensy'
 };
+
+const FEATURE_AVAILABLE = false; // Set to true when OTA endpoints are implemented
 
 const FirmwareManager: React.FC = () => {
   const [target, setTarget] = useState<'ESP32' | 'Teensy'>('ESP32');
@@ -55,6 +59,21 @@ const FirmwareManager: React.FC = () => {
 
   return (
     <div className="space-y-8 animate-fadeIn">
+      {!FEATURE_AVAILABLE && (
+        <div className="bg-amber-900/20 border-2 border-amber-500/50 rounded-2xl p-6 flex items-start gap-4">
+          <AlertCircle className="text-amber-400 shrink-0 mt-1" size={24} />
+          <div className="space-y-2">
+            <h3 className="text-amber-300 font-bold text-lg">OTA Feature Not Yet Implemented</h3>
+            <p className="text-amber-200/80 text-sm leading-relaxed">
+              The firmware manager UI is ready, but the backend OTA endpoints (<code className="text-amber-100">/api/ota/esp32</code> and <code className="text-amber-100">/api/ota/teensy</code>) 
+              are not yet implemented in the current ESP32 firmware. To enable wireless updates, these endpoints need to be added to <code className="text-amber-100">esp32_firmware/esp32_firmware.ino</code>.
+            </p>
+            <p className="text-amber-200/60 text-xs italic mt-2">
+              For now, use USB cable and Arduino IDE/PlatformIO to update firmware manually.
+            </p>
+          </div>
+        </div>
+      )}
       <header>
         <h2 className="text-3xl font-bold text-white mb-2">Firmware & OTA</h2>
         <p className="text-slate-400">Push wireless updates to your POV system components via <span className="font-mono text-cyan-400">POV-POI-WiFi</span>.</p>
