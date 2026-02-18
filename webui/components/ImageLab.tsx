@@ -7,6 +7,7 @@ import {
   ChevronLeft, Users
 } from 'lucide-react';
 import { SequenceItem } from '../types';
+import { useDebounce } from '../hooks';
 
 interface ImageLabProps {
   onPreviewUpdate: (url: string) => void;
@@ -35,6 +36,7 @@ const ImageLab: React.FC<ImageLabProps> = ({ onPreviewUpdate, initialPreview, le
   // Procedural States
   const [patternType, setPatternType] = useState<'organic' | 'geometric'>('organic');
   const [complexity, setComplexity] = useState<number>(8);
+  const [localComplexity, setLocalComplexity] = useState<number>(8); // Local state for slider
   const [colorSeed, setColorSeed] = useState<number>(Math.random());
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -159,6 +161,19 @@ const ImageLab: React.FC<ImageLabProps> = ({ onPreviewUpdate, initialPreview, le
     setBmpBlob(null);
     setStatus(`Engine Ready: ${patternType.toUpperCase()}`);
   }, [ledCount, complexity, colorSeed, patternType, onPreviewUpdate]);
+
+  // Debounced complexity update - regenerate pattern only after user stops moving slider
+  const debouncedComplexityUpdate = useDebounce(
+    useCallback((value: number) => {
+      setComplexity(value);
+    }, []),
+    300 // 300ms debounce delay
+  );
+
+  const handleComplexityChange = (value: number) => {
+    setLocalComplexity(value); // Update slider immediately
+    debouncedComplexityUpdate(value); // Debounce the actual complexity state change
+  };
 
   const addToSequence = () => {
     if (!selectedImage) return;
@@ -367,8 +382,8 @@ const ImageLab: React.FC<ImageLabProps> = ({ onPreviewUpdate, initialPreview, le
                   <button onClick={() => setAndGenerate('geometric')} className={`py-4 rounded-2xl text-xs font-bold border transition-all flex flex-col items-center gap-2 ${patternType === 'geometric' ? 'bg-purple-500/10 border-purple-500 text-purple-400' : 'bg-slate-800/50 border-slate-700 text-slate-500'}`}><Box size={18} /> Geometric</button>
                 </div>
                 <div className="space-y-3">
-                  <div className="flex justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest">Complexity <span>{complexity}</span></div>
-                  <input type="range" min="1" max="25" value={complexity} onChange={(e) => setComplexity(parseInt(e.target.value))} className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-pink-500" />
+                  <div className="flex justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest">Complexity <span>{localComplexity}</span></div>
+                  <input type="range" min="1" max="25" value={localComplexity} onChange={(e) => handleComplexityChange(parseInt(e.target.value))} className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-pink-500" />
                 </div>
                 <button onClick={() => { setColorSeed(Math.random()); setTimeout(generateProceduralArt, 0); }} className="w-full py-4 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-[10px] font-black flex items-center justify-center gap-2 uppercase tracking-widest transition-all"><Palette size={16} className="text-pink-500" /> Roll Colors</button>
               </div>

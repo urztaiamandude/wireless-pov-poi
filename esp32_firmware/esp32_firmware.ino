@@ -22,6 +22,7 @@
 #include <HTTPClient.h>
 #include <WiFiClient.h>
 #include <Preferences.h>
+#include <ArduinoJson.h>
 
 // BLE support
 #ifdef BLE_ENABLED
@@ -145,6 +146,7 @@ struct SystemState {
   uint8_t currentIndex;
   uint8_t brightness;
   uint8_t frameRate;
+  uint8_t cachedFrameDelay;  // Cached value: 1000 / frameRate
   bool connected;
   unsigned long lastSync;
   unsigned long lastDiscovery;
@@ -206,6 +208,7 @@ void setup() {
   state.currentIndex = 0;
   state.brightness = 128;
   state.frameRate = 50;
+  state.cachedFrameDelay = 1000 / 50;  // Pre-calculate frame delay
   state.connected = false;
   state.lastSync = 0;
   state.lastDiscovery = 0;
@@ -1639,16 +1642,18 @@ void handleRoot() {
 }
 
 void handleStatus() {
-  String json = "{";
-  json += "\"connected\":" + String(state.connected ? "true" : "false") + ",";
-  json += "\"mode\":" + String(state.currentMode) + ",";
-  json += "\"index\":" + String(state.currentIndex) + ",";
-  json += "\"brightness\":" + String(state.brightness) + ",";
-  json += "\"framerate\":" + String(state.frameRate) + ",";
-  json += "\"sdCardPresent\":" + String(state.sdCardPresent ? "true" : "false");
-  json += "}";
+  // Use ArduinoJson for efficient JSON serialization
+  JsonDocument doc;
+  doc["connected"] = state.connected;
+  doc["mode"] = state.currentMode;
+  doc["index"] = state.currentIndex;
+  doc["brightness"] = state.brightness;
+  doc["framerate"] = state.frameRate;
+  doc["sdCardPresent"] = state.sdCardPresent;
   
-  server.send(200, "application/json", json);
+  String response;
+  serializeJson(doc, response);
+  server.send(200, "application/json", response);
 }
 
 void handleSetMode() {
@@ -1715,16 +1720,16 @@ void handleSetFrameRate() {
     
     if (idx != -1) {
       state.frameRate = body.substring(idx + 12, body.indexOf("}", idx)).toInt();
-      uint8_t frameDelay = 1000 / state.frameRate;
+      state.cachedFrameDelay = 1000 / max((uint8_t)1, state.frameRate);  // Update cache
 
       // Send command to Teensy
       sendTeensyCommand(0x07, 1);
-      TEENSY_SERIAL.write(frameDelay);
+      TEENSY_SERIAL.write(state.cachedFrameDelay);
       TEENSY_SERIAL.write(0xFE);
 
       // Broadcast to paired peers via ESP-NOW (mirror mode)
       if (!_syncCommandInProgress) {
-        espNowSync.broadcastFrameRate(frameDelay);
+        espNowSync.broadcastFrameRate(state.cachedFrameDelay);
       }
 
       server.send(200, "application/json", "{\"status\":\"ok\"}");
@@ -1935,8 +1940,7 @@ void handleUploadImage() {
     
     Serial.println("Image forwarded to Teensy");
     
-    // Set mode to image display
-    delay(100);
+    // Set mode to image display (remove unnecessary delay)
     state.currentMode = 1;
     state.currentIndex = 0;
     sendTeensyCommand(0x01, 2);
@@ -1947,7 +1951,8 @@ void handleUploadImage() {
     // Auto-save to SD card if present
     // Check SD status first (from last status check)
     if (state.sdCardPresent) {
-      delay(50);  // Small delay to ensure previous command processed
+      // Reduced delay for serial processing
+      delay(10);
       
       // Generate filename based on timestamp
       // Format: "upload_XXXXX.pov" where XXXXX is milliseconds modulo 100000
@@ -2101,30 +2106,34 @@ void handleSDList() {
   sendTeensyCommand(0x21, 0);
   TEENSY_SERIAL.write(0xFE);
   
-  // Wait for response: 0xFF 0xCC count [filename_len][filename]... 0xFE
-  delay(100);
+  // readTeensyResponse has its own timeout, no need for delay
   uint8_t buffer[2048];
   size_t bytesRead = 0;
   
   if (readTeensyResponse(0xCC, buffer, sizeof(buffer), bytesRead, 500)) {
     if (bytesRead > 0) {
       uint8_t count = buffer[0];
-      String json = "{\"files\":[";
+      
+      // Use ArduinoJson for efficient array building
+      JsonDocument doc;
+      JsonArray files = doc["files"].to<JsonArray>();
       
       size_t pos = 1;
       for (uint8_t i = 0; i < count && pos < bytesRead; i++) {
-        if (i > 0) json += ",";
         uint8_t nameLen = buffer[pos++];
         if (pos + nameLen <= bytesRead) {
-          String filename = "";
-          for (uint8_t j = 0; j < nameLen; j++) {
-            filename += (char)buffer[pos++];
+          char filename[64];
+          for (uint8_t j = 0; j < nameLen && j < 63; j++) {
+            filename[j] = (char)buffer[pos++];
           }
-          json += "\"" + filename + "\"";
+          filename[nameLen < 63 ? nameLen : 63] = '\0';
+          files.add(filename);
         }
       }
-      json += "]}";
-      server.send(200, "application/json", json);
+      
+      String response;
+      serializeJson(doc, response);
+      server.send(200, "application/json", response);
       return;
     }
   }
@@ -2137,8 +2146,7 @@ void handleSDInfo() {
   sendTeensyCommand(0x23, 0);
   TEENSY_SERIAL.write(0xFE);
   
-  // Wait for response: 0xFF 0xDD present [total:8][free:8] 0xFE
-  delay(100);
+  // readTeensyResponse has its own timeout
   uint8_t buffer[20];
   size_t bytesRead = 0;
   
@@ -2153,12 +2161,15 @@ void handleSDInfo() {
         freeSpace = (freeSpace << 8) | buffer[9 + i];
       }
       
-      String json = "{";
-      json += "\"present\":" + String(present ? "true" : "false") + ",";
-      json += "\"totalSpace\":" + String(totalSpace) + ",";
-      json += "\"freeSpace\":" + String(freeSpace);
-      json += "}";
-      server.send(200, "application/json", json);
+      // Use ArduinoJson for efficient serialization
+      JsonDocument doc;
+      doc["present"] = present;
+      doc["totalSpace"] = totalSpace;
+      doc["freeSpace"] = freeSpace;
+      
+      String response;
+      serializeJson(doc, response);
+      server.send(200, "application/json", response);
       return;
     }
   }
@@ -2480,9 +2491,10 @@ void applyBrightnessToTeensy(uint8_t brightness) {
 
 void applyFrameRateToTeensy(uint8_t frameDelay) {
   _syncCommandInProgress = true;
-  // Reverse-calculate FPS for state tracking
+  // Update both frameRate and cached delay
   if (frameDelay > 0) {
     state.frameRate = 1000 / frameDelay;
+    state.cachedFrameDelay = frameDelay;
   }
   sendTeensyCommand(0x07, 1);
   TEENSY_SERIAL.write(frameDelay);
@@ -2505,45 +2517,47 @@ void applySyncTimeToTeensy(int32_t offsetMs) {
 // REST API endpoints for multi-poi control
 
 void handleMultiPoiStatus() {
-  // Update local state in sync object
+  // Update local state in sync object (use cached frameDelay)
   espNowSync.setLocalState(state.currentMode, state.currentIndex,
-                           state.brightness, 1000 / max((uint8_t)1, state.frameRate));
+                           state.brightness, state.cachedFrameDelay);
 
-  String json = "{";
-  json += "\"syncMode\":\"" + String(espNowSync.getSyncMode() == SYNC_MIRROR ? "mirror" : "independent") + "\",";
-  json += "\"localName\":\"" + String(espNowSync.getLocalName()) + "\",";
+  // Use ArduinoJson for efficient JSON serialization
+  JsonDocument doc;
+  doc["syncMode"] = (espNowSync.getSyncMode() == SYNC_MIRROR ? "mirror" : "independent");
+  doc["localName"] = espNowSync.getLocalName();
 
   // Local MAC
   const uint8_t* mac = espNowSync.getLocalMac();
   char macStr[18];
   snprintf(macStr, sizeof(macStr), "%02X:%02X:%02X:%02X:%02X:%02X",
     mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-  json += "\"localMac\":\"" + String(macStr) + "\",";
-  json += "\"hasPairedPeer\":" + String(espNowSync.hasPairedPeer() ? "true" : "false") + ",";
-  json += "\"autoPair\":" + String(espNowSync.getAutoPair() ? "true" : "false") + ",";
-  json += "\"peers\":[";
+  doc["localMac"] = macStr;
+  doc["hasPairedPeer"] = espNowSync.hasPairedPeer();
+  doc["autoPair"] = espNowSync.getAutoPair();
 
+  JsonArray peers = doc["peers"].to<JsonArray>();
   for (int i = 0; i < espNowSync.getPeerCount(); i++) {
     const SyncPeer* peer = espNowSync.getPeer(i);
     if (!peer) continue;
-    if (i > 0) json += ",";
+    
+    JsonObject peerObj = peers.add<JsonObject>();
     char peerMac[18];
     snprintf(peerMac, sizeof(peerMac), "%02X:%02X:%02X:%02X:%02X:%02X",
       peer->mac[0], peer->mac[1], peer->mac[2],
       peer->mac[3], peer->mac[4], peer->mac[5]);
-    json += "{";
-    json += "\"name\":\"" + String(peer->name) + "\",";
-    json += "\"mac\":\"" + String(peerMac) + "\",";
-    json += "\"state\":" + String(peer->state) + ",";
-    json += "\"online\":" + String(peer->online ? "true" : "false") + ",";
-    json += "\"mode\":" + String(peer->currentMode) + ",";
-    json += "\"index\":" + String(peer->currentIndex) + ",";
-    json += "\"brightness\":" + String(peer->brightness);
-    json += "}";
+    
+    peerObj["name"] = peer->name;
+    peerObj["mac"] = peerMac;
+    peerObj["state"] = peer->state;
+    peerObj["online"] = peer->online;
+    peerObj["mode"] = peer->currentMode;
+    peerObj["index"] = peer->currentIndex;
+    peerObj["brightness"] = peer->brightness;
   }
 
-  json += "]}";
-  server.send(200, "application/json", json);
+  String response;
+  serializeJson(doc, response);
+  server.send(200, "application/json", response);
 }
 
 void handleMultiPoiPair() {

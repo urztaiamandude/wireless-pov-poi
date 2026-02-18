@@ -138,7 +138,7 @@ const App: React.FC = () => {
   );
 };
 
-const NavItem: React.FC<{ active: boolean, onClick: () => void, icon: React.ReactNode, label: string }> = ({ active, onClick, icon, label }) => (
+const NavItem = React.memo<{ active: boolean, onClick: () => void, icon: React.ReactNode, label: string }>(({ active, onClick, icon, label }) => (
   <button
     onClick={onClick}
     className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
@@ -150,6 +150,8 @@ const NavItem: React.FC<{ active: boolean, onClick: () => void, icon: React.Reac
     {icon}
     <span className="font-medium">{label}</span>
   </button>
-);
+));
+
+NavItem.displayName = 'NavItem';
 
 export default App;
