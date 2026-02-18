@@ -12,6 +12,7 @@
  * - Image/pattern/sequence management
  * - Serial communication with Teensy
  * - REST API for web UI and integrations
+ * - ESP-NOW multi-poi synchronization (mirror + independent modes)
  */
 
 #include <WiFi.h>
@@ -26,6 +27,9 @@
 #ifdef BLE_ENABLED
 #include "src/ble_bridge.h"
 #endif
+
+// ESP-NOW multi-poi sync
+#include "src/espnow_sync.h"
 
 // Forward declarations for PlatformIO compilation
 void setupWiFi();
@@ -50,7 +54,7 @@ void sendFile(const char* path, const char* contentType);
 void sendTeensyCommand(uint8_t cmd, uint8_t dataLen);
 bool readTeensyResponse(uint8_t expectedMarker, uint8_t* buffer, size_t maxLen, size_t& bytesRead, unsigned long timeout = 500);
 
-// Sync function declarations
+// Sync function declarations (legacy HTTP sync)
 void handleSyncStatus();
 void handleSyncDiscover();
 void handleSyncExecute();
@@ -63,6 +67,19 @@ void performSync(String peerId);
 String getDeviceId();
 void loadDeviceConfig();
 void saveDeviceConfig();
+
+// ESP-NOW multi-poi sync declarations
+void setupESPNowSync();
+void handleMultiPoiStatus();
+void handleMultiPoiPair();
+void handleMultiPoiUnpair();
+void handleMultiPoiSyncMode();
+void handleMultiPoiPeerCmd();
+void applyModeToTeensy(uint8_t mode, uint8_t index);
+void applyPatternToTeensy(uint8_t idx, uint8_t type, uint8_t r1, uint8_t g1, uint8_t b1, uint8_t r2, uint8_t g2, uint8_t b2, uint8_t speed);
+void applyBrightnessToTeensy(uint8_t brightness);
+void applyFrameRateToTeensy(uint8_t frameDelay);
+void applySyncTimeToTeensy(int32_t offsetMs);
 
 // WiFi Configuration
 const char* ssid = "POV-POI-WiFi";
@@ -113,10 +130,14 @@ struct PeerDevice {
   bool online;
 };
 
-// Maximum peers
+// Maximum peers (legacy HTTP sync)
 #define MAX_PEERS 5
 PeerDevice peers[MAX_PEERS];
 int peerCount = 0;
+
+// ESP-NOW multi-poi sync
+ESPNowSync espNowSync;
+bool _syncCommandInProgress = false;  // Prevents echo loops when applying peer commands
 
 // System state
 struct SystemState {
@@ -162,10 +183,13 @@ void setup() {
   
   // Initialize WiFi Access Point
   setupWiFi();
-  
+
+  // Initialize ESP-NOW multi-poi sync (must be after WiFi init)
+  setupESPNowSync();
+
   // Initialize web server
   setupWebServer();
-  
+
   // Initialize mDNS
   String mdnsName = "povpoi-" + deviceConfig.deviceId.substring(deviceConfig.deviceId.length() - 6);
   mdnsName.replace(":", "");
@@ -201,12 +225,19 @@ void loop() {
   #endif
   
   server.handleClient();
-  
+
+  // ESP-NOW sync loop (heartbeats, time sync, peer timeouts)
+  espNowSync.loop();
+
   // Check Teensy connection periodically
   static unsigned long lastCheck = 0;
   if (millis() - lastCheck > 5000) {
     lastCheck = millis();
     checkTeensyConnection();
+    // Keep sync heartbeat state up to date
+    espNowSync.setLocalState(state.currentMode, state.currentIndex,
+                             state.brightness,
+                             state.frameRate > 0 ? 1000 / state.frameRate : 20);
   }
   
   // Periodic peer discovery
@@ -279,6 +310,13 @@ void setupWebServer() {
   // Device configuration endpoints
   server.on("/api/device/config", HTTP_GET, handleDeviceConfig);
   server.on("/api/device/config", HTTP_POST, handleDeviceConfigUpdate);
+
+  // ESP-NOW multi-poi sync endpoints
+  server.on("/api/multipoi/status", HTTP_GET, handleMultiPoiStatus);
+  server.on("/api/multipoi/pair", HTTP_POST, handleMultiPoiPair);
+  server.on("/api/multipoi/unpair", HTTP_POST, handleMultiPoiUnpair);
+  server.on("/api/multipoi/syncmode", HTTP_POST, handleMultiPoiSyncMode);
+  server.on("/api/multipoi/peercmd", HTTP_POST, handleMultiPoiPeerCmd);
   
   // SD card management endpoints
   server.on("/api/sd/list", HTTP_GET, handleSDList);
@@ -761,6 +799,47 @@ void handleRoot() {
                 <button onclick="clearCanvas()" style="margin-top: 10px;">Clear</button>
             </div>
             
+            <!-- Multi-Poi Sync -->
+            <div class="section" id="sync-section">
+                <h2>Multi-Poi Sync</h2>
+                <div id="sync-status-box" style="margin-bottom: 15px; padding: 10px; background: rgba(102, 126, 234, 0.1); border-radius: 5px;">
+                    <div>This Poi: <span id="sync-local-name">--</span></div>
+                    <div>Sync Mode: <strong><span id="sync-mode-display">Mirror</span></strong></div>
+                    <div>Paired: <span id="sync-paired-status">No peers</span></div>
+                </div>
+
+                <!-- Sync mode toggle -->
+                <div class="control-group">
+                    <label>Sync Mode:</label>
+                    <div style="display: flex; gap: 10px;">
+                        <button id="btn-mirror" onclick="setSyncMode('mirror')" style="flex:1; background: #667eea; color: white;">Mirror</button>
+                        <button id="btn-independent" onclick="setSyncMode('independent')" style="flex:1; background: #ddd; color: #333;">Independent</button>
+                    </div>
+                    <div style="margin-top: 8px; font-size: 13px; color: #666;">
+                        <strong>Mirror:</strong> Both poi show the same thing.<br>
+                        <strong>Independent:</strong> Control each poi separately.
+                    </div>
+                </div>
+
+                <!-- Pairing controls -->
+                <div class="control-group" style="margin-top: 15px;">
+                    <label>Pairing:</label>
+                    <div style="display: flex; gap: 10px;">
+                        <button onclick="pairPoi()" style="flex:1; background: #4CAF50; color: white;">Pair</button>
+                        <button onclick="unpairPoi()" style="flex:1; background: #f44336; color: white;">Unpair All</button>
+                    </div>
+                </div>
+
+                <!-- Peer list -->
+                <div id="sync-peer-list" style="margin-top: 10px;"></div>
+
+                <!-- Independent mode: peer controls (hidden in mirror mode) -->
+                <div id="independent-controls" style="display: none; margin-top: 15px; border-top: 2px solid #667eea; padding-top: 15px;">
+                    <h3 style="color: #667eea; margin-bottom: 10px;">Paired Poi Controls</h3>
+                    <div id="peer-control-panels"></div>
+                </div>
+            </div>
+
             <!-- SD Card Management -->
             <div class="section">
                 <h2>💾 SD Card Storage</h2>
@@ -1326,6 +1405,204 @@ void handleRoot() {
         setInterval(updateSDStatus, 5000);
         setInterval(refreshSDList, 10000);
         
+        // ========== Multi-Poi Sync ==========
+        let currentSyncMode = 'mirror';
+        let syncPeers = [];
+
+        async function updateSyncStatus() {
+            try {
+                const response = await fetch('/api/multipoi/status');
+                const data = await response.json();
+
+                document.getElementById('sync-local-name').textContent = data.localName || '--';
+                currentSyncMode = data.syncMode || 'mirror';
+                document.getElementById('sync-mode-display').textContent =
+                    currentSyncMode === 'mirror' ? 'Mirror' : 'Independent';
+
+                // Update mode buttons
+                const btnMirror = document.getElementById('btn-mirror');
+                const btnIndep = document.getElementById('btn-independent');
+                if (currentSyncMode === 'mirror') {
+                    btnMirror.style.background = '#667eea';
+                    btnMirror.style.color = 'white';
+                    btnIndep.style.background = '#ddd';
+                    btnIndep.style.color = '#333';
+                } else {
+                    btnIndep.style.background = '#667eea';
+                    btnIndep.style.color = 'white';
+                    btnMirror.style.background = '#ddd';
+                    btnMirror.style.color = '#333';
+                }
+
+                // Show/hide independent controls
+                document.getElementById('independent-controls').style.display =
+                    currentSyncMode === 'independent' ? 'block' : 'none';
+
+                syncPeers = data.peers || [];
+                const pairedCount = syncPeers.filter(p => p.state === 3 && p.online).length;
+                document.getElementById('sync-paired-status').textContent =
+                    pairedCount > 0 ? pairedCount + ' peer(s) online' : 'No peers';
+
+                // Render peer list
+                const peerList = document.getElementById('sync-peer-list');
+                if (syncPeers.length === 0) {
+                    peerList.innerHTML = '<div style="text-align:center;color:#999;font-size:13px;">No paired poi found. Tap Pair to discover.</div>';
+                } else {
+                    let html = '';
+                    syncPeers.forEach((peer, i) => {
+                        const stateNames = ['None','Discovering','Requesting','Paired'];
+                        const statusColor = peer.online ? '#4CAF50' : '#f44336';
+                        const statusText = peer.online ? 'Online' : 'Offline';
+                        html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px;margin:4px 0;background:white;border-radius:5px;border-left:4px solid ' + statusColor + ';">';
+                        html += '<div><strong>' + (peer.name || 'Unknown') + '</strong>';
+                        html += '<br><span style="font-size:12px;color:#666;">' + statusText + ' | ' + stateNames[peer.state] + '</span></div>';
+                        html += '<button onclick="unpairSingle(' + i + ')" style="padding:5px 10px;font-size:12px;background:#f44336;color:white;border:none;border-radius:3px;cursor:pointer;min-height:30px;width:auto;">Unpair</button>';
+                        html += '</div>';
+                    });
+                    peerList.innerHTML = html;
+                }
+
+                // Render per-peer control panels (independent mode)
+                if (currentSyncMode === 'independent') {
+                    renderPeerControls();
+                }
+            } catch (e) {
+                console.error('Sync status error:', e);
+            }
+        }
+
+        function renderPeerControls() {
+            const container = document.getElementById('peer-control-panels');
+            const onlinePeers = syncPeers.filter(p => p.state === 3 && p.online);
+            if (onlinePeers.length === 0) {
+                container.innerHTML = '<div style="text-align:center;color:#999;">No online peers to control.</div>';
+                return;
+            }
+            let html = '';
+            syncPeers.forEach((peer, i) => {
+                if (peer.state !== 3 || !peer.online) return;
+                html += '<div style="margin-bottom:15px;padding:12px;background:white;border-radius:8px;border:2px solid #667eea;">';
+                html += '<div style="font-weight:bold;color:#667eea;margin-bottom:8px;">' + (peer.name || 'Peer ' + i) + '</div>';
+
+                // Mode selector for this peer
+                html += '<div style="margin-bottom:8px;">';
+                html += '<label style="font-size:13px;">Mode:</label>';
+                html += '<select id="peer-mode-' + i + '" style="width:100%;padding:8px;margin-top:4px;" onchange="sendPeerMode(' + i + ')">';
+                html += '<option value="0">Idle</option><option value="1">Image</option><option value="2">Pattern</option><option value="3">Sequence</option>';
+                html += '</select></div>';
+
+                // Pattern buttons for this peer
+                html += '<div style="margin-bottom:8px;">';
+                html += '<label style="font-size:13px;">Quick Pattern:</label>';
+                html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:4px;">';
+                const patterns = [
+                    {t:0,n:'Rainbow'},{t:4,n:'Fire'},{t:5,n:'Comet'},
+                    {t:6,n:'Breathe'},{t:10,n:'Plasma'},{t:3,n:'Sparkle'},
+                    {t:16,n:'Split'},{t:17,n:'Chase'},{t:7,n:'Strobe'}
+                ];
+                patterns.forEach(p => {
+                    html += '<button onclick="sendPeerPattern(' + i + ',' + p.t + ')" style="padding:6px;font-size:11px;background:#764ba2;color:white;border:none;border-radius:4px;cursor:pointer;min-height:32px;width:auto;">' + p.n + '</button>';
+                });
+                html += '</div></div>';
+
+                // Brightness for this peer
+                html += '<div>';
+                html += '<label style="font-size:13px;">Brightness: <span id="peer-bright-val-' + i + '">' + (peer.brightness || 128) + '</span></label>';
+                html += '<input type="range" min="0" max="255" value="' + (peer.brightness || 128) + '" oninput="sendPeerBrightness(' + i + ',this.value);document.getElementById(\'peer-bright-val-' + i + '\').textContent=this.value" style="width:100%;">';
+                html += '</div>';
+
+                html += '</div>';
+            });
+            container.innerHTML = html;
+        }
+
+        async function setSyncMode(mode) {
+            try {
+                await fetch('/api/multipoi/syncmode', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({mode: mode})
+                });
+                currentSyncMode = mode;
+                updateSyncStatus();
+            } catch (e) {
+                console.error('Set sync mode error:', e);
+            }
+        }
+
+        async function pairPoi() {
+            try {
+                await fetch('/api/multipoi/pair', { method: 'POST' });
+                // Poll for results after a brief delay
+                setTimeout(updateSyncStatus, 2000);
+            } catch (e) {
+                console.error('Pair error:', e);
+            }
+        }
+
+        async function unpairPoi() {
+            try {
+                await fetch('/api/multipoi/unpair', { method: 'POST' });
+                updateSyncStatus();
+            } catch (e) {
+                console.error('Unpair error:', e);
+            }
+        }
+
+        async function unpairSingle(index) {
+            try {
+                await fetch('/api/multipoi/unpair', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({index: index})
+                });
+                updateSyncStatus();
+            } catch (e) {
+                console.error('Unpair single error:', e);
+            }
+        }
+
+        async function sendPeerMode(peerIndex) {
+            const mode = parseInt(document.getElementById('peer-mode-' + peerIndex).value);
+            try {
+                await fetch('/api/multipoi/peercmd', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({peer: peerIndex, cmd: 'mode', mode: mode, index: 0})
+                });
+            } catch (e) { console.error(e); }
+        }
+
+        async function sendPeerPattern(peerIndex, type) {
+            const color1 = hexToRgb(document.getElementById('color1').value);
+            const color2 = hexToRgb(document.getElementById('color2').value);
+            const speed = parseInt(document.getElementById('pattern-speed').value);
+            try {
+                await fetch('/api/multipoi/peercmd', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        peer: peerIndex, cmd: 'pattern', index: 0, type: type,
+                        color1: color1, color2: color2, speed: speed
+                    })
+                });
+            } catch (e) { console.error(e); }
+        }
+
+        async function sendPeerBrightness(peerIndex, brightness) {
+            try {
+                await fetch('/api/multipoi/peercmd', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({peer: peerIndex, cmd: 'brightness', brightness: parseInt(brightness)})
+                });
+            } catch (e) { console.error(e); }
+        }
+
+        // Initialize sync status polling
+        updateSyncStatus();
+        setInterval(updateSyncStatus, 3000);
+
         // PWA Install Prompt
         let deferredPrompt;
         
@@ -1394,7 +1671,12 @@ void handleSetMode() {
     TEENSY_SERIAL.write(state.currentMode);
     TEENSY_SERIAL.write(state.currentIndex);
     TEENSY_SERIAL.write(0xFE);
-    
+
+    // Broadcast to paired peers via ESP-NOW (mirror mode)
+    if (!_syncCommandInProgress) {
+      espNowSync.broadcastModeChange(state.currentMode, state.currentIndex);
+    }
+
     server.send(200, "application/json", "{\"status\":\"ok\"}");
   } else {
     server.send(400, "application/json", "{\"error\":\"No data\"}");
@@ -1413,7 +1695,12 @@ void handleSetBrightness() {
       sendTeensyCommand(0x06, 1);
       TEENSY_SERIAL.write(state.brightness);
       TEENSY_SERIAL.write(0xFE);
-      
+
+      // Broadcast to paired peers via ESP-NOW (mirror mode)
+      if (!_syncCommandInProgress) {
+        espNowSync.broadcastBrightness(state.brightness);
+      }
+
       server.send(200, "application/json", "{\"status\":\"ok\"}");
       return;
     }
@@ -1429,12 +1716,17 @@ void handleSetFrameRate() {
     if (idx != -1) {
       state.frameRate = body.substring(idx + 12, body.indexOf("}", idx)).toInt();
       uint8_t frameDelay = 1000 / state.frameRate;
-      
+
       // Send command to Teensy
       sendTeensyCommand(0x07, 1);
       TEENSY_SERIAL.write(frameDelay);
       TEENSY_SERIAL.write(0xFE);
-      
+
+      // Broadcast to paired peers via ESP-NOW (mirror mode)
+      if (!_syncCommandInProgress) {
+        espNowSync.broadcastFrameRate(frameDelay);
+      }
+
       server.send(200, "application/json", "{\"status\":\"ok\"}");
       return;
     }
@@ -1546,7 +1838,12 @@ void handleUploadPattern() {
     TEENSY_SERIAL.write(b2);
     TEENSY_SERIAL.write(speed);
     TEENSY_SERIAL.write(0xFE);
-    
+
+    // Broadcast to paired peers via ESP-NOW (mirror mode)
+    if (!_syncCommandInProgress) {
+      espNowSync.broadcastPattern(index, type, r1, g1, b1, r2, g2, b2, speed);
+    }
+
     server.send(200, "application/json", "{\"status\":\"ok\"}");
   } else {
     server.send(400, "application/json", "{\"error\":\"No data\"}");
@@ -2082,7 +2379,314 @@ void checkTeensyConnection() {
 }
 
 // ============================================================================
-// PEER-TO-PEER SYNC IMPLEMENTATION
+// ESP-NOW MULTI-POI SYNC IMPLEMENTATION
+// ============================================================================
+
+void setupESPNowSync() {
+  String name = deviceConfig.deviceName;
+  if (name.length() == 0) name = "Nebula Poi";
+
+  if (!espNowSync.begin(name.c_str())) {
+    Serial.println("[SYNC] ESP-NOW setup failed!");
+    return;
+  }
+
+  // Register callbacks - these fire when a paired peer sends us a command
+  espNowSync.onModeChange([](uint8_t mode, uint8_t index) {
+    applyModeToTeensy(mode, index);
+  });
+
+  espNowSync.onPattern([](uint8_t idx, uint8_t type,
+                          uint8_t r1, uint8_t g1, uint8_t b1,
+                          uint8_t r2, uint8_t g2, uint8_t b2,
+                          uint8_t speed) {
+    applyPatternToTeensy(idx, type, r1, g1, b1, r2, g2, b2, speed);
+  });
+
+  espNowSync.onBrightness([](uint8_t brightness) {
+    applyBrightnessToTeensy(brightness);
+  });
+
+  espNowSync.onFrameRate([](uint8_t frameDelay) {
+    applyFrameRateToTeensy(frameDelay);
+  });
+
+  espNowSync.onSyncTime([](int32_t offsetMs) {
+    applySyncTimeToTeensy(offsetMs);
+  });
+
+  espNowSync.onPeerUpdate([](const SyncPeer* peer) {
+    Serial.printf("[SYNC] Peer update: '%s' online=%d state=%d\n",
+      peer->name, peer->online, peer->state);
+  });
+
+  Serial.println("[SYNC] ESP-NOW multi-poi sync ready");
+}
+
+// Apply commands received from a paired peer to the local Teensy
+// The _syncCommandInProgress flag prevents the web handler broadcasts
+// from echoing the command back to the peer that sent it.
+
+void applyModeToTeensy(uint8_t mode, uint8_t index) {
+  _syncCommandInProgress = true;
+  state.currentMode = mode;
+  state.currentIndex = index;
+  sendTeensyCommand(0x01, 2);
+  TEENSY_SERIAL.write(mode);
+  TEENSY_SERIAL.write(index);
+  TEENSY_SERIAL.write(0xFE);
+  Serial.printf("[SYNC] Applied mode=%d index=%d from peer\n", mode, index);
+  _syncCommandInProgress = false;
+}
+
+void applyPatternToTeensy(uint8_t idx, uint8_t type,
+                          uint8_t r1, uint8_t g1, uint8_t b1,
+                          uint8_t r2, uint8_t g2, uint8_t b2,
+                          uint8_t speed) {
+  _syncCommandInProgress = true;
+  sendTeensyCommand(0x03, 9);
+  TEENSY_SERIAL.write(idx);
+  TEENSY_SERIAL.write(type);
+  TEENSY_SERIAL.write(r1);
+  TEENSY_SERIAL.write(g1);
+  TEENSY_SERIAL.write(b1);
+  TEENSY_SERIAL.write(r2);
+  TEENSY_SERIAL.write(g2);
+  TEENSY_SERIAL.write(b2);
+  TEENSY_SERIAL.write(speed);
+  TEENSY_SERIAL.write(0xFE);
+
+  // Also set mode to pattern display
+  state.currentMode = 2;
+  state.currentIndex = idx;
+  sendTeensyCommand(0x01, 2);
+  TEENSY_SERIAL.write(state.currentMode);
+  TEENSY_SERIAL.write(state.currentIndex);
+  TEENSY_SERIAL.write(0xFE);
+
+  Serial.printf("[SYNC] Applied pattern type=%d from peer\n", type);
+  _syncCommandInProgress = false;
+}
+
+void applyBrightnessToTeensy(uint8_t brightness) {
+  _syncCommandInProgress = true;
+  state.brightness = brightness;
+  sendTeensyCommand(0x06, 1);
+  TEENSY_SERIAL.write(brightness);
+  TEENSY_SERIAL.write(0xFE);
+  Serial.printf("[SYNC] Applied brightness=%d from peer\n", brightness);
+  _syncCommandInProgress = false;
+}
+
+void applyFrameRateToTeensy(uint8_t frameDelay) {
+  _syncCommandInProgress = true;
+  // Reverse-calculate FPS for state tracking
+  if (frameDelay > 0) {
+    state.frameRate = 1000 / frameDelay;
+  }
+  sendTeensyCommand(0x07, 1);
+  TEENSY_SERIAL.write(frameDelay);
+  TEENSY_SERIAL.write(0xFE);
+  Serial.printf("[SYNC] Applied frameDelay=%d from peer\n", frameDelay);
+  _syncCommandInProgress = false;
+}
+
+void applySyncTimeToTeensy(int32_t offsetMs) {
+  // Send sync time offset to Teensy so pattern animations stay in phase
+  // Protocol: 0xFF 0x08 4 [offset_bytes:4] 0xFE
+  sendTeensyCommand(0x08, 4);
+  TEENSY_SERIAL.write((uint8_t)(offsetMs >> 24));
+  TEENSY_SERIAL.write((uint8_t)(offsetMs >> 16));
+  TEENSY_SERIAL.write((uint8_t)(offsetMs >> 8));
+  TEENSY_SERIAL.write((uint8_t)(offsetMs & 0xFF));
+  TEENSY_SERIAL.write(0xFE);
+}
+
+// REST API endpoints for multi-poi control
+
+void handleMultiPoiStatus() {
+  // Update local state in sync object
+  espNowSync.setLocalState(state.currentMode, state.currentIndex,
+                           state.brightness, 1000 / max((uint8_t)1, state.frameRate));
+
+  String json = "{";
+  json += "\"syncMode\":\"" + String(espNowSync.getSyncMode() == SYNC_MIRROR ? "mirror" : "independent") + "\",";
+  json += "\"localName\":\"" + String(espNowSync.getLocalName()) + "\",";
+
+  // Local MAC
+  const uint8_t* mac = espNowSync.getLocalMac();
+  char macStr[18];
+  snprintf(macStr, sizeof(macStr), "%02X:%02X:%02X:%02X:%02X:%02X",
+    mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+  json += "\"localMac\":\"" + String(macStr) + "\",";
+  json += "\"hasPairedPeer\":" + String(espNowSync.hasPairedPeer() ? "true" : "false") + ",";
+  json += "\"autoPair\":" + String(espNowSync.getAutoPair() ? "true" : "false") + ",";
+  json += "\"peers\":[";
+
+  for (int i = 0; i < espNowSync.getPeerCount(); i++) {
+    const SyncPeer* peer = espNowSync.getPeer(i);
+    if (!peer) continue;
+    if (i > 0) json += ",";
+    char peerMac[18];
+    snprintf(peerMac, sizeof(peerMac), "%02X:%02X:%02X:%02X:%02X:%02X",
+      peer->mac[0], peer->mac[1], peer->mac[2],
+      peer->mac[3], peer->mac[4], peer->mac[5]);
+    json += "{";
+    json += "\"name\":\"" + String(peer->name) + "\",";
+    json += "\"mac\":\"" + String(peerMac) + "\",";
+    json += "\"state\":" + String(peer->state) + ",";
+    json += "\"online\":" + String(peer->online ? "true" : "false") + ",";
+    json += "\"mode\":" + String(peer->currentMode) + ",";
+    json += "\"index\":" + String(peer->currentIndex) + ",";
+    json += "\"brightness\":" + String(peer->brightness);
+    json += "}";
+  }
+
+  json += "]}";
+  server.send(200, "application/json", json);
+}
+
+void handleMultiPoiPair() {
+  espNowSync.startPairing();
+  server.send(200, "application/json", "{\"status\":\"ok\",\"message\":\"Pair request broadcast\"}");
+}
+
+void handleMultiPoiUnpair() {
+  if (server.hasArg("plain")) {
+    String body = server.arg("plain");
+    int indexIdx = body.indexOf("\"index\":");
+    if (indexIdx != -1) {
+      int peerIdx = body.substring(indexIdx + 8).toInt();
+      espNowSync.unpairPeer(peerIdx);
+      server.send(200, "application/json", "{\"status\":\"ok\"}");
+      return;
+    }
+  }
+  // No index specified - unpair all
+  espNowSync.unpairAll();
+  server.send(200, "application/json", "{\"status\":\"ok\",\"message\":\"All peers unpaired\"}");
+}
+
+void handleMultiPoiSyncMode() {
+  if (!server.hasArg("plain")) {
+    server.send(400, "application/json", "{\"error\":\"No data\"}");
+    return;
+  }
+
+  String body = server.arg("plain");
+  int modeIdx = body.indexOf("\"mode\":");
+  if (modeIdx == -1) {
+    server.send(400, "application/json", "{\"error\":\"Missing mode\"}");
+    return;
+  }
+
+  String modeStr = body.substring(modeIdx + 7);
+  modeStr.trim();
+
+  if (modeStr.startsWith("\"mirror\"") || modeStr.startsWith("0")) {
+    espNowSync.setSyncMode(SYNC_MIRROR);
+  } else if (modeStr.startsWith("\"independent\"") || modeStr.startsWith("1")) {
+    espNowSync.setSyncMode(SYNC_INDEPENDENT);
+  } else {
+    server.send(400, "application/json", "{\"error\":\"Invalid mode (use mirror or independent)\"}");
+    return;
+  }
+
+  server.send(200, "application/json",
+    "{\"status\":\"ok\",\"syncMode\":\"" +
+    String(espNowSync.getSyncMode() == SYNC_MIRROR ? "mirror" : "independent") + "\"}");
+}
+
+void handleMultiPoiPeerCmd() {
+  // Send a command to a specific peer (used in independent mode)
+  // JSON: {"peer": 0, "cmd": "mode", "mode": 2, "index": 0}
+  //       {"peer": 0, "cmd": "pattern", "type": 0, "color1":{"r":255,"g":0,"b":0}, "color2":{"r":0,"g":0,"b":255}, "speed": 50, "index": 0}
+  //       {"peer": 0, "cmd": "brightness", "brightness": 200}
+  //       {"peer": 0, "cmd": "framerate", "framerate": 60}
+  if (!server.hasArg("plain")) {
+    server.send(400, "application/json", "{\"error\":\"No data\"}");
+    return;
+  }
+
+  String body = server.arg("plain");
+
+  // Parse peer index
+  int peerFieldIdx = body.indexOf("\"peer\":");
+  if (peerFieldIdx == -1) {
+    server.send(400, "application/json", "{\"error\":\"Missing peer index\"}");
+    return;
+  }
+  int peerIdx = body.substring(peerFieldIdx + 7).toInt();
+
+  // Parse command type
+  int cmdFieldIdx = body.indexOf("\"cmd\":");
+  if (cmdFieldIdx == -1) {
+    server.send(400, "application/json", "{\"error\":\"Missing cmd\"}");
+    return;
+  }
+  int cmdStart = body.indexOf("\"", cmdFieldIdx + 6) + 1;
+  int cmdEnd = body.indexOf("\"", cmdStart);
+  String cmd = body.substring(cmdStart, cmdEnd);
+
+  if (cmd == "mode") {
+    int mIdx = body.indexOf("\"mode\":", cmdEnd);
+    int iIdx = body.indexOf("\"index\":");
+    uint8_t mode = (mIdx != -1) ? body.substring(mIdx + 7).toInt() : 0;
+    uint8_t index = (iIdx != -1) ? body.substring(iIdx + 8).toInt() : 0;
+    espNowSync.sendPeerModeChange(peerIdx, mode, index);
+  }
+  else if (cmd == "pattern") {
+    uint8_t type = 0, r1 = 255, g1 = 0, b1 = 0, r2 = 0, g2 = 0, b2 = 255, speed = 50, idx = 0;
+    int tIdx = body.indexOf("\"type\":");
+    if (tIdx != -1) type = body.substring(tIdx + 7).toInt();
+    int sIdx = body.indexOf("\"speed\":");
+    if (sIdx != -1) speed = body.substring(sIdx + 8).toInt();
+    int iIdx = body.indexOf("\"index\":");
+    if (iIdx != -1) idx = body.substring(iIdx + 8).toInt();
+
+    int c1 = body.indexOf("\"color1\"");
+    if (c1 != -1) {
+      String c1s = body.substring(c1, body.indexOf("}", c1) + 1);
+      int ri = c1s.indexOf("\"r\":");
+      int gi = c1s.indexOf("\"g\":");
+      int bi = c1s.indexOf("\"b\":");
+      if (ri != -1) r1 = c1s.substring(ri + 4).toInt();
+      if (gi != -1) g1 = c1s.substring(gi + 4).toInt();
+      if (bi != -1) b1 = c1s.substring(bi + 4).toInt();
+    }
+    int c2 = body.indexOf("\"color2\"");
+    if (c2 != -1) {
+      String c2s = body.substring(c2, body.indexOf("}", c2) + 1);
+      int ri = c2s.indexOf("\"r\":");
+      int gi = c2s.indexOf("\"g\":");
+      int bi = c2s.indexOf("\"b\":");
+      if (ri != -1) r2 = c2s.substring(ri + 4).toInt();
+      if (gi != -1) g2 = c2s.substring(gi + 4).toInt();
+      if (bi != -1) b2 = c2s.substring(bi + 4).toInt();
+    }
+    espNowSync.sendPeerPattern(peerIdx, idx, type, r1, g1, b1, r2, g2, b2, speed);
+  }
+  else if (cmd == "brightness") {
+    int bIdx = body.indexOf("\"brightness\":");
+    uint8_t brightness = (bIdx != -1) ? body.substring(bIdx + 13).toInt() : 128;
+    espNowSync.sendPeerBrightness(peerIdx, brightness);
+  }
+  else if (cmd == "framerate") {
+    int fIdx = body.indexOf("\"framerate\":");
+    uint8_t fps = (fIdx != -1) ? body.substring(fIdx + 12).toInt() : 50;
+    uint8_t frameDelay = 1000 / max((uint8_t)1, fps);
+    espNowSync.sendPeerFrameRate(peerIdx, frameDelay);
+  }
+  else {
+    server.send(400, "application/json", "{\"error\":\"Unknown cmd\"}");
+    return;
+  }
+
+  server.send(200, "application/json", "{\"status\":\"ok\"}");
+}
+
+// ============================================================================
+// LEGACY PEER-TO-PEER SYNC IMPLEMENTATION (HTTP/mDNS)
 // ============================================================================
 
 // Load device configuration from preferences

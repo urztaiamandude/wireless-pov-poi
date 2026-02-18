@@ -142,6 +142,11 @@ uint32_t frameDelay = 20;  // 50 FPS default
 uint8_t currentColumn = 0;
 bool displaying = false;
 
+// Multi-poi sync time offset (in milliseconds)
+// When synced with a peer, this offset adjusts pattern timing so both poi
+// animate in phase. Positive means peer clock is ahead of ours.
+int32_t syncTimeOffset = 0;
+
 // Sequence state tracking
 uint8_t currentSequenceItem = 0;
 uint32_t sequenceStartTime = 0;
@@ -535,7 +540,20 @@ void parseCommand() {
       }
       sendAck(cmd);
       break;
-      
+
+    case 0x08:  // Sync time offset (multi-poi phase alignment)
+      if (dataLen >= 4) {
+        syncTimeOffset = ((int32_t)cmdBuffer[3] << 24) |
+                         ((int32_t)cmdBuffer[4] << 16) |
+                         ((int32_t)cmdBuffer[5] << 8) |
+                         (int32_t)cmdBuffer[6];
+        Serial.print("Sync time offset set to: ");
+        Serial.print(syncTimeOffset);
+        Serial.println(" ms");
+      }
+      sendAck(cmd);
+      break;
+
     case 0x10:  // Status request
       sendStatus();
       break;
@@ -760,10 +778,12 @@ void displayPattern() {
     FastLED.clear();
     return;
   }
-  
+
   Pattern& pat = patterns[currentIndex];
-  static uint32_t patternTime = 0;
-  patternTime++;
+  // Use millis-based time with sync offset so paired poi animate in phase.
+  // Dividing by frameDelay approximates the old frame-counter behavior
+  // while being clock-aligned across devices.
+  uint32_t patternTime = (uint32_t)((int32_t)millis() + syncTimeOffset) / max((uint32_t)1, frameDelay);
   
   switch (pat.type) {
     case 0:  // Rainbow
