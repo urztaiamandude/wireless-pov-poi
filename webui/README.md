@@ -155,7 +155,7 @@ Modify this array to match your multi-device setup.
 
 ## Project Structure
 
-```
+```text
 webui/
 ├── components/          # React components
 │   ├── Dashboard.tsx    # Fleet control interface
