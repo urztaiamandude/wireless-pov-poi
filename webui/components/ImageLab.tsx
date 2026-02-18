@@ -63,21 +63,29 @@ const ImageLab: React.FC<ImageLabProps> = ({ onPreviewUpdate, initialPreview, le
     if (!ctx) throw new Error("Context failed");
     const width = canvas.width;
     const height = canvas.height;
+    
+    // BMP row padding: Each row must be padded to a 4-byte boundary
+    // Formula: ((bitsPerPixel * width + 31) / 32) * 4
+    // For 24-bit BMPs: ((24 * width + 31) / 32) * 4
     const rowSize = Math.floor((24 * width + 31) / 32) * 4;
     const pixelDataSize = rowSize * height;
     const fileSize = 54 + pixelDataSize;
     const buffer = new ArrayBuffer(fileSize);
     const view = new DataView(buffer);
 
-    view.setUint8(0, 0x42); view.setUint8(1, 0x4D);
+    // BMP Header
+    view.setUint8(0, 0x42); view.setUint8(1, 0x4D); // "BM"
     view.setUint32(2, fileSize, true);
-    view.setUint32(10, 54, true);
-    view.setUint32(14, 40, true);
+    view.setUint32(10, 54, true); // Pixel data offset
+    
+    // DIB Header (BITMAPINFOHEADER)
+    view.setUint32(14, 40, true); // DIB header size
     view.setInt32(18, width, true);
     view.setInt32(22, height, true);
-    view.setUint16(26, 1, true);
-    view.setUint16(28, 24, true);
+    view.setUint16(26, 1, true); // Color planes
+    view.setUint16(28, 24, true); // Bits per pixel
 
+    // Pixel data (bottom-up, BGR format)
     const imgData = ctx.getImageData(0, 0, width, height).data;
     let offset = 54;
     for (let y = height - 1; y >= 0; y--) {
@@ -87,6 +95,7 @@ const ImageLab: React.FC<ImageLabProps> = ({ onPreviewUpdate, initialPreview, le
         view.setUint8(offset++, imgData[i + 1]); // G
         view.setUint8(offset++, imgData[i]);     // R
       }
+      // Add row padding to align to 4-byte boundary
       for (let p = 0; p < rowSize - (width * 3); p++) view.setUint8(offset++, 0);
     }
     return new Blob([buffer], { type: 'image/bmp' });
@@ -155,7 +164,7 @@ const ImageLab: React.FC<ImageLabProps> = ({ onPreviewUpdate, initialPreview, le
     if (!selectedImage) return;
     const blob = canvasRef.current ? createBMP(canvasRef.current) : undefined;
     const newItem: SequenceItem = {
-      id: Math.random().toString(36).substr(2, 9),
+      id: crypto.randomUUID(),
       name: labMode === 'upload' ? 'Upload Frame' : `${patternType} Pattern`,
       dataUrl: selectedImage,
       blob,
@@ -222,31 +231,60 @@ const ImageLab: React.FC<ImageLabProps> = ({ onPreviewUpdate, initialPreview, le
         name: 'single_frame.bmp'
       }];
 
+      const failedUploadIps = new Set<string>();
+
       for (const [idx, item] of (targets as any[]).entries()) {
         if (!item.blob) continue;
         const formData = new FormData();
         const filename = `seq_${idx}.bmp`;
         formData.append('file', item.blob, filename);
 
-        // Push to all fleet IPs via POST /api/image
-        const syncPromises = FLEET_IPS.map(ip =>
-          fetch(`http://${ip}/api/image`, { method: 'POST', body: formData }).catch(() => {})
-        );
+        // Push to all fleet IPs via POST /api/image and track per-device status
+        const syncPromises = FLEET_IPS.map(async (ip) => {
+          try {
+            const response = await fetch(`http://${ip}/api/image`, { method: 'POST', body: formData });
+            if (!response.ok) {
+              failedUploadIps.add(ip);
+            }
+          } catch {
+            failedUploadIps.add(ip);
+          }
+        });
         await Promise.all(syncPromises);
       }
 
       // Auto-load the first frame after upload
+      const failedLoadIps = new Set<string>();
       if (targets.length > 0) {
-        const loadPromises = FLEET_IPS.map(ip =>
-          fetch(`http://${ip}/api/sd/load`, {
-            method: 'POST',
-            body: (() => { const f = new FormData(); f.append('file', 'seq_0.bmp'); return f; })()
-          }).catch(() => {})
-        );
+        const loadPromises = FLEET_IPS.map(async (ip) => {
+          const form = new FormData();
+          form.append('file', 'seq_0.bmp');
+          try {
+            const response = await fetch(`http://${ip}/api/sd/load`, {
+              method: 'POST',
+              body: form
+            });
+            if (!response.ok) {
+              failedLoadIps.add(ip);
+            }
+          } catch {
+            failedLoadIps.add(ip);
+          }
+        });
         await Promise.all(loadPromises);
       }
 
-      setStatus('Fleet sequence deployment successful. Frame loaded.');
+      if (failedUploadIps.size === 0 && failedLoadIps.size === 0) {
+        setStatus('Fleet sequence deployment successful. Frame loaded.');
+      } else {
+        const uploadFailures = failedUploadIps.size
+          ? ` Upload failed for: ${Array.from(failedUploadIps).join(', ')}.`
+          : '';
+        const loadFailures = failedLoadIps.size
+          ? ` Load failed for: ${Array.from(failedLoadIps).join(', ')}.`
+          : '';
+        setStatus(`Fleet sequence deployment completed with errors.${uploadFailures}${loadFailures}`);
+      }
     } catch {
       setStatus('Broadcast Error: Check POV-POI-WiFi connectivity.');
     } finally {

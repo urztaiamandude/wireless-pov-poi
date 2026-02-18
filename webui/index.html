@@ -9,17 +9,13 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="POV Architect">
   <title>POV Architect — Nebula POI</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/styles.css">
   <style>
-    /* Custom scrollbar for dark theme */
+    /* Custom scrollbar for dark theme - enhanced */
     .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
     .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
     .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 2px; }
     .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #475569; }
-
-    /* Fade-in animation */
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-    .animate-fadeIn { animation: fadeIn 0.25s ease-out both; }
 
     /* Pixelated canvas rendering for BMP preview */
     .image-pixelated { image-rendering: pixelated; }
