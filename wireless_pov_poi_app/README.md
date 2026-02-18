@@ -2,6 +2,51 @@
 
 Multi-platform Flutter application for controlling Wireless POV Poi devices via Bluetooth Low Energy (BLE).
 
+## ✨ New Enhanced Features (v2.0)
+
+This version includes major enhancements inspired by the WebUI plus app-specific improvements:
+
+### 🎨 Procedural Art Generator
+- Create organic flowing patterns or geometric designs
+- Real-time preview with adjustable complexity (2-20 levels)
+- Infinite color variations via hue seed control
+- One-tap save to pattern library
+
+### 📚 Enhanced Pattern Library
+- Search and filter patterns by name
+- Sort by name, date, or size
+- Grid/List view toggle
+- Batch selection and deletion
+- Pattern details with dimensions and file size
+
+### ⚙️ Advanced Settings
+- Quick brightness presets (5, 10, 15, 20, 25, 31)
+- Speed presets (100-2000ms)
+- Auto-connect toggle
+- Keep screen on option
+- Device configuration editor
+
+### 🚀 Fleet Management
+- Control multiple devices simultaneously
+- Synchronized or individual control modes
+- Global brightness/speed controls
+- Device status indicators
+- Play/Pause/Stop commands
+
+### 🎬 Sequence Editor
+- Visual timeline with drag-to-reorder
+- Configure pattern bank, slot, brightness, speed, duration per segment
+- Local preview playback
+- Upload sequences to Poi (max 70 segments)
+
+### 🏠 Enhanced Dashboard
+- Quick Actions grid for instant access
+- Fleet management via devices icon
+- Real-time connection status
+- Long-press title for hidden settings
+
+**See [ENHANCED_FEATURES.md](ENHANCED_FEATURES.md) for complete documentation.**
+
 ## Features
 
 - ✅ **Multi-platform**: Windows, Web (Chrome/Edge)
