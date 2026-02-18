@@ -159,9 +159,6 @@ webui/
 ### OTA Firmware Updates
 The Firmware Manager UI is complete, but the backend OTA endpoints (`/api/ota/esp32` and `/api/ota/teensy`) are not yet implemented in the ESP32 firmware. Use USB and Arduino IDE/PlatformIO for firmware updates until these endpoints are added.
 
-### AI Assistant
-The AI Assistant feature requires a Google Gemini API key. For security, the key should NOT be embedded in the client-side code. To enable this feature in production, implement a backend proxy endpoint on the ESP32 that forwards requests to the Gemini API.
-
 ### Tailwind CDN
 Currently using Tailwind via CDN, which is not optimal for production (large bundle, no tree-shaking). Follow the Tailwind CSS Setup section above to switch to a proper build configuration.
 
