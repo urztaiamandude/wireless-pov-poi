@@ -15,8 +15,8 @@ const WiringGuide: React.FC = () => {
           icon={<ArrowRightLeft className="text-cyan-400" />}
           title="UART Bridge"
           details={[
-            { from: "ESP32-S3 TX2 (GPIO 17)", to: "Teensy 4.1 RX1 (Pin 0)" },
-            { from: "ESP32-S3 RX2 (GPIO 18)", to: "Teensy 4.1 TX1 (Pin 1)" }
+            { from: "ESP32-S3 TX (GPIO 43)", to: "Teensy 4.1 RX1 (Pin 0)" },
+            { from: "ESP32-S3 RX (GPIO 44)", to: "Teensy 4.1 TX1 (Pin 1)" }
           ]}
         />
         <WiringCard

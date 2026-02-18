@@ -182,11 +182,12 @@ const ImageLab: React.FC<ImageLabProps> = ({ onPreviewUpdate, initialPreview, le
     setIsPlayingSequence(!isPlayingSequence);
   };
 
-  // Sync sequence state to ref to avoid resetting playback timer on sequence changes
+  // Keep sequenceRef in sync with sequence state
   useEffect(() => {
     sequenceRef.current = sequence;
   }, [sequence]);
 
+  // Playback timer - uses sequenceRef to avoid resetting when sequence content changes
   useEffect(() => {
     if (isPlayingSequence && sequenceRef.current.length > 0) {
       if (activeSequenceIndex === -1) setActiveSequenceIndex(0);
@@ -200,13 +201,14 @@ const ImageLab: React.FC<ImageLabProps> = ({ onPreviewUpdate, initialPreview, le
     return () => { if (playbackTimerRef.current) clearTimeout(playbackTimerRef.current); };
   }, [isPlayingSequence, activeSequenceIndex]);
 
+  // Update preview when active sequence index changes
   useEffect(() => {
-    if (activeSequenceIndex !== -1 && sequence[activeSequenceIndex]) {
-      const item = sequence[activeSequenceIndex];
+    if (activeSequenceIndex !== -1 && sequenceRef.current[activeSequenceIndex]) {
+      const item = sequenceRef.current[activeSequenceIndex];
       setSelectedImage(item.dataUrl);
       onPreviewUpdate(item.dataUrl);
     }
-  }, [activeSequenceIndex, sequence, onPreviewUpdate]);
+  }, [activeSequenceIndex, onPreviewUpdate]);
 
   // Fleet sync via POST /api/image (existing firmware endpoint)
   const handleFleetSync = async () => {
