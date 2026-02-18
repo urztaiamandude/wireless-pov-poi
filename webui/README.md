@@ -58,12 +58,14 @@ The output will be in the `dist/` directory, optimized for ESP32's SPIFFS/Little
 4. Upload to SPIFFS/LittleFS using the uploader tool
 
 **Arduino IDE:**
+
 ```bash
 # Install ESP32 Sketch Data Upload plugin
 # Tools > ESP32 Sketch Data Upload
 ```
 
 **PlatformIO:**
+
 ```bash
 cd ../esp32_firmware
 pio run --target uploadfs
