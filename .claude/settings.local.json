@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nAdd Claude Code guardrails: CLAUDE.md hard rules, LED 0 safety hook, firmware reviewer\n\n- Add hard rules section to top of CLAUDE.md enforcing LED index 0 constraint,\n  display height = 31, two-processor boundary, and image pixel format\n- Add PreToolUse hook \\(scripts/check_led_index.py\\) that blocks firmware edits\n  introducing LED index 0 display bugs before they reach the codebase\n- Add firmware-reviewer subagent \\(.claude/agents/\\) for embedded-specific code\n  review: memory safety, timing, serial protocol, hardware constraints\n- Add .claude/settings.json wiring the hook to Edit/Write events\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git push:*)"
+    ]
+  }
+}
