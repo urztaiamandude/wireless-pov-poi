@@ -40,6 +40,7 @@ const ImageLab: React.FC<ImageLabProps> = ({ onPreviewUpdate, initialPreview, le
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const playbackTimerRef = useRef<number | null>(null);
+  const sequenceRef = useRef<SequenceItem[]>([]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -181,26 +182,33 @@ const ImageLab: React.FC<ImageLabProps> = ({ onPreviewUpdate, initialPreview, le
     setIsPlayingSequence(!isPlayingSequence);
   };
 
+  // Keep sequenceRef in sync with sequence state
   useEffect(() => {
-    if (isPlayingSequence && sequence.length > 0) {
+    sequenceRef.current = sequence;
+  }, [sequence]);
+
+  // Playback timer - uses sequenceRef to avoid resetting when sequence content changes
+  useEffect(() => {
+    if (isPlayingSequence && sequenceRef.current.length > 0) {
       if (activeSequenceIndex === -1) setActiveSequenceIndex(0);
-      const currentItem = sequence[activeSequenceIndex === -1 ? 0 : activeSequenceIndex];
+      const currentItem = sequenceRef.current[activeSequenceIndex === -1 ? 0 : activeSequenceIndex];
       playbackTimerRef.current = window.setTimeout(() => {
-        setActiveSequenceIndex(prev => (prev + 1) % sequence.length);
+        setActiveSequenceIndex(prev => (prev + 1) % sequenceRef.current.length);
       }, currentItem.duration);
     } else {
       if (playbackTimerRef.current) clearTimeout(playbackTimerRef.current);
     }
     return () => { if (playbackTimerRef.current) clearTimeout(playbackTimerRef.current); };
-  }, [isPlayingSequence, activeSequenceIndex, sequence]);
+  }, [isPlayingSequence, activeSequenceIndex]);
 
+  // Update preview when active sequence index changes
   useEffect(() => {
-    if (activeSequenceIndex !== -1 && sequence[activeSequenceIndex]) {
-      const item = sequence[activeSequenceIndex];
+    if (activeSequenceIndex !== -1 && sequenceRef.current[activeSequenceIndex]) {
+      const item = sequenceRef.current[activeSequenceIndex];
       setSelectedImage(item.dataUrl);
       onPreviewUpdate(item.dataUrl);
     }
-  }, [activeSequenceIndex, sequence, onPreviewUpdate]);
+  }, [activeSequenceIndex, onPreviewUpdate]);
 
   // Fleet sync via POST /api/image (existing firmware endpoint)
   const handleFleetSync = async () => {
