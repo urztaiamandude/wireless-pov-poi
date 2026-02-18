@@ -187,7 +187,7 @@ const ImageLab: React.FC<ImageLabProps> = ({ onPreviewUpdate, initialPreview, le
     sequenceRef.current = sequence;
   }, [sequence]);
 
-  // Playback timer - uses sequenceRef to avoid resets when sequence content changes
+  // Playback timer - uses sequenceRef to avoid resetting when sequence content changes
   useEffect(() => {
     if (isPlayingSequence && sequenceRef.current.length > 0) {
       if (activeSequenceIndex === -1) setActiveSequenceIndex(0);
