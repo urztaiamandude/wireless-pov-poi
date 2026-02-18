@@ -5,7 +5,6 @@ import { getESP32Sketch, getTeensySketch } from './constants';
 import Dashboard from './components/Dashboard';
 import CodeViewer from './components/CodeViewer';
 import WiringGuide from './components/WiringGuide';
-import AIAssistant from './components/AIAssistant';
 import FirmwareManager from './components/FirmwareManager';
 import AdvancedSettings from './components/AdvancedSettings';
 import ImageLab from './components/ImageLab';
@@ -14,7 +13,6 @@ import {
   Cpu,
   CircuitBoard,
   Wrench,
-  Sparkles,
   Github,
   CloudUpload,
   Settings2,
@@ -40,8 +38,6 @@ const App: React.FC = () => {
         return <CodeViewer sketch={getTeensySketch(ledCount)} />;
       case ViewMode.WIRING:
         return <WiringGuide />;
-      case ViewMode.AI_ASSISTANT:
-        return <AIAssistant />;
       case ViewMode.FIRMWARE:
         return <FirmwareManager />;
       default:
@@ -106,14 +102,6 @@ const App: React.FC = () => {
           icon={<CloudUpload size={20} />}
           label="Firmware (OTA)"
         />
-        <div className="pt-4 mt-4 border-t border-slate-800">
-          <NavItem
-            active={view === ViewMode.AI_ASSISTANT}
-            onClick={() => setView(ViewMode.AI_ASSISTANT)}
-            icon={<Sparkles size={20} className="text-purple-400" />}
-            label="AI Expansions"
-          />
-        </div>
 
         <div className="pt-8 px-4 hidden lg:block">
           <a
