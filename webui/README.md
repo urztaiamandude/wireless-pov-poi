@@ -132,7 +132,7 @@ export default {
 The web UI communicates with the ESP32 firmware via REST API:
 
 | Endpoint | Method | Purpose |
-|----------|--------|---------|
+| ---------- | -------- | --------- |
 | `/api/status` | GET | Get device status |
 | `/api/mode` | POST | Set display mode (JSON: `{mode, index}`) |
 | `/api/brightness` | POST | Set brightness (JSON: `{brightness}`) |
