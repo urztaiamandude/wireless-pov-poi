@@ -3,8 +3,8 @@
  * Board: ESP32-S3-DevKitC-1 (8MB Flash, 8MB PSRAM)
  */
 
-#include <Arduino.h>
 #include <FastLED.h>
+#include <Arduino.h>
 
 // LED Configuration
 #define LED_PIN     48      // Built-in RGB LED on most ESP32-S3 DevKits
