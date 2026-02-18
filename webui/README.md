@@ -101,7 +101,7 @@ npm install -D tailwindcss postcss autoprefixer
 npx tailwindcss init -p
 ```
 
-2. Configure `tailwind.config.js`:
+1. Configure `tailwind.config.js`:
 
 ```javascript
 export default {
@@ -117,7 +117,7 @@ export default {
 }
 ```
 
-3. Create `src/styles.css`:
+1. Create `src/styles.css`:
 
 ```css
 @tailwind base;
@@ -125,7 +125,7 @@ export default {
 @tailwind utilities;
 ```
 
-4. Import in `index.html` instead of CDN link
+1. Import in `index.html` instead of CDN link
 
 ## API Endpoints
 
