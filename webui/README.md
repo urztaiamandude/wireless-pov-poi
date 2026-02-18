@@ -95,12 +95,14 @@ GEMINI_API_KEY=your_api_key_here
 Currently using Tailwind CDN for development. For production deployment with custom builds:
 
 1. Install Tailwind as a dev dependency:
+
 ```bash
 npm install -D tailwindcss postcss autoprefixer
 npx tailwindcss init -p
 ```
 
 2. Configure `tailwind.config.js`:
+
 ```javascript
 export default {
   content: [
@@ -116,6 +118,7 @@ export default {
 ```
 
 3. Create `src/styles.css`:
+
 ```css
 @tailwind base;
 @tailwind components;
