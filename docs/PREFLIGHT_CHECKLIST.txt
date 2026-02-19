@@ -1,0 +1,288 @@
+═══════════════════════════════════════════════════════════════════════════════
+                    POI PRE-FLIGHT CHECKLIST
+           Complete before EVERY spinning session with battery power
+═══════════════════════════════════════════════════════════════════════════════
+
+⏱️ Estimated time: 5-10 minutes
+
+═══════════════════════════════════════════════════════════════════════════════
+🔋 BATTERY & POWER
+═══════════════════════════════════════════════════════════════════════════════
+
+⚠️  CRITICAL: Never spin with battery below 10.5V
+    - Check serial monitor: should show "Voltage: X.XXV"
+    - Use LiPo voltage checker if available
+
+□ Battery voltage between 11.0V and 12.6V
+  HOW TO CHECK:
+  - Method 1: Serial monitor (115200 baud) shows voltage reading
+  - Method 2: LiPo voltage checker on XT60 connector
+  - Method 3: Multimeter on XT60 connector (Red=+, Black=-)
+
+□ No visible battery damage
+  LOOK FOR:
+  - Puffed or swollen battery (sign of damage)
+  - Dents or punctures
+  - Liquid leaks (LiPo can catch fire if punctured)
+  - Damaged connector
+
+□ Battery leads properly connected
+  CHECK:
+  - XT60 connector fully seated (should click)
+  - No loose wires at solder joints
+  - No heat coming from connector area
+
+□ No heat from buck regulator
+  CHECK:
+  - Touch regulator - should be room temperature
+  - If warm: Check for shorts or overload
+  - If hot: Do NOT spin - investigate before use
+
+□ INA219 battery monitor readings visible
+  WHAT TO SEE:
+  - Serial monitor shows "Battery: X.XXV (XX%) | Current: X.XXA | Runtime: XXX min"
+  - Readings update every 5 seconds
+  - Voltage should be stable
+
+
+═══════════════════════════════════════════════════════════════════════════════
+⚙️  HARDWARE CONNECTIONS
+═══════════════════════════════════════════════════════════════════════════════
+
+□ LED strip power connected
+  CHECK:
+  - 5V and GND from buck regulator to APA102 VCC and GND
+  - LED strip has power (should glow slightly)
+
+□ Teensy powered and booting
+  WHAT TO EXPECT:
+  - Teensy LED blinks during startup
+  - Serial monitor shows boot messages
+  - Completed setup in < 3 seconds
+
+□ LED 0-31 test pattern visible
+  WHAT TO SEE:
+  - Quick flash of all LEDs when system boots
+  - Each LED should light briefly
+  - Indicates proper SPI communication
+
+□ All solder joints are solid
+  INSPECT:
+  - No cold solder joints (dull, blobby appearance)
+  - No visible cracks or fractures
+  - Connections should be shiny and smooth
+
+□ Heat shrink tubing covers all connections
+  CHECK:
+  - No exposed bare wire anywhere
+  - All power connections protected
+  - All signal connections protected
+
+
+═══════════════════════════════════════════════════════════════════════════════
+💻 SOFTWARE & WIFI
+═══════════════════════════════════════════════════════════════════════════════
+
+□ Teensy firmware uploaded
+  VERIFY:
+  - Check Arduino IDE upload log
+  - Recent build (within last few days ideally)
+  - No compilation errors
+
+□ WiFi AP visible (POV-POI-WiFi)
+  HOW TO CHECK:
+  - Scan WiFi networks on phone/laptop
+  - Look for "POV-POI-WiFi"
+  - If missing: Check ESP32 power and serial connection
+
+□ Web interface accessible
+  TRY:
+  - Go to http://192.168.4.1 in browser
+  - OR go to http://povpoi.local
+  - Should see status page with battery info
+
+□ Display mode can be selected
+  TEST:
+  - Try changing to "Pattern" mode
+  - Try selecting a pattern (e.g., Rainbow)
+  - LEDs should change to pattern
+
+□ Current draw measures correctly
+  VERIFY:
+  - At idle: serial shows ~0.3-0.5A
+  - When pattern running: increases to 0.8-1.5A
+  - At full brightness white: peaks at 2.0A+
+
+
+═══════════════════════════════════════════════════════════════════════════════
+🛡️  SAFETY CHECK
+═══════════════════════════════════════════════════════════════════════════════
+
+⚠️  Never look directly at LEDs at full brightness - wear sunglasses if needed
+
+□ Spinning area is clear
+  VERIFY:
+  - At least 3-4 feet clear in ALL directions
+  - No people, walls, or furniture within reach
+  - No overhead obstacles (ceiling fans, lights)
+
+□ Test at low brightness first
+  PROCEDURE:
+  1. Set brightness to 50 (not 255)
+  2. Run slow pattern first
+  3. Gradually increase brightness if safe
+
+□ Know how to shut down quickly
+  HAVE READY:
+  - Quick disconnect: XT60 connector pull
+  - OR shutdown command via WiFi
+  - OR offline switch/battery disconnect
+
+□ Helmet or protective eyewear ready
+  FOR:
+  - Personal safety (accidental contact)
+  - Audience safety (bright LEDs)
+  - Emergency response
+
+□ No flammable materials in area
+  KEEP AWAY:
+  - Curtains, papers, dry grass
+  - Other people's belongings
+  - Fuel, paint, solvents
+
+
+═══════════════════════════════════════════════════════════════════════════════
+BATTERY CAPACITY REFERENCE
+═══════════════════════════════════════════════════════════════════════════════
+
+Module 1 (Quick Session):
+  • 1500mAh, 3S LiPo
+  • 160g battery weight
+  • Expected runtime: 45-60 minutes
+  • Use for: Practice, short performances
+
+Module 2 (Extended Session):
+  • 3000mAh, 3S LiPo
+  • 230g battery weight
+  • Expected runtime: 2-2.5 hours
+  • Use for: Full performances, extended sessions
+
+Swap batteries in seconds via XT60 connector - no tools needed!
+
+
+═══════════════════════════════════════════════════════════════════════════════
+EMERGENCY SHUTDOWN
+═══════════════════════════════════════════════════════════════════════════════
+
+IF ANYTHING SEEMS WRONG:
+
+1. IMMEDIATE (within 1 second):
+   → Pull XT60 battery connector
+   → OR tap "IDLE" button on web interface
+   → LEDs will go dark
+
+2. INVESTIGATION (after shutdown):
+   → Wait 30 seconds for capacitors to discharge
+   → Check what went wrong before retry
+   → Review this checklist again
+
+3. WHAT TO CHECK IF PROBLEM:
+   □ Battery voltage (too low?)
+   □ Heat from regulator (short circuit?)
+   □ Serial monitor errors (firmware issue?)
+   □ WiFi connection (dropped?)
+   □ Any visible damage
+
+DO NOT attempt to "fix while spinning" - always stop first!
+
+
+═══════════════════════════════════════════════════════════════════════════════
+SERIAL MONITOR EXAMPLE OUTPUT
+═══════════════════════════════════════════════════════════════════════════════
+
+Battery monitor initialized
+Voltage: 11.52V
+
+Battery: 11.52V (100%) | Current: 0.45A | Runtime: 210 min
+Battery: 11.48V (99%) | Current: 1.23A | Runtime: 124 min
+Battery: 10.80V (21%) | Current: 1.15A | Runtime: 18 min
+⚠️ LOW BATTERY - Please recharge soon
+
+[After recharge]
+Battery: 12.50V (100%) | Current: 0.42A | Runtime: 220 min
+
+
+═══════════════════════════════════════════════════════════════════════════════
+QUICK TROUBLESHOOTING
+═══════════════════════════════════════════════════════════════════════════════
+
+PROBLEM: No LED activity
+  → Check battery voltage (should be 11-12.6V)
+  → Verify XT60 is fully seated
+  → Check Teensy USB powers on (bootloader LED)
+
+PROBLEM: INA219 shows "not found"
+  → Check I2C wiring (pins 18/19)
+  → Verify 5V to INA219
+  → System works without INA219 (just no monitoring)
+
+PROBLEM: Regulator getting hot
+  → Unplug immediately
+  → Check for short circuit in 5V wiring
+  → Verify regulator input/output polarity
+
+PROBLEM: Pattern doesn't change
+  → Refresh web page
+  → Check WiFi connection
+  → Reboot Teensy via battery disconnect
+
+PROBLEM: LEDs are dimmer than before
+  → Check battery voltage (might be low)
+  → Check for loose power connections
+  → Verify brightness setting (0-255 scale)
+
+
+═══════════════════════════════════════════════════════════════════════════════
+BATTERY STORAGE
+═══════════════════════════════════════════════════════════════════════════════
+
+After each session:
+
+□ Check battery voltage (should drop to ~11.0-11.2V)
+□ Store at room temperature (not in direct sun)
+□ Store in fireproof container or LiPo bag
+□ Never leave in hot car (can catch fire!)
+□ If not using for > 1 week: discharge to 3.8V/cell (11.4V for 3S)
+□ Check monthly for any swelling or damage
+
+Charging procedure:
+1. Connect to LiPo-compatible charger
+2. Set: 3S LiPo, 1.5A (for 1500mAh) or 3A (for 3000mAh)
+3. Monitor during charge (never leave unattended)
+4. Unplug immediately when complete
+5. Store in cool location
+
+
+═══════════════════════════════════════════════════════════════════════════════
+PRINTABLE QUICK VERSION
+═══════════════════════════════════════════════════════════════════════════════
+
+⏱️ 1 min - Battery Check
+□ Voltage 11.0V - 12.6V  □ No damage  □ Connected  □ Cool  □ Monitor on
+
+⏱️ 2 min - Hardware Check
+□ Power to LEDs  □ Teensy boots  □ Test pattern works  □ Solders solid
+
+⏱️ 1 min - Software Check
+□ WiFi visible  □ Web works  □ Mode changes  □ Current reads
+
+⏱️ 1 min - Safety Check
+□ Area clear  □ Know shutdown  □ Protective gear ready
+
+✅ READY TO SPIN!
+
+
+═══════════════════════════════════════════════════════════════════════════════
+LAST UPDATED: 2026-02-19
+For full details see: docs/BATTERY_POWER_INTEGRATION.md
+═══════════════════════════════════════════════════════════════════════════════
