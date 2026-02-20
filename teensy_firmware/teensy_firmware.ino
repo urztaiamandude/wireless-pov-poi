@@ -305,129 +305,195 @@ void initStorage() {
   createDemoSequence();
 }
 
-// Create demo images for testing
+// Create default POV images
+// These are real display-ready images sized for the 32-LED strip.
+// Each image is wider than tall (typical for POV), so when the poi
+// spins it traces a detailed ring of light.
 void createDemoImages() {
-  // Demo Image 0: Simple smiley face (31x31)
+  const int W0 = 64;   // smiley width
+  const int W1 = 100;  // rainbow width
+  const int W2 = 64;   // heart width
+  const int W3 = 80;   // starburst width
+  const int W4 = 100;  // nebula spiral width
+  const int H  = IMAGE_HEIGHT;  // 32
+
+  // ── Image 0: Smiley Face (64×32) ──────────────────────────
   images[0].active = true;
-  images[0].width = IMAGE_WIDTH;
-  images[0].height = IMAGE_HEIGHT;
-  
-  // Clear to black
-  for (int x = 0; x < IMAGE_WIDTH; x++) {
-    for (int y = 0; y < IMAGE_HEIGHT; y++) {
+  images[0].width  = W0;
+  images[0].height = H;
+  for (int x = 0; x < W0; x++)
+    for (int y = 0; y < H; y++)
       images[0].pixels[x][y] = CRGB::Black;
-    }
-  }
-  
-  // Draw yellow smiley face
-  // Face outline (circle)
-  for (int x = 5; x < 26; x++) {
-    for (int y = 5; y < 26; y++) {
-      int dx = x - 15;
-      int dy = y - 15;
-      int dist = sqrt(dx*dx + dy*dy);
-      if (dist >= 9 && dist <= 10) {
-        images[0].pixels[x][y] = CRGB::Yellow;
+
+  float cx0 = W0 / 2.0;
+  float cy0 = H / 2.0;
+  float r0  = min(W0, H) / 2.0 - 1.0;
+  for (int x = 0; x < W0; x++) {
+    for (int y = 0; y < H; y++) {
+      float dx = x - cx0;
+      float dy = y - cy0;
+      float d  = sqrt(dx * dx + dy * dy);
+      // Filled yellow circle
+      if (d <= r0) {
+        images[0].pixels[x][y] = CRGB(255, 200, 0);  // warm yellow
+      }
+      // Dark outline
+      if (d > r0 - 1.2 && d <= r0) {
+        images[0].pixels[x][y] = CRGB(180, 140, 0);
       }
     }
   }
-  
-  // Left eye
-  for (int x = 10; x < 13; x++) {
-    for (int y = 10; y < 13; y++) {
-      images[0].pixels[x][y] = CRGB::Yellow;
+  // Eyes (dark circles)
+  float eyeR = 2.5;
+  float leyX = cx0 - 7, leyY = cy0 - 4;
+  float reyX = cx0 + 7, reyY = cy0 - 4;
+  for (int x = 0; x < W0; x++) {
+    for (int y = 0; y < H; y++) {
+      float dl = sqrt((x - leyX) * (x - leyX) + (y - leyY) * (y - leyY));
+      float dr = sqrt((x - reyX) * (x - reyX) + (y - reyY) * (y - reyY));
+      if (dl <= eyeR || dr <= eyeR)
+        images[0].pixels[x][y] = CRGB(60, 40, 0);
     }
   }
-  
-  // Right eye
-  for (int x = 18; x < 21; x++) {
-    for (int y = 10; y < 13; y++) {
-      images[0].pixels[x][y] = CRGB::Yellow;
+  // Smile arc
+  for (int x = (int)(cx0 - 9); x <= (int)(cx0 + 9); x++) {
+    if (x < 0 || x >= W0) continue;
+    float t = (x - cx0) / 9.0;
+    int y = (int)(cy0 + 4 + 4.0 * t * t);
+    for (int dy = 0; dy <= 1; dy++) {
+      if (y + dy >= 0 && y + dy < H)
+        images[0].pixels[x][y + dy] = CRGB(60, 40, 0);
     }
   }
-  
-  // Smile (arc)
-  for (int x = 10; x < 21; x++) {
-    int y = 18 + (int)(3 * sin((x - 10) * 3.14159 / 10));
-    if (y >= 0 && y < IMAGE_HEIGHT) {
-      images[0].pixels[x][y] = CRGB::Yellow;
-    }
-  }
-  
-  Serial.println("Demo image 0 created: Smiley Face");
-  
-  // Demo Image 1: Rainbow gradient (31x31)
+  Serial.println("Default image 0: Smiley Face (64x32)");
+
+  // ── Image 1: Full Rainbow Spectrum (100×32) ──────────────
   images[1].active = true;
-  images[1].width = IMAGE_WIDTH;
-  images[1].height = IMAGE_HEIGHT;
-  
-  for (int x = 0; x < IMAGE_WIDTH; x++) {
-    for (int y = 0; y < IMAGE_HEIGHT; y++) {
-      uint8_t hue = (x * 256 / IMAGE_WIDTH + y * 256 / IMAGE_HEIGHT) / 2;
-      images[1].pixels[x][y] = CHSV(hue, 255, 255);
+  images[1].width  = W1;
+  images[1].height = H;
+  for (int x = 0; x < W1; x++) {
+    uint8_t hue = (uint8_t)(x * 255L / W1);
+    for (int y = 0; y < H; y++) {
+      // Smooth vertical brightness fade: full at centre, dimmer at edges
+      uint8_t val = 255 - abs(y - (int)(H / 2.0)) * 8;
+      if (val < 80) val = 80;
+      images[1].pixels[x][y] = CHSV(hue, 240, val);
     }
   }
-  
-  Serial.println("Demo image 1 created: Rainbow Gradient");
-  
-  // Demo Image 2: Heart shape (31x31)
+  Serial.println("Default image 1: Rainbow Spectrum (100x32)");
+
+  // ── Image 2: Heart (64×32) ───────────────────────────────
   images[2].active = true;
-  images[2].width = IMAGE_WIDTH;
-  images[2].height = IMAGE_HEIGHT;
-  
-  // Clear to black
-  for (int x = 0; x < IMAGE_WIDTH; x++) {
-    for (int y = 0; y < IMAGE_HEIGHT; y++) {
+  images[2].width  = W2;
+  images[2].height = H;
+  for (int x = 0; x < W2; x++)
+    for (int y = 0; y < H; y++)
       images[2].pixels[x][y] = CRGB::Black;
-    }
-  }
-  
-  // Draw red heart
-  for (int x = 0; x < IMAGE_WIDTH; x++) {
-    for (int y = 0; y < IMAGE_HEIGHT; y++) {
-      // Heart equation (simplified)
-      float fx = (x - 15.5) / 10.0;
-      float fy = (y - 12.0) / 10.0;
-      float heart = fx*fx + fy*fy - 1;
-      float heart2 = fx*fx + (fy - sqrt(abs(fx)))*( fy - sqrt(abs(fx))) - 1;
-      
-      if (heart < 0.3 || heart2 < 0.3) {
-        images[2].pixels[x][y] = CRGB::Red;
+
+  float cxH = W2 / 2.0;
+  float cyH = H / 2.0;
+  for (int x = 0; x < W2; x++) {
+    for (int y = 0; y < H; y++) {
+      // Parametric heart: map pixel to normalised coordinates
+      float nx = (x - cxH) / 14.0;
+      float ny = -(y - cyH + 2) / 14.0;  // flip y, shift centre up
+      float eq = (nx * nx + ny * ny - 1.0);
+      eq = eq * eq * eq - nx * nx * ny * ny * ny;
+      if (eq <= 0.0) {
+        // Distance from centre for gradient
+        float d = sqrt(nx * nx + ny * ny);
+        uint8_t r = 255;
+        uint8_t g = (uint8_t)max(0.0, 40.0 - d * 40.0);
+        uint8_t b = (uint8_t)max(0.0, 60.0 - d * 50.0);
+        images[2].pixels[x][y] = CRGB(r, g, b);
       }
     }
   }
-  
-  Serial.println("Demo image 2 created: Heart");
+  Serial.println("Default image 2: Heart (64x32)");
+
+  // ── Image 3: Starburst (80×32) ──────────────────────────
+  images[3].active = true;
+  images[3].width  = W3;
+  images[3].height = H;
+  float cx3 = W3 / 2.0;
+  float cy3 = H / 2.0;
+  for (int x = 0; x < W3; x++) {
+    for (int y = 0; y < H; y++) {
+      float dx = x - cx3;
+      float dy = y - cy3;
+      float angle = atan2(dy, dx);
+      float dist  = sqrt(dx * dx + dy * dy);
+      // 8 rays modulated by angle
+      float ray = (sin(angle * 8.0) + 1.0) * 0.5;
+      float brightness = ray * max(0.0, 1.0 - dist / 18.0);
+      uint8_t hue = (uint8_t)((angle / 6.2832 + 0.5) * 255);
+      uint8_t val = (uint8_t)(brightness * 255);
+      images[3].pixels[x][y] = CHSV(hue, 200, val);
+    }
+  }
+  Serial.println("Default image 3: Starburst (80x32)");
+
+  // ── Image 4: Nebula Spiral (100×32) ─────────────────────
+  images[4].active = true;
+  images[4].width  = W4;
+  images[4].height = H;
+  float cx4 = W4 / 2.0;
+  float cy4 = H / 2.0;
+  for (int x = 0; x < W4; x++) {
+    for (int y = 0; y < H; y++) {
+      float dx = x - cx4;
+      float dy = y - cy4;
+      float angle = atan2(dy, dx);
+      float dist  = sqrt(dx * dx + dy * dy);
+      // Spiral arms
+      float spiral = sin(angle * 3.0 - dist * 0.4);
+      float glow   = max(0.0, 1.0 - dist / 20.0);
+      float v = (spiral * 0.5 + 0.5) * glow;
+      uint8_t hue = (uint8_t)(180 + angle * 20 + dist * 3);
+      uint8_t sat = 180 + (uint8_t)(glow * 75);
+      uint8_t val = (uint8_t)(v * 255);
+      images[4].pixels[x][y] = CHSV(hue, sat, val);
+    }
+  }
+  Serial.println("Default image 4: Nebula Spiral (100x32)");
 }
 
 // Create demo sequence
 void createDemoSequence() {
-  // Sequence 0: Cycle through demo images and patterns
+  // Sequence 0: Cycle through all default images and patterns
   sequences[0].active = true;
-  sequences[0].count = 5;
+  sequences[0].count = 7;
   sequences[0].loop = true;
   
-  // Item 0: Smiley face image for 2 seconds
+  // Item 0: Smiley face image for 3 seconds
   sequences[0].items[0] = 0;  // Image 0
-  sequences[0].durations[0] = 2000;
+  sequences[0].durations[0] = 3000;
   
   // Item 1: Rainbow pattern for 2 seconds
-  sequences[0].items[1] = 0;  // Pattern 0
+  sequences[0].items[1] = 0;  // Pattern 0 (rainbow)
   sequences[0].durations[1] = 2000;
   
-  // Item 2: Heart image for 2 seconds
+  // Item 2: Heart image for 3 seconds
   sequences[0].items[2] = 2;  // Image 2
-  sequences[0].durations[2] = 2000;
+  sequences[0].durations[2] = 3000;
   
   // Item 3: Fire pattern for 2 seconds
-  sequences[0].items[3] = 1;  // Pattern 1
+  sequences[0].items[3] = 1;  // Pattern 1 (fire)
   sequences[0].durations[3] = 2000;
   
-  // Item 4: Rainbow gradient image for 2 seconds
-  sequences[0].items[4] = 1;  // Image 1
-  sequences[0].durations[4] = 2000;
+  // Item 4: Starburst image for 3 seconds
+  sequences[0].items[4] = 3;  // Image 3
+  sequences[0].durations[4] = 3000;
   
-  Serial.println("Demo sequence 0 created: Image/Pattern cycle");
+  // Item 5: Rainbow spectrum image for 3 seconds
+  sequences[0].items[5] = 1;  // Image 1
+  sequences[0].durations[5] = 3000;
+  
+  // Item 6: Nebula spiral image for 3 seconds
+  sequences[0].items[6] = 4;  // Image 4
+  sequences[0].durations[6] = 3000;
+  
+  Serial.println("Default sequence created: Image/Pattern cycle");
 }
 
 void startupAnimation() {
