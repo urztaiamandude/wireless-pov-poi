@@ -1,4 +1,0 @@
-# Build dependencies for creating Windows executable
-# These are in addition to the runtime requirements in requirements.txt
-
-pyinstaller>=5.0
