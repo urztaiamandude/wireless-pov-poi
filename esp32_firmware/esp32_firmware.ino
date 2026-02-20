@@ -664,7 +664,7 @@ void handleRoot() {
                     </div>
                     <div class="ctrl">
                         <label>Height (px)</label>
-                        <input type="number" id="image-height" min="1" max="200" value="64" oninput="updateImageDimensions('height')">
+                        <input type="number" id="image-height" min="31" max="31" value="31" readonly>
                     </div>
                 </div>
                 <div class="flex-row" style="margin-bottom:14px">
@@ -830,6 +830,7 @@ void handleRoot() {
     
     <script>
     const NUM_LEDS=32;
+    const DISPLAY_LEDS=31;
     let currentMode=2,currentPattern=0,brightness=128,originalImageAspectRatio=1.0;
     let currentSyncMode='mirror',syncPeers=[];
     let genType='organic',colorSeed=Math.random();
@@ -981,8 +982,8 @@ void handleRoot() {
                     originalImageAspectRatio=img.height/img.width;
                     const hI=document.getElementById('image-height');
                     const wI=document.getElementById('image-width');
-                    let tH=parseInt(hI.value)||32;
-                    tH=Math.min(200,Math.max(1,tH));hI.value=tH;
+                    const tH=DISPLAY_LEDS;
+                    hI.value=tH;
                     if(document.getElementById('aspect-ratio-lock').checked){
                         wI.value=Math.min(100,Math.max(1,Math.round(tH/originalImageAspectRatio)));
                     }
@@ -1002,8 +1003,7 @@ void handleRoot() {
         const wI=document.getElementById('image-width');
         const hI=document.getElementById('image-height');
         if(lock){
-            let h=parseInt(hI.value)||32;
-            h=Math.min(200,Math.max(1,h));hI.value=h;
+            const h=DISPLAY_LEDS;hI.value=h;
             wI.value=Math.min(100,Math.max(1,Math.round(h/originalImageAspectRatio)));
         }
     }
@@ -1033,8 +1033,7 @@ void handleRoot() {
                     try{
                         const cv=document.createElement('canvas');const cx=cv.getContext('2d');
                         const originalImageAspectRatio=img.width/img.height;
-                        let tH=parseInt(document.getElementById('image-height').value)||32;
-                        tH=Math.min(200,Math.max(1,tH));
+                        const tH=DISPLAY_LEDS;
                         let tW=parseInt(document.getElementById('image-width').value)||32;
                         if (document.getElementById('aspect-ratio-lock').checked) {
                             const ar = (typeof originalImageAspectRatio === 'number' && originalImageAspectRatio > 0) ? originalImageAspectRatio : 1.0; // width/height
@@ -1043,7 +1042,7 @@ void handleRoot() {
                         tW=Math.min(100,Math.max(1,tW));
                         const fV=document.getElementById('flip-vertical').checked;
                         const fH=document.getElementById('flip-horizontal').checked;
-                        if(tW<1||tW>100||tH<1||tH>200){reject(new Error('Invalid dimensions'));return}
+                        if(tW<1||tW>100){reject(new Error('Invalid dimensions'));return}
                         cv.width=tW;cv.height=tH;cx.save();
                         if(fH){cx.translate(tW,0);cx.scale(-1,1)}
                         cx.imageSmoothingEnabled=false;cx.drawImage(img,0,0,tW,tH);cx.restore();
@@ -1077,7 +1076,7 @@ void handleRoot() {
     function rollColors(){colorSeed=Math.random();generateArt()}
     function generateArt(){
         const cv=document.getElementById('gen-canvas');const cx=cv.getContext('2d');
-        const ledCount=parseInt(document.getElementById('image-height').value)||32;
+        const ledCount=DISPLAY_LEDS;
         const complexity=parseInt(document.getElementById('gen-complexity').value)||8;
         const tH=ledCount,tW=tH*4;
         cv.width=tW;cv.height=tH;cv.style.display='block';
