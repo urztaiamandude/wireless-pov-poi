@@ -1319,13 +1319,28 @@ void handleRoot() {
                     data.files.forEach(filename => {
                         const fileItem = document.createElement('div');
                         fileItem.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 8px; margin: 5px 0; background: #f0f0f0; border-radius: 5px;';
-                        fileItem.innerHTML = `
-                            <span style="flex: 1; font-size: 14px;">${filename}</span>
-                            <div style="display: flex; gap: 5px;">
-                                <button onclick="loadSDImage('${filename}')" style="padding: 5px 10px; font-size: 12px; background: #4CAF50; color: white; border: none; border-radius: 3px; cursor: pointer;">Load</button>
-                                <button onclick="deleteSDImage('${filename}')" style="padding: 5px 10px; font-size: 12px; background: #f44336; color: white; border: none; border-radius: 3px; cursor: pointer;">Delete</button>
-                            </div>
-                        `;
+
+                        const nameSpan = document.createElement('span');
+                        nameSpan.style.cssText = 'flex: 1; font-size: 14px;';
+                        nameSpan.textContent = filename;
+
+                        const btnContainer = document.createElement('div');
+                        btnContainer.style.cssText = 'display: flex; gap: 5px;';
+
+                        const loadBtn = document.createElement('button');
+                        loadBtn.style.cssText = 'padding: 5px 10px; font-size: 12px; background: #4CAF50; color: white; border: none; border-radius: 3px; cursor: pointer;';
+                        loadBtn.textContent = 'Load';
+                        loadBtn.addEventListener('click', () => loadSDImage(filename));
+
+                        const deleteBtn = document.createElement('button');
+                        deleteBtn.style.cssText = 'padding: 5px 10px; font-size: 12px; background: #f44336; color: white; border: none; border-radius: 3px; cursor: pointer;';
+                        deleteBtn.textContent = 'Delete';
+                        deleteBtn.addEventListener('click', () => deleteSDImage(filename));
+
+                        btnContainer.appendChild(loadBtn);
+                        btnContainer.appendChild(deleteBtn);
+                        fileItem.appendChild(nameSpan);
+                        fileItem.appendChild(btnContainer);
                         listDiv.appendChild(fileItem);
                     });
                 } else {
@@ -1451,18 +1466,34 @@ void handleRoot() {
                 if (syncPeers.length === 0) {
                     peerList.innerHTML = '<div style="text-align:center;color:#999;font-size:13px;">No paired poi found. Tap Pair to discover.</div>';
                 } else {
-                    let html = '';
+                    peerList.innerHTML = '';
+                    const stateNames = ['None','Discovering','Requesting','Paired'];
                     syncPeers.forEach((peer, i) => {
-                        const stateNames = ['None','Discovering','Requesting','Paired'];
                         const statusColor = peer.online ? '#4CAF50' : '#f44336';
                         const statusText = peer.online ? 'Online' : 'Offline';
-                        html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px;margin:4px 0;background:white;border-radius:5px;border-left:4px solid ' + statusColor + ';">';
-                        html += '<div><strong>' + (peer.name || 'Unknown') + '</strong>';
-                        html += '<br><span style="font-size:12px;color:#666;">' + statusText + ' | ' + stateNames[peer.state] + '</span></div>';
-                        html += '<button onclick="unpairSingle(' + i + ')" style="padding:5px 10px;font-size:12px;background:#f44336;color:white;border:none;border-radius:3px;cursor:pointer;min-height:30px;width:auto;">Unpair</button>';
-                        html += '</div>';
+
+                        const row = document.createElement('div');
+                        row.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:8px;margin:4px 0;background:white;border-radius:5px;border-left:4px solid ' + statusColor + ';';
+
+                        const info = document.createElement('div');
+                        const nameEl = document.createElement('strong');
+                        nameEl.textContent = peer.name || 'Unknown';
+                        const statusEl = document.createElement('span');
+                        statusEl.style.cssText = 'font-size:12px;color:#666;';
+                        statusEl.textContent = statusText + ' | ' + stateNames[peer.state];
+                        info.appendChild(nameEl);
+                        info.appendChild(document.createElement('br'));
+                        info.appendChild(statusEl);
+
+                        const unpairBtn = document.createElement('button');
+                        unpairBtn.style.cssText = 'padding:5px 10px;font-size:12px;background:#f44336;color:white;border:none;border-radius:3px;cursor:pointer;min-height:30px;width:auto;';
+                        unpairBtn.textContent = 'Unpair';
+                        unpairBtn.addEventListener('click', () => unpairSingle(i));
+
+                        row.appendChild(info);
+                        row.appendChild(unpairBtn);
+                        peerList.appendChild(row);
                     });
-                    peerList.innerHTML = html;
                 }
 
                 // Render per-peer control panels (independent mode)
@@ -1481,42 +1512,87 @@ void handleRoot() {
                 container.innerHTML = '<div style="text-align:center;color:#999;">No online peers to control.</div>';
                 return;
             }
-            let html = '';
+            container.innerHTML = '';
             syncPeers.forEach((peer, i) => {
                 if (peer.state !== 3 || !peer.online) return;
-                html += '<div style="margin-bottom:15px;padding:12px;background:white;border-radius:8px;border:2px solid #667eea;">';
-                html += '<div style="font-weight:bold;color:#667eea;margin-bottom:8px;">' + (peer.name || 'Peer ' + i) + '</div>';
+
+                const panel = document.createElement('div');
+                panel.style.cssText = 'margin-bottom:15px;padding:12px;background:white;border-radius:8px;border:2px solid #667eea;';
+
+                const nameDiv = document.createElement('div');
+                nameDiv.style.cssText = 'font-weight:bold;color:#667eea;margin-bottom:8px;';
+                nameDiv.textContent = peer.name || 'Peer ' + i;
+                panel.appendChild(nameDiv);
 
                 // Mode selector for this peer
-                html += '<div style="margin-bottom:8px;">';
-                html += '<label style="font-size:13px;">Mode:</label>';
-                html += '<select id="peer-mode-' + i + '" style="width:100%;padding:8px;margin-top:4px;" onchange="sendPeerMode(' + i + ')">';
-                html += '<option value="0">Idle</option><option value="1">Image</option><option value="2">Pattern</option><option value="3">Sequence</option>';
-                html += '</select></div>';
+                const modeDiv = document.createElement('div');
+                modeDiv.style.cssText = 'margin-bottom:8px;';
+                const modeLabel = document.createElement('label');
+                modeLabel.style.cssText = 'font-size:13px;';
+                modeLabel.textContent = 'Mode:';
+                const modeSelect = document.createElement('select');
+                modeSelect.id = 'peer-mode-' + i;
+                modeSelect.style.cssText = 'width:100%;padding:8px;margin-top:4px;';
+                modeSelect.addEventListener('change', () => sendPeerMode(i));
+                [['0','Idle'],['1','Image'],['2','Pattern'],['3','Sequence']].forEach(([v,t]) => {
+                    const opt = document.createElement('option');
+                    opt.value = v;
+                    opt.textContent = t;
+                    modeSelect.appendChild(opt);
+                });
+                modeDiv.appendChild(modeLabel);
+                modeDiv.appendChild(modeSelect);
+                panel.appendChild(modeDiv);
 
                 // Pattern buttons for this peer
-                html += '<div style="margin-bottom:8px;">';
-                html += '<label style="font-size:13px;">Quick Pattern:</label>';
-                html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:4px;">';
+                const patDiv = document.createElement('div');
+                patDiv.style.cssText = 'margin-bottom:8px;';
+                const patLabel = document.createElement('label');
+                patLabel.style.cssText = 'font-size:13px;';
+                patLabel.textContent = 'Quick Pattern:';
+                const patGrid = document.createElement('div');
+                patGrid.style.cssText = 'display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:4px;';
                 const patterns = [
                     {t:0,n:'Rainbow'},{t:4,n:'Fire'},{t:5,n:'Comet'},
                     {t:6,n:'Breathe'},{t:10,n:'Plasma'},{t:3,n:'Sparkle'},
                     {t:16,n:'Split'},{t:17,n:'Chase'},{t:7,n:'Strobe'}
                 ];
                 patterns.forEach(p => {
-                    html += '<button onclick="sendPeerPattern(' + i + ',' + p.t + ')" style="padding:6px;font-size:11px;background:#764ba2;color:white;border:none;border-radius:4px;cursor:pointer;min-height:32px;width:auto;">' + p.n + '</button>';
+                    const btn = document.createElement('button');
+                    btn.style.cssText = 'padding:6px;font-size:11px;background:#764ba2;color:white;border:none;border-radius:4px;cursor:pointer;min-height:32px;width:auto;';
+                    btn.textContent = p.n;
+                    btn.addEventListener('click', () => sendPeerPattern(i, p.t));
+                    patGrid.appendChild(btn);
                 });
-                html += '</div></div>';
+                patDiv.appendChild(patLabel);
+                patDiv.appendChild(patGrid);
+                panel.appendChild(patDiv);
 
                 // Brightness for this peer
-                html += '<div>';
-                html += '<label style="font-size:13px;">Brightness: <span id="peer-bright-val-' + i + '">' + (peer.brightness || 128) + '</span></label>';
-                html += '<input type="range" min="0" max="255" value="' + (peer.brightness || 128) + '" oninput="sendPeerBrightness(' + i + ',this.value);document.getElementById(\'peer-bright-val-' + i + '\').textContent=this.value" style="width:100%;">';
-                html += '</div>';
+                const brightDiv = document.createElement('div');
+                const brightValSpan = document.createElement('span');
+                brightValSpan.id = 'peer-bright-val-' + i;
+                brightValSpan.textContent = peer.brightness || 128;
+                const brightLabel = document.createElement('label');
+                brightLabel.style.cssText = 'font-size:13px;';
+                brightLabel.textContent = 'Brightness: ';
+                brightLabel.appendChild(brightValSpan);
+                const brightSlider = document.createElement('input');
+                brightSlider.type = 'range';
+                brightSlider.min = '0';
+                brightSlider.max = '255';
+                brightSlider.value = peer.brightness || 128;
+                brightSlider.style.cssText = 'width:100%;';
+                brightSlider.addEventListener('input', function() {
+                    sendPeerBrightness(i, this.value);
+                    brightValSpan.textContent = this.value;
+                });
+                brightDiv.appendChild(brightLabel);
+                brightDiv.appendChild(brightSlider);
+                panel.appendChild(brightDiv);
 
-                html += '</div>';
+                container.appendChild(panel);
             });
-            container.innerHTML = html;
         }
 
         async function setSyncMode(mode) {
