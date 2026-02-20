@@ -1182,7 +1182,12 @@ void handleRoot() {
                 list.innerHTML='';
                 d.files.forEach(f=>{
                     const el=document.createElement('div');el.className='sd-file';
-                    el.innerHTML='<span class="fname">'+f+'</span><div class="actions"><button class="btn btn-green btn-sm btn-icon" onclick="loadSDImage(\''+f+'\')">Load</button><button class="btn btn-red btn-sm btn-icon" onclick="deleteSDImage(\''+f+'\')">Delete</button></div>';
+                    const nameSpan=document.createElement('span');nameSpan.className='fname';nameSpan.textContent=f;
+                    const actions=document.createElement('div');actions.className='actions';
+                    const loadBtn=document.createElement('button');loadBtn.className='btn btn-green btn-sm btn-icon';loadBtn.textContent='Load';loadBtn.addEventListener('click',()=>loadSDImage(f));
+                    const delBtn=document.createElement('button');delBtn.className='btn btn-red btn-sm btn-icon';delBtn.textContent='Delete';delBtn.addEventListener('click',()=>deleteSDImage(f));
+                    actions.appendChild(loadBtn);actions.appendChild(delBtn);
+                    el.appendChild(nameSpan);el.appendChild(actions);
                     list.appendChild(el);
                 });
             }else{list.innerHTML='<div style="text-align:center;color:#475569;font-size:12px;padding:12px">No images on SD card</div>'}
