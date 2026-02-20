@@ -1045,7 +1045,7 @@ void handleRoot() {
                         if(fH){cx.translate(tW,0);cx.scale(-1,1)}
                         cx.imageSmoothingEnabled=false;cx.drawImage(img,0,0,tW,tH);cx.restore();
                         let iD=cx.getImageData(0,0,tW,tH);
-                        if(!fV){
+                        if(fV){
                             const fl=cx.createImageData(tW,tH);
                             for(let y=0;y<tH;y++)for(let x=0;x<tW;x++){
                                 const s=(y*tW+x)*4,d=((tH-1-y)*tW+x)*4;
