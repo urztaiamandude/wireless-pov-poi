@@ -1036,7 +1036,10 @@ void handleRoot() {
                         let tH=parseInt(document.getElementById('image-height').value)||32;
                         tH=Math.min(200,Math.max(1,tH));
                         let tW=parseInt(document.getElementById('image-width').value)||32;
-                        if(document.getElementById('aspect-ratio-lock').checked)tW=Math.round(tH/originalImageAspectRatio);
+                        if (document.getElementById('aspect-ratio-lock').checked) {
+                            const ar = (typeof originalImageAspectRatio === 'number' && originalImageAspectRatio > 0) ? originalImageAspectRatio : 1.0; // width/height
+                            tW = Math.round(tH * ar);
+                        }
                         tW=Math.min(100,Math.max(1,tW));
                         const fV=document.getElementById('flip-vertical').checked;
                         const fH=document.getElementById('flip-horizontal').checked;
