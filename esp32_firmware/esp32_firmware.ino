@@ -664,7 +664,7 @@ void handleRoot() {
                     </div>
                     <div class="ctrl">
                         <label>Height (px)</label>
-                        <input type="number" id="image-height" min="31" max="31" value="31" readonly>
+                        <input type="number" id="image-height" min="32" max="32" value="32" readonly>
                     </div>
                 </div>
                 <div class="flex-row" style="margin-bottom:14px">
@@ -830,7 +830,7 @@ void handleRoot() {
     
     <script>
     const NUM_LEDS=32;
-    const DISPLAY_LEDS=31;
+    const DISPLAY_LEDS=32;
     let currentMode=2,currentPattern=0,brightness=128,originalImageAspectRatio=1.0;
     let currentSyncMode='mirror',syncPeers=[];
     let genType='organic',colorSeed=Math.random();
