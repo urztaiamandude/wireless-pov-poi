@@ -348,11 +348,11 @@ void setupWebServer() {
 void handleRoot() {
   String html = R"rawliteral(
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="#667eea">
+    <meta name="theme-color" content="#0f172a">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -360,317 +360,208 @@ void handleRoot() {
     <link rel="manifest" href="/manifest.json">
     <title>Nebula Poi Controller</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            overflow: hidden;
-        }
-        .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 30px;
-            text-align: center;
-        }
-        h1 {
-            font-size: 2.5em;
-            margin-bottom: 10px;
-        }
-        .status {
-            background: rgba(255,255,255,0.2);
-            padding: 10px;
-            border-radius: 10px;
-            margin-top: 15px;
-        }
-        .content {
-            padding: 30px;
-        }
-        .section {
-            margin-bottom: 30px;
-            padding: 20px;
-            background: #f8f9fa;
-            border-radius: 10px;
-        }
-        h2 {
-            color: #667eea;
-            margin-bottom: 15px;
-            font-size: 1.5em;
-        }
-        .control-group {
-            margin-bottom: 20px;
-        }
-        label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 600;
-            color: #333;
-        }
-        select, input[type="range"], input[type="file"], input[type="number"], button {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            font-size: 16px;
-            transition: all 0.3s;
-        }
-        select:focus, input[type="file"]:focus, input[type="number"]:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-        button {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            cursor: pointer;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-        button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
-        }
-        button:active {
-            transform: translateY(0);
-        }
-        .slider-value {
-            text-align: center;
-            font-size: 1.2em;
-            font-weight: 600;
-            color: #667eea;
-            margin-top: 8px;
-        }
-        .pattern-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-            gap: 10px;
-            margin-top: 15px;
-        }
-        .pattern-btn {
-            padding: 20px;
-            background: white;
-            border: 2px solid #667eea;
-            color: #667eea;
-            cursor: pointer;
-            border-radius: 8px;
-            transition: all 0.3s;
-        }
-        .pattern-btn:hover {
-            background: #667eea;
-            color: white;
-            transform: scale(1.05);
-        }
-        .color-picker-group {
-            display: flex;
-            gap: 10px;
-            margin-top: 10px;
-        }
-        .color-picker {
-            flex: 1;
-        }
-        input[type="color"] {
-            width: 100%;
-            height: 50px;
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            cursor: pointer;
-        }
-        .live-canvas {
-            width: 100%;
-            height: 200px;
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            background: #000;
-            cursor: crosshair;
-        }
-        
-        /* Mobile-first responsive design */
-        @media (max-width: 768px) {
-            body {
-                padding: 10px;
-            }
-            
-            .container {
-                border-radius: 12px;
-            }
-            
-            h1 {
-                font-size: 1.8em;
-            }
-            
-            h2 {
-                font-size: 1.3em;
-            }
-            
-            .header {
-                padding: 20px;
-            }
-            
-            .content {
-                padding: 15px;
-            }
-            
-            .section {
-                padding: 15px;
-                margin-bottom: 15px;
-            }
-            
-            button {
-                width: 100%;
-                margin: 5px 0;
-                padding: 15px;
-                font-size: 16px;
-                min-height: 44px;
-                touch-action: manipulation;
-            }
-            
-            input[type="range"] {
-                width: 100%;
-                height: 40px;
-                -webkit-appearance: none;
-                appearance: none;
-            }
-            
-            input[type="range"]::-webkit-slider-thumb {
-                -webkit-appearance: none;
-                width: 32px;
-                height: 32px;
-                border-radius: 50%;
-                background: #667eea;
-                cursor: pointer;
-            }
-            
-            input[type="range"]::-moz-range-thumb {
-                width: 32px;
-                height: 32px;
-                border-radius: 50%;
-                background: #667eea;
-                cursor: pointer;
-                border: none;
-            }
-            
-            input[type="file"] {
-                width: 100%;
-                padding: 15px;
-                font-size: 16px;
-            }
-            
-            select {
-                font-size: 16px;
-                min-height: 44px;
-            }
-            
-            .pattern-grid {
-                grid-template-columns: repeat(2, 1fr);
-                gap: 8px;
-            }
-            
-            .pattern-btn {
-                padding: 15px;
-                font-size: 14px;
-            }
-            
-            .color-picker-group {
-                flex-direction: column;
-            }
-            
-            input[type="color"] {
-                height: 60px;
-            }
-            
-            .live-canvas {
-                height: 150px;
-            }
-            
-            .status {
-                font-size: 14px;
-            }
-        }
-        
-        /* Improve touch targets */
-        button, input, select {
-            min-height: 44px;
-        }
-        
-        /* Better contrast for readability */
-        body {
-            font-size: 16px;
-            line-height: 1.6;
-        }
-        
-        /* LED Preview Strip */
-        .led-preview {
-            display: flex;
-            gap: 2px;
-            padding: 10px;
-            background: #111;
-            border-radius: 8px;
-            margin-top: 5px;
-            overflow-x: auto;
-        }
-        .led {
-            width: 15px;
-            height: 30px;
-            border-radius: 3px;
-            background: #222;
-            transition: background 0.1s;
-        }
-        /* PWA Install Button */
-        #installButton {
-            display: none;
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            z-index: 1000;
-            background: #4CAF50;
-            color: white;
-            border: none;
-            padding: 15px 25px;
-            border-radius: 50px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-            cursor: pointer;
-            font-weight: bold;
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#020617;color:#e2e8f0;min-height:100vh;font-size:14px;line-height:1.5;overflow-x:hidden}
+        .app{display:flex;flex-direction:column;min-height:100vh}
+
+        /* Top Navigation */
+        .topnav{background:#0f172a;border-bottom:1px solid #1e293b;padding:0;position:sticky;top:0;z-index:50;overflow-x:auto;-webkit-overflow-scrolling:touch}
+        .topnav-inner{display:flex;align-items:center;min-width:max-content}
+        .brand{padding:12px 20px;display:flex;align-items:center;gap:10px;border-right:1px solid #1e293b;flex-shrink:0}
+        .brand-icon{width:28px;height:28px;background:linear-gradient(135deg,#06b6d4,#a855f7);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;color:#fff}
+        .brand h1{font-size:16px;font-weight:800;background:linear-gradient(90deg,#06b6d4,#a855f7);-webkit-background-clip:text;-webkit-text-fill-color:transparent;white-space:nowrap}
+        .brand sub{font-size:9px;color:#475569;font-family:monospace;display:block}
+        .nav-tabs{display:flex;gap:0;flex:1}
+        .nav-tab{padding:14px 18px;color:#64748b;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;cursor:pointer;border:none;background:none;white-space:nowrap;transition:all .2s;border-bottom:2px solid transparent;position:relative}
+        .nav-tab:hover{color:#cbd5e1;background:rgba(30,41,59,.5)}
+        .nav-tab.active{color:#06b6d4;border-bottom-color:#06b6d4;background:rgba(6,182,212,.05)}
+        .status-dot{position:absolute;top:10px;right:10px;width:6px;height:6px;border-radius:50%;background:#ef4444}
+        .status-dot.on{background:#22c55e;animation:pulse 2s infinite}
+        @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+        /* Main Content */
+        .main{flex:1;padding:16px;max-width:900px;margin:0 auto;width:100%}
+        .tab-content{display:none;animation:fadeIn .3s ease}
+        .tab-content.active{display:block}
+        @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+        /* Cards */
+        .card{background:#0f172a;border:1px solid #1e293b;border-radius:16px;padding:20px;margin-bottom:16px}
+        .card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+        .card-title{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:#64748b;display:flex;align-items:center;gap:8px}
+        .card-title .dot{width:8px;height:8px;border-radius:50%}
+        h2{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:#94a3b8;margin-bottom:14px}
+
+        /* Status Banner */
+        .status-banner{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+        .stat-chip{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:10px 16px;flex:1;min-width:120px;display:flex;flex-direction:column;gap:2px}
+        .stat-label{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.12em;color:#64748b}
+        .stat-value{font-size:16px;font-weight:800;color:#e2e8f0;font-family:monospace}
+        .stat-value.ok{color:#22c55e}
+        .stat-value.err{color:#ef4444}
+        .stat-value.cyan{color:#06b6d4}
+
+        /* LED Preview */
+        .led-strip{display:flex;gap:3px;padding:12px;background:#000;border-radius:12px;border:1px solid #1e293b;overflow-x:auto}
+        .led{width:18px;height:36px;border-radius:4px;background:#111827;transition:background .15s;flex-shrink:0}
+
+        /* Controls */
+        .ctrl{margin-bottom:16px}
+        .ctrl label{display:flex;justify-content:space-between;align-items:center;font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}
+        .ctrl label span{color:#06b6d4;font-family:monospace;font-size:13px}
+        input[type=range]{-webkit-appearance:none;width:100%;height:6px;background:#1e293b;border-radius:3px;outline:none;cursor:pointer}
+        input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:#06b6d4;cursor:pointer;border:2px solid #0f172a;box-shadow:0 0 8px rgba(6,182,212,.4)}
+        input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:#06b6d4;cursor:pointer;border:2px solid #0f172a}
+        select,input[type=number],input[type=file]{width:100%;padding:10px 14px;background:#0f172a;border:1px solid #334155;border-radius:10px;color:#e2e8f0;font-size:14px;outline:none;transition:border .2s}
+        select:focus,input[type=number]:focus{border-color:#06b6d4}
+        input[type=color]{width:100%;height:48px;border:1px solid #334155;border-radius:10px;background:#0f172a;cursor:pointer;padding:4px}
+
+        /* Buttons */
+        .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 20px;border:none;border-radius:12px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;cursor:pointer;transition:all .2s;min-height:44px;width:100%;color:#fff}
+        .btn:active{transform:scale(.97)}
+        .btn-primary{background:linear-gradient(135deg,#06b6d4,#a855f7)}
+        .btn-primary:hover{box-shadow:0 4px 20px rgba(6,182,212,.3)}
+        .btn-green{background:#16a34a}
+        .btn-green:hover{background:#22c55e}
+        .btn-red{background:#dc2626}
+        .btn-red:hover{background:#ef4444}
+        .btn-slate{background:#334155;color:#e2e8f0}
+        .btn-slate:hover{background:#475569}
+        .btn-sm{padding:8px 14px;font-size:11px;min-height:36px;border-radius:8px}
+        .btn-ghost{background:transparent;border:1px solid #334155;color:#94a3b8}
+        .btn-ghost:hover{border-color:#64748b;color:#e2e8f0}
+        .btn-icon{width:auto;padding:8px 12px}
+
+        /* Pattern Grid */
+        .pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px}
+        .pbtn{padding:14px 8px;background:#1e293b;border:1px solid #334155;color:#cbd5e1;cursor:pointer;border-radius:10px;transition:all .2s;font-size:12px;font-weight:600;text-align:center;min-height:44px}
+        .pbtn:hover{border-color:#06b6d4;background:rgba(6,182,212,.1);color:#06b6d4;transform:translateY(-1px)}
+        .pbtn.active{border-color:#06b6d4;background:rgba(6,182,212,.15);color:#06b6d4;box-shadow:0 0 12px rgba(6,182,212,.2)}
+        .pbtn-audio{background:linear-gradient(135deg,var(--g1),var(--g2));border:none;color:#fff;font-weight:700}
+        .pbtn-audio:hover{transform:translateY(-2px);box-shadow:0 4px 16px rgba(0,0,0,.3)}
+
+        /* Two-column layout */
+        .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+        .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+        .flex-row{display:flex;gap:10px}
+        .flex-1{flex:1}
+
+        /* Canvas */
+        .draw-canvas{width:100%;height:200px;border:1px solid #334155;border-radius:12px;background:#000;cursor:crosshair;touch-action:none}
+
+        /* Checkbox */
+        .chk{display:flex;align-items:center;gap:8px;font-size:13px;color:#94a3b8;cursor:pointer}
+        .chk input{width:18px;height:18px;accent-color:#06b6d4;cursor:pointer}
+
+        /* Sync Section */
+        .sync-info{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:14px;margin-bottom:14px;font-size:13px;color:#94a3b8}
+        .sync-info strong{color:#e2e8f0}
+        .peer-item{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;margin:6px 0;background:#1e293b;border-radius:10px;border-left:3px solid var(--pc,#64748b)}
+        .peer-item .name{font-weight:700;color:#e2e8f0;font-size:13px}
+        .peer-item .meta{font-size:11px;color:#64748b}
+        .peer-panel{background:#1e293b;border:1px solid #334155;border-radius:12px;padding:16px;margin-bottom:12px}
+        .peer-panel .peer-title{font-weight:700;color:#a855f7;margin-bottom:10px;font-size:13px}
+
+        /* SD Card */
+        .sd-file{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;margin:4px 0;background:#1e293b;border-radius:8px}
+        .sd-file .fname{flex:1;font-size:13px;color:#cbd5e1;font-family:monospace}
+        .sd-file .actions{display:flex;gap:6px}
+
+        /* Toast / Notification */
+        .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1e293b;border:1px solid #334155;border-radius:12px;padding:12px 24px;font-size:13px;color:#e2e8f0;box-shadow:0 8px 32px rgba(0,0,0,.5);z-index:100;display:none;animation:slideUp .3s ease}
+        @keyframes slideUp{from{opacity:0;transform:translate(-50%,20px)}to{opacity:1;transform:translate(-50%,0)}}
+
+        /* PWA Install */
+        #installButton{display:none;position:fixed;bottom:20px;right:20px;z-index:60;background:#16a34a;color:#fff;border:none;padding:12px 20px;border-radius:50px;box-shadow:0 4px 16px rgba(0,0,0,.4);cursor:pointer;font-weight:700;font-size:13px;min-height:auto;width:auto}
+
+        /* Scrollbar */
+        ::-webkit-scrollbar{width:6px;height:6px}
+        ::-webkit-scrollbar-track{background:#0f172a}
+        ::-webkit-scrollbar-thumb{background:#334155;border-radius:3px}
+
+        /* Responsive */
+        @media(max-width:640px){
+            .topnav-inner{padding-right:8px}
+            .brand{padding:10px 14px}
+            .brand h1{font-size:14px}
+            .nav-tab{padding:12px 12px;font-size:10px}
+            .main{padding:10px}
+            .card{padding:14px;border-radius:12px}
+            .pgrid{grid-template-columns:repeat(2,1fr)}
+            .grid2{grid-template-columns:1fr}
+            .status-banner{flex-direction:column}
+            .stat-chip{min-width:auto}
         }
     </style>
 </head>
 <body>
-    <!-- PWA Install Button -->
-    <button id="installButton">📱 Install App</button>
-    
-    <div class="container">
-        <div class="header">
-            <h1>🎨 Nebula Poi Controller</h1>
-            <div class="status">
-                <div>Status: <span id="connection-status">Connecting...</span></div>
-                <div>Mode: <span id="mode-status">Idle</span></div>
+<div class="app">
+    <!-- PWA Install -->
+    <button id="installButton">Install App</button>
+
+    <!-- Top Navigation -->
+    <nav class="topnav">
+        <div class="topnav-inner">
+            <div class="brand">
+                <div class="brand-icon">N</div>
+                <div><h1>Nebula Poi</h1><sub>ESP32-S3 | POV-POI-WiFi</sub></div>
+            </div>
+            <div class="nav-tabs" id="nav-tabs">
+                <button class="nav-tab active" data-tab="dashboard">Dashboard<span class="status-dot" id="conn-dot"></span></button>
+                <button class="nav-tab" data-tab="patterns">Patterns</button>
+                <button class="nav-tab" data-tab="imagelab">Image Lab</button>
+                <button class="nav-tab" data-tab="livedraw">Live Draw</button>
+                <button class="nav-tab" data-tab="sync">Multi-Poi</button>
+                <button class="nav-tab" data-tab="sdcard">SD Card</button>
+                <button class="nav-tab" data-tab="settings">Settings</button>
             </div>
         </div>
-        
-        <div class="content">
-            <!-- LED Preview -->
-            <div class="section">
-                <h2>🔮 LED Preview</h2>
-                <div class="led-preview" id="led-preview"></div>
+    </nav>
+
+    <div class="main">
+        <!-- ===== DASHBOARD TAB ===== -->
+        <div class="tab-content active" id="tab-dashboard">
+            <!-- Status Banner -->
+            <div class="status-banner">
+                <div class="stat-chip">
+                    <div class="stat-label">Connection</div>
+                    <div class="stat-value" id="conn-status">--</div>
+                </div>
+                <div class="stat-chip">
+                    <div class="stat-label">Mode</div>
+                    <div class="stat-value cyan" id="mode-display">Idle</div>
+                </div>
+                <div class="stat-chip">
+                    <div class="stat-label">Brightness</div>
+                    <div class="stat-value" id="bright-display">128</div>
+                </div>
+                <div class="stat-chip">
+                    <div class="stat-label">FPS</div>
+                    <div class="stat-value" id="fps-display">50</div>
+                </div>
             </div>
-            
-            <!-- Mode Selection -->
-            <div class="section">
-                <h2>Display Mode</h2>
-                <div class="control-group">
-                    <label for="mode-select">Select Mode:</label>
+
+            <!-- LED Preview -->
+            <div class="card">
+                <div class="card-title"><span class="dot" style="background:#a855f7"></span> LED Preview</div>
+                <div class="led-strip" id="led-preview"></div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="card">
+                <div class="card-title"><span class="dot" style="background:#06b6d4"></span> Quick Actions</div>
+                <div class="grid2" style="margin-bottom:14px">
+                    <button class="btn btn-green" onclick="quickAction('play')">PLAY</button>
+                    <button class="btn btn-red" onclick="quickAction('stop')">STOP</button>
+                </div>
+                <button class="btn btn-slate" onclick="quickAction('random')">Synced Pattern Cycle</button>
+            </div>
+
+            <!-- Mode & Index -->
+            <div class="card">
+                <div class="card-title"><span class="dot" style="background:#f59e0b"></span> Display Mode</div>
+                <div class="ctrl">
+                    <label>Mode</label>
                     <select id="mode-select" onchange="changeMode()">
                         <option value="0">Idle (Off)</option>
                         <option value="1">Image Display</option>
@@ -679,1041 +570,788 @@ void handleRoot() {
                         <option value="4">Live Mode</option>
                     </select>
                 </div>
-                <div style="margin-top: 10px; padding: 10px; background: rgba(102, 126, 234, 0.1); border-radius: 5px; font-size: 14px;">
-                    <strong>Available Content:</strong><br>
-                    📷 Images: 0=Smiley, 1=Rainbow, 2=Heart<br>
-                    🎨 Pattern slots (0-17; preloaded 0-6): 0=Rainbow, 1=Fire, 2=Comet,<br>
-                    3=Breathing, 4=Plasma, 5=Split Spin, 6=Theater Chase<br>
-                    🎬 Sequences: 0=Demo Mix
-                </div>
-                <div class="control-group" style="margin-top: 15px;">
-                    <label for="content-index">Content Index (0-17):</label>
+                <div class="ctrl">
+                    <label>Content Index <span id="idx-display">0</span></label>
                     <input type="number" id="content-index" min="0" max="17" value="0" onchange="changeContentIndex()">
                 </div>
+                <div style="padding:10px;background:#1e293b;border-radius:8px;font-size:12px;color:#64748b;margin-top:4px">
+                    Images: 0=Smiley, 1=Rainbow, 2=Heart | Patterns: 0-17 | Sequences: 0=Demo Mix
+                </div>
             </div>
-            
-            <!-- System Controls -->
-            <div class="section">
-                <h2>System Controls</h2>
-                <div class="control-group">
-                    <label for="brightness">Brightness: <span id="brightness-value">128</span></label>
+
+            <!-- Brightness & Frame Rate -->
+            <div class="card">
+                <div class="card-title"><span class="dot" style="background:#eab308"></span> System Controls</div>
+                <div class="ctrl">
+                    <label>Brightness <span id="brightness-value">128</span></label>
                     <input type="range" id="brightness" min="0" max="255" value="128" oninput="updateBrightness(this.value)">
                 </div>
-                <div class="control-group">
-                    <label for="framerate">Frame Rate: <span id="framerate-value">50</span> FPS</label>
+                <div class="ctrl">
+                    <label>Frame Rate <span id="framerate-value">50</span> FPS</label>
                     <input type="range" id="framerate" min="10" max="120" value="50" oninput="updateFrameRate(this.value)">
                 </div>
             </div>
-            
-            <!-- Patterns -->
-            <div class="section">
-                <h2>Visual Patterns</h2>
-                <div class="pattern-grid">
-                    <button class="pattern-btn" data-pattern="0" onclick="setPattern(0)">🌈 Rainbow</button>
-                    <button class="pattern-btn" data-pattern="1" onclick="setPattern(1)">🌊 Wave</button>
-                    <button class="pattern-btn" data-pattern="2" onclick="setPattern(2)">🎨 Gradient</button>
-                    <button class="pattern-btn" data-pattern="3" onclick="setPattern(3)">✨ Sparkle</button>
-                    <button class="pattern-btn" data-pattern="4" onclick="setPattern(4)">🔥 Fire</button>
-                    <button class="pattern-btn" data-pattern="5" onclick="setPattern(5)">☄️ Comet</button>
-                    <button class="pattern-btn" data-pattern="6" onclick="setPattern(6)">💨 Breathing</button>
-                    <button class="pattern-btn" data-pattern="7" onclick="setPattern(7)">⚡ Strobe</button>
-                    <button class="pattern-btn" data-pattern="8" onclick="setPattern(8)">🌠 Meteor</button>
-                    <button class="pattern-btn" data-pattern="9" onclick="setPattern(9)">🖌️ Wipe</button>
-                    <button class="pattern-btn" data-pattern="10" onclick="setPattern(10)">🌀 Plasma</button>
-                    <button class="pattern-btn" data-pattern="16" onclick="setPattern(16)">🌓 Split Spin</button>
-                    <button class="pattern-btn" data-pattern="17" onclick="setPattern(17)">🎭 Theater Chase</button>
+        </div>
+
+        <!-- ===== PATTERNS TAB ===== -->
+        <div class="tab-content" id="tab-patterns">
+            <div class="card">
+                <div class="card-title"><span class="dot" style="background:#06b6d4"></span> Visual Patterns</div>
+                <div class="pgrid" id="pattern-grid">
+                    <button class="pbtn" data-pattern="0" onclick="setPattern(0)">Rainbow</button>
+                    <button class="pbtn" data-pattern="1" onclick="setPattern(1)">Wave</button>
+                    <button class="pbtn" data-pattern="2" onclick="setPattern(2)">Gradient</button>
+                    <button class="pbtn" data-pattern="3" onclick="setPattern(3)">Sparkle</button>
+                    <button class="pbtn" data-pattern="4" onclick="setPattern(4)">Fire</button>
+                    <button class="pbtn" data-pattern="5" onclick="setPattern(5)">Comet</button>
+                    <button class="pbtn" data-pattern="6" onclick="setPattern(6)">Breathing</button>
+                    <button class="pbtn" data-pattern="7" onclick="setPattern(7)">Strobe</button>
+                    <button class="pbtn" data-pattern="8" onclick="setPattern(8)">Meteor</button>
+                    <button class="pbtn" data-pattern="9" onclick="setPattern(9)">Wipe</button>
+                    <button class="pbtn" data-pattern="10" onclick="setPattern(10)">Plasma</button>
+                    <button class="pbtn" data-pattern="16" onclick="setPattern(16)">Split Spin</button>
+                    <button class="pbtn" data-pattern="17" onclick="setPattern(17)">Theater Chase</button>
                 </div>
             </div>
-            
-            <!-- Audio Reactive Patterns -->
-            <div class="section">
-                <h2>🎵 Audio Reactive</h2>
-                <p style="font-size: 12px; color: #666; margin-bottom: 10px;">Requires MAX9814 microphone amplifier on Teensy pin A0</p>
-                <div class="pattern-grid">
-                    <button class="pattern-btn" data-pattern="11" onclick="setPattern(11)" style="background: linear-gradient(135deg, #00ff88 0%, #ff0088 100%); color: white; border: none;">📊 VU Meter</button>
-                    <button class="pattern-btn" data-pattern="12" onclick="setPattern(12)" style="background: linear-gradient(135deg, #ff0088 0%, #00ff88 100%); color: white; border: none;">💓 Pulse</button>
-                    <button class="pattern-btn" data-pattern="13" onclick="setPattern(13)" style="background: linear-gradient(135deg, #ff0000 0%, #00ff00 50%, #0000ff 100%); color: white; border: none;">🌈 Audio Rainbow</button>
-                    <button class="pattern-btn" data-pattern="14" onclick="setPattern(14)" style="background: linear-gradient(135deg, #8800ff 0%, #ff8800 100%); color: white; border: none;">🎯 Center Burst</button>
-                    <button class="pattern-btn" data-pattern="15" onclick="setPattern(15)" style="background: linear-gradient(135deg, #ffff00 0%, #ff00ff 100%); color: white; border: none;">✨ Audio Sparkle</button>
+
+            <div class="card">
+                <div class="card-title"><span class="dot" style="background:#ec4899"></span> Audio Reactive</div>
+                <div style="font-size:11px;color:#64748b;margin-bottom:10px">Requires MAX9814 microphone on Teensy pin A0</div>
+                <div class="pgrid">
+                    <button class="pbtn pbtn-audio" data-pattern="11" onclick="setPattern(11)" style="--g1:#00ff88;--g2:#ff0088">VU Meter</button>
+                    <button class="pbtn pbtn-audio" data-pattern="12" onclick="setPattern(12)" style="--g1:#ff0088;--g2:#00ff88">Pulse</button>
+                    <button class="pbtn pbtn-audio" data-pattern="13" onclick="setPattern(13)" style="--g1:#ff0000;--g2:#0000ff">Audio Rainbow</button>
+                    <button class="pbtn pbtn-audio" data-pattern="14" onclick="setPattern(14)" style="--g1:#8800ff;--g2:#ff8800">Center Burst</button>
+                    <button class="pbtn pbtn-audio" data-pattern="15" onclick="setPattern(15)" style="--g1:#ffff00;--g2:#ff00ff">Audio Sparkle</button>
                 </div>
             </div>
-            
-            <!-- Pattern Settings -->
-            <div class="section">
-                <h2>Pattern Settings</h2>
-                <div class="color-picker-group">
-                    <div class="color-picker">
-                        <label>Color 1:</label>
+
+            <div class="card">
+                <div class="card-title"><span class="dot" style="background:#f59e0b"></span> Pattern Settings</div>
+                <div class="grid2">
+                    <div class="ctrl">
+                        <label>Color 1</label>
                         <input type="color" id="color1" value="#ff0000">
                     </div>
-                    <div class="color-picker">
-                        <label>Color 2:</label>
+                    <div class="ctrl">
+                        <label>Color 2</label>
                         <input type="color" id="color2" value="#0000ff">
                     </div>
                 </div>
-                <div class="control-group" style="margin-top: 10px;">
-                    <label for="pattern-speed">Pattern Speed: <span id="speed-value">50</span></label>
+                <div class="ctrl">
+                    <label>Speed <span id="speed-value">50</span></label>
                     <input type="range" id="pattern-speed" min="1" max="255" value="50" oninput="updateSpeed(this.value)">
                 </div>
             </div>
-            
-            <!-- Image Upload -->
-            <div class="section">
-                <h2>Upload Image</h2>
-                <div class="control-group">
-                    <label for="image-upload">Select Image:</label>
+        </div>
+
+        <!-- ===== IMAGE LAB TAB ===== -->
+        <div class="tab-content" id="tab-imagelab">
+            <!-- Upload Section -->
+            <div class="card">
+                <div class="card-title"><span class="dot" style="background:#ec4899"></span> Image Upload</div>
+                <div class="ctrl">
+                    <label>Select Image</label>
                     <input type="file" id="image-upload" accept="image/*">
                 </div>
-                <div class="control-group">
-                    <label style="display: flex; align-items: center; gap: 10px;">
-                        <input type="checkbox" id="aspect-ratio-lock" checked style="width: auto; margin: 0;">
-                        Lock Aspect Ratio
-                    </label>
+                <div style="margin-bottom:12px">
+                    <label class="chk"><input type="checkbox" id="aspect-ratio-lock" checked> Lock Aspect Ratio</label>
                 </div>
-                <div class="control-group" style="display: flex; gap: 10px;">
-                    <div style="flex: 1;">
-                        <label for="image-width">Width (px):</label>
-                        <input type="number" id="image-width" min="1" max="100" value="32" style="width: 100%; padding: 8px;" oninput="updateImageDimensions('width')">
+                <div class="grid2">
+                    <div class="ctrl">
+                        <label>Width (px)</label>
+                        <input type="number" id="image-width" min="1" max="100" value="32" oninput="updateImageDimensions('width')">
                     </div>
-                    <div style="flex: 1;">
-                        <label for="image-height">Height (px):</label>
-                        <input type="number" id="image-height" min="1" max="200" value="64" style="width: 100%; padding: 8px;" oninput="updateImageDimensions('height')">
+                    <div class="ctrl">
+                        <label>Height (px)</label>
+                        <input type="number" id="image-height" min="32" max="32" value="32" readonly>
                     </div>
                 </div>
-                <div class="control-group" style="display: flex; gap: 15px;">
-                    <label style="display: flex; align-items: center; gap: 5px;">
-                        <input type="checkbox" id="flip-vertical" style="width: auto; margin: 0;">
-                        Flip Vertical
-                    </label>
-                    <label style="display: flex; align-items: center; gap: 5px;">
-                        <input type="checkbox" id="flip-horizontal" style="width: auto; margin: 0;">
-                        Flip Horizontal
-                    </label>
+                <div class="flex-row" style="margin-bottom:14px">
+                    <label class="chk"><input type="checkbox" id="flip-vertical"> Flip Vertical</label>
+                    <label class="chk"><input type="checkbox" id="flip-horizontal"> Flip Horizontal</label>
                 </div>
-                <div class="control-group">
-                    <button onclick="uploadImage()" style="margin-top: 5px;">Upload & Display</button>
+                <button class="btn btn-primary" onclick="uploadImage()">Upload & Display</button>
+            </div>
+
+            <!-- Procedural Generator -->
+            <div class="card">
+                <div class="card-title"><span class="dot" style="background:#a855f7"></span> Procedural Generator</div>
+                <div class="grid2" style="margin-bottom:14px">
+                    <button class="btn btn-slate" id="btn-organic" onclick="setGenType('organic')" style="border:1px solid #06b6d4">Organic</button>
+                    <button class="btn btn-slate" id="btn-geometric" onclick="setGenType('geometric')">Geometric</button>
                 </div>
+                <div class="ctrl">
+                    <label>Complexity <span id="complexity-val">8</span></label>
+                    <input type="range" id="gen-complexity" min="1" max="25" value="8" oninput="document.getElementById('complexity-val').textContent=this.value">
+                </div>
+                <div class="grid2">
+                    <button class="btn btn-slate" onclick="generateArt()">Generate</button>
+                    <button class="btn btn-slate" onclick="rollColors()">Roll Colors</button>
+                </div>
+                <canvas id="gen-canvas" style="width:100%;margin-top:14px;border-radius:8px;border:1px solid #1e293b;display:none"></canvas>
+                <button class="btn btn-primary" onclick="uploadGenerated()" style="margin-top:12px;display:none" id="btn-upload-gen">Upload Generated Image</button>
             </div>
-            
-            <!-- Live Mode -->
-            <div class="section">
-                <h2>Live Draw Mode</h2>
-                <canvas id="live-canvas" class="live-canvas" width="320" height="200"></canvas>
-                <button onclick="clearCanvas()" style="margin-top: 10px;">Clear</button>
+
+            <!-- Image Preview -->
+            <div class="card">
+                <div class="card-title"><span class="dot" style="background:#22c55e"></span> Preview</div>
+                <div id="img-preview-box" style="background:#000;border-radius:12px;border:1px solid #1e293b;min-height:80px;display:flex;align-items:center;justify-content:center;overflow:hidden">
+                    <span style="color:#334155;font-size:12px">No image loaded</span>
+                </div>
+                <div id="img-dimensions" style="margin-top:8px;font-size:11px;color:#64748b;font-family:monospace;text-align:center"></div>
             </div>
-            
-            <!-- Multi-Poi Sync -->
-            <div class="section" id="sync-section">
-                <h2>Multi-Poi Sync</h2>
-                <div id="sync-status-box" style="margin-bottom: 15px; padding: 10px; background: rgba(102, 126, 234, 0.1); border-radius: 5px;">
-                    <div>This Poi: <span id="sync-local-name">--</span></div>
+        </div>
+
+        <!-- ===== LIVE DRAW TAB ===== -->
+        <div class="tab-content" id="tab-livedraw">
+            <div class="card">
+                <div class="card-title"><span class="dot" style="background:#f97316"></span> Live Draw Mode</div>
+                <div style="font-size:12px;color:#64748b;margin-bottom:12px">Draw on the canvas below. Colors are sampled and sent to the LEDs in real-time.</div>
+                <canvas id="live-canvas" class="draw-canvas" width="320" height="200"></canvas>
+                <div class="grid2" style="margin-top:12px">
+                    <div class="ctrl">
+                        <label>Brush Color</label>
+                        <input type="color" id="draw-color" value="#ff0000">
+                    </div>
+                    <div class="ctrl">
+                        <label>Brush Size <span id="brush-size-val">5</span></label>
+                        <input type="range" id="brush-size" min="1" max="30" value="5" oninput="document.getElementById('brush-size-val').textContent=this.value">
+                    </div>
+                </div>
+                <button class="btn btn-red" onclick="clearCanvas()">Clear Canvas</button>
+            </div>
+        </div>
+
+        <!-- ===== MULTI-POI SYNC TAB ===== -->
+        <div class="tab-content" id="tab-sync">
+            <div class="card">
+                <div class="card-title"><span class="dot" style="background:#a855f7"></span> Multi-Poi Sync</div>
+                <div class="sync-info">
+                    <div>This Poi: <strong><span id="sync-local-name">--</span></strong></div>
                     <div>Sync Mode: <strong><span id="sync-mode-display">Mirror</span></strong></div>
-                    <div>Paired: <span id="sync-paired-status">No peers</span></div>
+                    <div>Paired: <strong><span id="sync-paired-status">No peers</span></strong></div>
                 </div>
 
-                <!-- Sync mode toggle -->
-                <div class="control-group">
-                    <label>Sync Mode:</label>
-                    <div style="display: flex; gap: 10px;">
-                        <button id="btn-mirror" onclick="setSyncMode('mirror')" style="flex:1; background: #667eea; color: white;">Mirror</button>
-                        <button id="btn-independent" onclick="setSyncMode('independent')" style="flex:1; background: #ddd; color: #333;">Independent</button>
-                    </div>
-                    <div style="margin-top: 8px; font-size: 13px; color: #666;">
-                        <strong>Mirror:</strong> Both poi show the same thing.<br>
-                        <strong>Independent:</strong> Control each poi separately.
-                    </div>
+                <h2>Sync Mode</h2>
+                <div class="grid2" style="margin-bottom:12px">
+                    <button class="btn" id="btn-mirror" onclick="setSyncMode('mirror')" style="background:#06b6d4">Mirror</button>
+                    <button class="btn btn-slate" id="btn-independent" onclick="setSyncMode('independent')">Independent</button>
+                </div>
+                <div style="font-size:12px;color:#64748b;margin-bottom:16px">
+                    <strong>Mirror:</strong> Both poi show the same thing.
+                    <strong>Independent:</strong> Control each poi separately.
                 </div>
 
-                <!-- Pairing controls -->
-                <div class="control-group" style="margin-top: 15px;">
-                    <label>Pairing:</label>
-                    <div style="display: flex; gap: 10px;">
-                        <button onclick="pairPoi()" style="flex:1; background: #4CAF50; color: white;">Pair</button>
-                        <button onclick="unpairPoi()" style="flex:1; background: #f44336; color: white;">Unpair All</button>
-                    </div>
+                <h2>Pairing</h2>
+                <div class="grid2" style="margin-bottom:16px">
+                    <button class="btn btn-green" onclick="pairPoi()">Pair</button>
+                    <button class="btn btn-red" onclick="unpairPoi()">Unpair All</button>
                 </div>
 
-                <!-- Peer list -->
-                <div id="sync-peer-list" style="margin-top: 10px;"></div>
+                <h2>Peers</h2>
+                <div id="sync-peer-list">
+                    <div style="text-align:center;color:#475569;font-size:12px;padding:12px">No paired poi found. Tap Pair to discover.</div>
+                </div>
 
-                <!-- Independent mode: peer controls (hidden in mirror mode) -->
-                <div id="independent-controls" style="display: none; margin-top: 15px; border-top: 2px solid #667eea; padding-top: 15px;">
-                    <h3 style="color: #667eea; margin-bottom: 10px;">Paired Poi Controls</h3>
+                <div id="independent-controls" style="display:none;margin-top:16px;border-top:1px solid #334155;padding-top:16px">
+                    <h2>Peer Controls</h2>
                     <div id="peer-control-panels"></div>
                 </div>
             </div>
+        </div>
 
-            <!-- SD Card Management -->
-            <div class="section">
-                <h2>💾 SD Card Storage</h2>
-                <div id="sd-status" style="margin-bottom: 15px; padding: 10px; background: rgba(102, 126, 234, 0.1); border-radius: 5px;">
-                    <div>Status: <span id="sd-status-text">Checking...</span></div>
-                    <div id="sd-info" style="margin-top: 5px; font-size: 14px; color: #666;"></div>
+        <!-- ===== SD CARD TAB ===== -->
+        <div class="tab-content" id="tab-sdcard">
+            <div class="card">
+                <div class="card-title"><span class="dot" style="background:#f59e0b"></span> SD Card Storage</div>
+                <div class="sync-info" style="margin-bottom:14px">
+                    <div>Status: <strong><span id="sd-status-text">Checking...</span></strong></div>
+                    <div id="sd-info" style="margin-top:4px;font-size:12px;color:#64748b"></div>
                 </div>
-                <div class="control-group">
-                    <button onclick="refreshSDList()" style="margin-bottom: 10px;">🔄 Refresh List</button>
-                    <div id="sd-file-list" style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; border-radius: 5px; padding: 10px; background: white;">
-                        <div style="text-align: center; color: #999;">No files loaded</div>
-                    </div>
+                <button class="btn btn-slate" onclick="refreshSDList()" style="margin-bottom:14px">Refresh File List</button>
+                <div id="sd-file-list" style="max-height:300px;overflow-y:auto">
+                    <div style="text-align:center;color:#475569;font-size:12px;padding:12px">No files loaded</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== SETTINGS TAB ===== -->
+        <div class="tab-content" id="tab-settings">
+            <div class="card">
+                <div class="card-title"><span class="dot" style="background:#06b6d4"></span> Device Configuration</div>
+                <div class="ctrl">
+                    <label>Device Name</label>
+                    <input type="text" id="cfg-device-name" style="width:100%;padding:10px 14px;background:#0f172a;border:1px solid #334155;border-radius:10px;color:#e2e8f0;font-size:14px;outline:none" placeholder="Nebula Poi">
+                </div>
+                <div class="ctrl">
+                    <label>Sync Group</label>
+                    <input type="text" id="cfg-sync-group" style="width:100%;padding:10px 14px;background:#0f172a;border:1px solid #334155;border-radius:10px;color:#e2e8f0;font-size:14px;outline:none" placeholder="default">
+                </div>
+                <div style="margin-bottom:14px">
+                    <label class="chk"><input type="checkbox" id="cfg-auto-sync"> Enable Auto Sync</label>
+                </div>
+                <button class="btn btn-primary" onclick="saveConfig()">Save Configuration</button>
+                <div id="cfg-status" style="margin-top:10px;font-size:12px;color:#64748b;text-align:center"></div>
+            </div>
+
+            <div class="card">
+                <div class="card-title"><span class="dot" style="background:#a855f7"></span> Hardware Info</div>
+                <div style="font-family:monospace;font-size:12px;color:#94a3b8;line-height:2">
+                    <div>Platform: <span style="color:#06b6d4">ESP32-S3 N16R8</span></div>
+                    <div>Flash: <span style="color:#06b6d4">16MB</span></div>
+                    <div>PSRAM: <span style="color:#06b6d4">8MB</span></div>
+                    <div>WiFi SSID: <span style="color:#06b6d4">POV-POI-WiFi</span></div>
+                    <div>IP Address: <span style="color:#06b6d4">192.168.4.1</span></div>
+                    <div>Serial Baud: <span style="color:#06b6d4">115200</span></div>
+                    <div>LEDs: <span style="color:#06b6d4">32x APA102 (SPI)</span></div>
+                    <div>UART TX: <span style="color:#06b6d4">GPIO43</span> | RX: <span style="color:#06b6d4">GPIO44</span></div>
+                    <div id="cfg-device-id" style="color:#64748b">Device ID: --</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title"><span class="dot" style="background:#ef4444"></span> Display Engine</div>
+                <div style="background:#000;border:1px solid #1e293b;border-radius:10px;padding:14px;font-family:monospace;font-size:11px;color:#94a3b8;line-height:1.8">
+                    <div style="color:#475569">// Teensy 4.1 Hardware Allocation</div>
+                    <div style="color:#06b6d4">#define NUM_LEDS 32</div>
+                    <div style="color:#06b6d4">CRGB leds[NUM_LEDS];</div>
+                    <div style="color:#a855f7">FastLED.addLeds&lt;APA102, 11, 13&gt;(leds, NUM_LEDS);</div>
+                    <div style="color:#475569">// Modes: 0=Idle 1=Image 2=Pattern 3=Sequence 4=Live</div>
+                    <div style="color:#475569">// Patterns: 0-10 Basic | 11-15 Audio | 16-17 Advanced</div>
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- Toast notification -->
+    <div class="toast" id="toast"></div>
+</div>
     
     <script>
-        const NUM_LEDS = 32;
-        let currentMode = 2;
-        let currentPattern = 0;
-        let brightness = 128;
-        // aspect ratio is stored as height / width
-        let originalImageAspectRatio = 1.0;
-        
-        // LED Preview
-        function initLEDPreview() {
-            const container = document.getElementById('led-preview');
-            container.innerHTML = '';
-            for (let i = 0; i < NUM_LEDS; i++) {
-                const led = document.createElement('div');
-                led.className = 'led';
-                led.id = 'led-' + i;
-                container.appendChild(led);
-            }
+    const NUM_LEDS=32;
+    const DISPLAY_LEDS=32;
+    let currentMode=2,currentPattern=0,brightness=128,originalImageAspectRatio=1.0;
+    let currentSyncMode='mirror',syncPeers=[];
+    let genType='organic',colorSeed=Math.random();
+    const MODES=['Idle','Image','Pattern','Sequence','Live'];
+
+    // ===== Tab Navigation =====
+    document.querySelectorAll('.nav-tab').forEach(tab=>{
+        tab.addEventListener('click',()=>{
+            document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
+            tab.classList.add('active');
+            document.getElementById('tab-'+tab.dataset.tab).classList.add('active');
+        });
+    });
+
+    // ===== Toast =====
+    function showToast(msg,duration){
+        const t=document.getElementById('toast');
+        t.textContent=msg;t.style.display='block';
+        clearTimeout(t._tid);
+        t._tid=setTimeout(()=>{t.style.display='none'},duration||2500);
+    }
+
+    // ===== LED Preview =====
+    function initLEDPreview(){
+        const c=document.getElementById('led-preview');c.innerHTML='';
+        for(let i=DISPLAY_LED_START;i<NUM_LEDS;i++){const d=document.createElement('div');d.className='led';d.id='led-'+i;c.appendChild(d)}
+    }
+    function setLEDPreview(i,r,g,b){
+        const d=document.getElementById('led-'+i);
+        if(d){const s=brightness/255;d.style.background='rgb('+Math.round(r*s)+','+Math.round(g*s)+','+Math.round(b*s)+')'}
+    }
+    function updateLEDPreviewFromStatus(mode,index){
+        for(let i=DISPLAY_LED_START;i<NUM_LEDS;i++)setLEDPreview(i,40,40,40);
+        if(mode===0)return;
+        const hue=(index*16)%256;
+        for(let i=DISPLAY_LED_START;i<NUM_LEDS;i++){
+            const h=((i*8+hue)%256)/256;
+            const r=h<.333?1:(h<.666?1-(h-.333)*3:0);
+            const g=h<.333?h*3:(h<.666?1:1-(h-.666)*3);
+            const b=h<.333?0:(h<.666?(h-.333)*3:1);
+            setLEDPreview(i,r*255,g*255,b*255);
         }
-        function setLEDPreview(i, r, g, b) {
-            const led = document.getElementById('led-' + i);
-            if (led) {
-                const s = brightness / 255;
-                led.style.background = 'rgb(' + Math.round(r*s) + ',' + Math.round(g*s) + ',' + Math.round(b*s) + ')';
+    }
+
+    // ===== Status Polling =====
+    async function updateStatus(){
+        try{
+            const res=await fetch('/api/status');
+            const d=await res.json();
+            const connected=d.connected;
+            document.getElementById('conn-status').textContent=connected?'Connected':'Disconnected';
+            document.getElementById('conn-status').className='stat-value '+(connected?'ok':'err');
+            document.getElementById('conn-dot').className='status-dot'+(connected?' on':'');
+            document.getElementById('mode-display').textContent=MODES[d.mode]||'Unknown';
+            currentMode=d.mode;
+            brightness=d.brightness!==undefined?d.brightness:brightness;
+            document.getElementById('bright-display').textContent=brightness;
+            document.getElementById('fps-display').textContent=d.framerate;
+            document.getElementById('mode-select').value=String(d.mode);
+            document.getElementById('content-index').value=d.index;
+            document.getElementById('idx-display').textContent=d.index;
+            document.getElementById('brightness').value=brightness;
+            document.getElementById('brightness-value').textContent=brightness;
+            document.getElementById('framerate').value=d.framerate;
+            document.getElementById('framerate-value').textContent=d.framerate;
+            if(d.mode===2){currentPattern=d.index;updatePatternActiveState()}
+            updateLEDPreviewFromStatus(d.mode,d.index);
+            if(d.sdCardPresent!==undefined){
+                const st=document.getElementById('sd-status-text');
+                st.textContent=d.sdCardPresent?'Present':'Not Present';
+                st.style.color=d.sdCardPresent?'#22c55e':'#ef4444';
             }
+        }catch(e){
+            document.getElementById('conn-status').textContent='Error';
+            document.getElementById('conn-status').className='stat-value err';
+            document.getElementById('conn-dot').className='status-dot';
         }
-        function updateLEDPreviewFromStatus(mode, index) {
-            for (let i = 0; i < NUM_LEDS; i++) setLEDPreview(i, 40, 40, 40);
-            if (mode === 0) return;
-            const hue = (index * 16) % 256;
-            for (let i = 0; i < NUM_LEDS; i++) {
-                const h = ((i * 8 + hue) % 256) / 256;
-                const r = h < 0.333 ? 1 : (h < 0.666 ? 1 - (h - 0.333) * 3 : 0);
-                const g = h < 0.333 ? h * 3 : (h < 0.666 ? 1 : 1 - (h - 0.666) * 3);
-                const b = h < 0.333 ? 0 : (h < 0.666 ? (h - 0.333) * 3 : 1);
-                setLEDPreview(i, r*255, g*255, b*255);
-            }
-        }
-        
-        // Initialize
-        initLEDPreview();
+    }
+
+    function updatePatternActiveState(){
+        document.querySelectorAll('.pbtn[data-pattern]').forEach(btn=>{
+            const p=parseInt(btn.getAttribute('data-pattern'),10);
+            btn.classList.toggle('active',p===currentPattern);
+        });
+    }
+
+    // ===== Quick Actions =====
+    async function quickAction(action){
+        let mode=0,index=0;
+        if(action==='play'){mode=3;index=0}
+        else if(action==='stop'){mode=0;index=0}
+        else if(action==='random'){mode=2;index=Math.floor(Math.random()*11)}
+        await fetch('/api/mode',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode,index})});
+        showToast(action.toUpperCase()+' sent');
         updateStatus();
-        setInterval(updateStatus, 2000);
-        
-        // Image upload file listener to calculate aspect ratio
-        document.getElementById('image-upload').addEventListener('change', function(e) {
-            if (e.target.files.length > 0) {
-                const file = e.target.files[0];
-                const reader = new FileReader();
-                reader.onload = function(event) {
-                    const img = new Image();
-                    img.onload = function() {
-                        originalImageAspectRatio = img.height / img.width;
-                        // When aspect lock is on, treat height as the LED count
-                        // entered by the user and adjust width automatically to
-                        // preserve the original image aspect ratio, so the
-                        // physical LED count stays authoritative.
-                        const heightInput = document.getElementById('image-height');
-                        const widthInput = document.getElementById('image-width');
-                        let targetHeight = parseInt(heightInput.value) || 32;
-                        targetHeight = Math.min(200, Math.max(1, targetHeight));
-                        heightInput.value = targetHeight;
+    }
 
-                        if (document.getElementById('aspect-ratio-lock').checked) {
-                            const newWidth = Math.round(targetHeight / originalImageAspectRatio);
-                            widthInput.value = Math.min(100, Math.max(1, newWidth));
-                        }
-                    };
-                    img.src = event.target.result;
-                };
-                reader.readAsDataURL(file);
-            }
-        });
-        
-        // Function to handle dimension changes with aspect ratio lock
-        function updateImageDimensions(changedField) {
-            const aspectLock = document.getElementById('aspect-ratio-lock').checked;
-            const widthInput = document.getElementById('image-width');
-            const heightInput = document.getElementById('image-height');
+    // ===== Mode & Controls =====
+    async function changeMode(){
+        const mode=document.getElementById('mode-select').value;
+        const index=document.getElementById('content-index').value;
+        currentMode=parseInt(mode);
+        await fetch('/api/mode',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:currentMode,index:parseInt(index)})});
+        updateStatus();
+    }
+    async function changeContentIndex(){await changeMode()}
 
-            // When aspect ratio is locked, we treat HEIGHT as the source of truth:
-            // it represents the number of physical LEDs. Width is then derived
-            // from that LED count and the image's aspect ratio to avoid warping.
-            if (aspectLock) {
-                // If the user changes height, recompute width from height.
-                if (changedField === 'height') {
-                    let newHeight = parseInt(heightInput.value) || 32;
-                    newHeight = Math.min(200, Math.max(1, newHeight));
-                    heightInput.value = newHeight;
+    function updateBrightness(value){
+        document.getElementById('brightness-value').textContent=value;
+        document.getElementById('bright-display').textContent=value;
+        brightness=parseInt(value);
+        fetch('/api/brightness',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({brightness:parseInt(value)})});
+    }
+    function updateFrameRate(value){
+        document.getElementById('framerate-value').textContent=value;
+        document.getElementById('fps-display').textContent=value;
+        fetch('/api/framerate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({framerate:parseInt(value)})});
+    }
 
-                    const newWidth = Math.round(newHeight / originalImageAspectRatio);
-                    widthInput.value = Math.min(100, Math.max(1, newWidth));
-                } else if (changedField === 'width') {
-                    // If the user changes width while locked, ignore that as a
-                    // source of truth and instead snap width back to the value
-                    // implied by the current LED count (height).
-                    let ledCount = parseInt(heightInput.value) || 32;
-                    ledCount = Math.min(200, Math.max(1, ledCount));
-                    heightInput.value = ledCount;
+    // ===== Patterns =====
+    async function setPattern(type){
+        currentPattern=type;updatePatternActiveState();
+        const c1=document.getElementById('color1').value;
+        const c2=document.getElementById('color2').value;
+        const speed=document.getElementById('pattern-speed').value;
+        await fetch('/api/pattern',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({index:type,type:type,color1:hexToRgb(c1),color2:hexToRgb(c2),speed:parseInt(speed)})});
+        document.getElementById('content-index').value=type;
+        document.getElementById('mode-select').value='2';
+        await changeMode();
+    }
+    function updateSpeed(value){
+        document.getElementById('speed-value').textContent=value;
+        if(currentMode===2)setPattern(currentPattern);
+    }
+    function hexToRgb(hex){
+        const r=/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return r?{r:parseInt(r[1],16),g:parseInt(r[2],16),b:parseInt(r[3],16)}:{r:0,g:0,b:0};
+    }
 
-                    const newWidth = Math.round(ledCount / originalImageAspectRatio);
-                    widthInput.value = Math.min(100, Math.max(1, newWidth));
-                }
-            }
-        }
-        
-        // Live canvas setup
-        const canvas = document.getElementById('live-canvas');
-        const ctx = canvas.getContext('2d');
-        let isDrawing = false;
-        
-        canvas.addEventListener('mousedown', startDrawing);
-        canvas.addEventListener('mousemove', draw);
-        canvas.addEventListener('mouseup', stopDrawing);
-        canvas.addEventListener('mouseleave', stopDrawing);
-        
-        canvas.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            startDrawing(e.touches[0]);
-        });
-        canvas.addEventListener('touchmove', (e) => {
-            e.preventDefault();
-            draw(e.touches[0]);
-        });
-        canvas.addEventListener('touchend', stopDrawing);
-        
-        function startDrawing(e) {
-            isDrawing = true;
-            draw(e);
-        }
-        
-        function stopDrawing() {
-            isDrawing = false;
-            sendLiveFrame();
-        }
-        
-        function draw(e) {
-            if (!isDrawing) return;
-            
-            const rect = canvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-            
-            ctx.fillStyle = document.getElementById('color1').value;
-            ctx.beginPath();
-            ctx.arc(x, y, 5, 0, Math.PI * 2);
-            ctx.fill();
-        }
-        
-        function clearCanvas() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            sendLiveFrame();
-        }
-        
-        function sendLiveFrame() {
-            const cw = canvas.width;
-            const ch = canvas.height;
-            const midY = Math.floor(ch / 2);
-            const pixels = [];
-            for (let i = 0; i < NUM_LEDS; i++) {
-                const x = Math.min(cw - 1, Math.floor(i * (cw / NUM_LEDS) + (cw / NUM_LEDS) / 2));
-                const p = ctx.getImageData(x, midY, 1, 1).data;
-                pixels.push({ r: p[0], g: p[1], b: p[2] });
-                setLEDPreview(i, p[0], p[1], p[2]);
-            }
-            fetch('/api/live', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({pixels: pixels})
-            });
-        }
-        
-        async function updateStatus() {
-            try {
-                const response = await fetch('/api/status');
-                const data = await response.json();
-                document.getElementById('connection-status').textContent = 
-                    data.connected ? 'Connected ✓' : 'Disconnected ✗';
-                document.getElementById('mode-status').textContent = 
-                    ['Idle', 'Image', 'Pattern', 'Sequence', 'Live'][data.mode] || 'Unknown';
-                
-                currentMode = data.mode;
-                brightness = data.brightness !== undefined ? data.brightness : brightness;
-                
-                document.getElementById('mode-select').value = String(data.mode);
-                document.getElementById('content-index').value = data.index;
-                document.getElementById('brightness').value = brightness;
-                document.getElementById('brightness-value').textContent = brightness;
-                document.getElementById('framerate').value = data.framerate;
-                document.getElementById('framerate-value').textContent = data.framerate;
-                
-                if (data.mode === 2) {
-                    currentPattern = data.index;
-                    updatePatternActiveState();
-                }
-                updateLEDPreviewFromStatus(data.mode, data.index);
-                
-                if (data.sdCardPresent !== undefined) {
-                    const sdStatusText = document.getElementById('sd-status-text');
-                    if (data.sdCardPresent) {
-                        sdStatusText.textContent = 'Present ✓';
-                        sdStatusText.style.color = '#4CAF50';
-                    } else {
-                        sdStatusText.textContent = 'Not Present ✗';
-                        sdStatusText.style.color = '#f44336';
+    // ===== Image Upload =====
+    document.getElementById('image-upload').addEventListener('change',function(e){
+        if(e.target.files.length>0){
+            const file=e.target.files[0];
+            const reader=new FileReader();
+            reader.onload=function(event){
+                const img=new Image();
+                img.onload=function(){
+                    originalImageAspectRatio=img.height/img.width;
+                    const hI=document.getElementById('image-height');
+                    const wI=document.getElementById('image-width');
+                    const tH=DISPLAY_LEDS;
+                    hI.value=tH;
+                    if(document.getElementById('aspect-ratio-lock').checked){
+                        wI.value=Math.min(100,Math.max(1,Math.round(tH/originalImageAspectRatio)));
                     }
-                }
-            } catch (e) {
-                document.getElementById('connection-status').textContent = 'Error';
-            }
-        }
-        function updatePatternActiveState() {
-            document.querySelectorAll('.pattern-btn').forEach(function(btn) {
-                const p = parseInt(btn.getAttribute('data-pattern'), 10);
-                btn.classList.toggle('active', p === currentPattern);
-            });
-        }
-        
-        async function changeMode() {
-            const mode = document.getElementById('mode-select').value;
-            const index = document.getElementById('content-index').value;
-            currentMode = parseInt(mode);
-            
-            await fetch('/api/mode', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({mode: currentMode, index: parseInt(index)})
-            });
-            
-            updateStatus();
-        }
-        
-        async function changeContentIndex() {
-            // When index changes, update the current mode with new index
-            await changeMode();
-        }
-        
-        function updateBrightness(value) {
-            document.getElementById('brightness-value').textContent = value;
-            
-            fetch('/api/brightness', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({brightness: parseInt(value)})
-            });
-        }
-        
-        function updateFrameRate(value) {
-            document.getElementById('framerate-value').textContent = value;
-            
-            fetch('/api/framerate', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({framerate: parseInt(value)})
-            });
-        }
-        
-        async function setPattern(type) {
-            currentPattern = type;
-            updatePatternActiveState();
-            const color1 = document.getElementById('color1').value;
-            const color2 = document.getElementById('color2').value;
-            const speed = document.getElementById('pattern-speed').value;
-            
-            await fetch('/api/pattern', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    index: type,
-                    type: type,
-                    color1: hexToRgb(color1),
-                    color2: hexToRgb(color2),
-                    speed: parseInt(speed)
-                })
-            });
-            
-            document.getElementById('content-index').value = type;
-            document.getElementById('mode-select').value = '2';
-            await changeMode();
-        }
-        
-        function updateSpeed(value) {
-            document.getElementById('speed-value').textContent = value;
-            // If currently in pattern mode, update the pattern with new speed
-            if (currentMode === 2) {
-                setPattern(currentPattern);
-            }
-        }
-        
-        function hexToRgb(hex) {
-            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-            return result ? {
-                r: parseInt(result[1], 16),
-                g: parseInt(result[2], 16),
-                b: parseInt(result[3], 16)
-            } : {r: 0, g: 0, b: 0};
-        }
-        
-        async function uploadImage() {
-            const fileInput = document.getElementById('image-upload');
-            if (!fileInput.files.length) {
-                alert('Please select an image first');
-                return;
-            }
-            
-            const file = fileInput.files[0];
-            
-            // Convert image to POV format using Canvas
-            try {
-                const povImageData = await convertImageToPOVFormat(file);
-                
-                // Create blob from raw RGB data and wrap in FormData
-                // Encode dimensions in filename so the server can parse them
-                const blob = new Blob([povImageData.data], { type: 'application/octet-stream' });
-                const formData = new FormData();
-                formData.append('file', blob, `image_${povImageData.width}x${povImageData.height}.rgb`);
-                
-                // Send as multipart form upload
-                const response = await fetch('/api/image', {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                if (response.ok) {
-                    alert(`Image uploaded successfully! (${povImageData.width}x${povImageData.height})`);
-                    
-                    // Switch to image mode
-                    document.getElementById('mode-select').value = '1';
-                    await changeMode();
-                } else {
-                    alert('Upload failed: ' + response.statusText);
-                }
-            } catch (e) {
-                alert('Upload failed: ' + e.message);
-            }
-        }
-        
-        async function convertImageToPOVFormat(file) {
-            return new Promise((resolve, reject) => {
-                const img = new Image();
-                const reader = new FileReader();
-                
-                reader.onload = (e) => {
-                    img.onload = () => {
-                        try {
-                            // Create canvas for conversion
-                            const canvas = document.createElement('canvas');
-                            const ctx = canvas.getContext('2d');
-                            
-                            // Get user-specified dimensions
-                            // Height is the physical LED count; width is derived
-                            // from it (or directly used if aspect lock is off).
-                            let targetHeight = parseInt(document.getElementById('image-height').value) || 32;
-                            targetHeight = Math.min(200, Math.max(1, targetHeight));
-
-                            let targetWidth = parseInt(document.getElementById('image-width').value) || 32;
-                            const aspectLock = document.getElementById('aspect-ratio-lock').checked;
-                            if (aspectLock) {
-                                // Derive width from LED count and original aspect ratio.
-                                targetWidth = Math.round(targetHeight / originalImageAspectRatio);
-                            }
-                            targetWidth = Math.min(100, Math.max(1, targetWidth));
-                            
-                            // Get flip options
-                            const flipVertical = document.getElementById('flip-vertical').checked;
-                            const flipHorizontal = document.getElementById('flip-horizontal').checked;
-                            
-                            // Validate dimensions
-                            if (targetWidth < 1 || targetWidth > 100 || targetHeight < 1 || targetHeight > 200) {
-                                reject(new Error('Invalid dimensions. Width: 1-100, Height: 1-200'));
-                                return;
-                            }
-                            
-                            canvas.width = targetWidth;
-                            canvas.height = targetHeight;
-                            
-                            // Apply transformations
-                            ctx.save();
-                            
-                            // Handle horizontal flip
-                            if (flipHorizontal) {
-                                ctx.translate(targetWidth, 0);
-                                ctx.scale(-1, 1);
-                            }
-                            
-                            // Draw and resize image
-                            ctx.imageSmoothingEnabled = false; // Nearest neighbor
-                            ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
-                            ctx.restore();
-                            
-                            // Get image data
-                            let imageData = ctx.getImageData(0, 0, targetWidth, targetHeight);
-                            
-                            // Apply vertical flip if requested (in addition to the POV flip)
-                            // Note: POV format always needs vertical flip for correct display
-                            // If user wants "flip vertical", we skip the automatic flip
-                            const applyPOVFlip = !flipVertical;
-                            
-                            if (applyPOVFlip) {
-                                // Flip vertically so bottom of image is at LED 1 (closest to board)
-                                // and top of image is at LED 31 (farthest from board)
-                                const flippedData = ctx.createImageData(targetWidth, targetHeight);
-                                
-                                // Flip the image data vertically
-                                for (let y = 0; y < targetHeight; y++) {
-                                    for (let x = 0; x < targetWidth; x++) {
-                                        const srcIndex = (y * targetWidth + x) * 4;
-                                        const dstIndex = ((targetHeight - 1 - y) * targetWidth + x) * 4;
-                                        flippedData.data[dstIndex] = imageData.data[srcIndex];
-                                        flippedData.data[dstIndex + 1] = imageData.data[srcIndex + 1];
-                                        flippedData.data[dstIndex + 2] = imageData.data[srcIndex + 2];
-                                        flippedData.data[dstIndex + 3] = imageData.data[srcIndex + 3];
-                                    }
-                                }
-                                imageData = flippedData;
-                            }
-                            
-                            const pixels = imageData.data;
-                            
-                            // Convert to RGB array (remove alpha channel)
-                            const rgbData = new Uint8Array(targetWidth * targetHeight * 3);
-                            let rgbIndex = 0;
-                            
-                            for (let i = 0; i < pixels.length; i += 4) {
-                                rgbData[rgbIndex++] = pixels[i];     // R
-                                rgbData[rgbIndex++] = pixels[i + 1]; // G
-                                rgbData[rgbIndex++] = pixels[i + 2]; // B
-                            }
-                            
-                            resolve({
-                                width: targetWidth,
-                                height: targetHeight,
-                                data: rgbData
-                            });
-                        } catch (err) {
-                            reject(err);
-                        }
-                    };
-                    img.onerror = reject;
-                    img.src = e.target.result;
+                    // Show preview
+                    const box=document.getElementById('img-preview-box');
+                    box.innerHTML='<img src="'+event.target.result+'" style="max-width:100%;max-height:200px;image-rendering:pixelated">';
+                    document.getElementById('img-dimensions').textContent=img.width+'x'+img.height+' (original)';
                 };
-                
-                reader.onerror = reject;
-                reader.readAsDataURL(file);
-            });
+                img.src=event.target.result;
+            };
+            reader.readAsDataURL(file);
         }
-        
-        // SD Card Management
-        async function refreshSDList() {
-            try {
-                const response = await fetch('/api/sd/list');
-                const data = await response.json();
-                const listDiv = document.getElementById('sd-file-list');
-                
-                if (data.files && data.files.length > 0) {
-                    listDiv.innerHTML = '';
-                    data.files.forEach(filename => {
-                        const fileItem = document.createElement('div');
-                        fileItem.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 8px; margin: 5px 0; background: #f0f0f0; border-radius: 5px;';
+    });
 
-                        const nameSpan = document.createElement('span');
-                        nameSpan.style.cssText = 'flex: 1; font-size: 14px;';
-                        nameSpan.textContent = filename;
-
-                        const btnContainer = document.createElement('div');
-                        btnContainer.style.cssText = 'display: flex; gap: 5px;';
-
-                        const loadBtn = document.createElement('button');
-                        loadBtn.style.cssText = 'padding: 5px 10px; font-size: 12px; background: #4CAF50; color: white; border: none; border-radius: 3px; cursor: pointer;';
-                        loadBtn.textContent = 'Load';
-                        loadBtn.addEventListener('click', () => loadSDImage(filename));
-
-                        const deleteBtn = document.createElement('button');
-                        deleteBtn.style.cssText = 'padding: 5px 10px; font-size: 12px; background: #f44336; color: white; border: none; border-radius: 3px; cursor: pointer;';
-                        deleteBtn.textContent = 'Delete';
-                        deleteBtn.addEventListener('click', () => deleteSDImage(filename));
-
-                        btnContainer.appendChild(loadBtn);
-                        btnContainer.appendChild(deleteBtn);
-                        fileItem.appendChild(nameSpan);
-                        fileItem.appendChild(btnContainer);
-                        listDiv.appendChild(fileItem);
-                    });
-                } else {
-                    listDiv.innerHTML = '<div style="text-align: center; color: #999;">No images found on SD card</div>';
-                }
-            } catch (e) {
-                document.getElementById('sd-file-list').innerHTML = '<div style="text-align: center; color: #f44336;">Error loading file list</div>';
-            }
+    function updateImageDimensions(changedField){
+        const lock=document.getElementById('aspect-ratio-lock').checked;
+        const wI=document.getElementById('image-width');
+        const hI=document.getElementById('image-height');
+        if(lock){
+            const h=DISPLAY_LEDS;hI.value=h;
+            wI.value=Math.min(100,Math.max(1,Math.round(h/originalImageAspectRatio)));
         }
-        
-        async function loadSDImage(filename) {
-            try {
-                const response = await fetch('/api/sd/load', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({filename: filename})
-                });
-                if (response.ok) {
-                    alert('Image loaded from SD: ' + filename);
-                    // Switch to image mode
-                    document.getElementById('mode-select').value = '1';
-                    await changeMode();
-                    updateStatus();
-                } else {
-                    alert('Failed to load image');
-                }
-            } catch (e) {
-                alert('Error loading image: ' + e.message);
-            }
-        }
-        
-        async function deleteSDImage(filename) {
-            if (!confirm('Delete ' + filename + ' from SD card?')) {
-                return;
-            }
-            try {
-                const response = await fetch('/api/sd/delete', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({filename: filename})
-                });
-                if (response.ok) {
-                    alert('Image deleted from SD');
-                    refreshSDList();
-                } else {
-                    alert('Failed to delete image');
-                }
-            } catch (e) {
-                alert('Error deleting image: ' + e.message);
-            }
-        }
-        
-        async function updateSDStatus() {
-            try {
-                const response = await fetch('/api/sd/info');
-                const data = await response.json();
-                const statusText = document.getElementById('sd-status-text');
-                const infoDiv = document.getElementById('sd-info');
-                
-                if (data.present) {
-                    statusText.textContent = 'Present ✓';
-                    statusText.style.color = '#4CAF50';
-                    const totalMB = (data.totalSpace / (1024 * 1024)).toFixed(1);
-                    const freeMB = (data.freeSpace / (1024 * 1024)).toFixed(1);
-                    infoDiv.innerHTML = `Total: ${totalMB} MB | Free: ${freeMB} MB`;
-                } else {
-                    statusText.textContent = 'Not Present ✗';
-                    statusText.style.color = '#f44336';
-                    infoDiv.innerHTML = '';
-                }
-            } catch (e) {
-                document.getElementById('sd-status-text').textContent = 'Error';
-                document.getElementById('sd-status-text').style.color = '#f44336';
-            }
-        }
-        
-        // Update SD status on page load and periodically
-        updateSDStatus();
-        refreshSDList();
-        setInterval(updateSDStatus, 5000);
-        setInterval(refreshSDList, 10000);
-        
-        // ========== Multi-Poi Sync ==========
-        let currentSyncMode = 'mirror';
-        let syncPeers = [];
+    }
 
-        async function updateSyncStatus() {
-            try {
-                const response = await fetch('/api/multipoi/status');
-                const data = await response.json();
+    async function uploadImage(){
+        const fI=document.getElementById('image-upload');
+        if(!fI.files.length){showToast('Select an image first');return}
+        try{
+            const d=await convertImageToPOVFormat(fI.files[0]);
+            const blob=new Blob([d.data],{type:'application/octet-stream'});
+            const fd=new FormData();
+            fd.append('file',blob,'image_'+d.width+'x'+d.height+'.rgb');
+            const res=await fetch('/api/image',{method:'POST',body:fd});
+            if(res.ok){
+                showToast('Image uploaded! ('+d.width+'x'+d.height+')');
+                document.getElementById('mode-select').value='1';
+                await changeMode();
+            }else{showToast('Upload failed: '+res.statusText)}
+        }catch(e){showToast('Upload failed: '+e.message)}
+    }
 
-                document.getElementById('sync-local-name').textContent = data.localName || '--';
-                currentSyncMode = data.syncMode || 'mirror';
-                document.getElementById('sync-mode-display').textContent =
-                    currentSyncMode === 'mirror' ? 'Mirror' : 'Independent';
-
-                // Update mode buttons
-                const btnMirror = document.getElementById('btn-mirror');
-                const btnIndep = document.getElementById('btn-independent');
-                if (currentSyncMode === 'mirror') {
-                    btnMirror.style.background = '#667eea';
-                    btnMirror.style.color = 'white';
-                    btnIndep.style.background = '#ddd';
-                    btnIndep.style.color = '#333';
-                } else {
-                    btnIndep.style.background = '#667eea';
-                    btnIndep.style.color = 'white';
-                    btnMirror.style.background = '#ddd';
-                    btnMirror.style.color = '#333';
-                }
-
-                // Show/hide independent controls
-                document.getElementById('independent-controls').style.display =
-                    currentSyncMode === 'independent' ? 'block' : 'none';
-
-                syncPeers = data.peers || [];
-                const pairedCount = syncPeers.filter(p => p.state === 3 && p.online).length;
-                document.getElementById('sync-paired-status').textContent =
-                    pairedCount > 0 ? pairedCount + ' peer(s) online' : 'No peers';
-
-                // Render peer list
-                const peerList = document.getElementById('sync-peer-list');
-                if (syncPeers.length === 0) {
-                    peerList.innerHTML = '<div style="text-align:center;color:#999;font-size:13px;">No paired poi found. Tap Pair to discover.</div>';
-                } else {
-                    peerList.innerHTML = '';
-                    const stateNames = ['None','Discovering','Requesting','Paired'];
-                    syncPeers.forEach((peer, i) => {
-                        const statusColor = peer.online ? '#4CAF50' : '#f44336';
-                        const statusText = peer.online ? 'Online' : 'Offline';
-
-                        const row = document.createElement('div');
-                        row.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:8px;margin:4px 0;background:white;border-radius:5px;border-left:4px solid ' + statusColor + ';';
-
-                        const info = document.createElement('div');
-                        const nameEl = document.createElement('strong');
-                        nameEl.textContent = peer.name || 'Unknown';
-                        const statusEl = document.createElement('span');
-                        statusEl.style.cssText = 'font-size:12px;color:#666;';
-                        statusEl.textContent = statusText + ' | ' + stateNames[peer.state];
-                        info.appendChild(nameEl);
-                        info.appendChild(document.createElement('br'));
-                        info.appendChild(statusEl);
-
-                        const unpairBtn = document.createElement('button');
-                        unpairBtn.style.cssText = 'padding:5px 10px;font-size:12px;background:#f44336;color:white;border:none;border-radius:3px;cursor:pointer;min-height:30px;width:auto;';
-                        unpairBtn.textContent = 'Unpair';
-                        unpairBtn.addEventListener('click', () => unpairSingle(i));
-
-                        row.appendChild(info);
-                        row.appendChild(unpairBtn);
-                        peerList.appendChild(row);
-                    });
-                }
-
-                // Render per-peer control panels (independent mode)
-                if (currentSyncMode === 'independent') {
-                    renderPeerControls();
-                }
-            } catch (e) {
-                console.error('Sync status error:', e);
-            }
-        }
-
-        function renderPeerControls() {
-            const container = document.getElementById('peer-control-panels');
-            const onlinePeers = syncPeers.filter(p => p.state === 3 && p.online);
-            if (onlinePeers.length === 0) {
-                container.innerHTML = '<div style="text-align:center;color:#999;">No online peers to control.</div>';
-                return;
-            }
-            container.innerHTML = '';
-            syncPeers.forEach((peer, i) => {
-                if (peer.state !== 3 || !peer.online) return;
-
-                const panel = document.createElement('div');
-                panel.style.cssText = 'margin-bottom:15px;padding:12px;background:white;border-radius:8px;border:2px solid #667eea;';
-
-                const nameDiv = document.createElement('div');
-                nameDiv.style.cssText = 'font-weight:bold;color:#667eea;margin-bottom:8px;';
-                nameDiv.textContent = peer.name || 'Peer ' + i;
-                panel.appendChild(nameDiv);
-
-                // Mode selector for this peer
-                const modeDiv = document.createElement('div');
-                modeDiv.style.cssText = 'margin-bottom:8px;';
-                const modeLabel = document.createElement('label');
-                modeLabel.style.cssText = 'font-size:13px;';
-                modeLabel.textContent = 'Mode:';
-                const modeSelect = document.createElement('select');
-                modeSelect.id = 'peer-mode-' + i;
-                modeSelect.style.cssText = 'width:100%;padding:8px;margin-top:4px;';
-                modeSelect.addEventListener('change', () => sendPeerMode(i));
-                [['0','Idle'],['1','Image'],['2','Pattern'],['3','Sequence']].forEach(([v,t]) => {
-                    const opt = document.createElement('option');
-                    opt.value = v;
-                    opt.textContent = t;
-                    modeSelect.appendChild(opt);
-                });
-                modeDiv.appendChild(modeLabel);
-                modeDiv.appendChild(modeSelect);
-                panel.appendChild(modeDiv);
-
-                // Pattern buttons for this peer
-                const patDiv = document.createElement('div');
-                patDiv.style.cssText = 'margin-bottom:8px;';
-                const patLabel = document.createElement('label');
-                patLabel.style.cssText = 'font-size:13px;';
-                patLabel.textContent = 'Quick Pattern:';
-                const patGrid = document.createElement('div');
-                patGrid.style.cssText = 'display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:4px;';
-                const patterns = [
-                    {t:0,n:'Rainbow'},{t:4,n:'Fire'},{t:5,n:'Comet'},
-                    {t:6,n:'Breathe'},{t:10,n:'Plasma'},{t:3,n:'Sparkle'},
-                    {t:16,n:'Split'},{t:17,n:'Chase'},{t:7,n:'Strobe'}
-                ];
-                patterns.forEach(p => {
-                    const btn = document.createElement('button');
-                    btn.style.cssText = 'padding:6px;font-size:11px;background:#764ba2;color:white;border:none;border-radius:4px;cursor:pointer;min-height:32px;width:auto;';
-                    btn.textContent = p.n;
-                    btn.addEventListener('click', () => sendPeerPattern(i, p.t));
-                    patGrid.appendChild(btn);
-                });
-                patDiv.appendChild(patLabel);
-                patDiv.appendChild(patGrid);
-                panel.appendChild(patDiv);
-
-                // Brightness for this peer
-                const brightDiv = document.createElement('div');
-                const brightValSpan = document.createElement('span');
-                brightValSpan.id = 'peer-bright-val-' + i;
-                brightValSpan.textContent = peer.brightness || 128;
-                const brightLabel = document.createElement('label');
-                brightLabel.style.cssText = 'font-size:13px;';
-                brightLabel.textContent = 'Brightness: ';
-                brightLabel.appendChild(brightValSpan);
-                const brightSlider = document.createElement('input');
-                brightSlider.type = 'range';
-                brightSlider.min = '0';
-                brightSlider.max = '255';
-                brightSlider.value = peer.brightness || 128;
-                brightSlider.style.cssText = 'width:100%;';
-                brightSlider.addEventListener('input', function() {
-                    sendPeerBrightness(i, this.value);
-                    brightValSpan.textContent = this.value;
-                });
-                brightDiv.appendChild(brightLabel);
-                brightDiv.appendChild(brightSlider);
-                panel.appendChild(brightDiv);
-
-                container.appendChild(panel);
-            });
-        }
-
-        async function setSyncMode(mode) {
-            try {
-                await fetch('/api/multipoi/syncmode', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({mode: mode})
-                });
-                currentSyncMode = mode;
-                updateSyncStatus();
-            } catch (e) {
-                console.error('Set sync mode error:', e);
-            }
-        }
-
-        async function pairPoi() {
-            try {
-                await fetch('/api/multipoi/pair', { method: 'POST' });
-                // Poll for results after a brief delay
-                setTimeout(updateSyncStatus, 2000);
-            } catch (e) {
-                console.error('Pair error:', e);
-            }
-        }
-
-        async function unpairPoi() {
-            try {
-                await fetch('/api/multipoi/unpair', { method: 'POST' });
-                updateSyncStatus();
-            } catch (e) {
-                console.error('Unpair error:', e);
-            }
-        }
-
-        async function unpairSingle(index) {
-            try {
-                await fetch('/api/multipoi/unpair', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({index: index})
-                });
-                updateSyncStatus();
-            } catch (e) {
-                console.error('Unpair single error:', e);
-            }
-        }
-
-        async function sendPeerMode(peerIndex) {
-            const mode = parseInt(document.getElementById('peer-mode-' + peerIndex).value);
-            try {
-                await fetch('/api/multipoi/peercmd', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({peer: peerIndex, cmd: 'mode', mode: mode, index: 0})
-                });
-            } catch (e) { console.error(e); }
-        }
-
-        async function sendPeerPattern(peerIndex, type) {
-            const color1 = hexToRgb(document.getElementById('color1').value);
-            const color2 = hexToRgb(document.getElementById('color2').value);
-            const speed = parseInt(document.getElementById('pattern-speed').value);
-            try {
-                await fetch('/api/multipoi/peercmd', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        peer: peerIndex, cmd: 'pattern', index: 0, type: type,
-                        color1: color1, color2: color2, speed: speed
-                    })
-                });
-            } catch (e) { console.error(e); }
-        }
-
-        async function sendPeerBrightness(peerIndex, brightness) {
-            try {
-                await fetch('/api/multipoi/peercmd', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({peer: peerIndex, cmd: 'brightness', brightness: parseInt(brightness)})
-                });
-            } catch (e) { console.error(e); }
-        }
-
-        // Initialize sync status polling
-        updateSyncStatus();
-        setInterval(updateSyncStatus, 3000);
-
-        // PWA Install Prompt
-        let deferredPrompt;
-        
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredPrompt = e;
-            
-            const installButton = document.getElementById('installButton');
-            installButton.style.display = 'block';
-            
-            installButton.addEventListener('click', async () => {
-                if (deferredPrompt) {
-                    deferredPrompt.prompt();
-                    const { outcome } = await deferredPrompt.userChoice;
-                    console.log(`User response: ${outcome}`);
-                    deferredPrompt = null;
-                    installButton.style.display = 'none';
-                }
-            });
+    async function convertImageToPOVFormat(file){
+        return new Promise((resolve,reject)=>{
+            const img=new Image();const reader=new FileReader();
+            reader.onload=(e)=>{
+                img.onload=()=>{
+                    try{
+                        const cv=document.createElement('canvas');const cx=cv.getContext('2d');
+                        const originalImageAspectRatio=img.width/img.height;
+                        const tH=DISPLAY_LEDS;
+                        let tW=parseInt(document.getElementById('image-width').value)||32;
+                        if (document.getElementById('aspect-ratio-lock').checked) {
+                            const ar = (typeof originalImageAspectRatio === 'number' && originalImageAspectRatio > 0) ? originalImageAspectRatio : 1.0; // width/height
+                            tW = Math.round(tH * ar);
+                        }
+                        tW=Math.min(100,Math.max(1,tW));
+                        const fV=document.getElementById('flip-vertical').checked;
+                        const fH=document.getElementById('flip-horizontal').checked;
+                        if(tW<1||tW>100){reject(new Error('Invalid dimensions'));return}
+                        cv.width=tW;cv.height=tH;cx.save();
+                        if(fH){cx.translate(tW,0);cx.scale(-1,1)}
+                        cx.imageSmoothingEnabled=false;cx.drawImage(img,0,0,tW,tH);cx.restore();
+                        let iD=cx.getImageData(0,0,tW,tH);
+                        if(fV){
+                            const fl=cx.createImageData(tW,tH);
+                            for(let y=0;y<tH;y++)for(let x=0;x<tW;x++){
+                                const s=(y*tW+x)*4,d=((tH-1-y)*tW+x)*4;
+                                fl.data[d]=iD.data[s];fl.data[d+1]=iD.data[s+1];
+                                fl.data[d+2]=iD.data[s+2];fl.data[d+3]=iD.data[s+3];
+                            }
+                            iD=fl;
+                        }
+                        const px=iD.data;const rgb=new Uint8Array(tW*tH*3);let ri=0;
+                        for(let i=0;i<px.length;i+=4){rgb[ri++]=px[i];rgb[ri++]=px[i+1];rgb[ri++]=px[i+2]}
+                        resolve({width:tW,height:tH,data:rgb});
+                    }catch(err){reject(err)}
+                };
+                img.onerror=reject;img.src=e.target.result;
+            };
+            reader.onerror=reject;reader.readAsDataURL(file);
         });
-        
-        // Service Worker Registration
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/sw.js')
-                .then(reg => console.log('Service Worker registered'))
-                .catch(err => console.log('Service Worker registration failed'));
+    }
+
+    // ===== Procedural Art Generator =====
+    function setGenType(type){
+        genType=type;
+        document.getElementById('btn-organic').style.border=type==='organic'?'1px solid #06b6d4':'1px solid #334155';
+        document.getElementById('btn-geometric').style.border=type==='geometric'?'1px solid #a855f7':'1px solid #334155';
+    }
+    function rollColors(){colorSeed=Math.random();generateArt()}
+    function generateArt(){
+        const cv=document.getElementById('gen-canvas');const cx=cv.getContext('2d');
+        const ledCount=DISPLAY_LEDS;
+        const complexity=parseInt(document.getElementById('gen-complexity').value)||8;
+        const tH=Math.min(Math.max(ledCount,1),64);
+        let tW=Math.min(tH*4,400);
+        // Ensure payload does not exceed firmware buffer (400*64*3 = 76800 bytes)
+        while(tW>1&&tW*tH*3>76800)tW--;
+        cv.width=tW;cv.height=tH;cv.style.display='block';
+        cx.fillStyle='#000';cx.fillRect(0,0,tW,tH);
+        const hueStart=colorSeed*360;
+        if(genType==='organic'){
+            for(let i=0;i<complexity;i++){
+                const xOff=Math.random()*tW,freq=.01+Math.random()*.04;
+                const amp=tH/4+Math.random()*tH/2;
+                const hue=(hueStart+i*(360/complexity))%360;
+                cx.beginPath();cx.strokeStyle='hsla('+hue+',90%,60%,0.7)';
+                cx.lineWidth=2+Math.random()*8;
+                for(let x=0;x<=tW;x++){
+                    const y=tH/2+Math.sin(x*freq+xOff)*amp+Math.cos(x*freq*.5)*(amp*.3);
+                    x===0?cx.moveTo(x,y):cx.lineTo(x,y);
+                }
+                cx.stroke();
+            }
+        }else{
+            const cols=Math.max(4,Math.floor(complexity*2));
+            const cellSize=tW/cols;const rows=Math.floor(tH/cellSize)||1;
+            for(let x=0;x<cols;x++)for(let y=0;y<rows;y++){
+                if(Math.random()>.4){
+                    const hue=(hueStart+Math.random()*60)%360;
+                    cx.fillStyle='hsla('+hue+',90%,50%,0.9)';
+                    const px=x*cellSize,py=y*cellSize,size=cellSize*(.5+Math.random()*.4);
+                    const shape=Math.floor(Math.random()*3);
+                    if(shape===0)cx.fillRect(px+(cellSize-size)/2,py+(cellSize-size)/2,size,size);
+                    else if(shape===1){cx.beginPath();cx.arc(px+cellSize/2,py+cellSize/2,size/2,0,Math.PI*2);cx.fill()}
+                    else{cx.strokeStyle=cx.fillStyle;cx.lineWidth=3;cx.beginPath();cx.moveTo(px,py);cx.lineTo(px+cellSize,py+cellSize);cx.stroke()}
+                }
+            }
         }
+        document.getElementById('btn-upload-gen').style.display='block';
+        const box=document.getElementById('img-preview-box');
+        box.innerHTML='<img src="'+cv.toDataURL()+'" style="max-width:100%;image-rendering:pixelated">';
+        document.getElementById('img-dimensions').textContent=tW+'x'+tH+' (generated)';
+        showToast('Pattern generated: '+genType);
+    }
+
+    async function uploadGenerated(){
+        const cv=document.getElementById('gen-canvas');
+        if(!cv.width)return;
+        const tW=cv.width,tH=cv.height;
+        const payloadSize=tW*tH*3;
+        // Firmware max buffer: MAX_IMAGE_WIDTH(400) * MAX_IMAGE_HEIGHT(64) * 3 = 76800 bytes
+        if(tW<1||tH<1||tW>400||tH>64||payloadSize>76800){
+            showToast('Image too large to upload (max 400x64)');return;
+        }
+        const cx=cv.getContext('2d');
+        const iD=cx.getImageData(0,0,tW,tH);const px=iD.data;
+        const rgb=new Uint8Array(payloadSize);let ri=0;
+        for(let i=0;i<px.length;i+=4){rgb[ri++]=px[i];rgb[ri++]=px[i+1];rgb[ri++]=px[i+2]}
+        const blob=new Blob([rgb],{type:'application/octet-stream'});
+        const fd=new FormData();fd.append('file',blob,'image_'+tW+'x'+tH+'.rgb');
+        try{
+            const res=await fetch('/api/image',{method:'POST',body:fd});
+            if(res.ok){
+                showToast('Generated image uploaded! ('+tW+'x'+tH+')');
+                document.getElementById('mode-select').value='1';await changeMode();
+            }else showToast('Upload failed');
+        }catch(e){showToast('Upload error: '+e.message)}
+    }
+
+    // ===== Live Draw =====
+    const canvas=document.getElementById('live-canvas');
+    const ctx=canvas.getContext('2d');
+    let isDrawing=false;
+
+    canvas.addEventListener('mousedown',startDrawing);
+    canvas.addEventListener('mousemove',draw);
+    canvas.addEventListener('mouseup',stopDrawing);
+    canvas.addEventListener('mouseleave',stopDrawing);
+    canvas.addEventListener('touchstart',(e)=>{e.preventDefault();startDrawing(e.touches[0])});
+    canvas.addEventListener('touchmove',(e)=>{e.preventDefault();draw(e.touches[0])});
+    canvas.addEventListener('touchend',stopDrawing);
+
+    function startDrawing(e){isDrawing=true;draw(e)}
+    function stopDrawing(){isDrawing=false;sendLiveFrame()}
+    function draw(e){
+        if(!isDrawing)return;
+        const rect=canvas.getBoundingClientRect();
+        const scaleX=canvas.width/rect.width;
+        const scaleY=canvas.height/rect.height;
+        const x=(e.clientX-rect.left)*scaleX;
+        const y=(e.clientY-rect.top)*scaleY;
+        const brushSize=parseInt(document.getElementById('brush-size').value)||5;
+        ctx.fillStyle=document.getElementById('draw-color').value;
+        ctx.beginPath();ctx.arc(x,y,brushSize,0,Math.PI*2);ctx.fill();
+    }
+    function clearCanvas(){ctx.clearRect(0,0,canvas.width,canvas.height);sendLiveFrame()}
+    function sendLiveFrame(){
+        const cw=canvas.width,ch=canvas.height,midY=Math.floor(ch/2);
+        const pixels=[];
+        for(let i=DISPLAY_LED_START;i<NUM_LEDS;i++){
+            const col=i-DISPLAY_LED_START;
+            const x=Math.min(cw-1,Math.floor(col*(cw/NUM_LEDS)+(cw/NUM_LEDS)/2));
+            const p=ctx.getImageData(x,midY,1,1).data;
+            pixels.push({r:p[0],g:p[1],b:p[2]});
+            setLEDPreview(i,p[0],p[1],p[2]);
+        }
+        fetch('/api/live',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pixels:pixels})});
+    }
+
+    // ===== SD Card =====
+    async function refreshSDList(){
+        try{
+            const res=await fetch('/api/sd/list');const d=await res.json();
+            const list=document.getElementById('sd-file-list');
+            if(d.files&&d.files.length>0){
+                list.innerHTML='';
+                d.files.forEach(f=>{
+                    const el=document.createElement('div');el.className='sd-file';
+                    const nameSpan=document.createElement('span');nameSpan.className='fname';nameSpan.textContent=f;
+                    const actions=document.createElement('div');actions.className='actions';
+                    const loadBtn=document.createElement('button');loadBtn.className='btn btn-green btn-sm btn-icon';loadBtn.textContent='Load';loadBtn.addEventListener('click',()=>loadSDImage(f));
+                    const delBtn=document.createElement('button');delBtn.className='btn btn-red btn-sm btn-icon';delBtn.textContent='Delete';delBtn.addEventListener('click',()=>deleteSDImage(f));
+                    actions.appendChild(loadBtn);actions.appendChild(delBtn);
+                    el.appendChild(nameSpan);el.appendChild(actions);
+                    list.appendChild(el);
+                });
+            }else{list.innerHTML='<div style="text-align:center;color:#475569;font-size:12px;padding:12px">No images on SD card</div>'}
+        }catch(e){document.getElementById('sd-file-list').innerHTML='<div style="text-align:center;color:#ef4444;font-size:12px;padding:12px">Error loading list</div>'}
+    }
+    async function loadSDImage(f){
+        try{
+            const res=await fetch('/api/sd/load',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({filename:f})});
+            if(res.ok){showToast('Loaded: '+f);document.getElementById('mode-select').value='1';await changeMode();updateStatus()}
+            else showToast('Load failed');
+        }catch(e){showToast('Error: '+e.message)}
+    }
+    async function deleteSDImage(f){
+        if(!confirm('Delete '+f+'?'))return;
+        try{
+            const res=await fetch('/api/sd/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({filename:f})});
+            if(res.ok){showToast('Deleted: '+f);refreshSDList()}else showToast('Delete failed');
+        }catch(e){showToast('Error: '+e.message)}
+    }
+    async function updateSDStatus(){
+        try{
+            const res=await fetch('/api/sd/info');const d=await res.json();
+            const st=document.getElementById('sd-status-text');
+            const info=document.getElementById('sd-info');
+            if(d.present){
+                st.textContent='Present';st.style.color='#22c55e';
+                info.innerHTML='Total: '+(d.totalSpace/(1024*1024)).toFixed(1)+' MB | Free: '+(d.freeSpace/(1024*1024)).toFixed(1)+' MB';
+            }else{st.textContent='Not Present';st.style.color='#ef4444';info.innerHTML=''}
+        }catch(e){document.getElementById('sd-status-text').textContent='Error';document.getElementById('sd-status-text').style.color='#ef4444'}
+    }
+
+    // ===== Multi-Poi Sync =====
+    async function updateSyncStatus(){
+        try{
+            const res=await fetch('/api/multipoi/status');const d=await res.json();
+            document.getElementById('sync-local-name').textContent=d.localName||'--';
+            currentSyncMode=d.syncMode||'mirror';
+            document.getElementById('sync-mode-display').textContent=currentSyncMode==='mirror'?'Mirror':'Independent';
+            const bM=document.getElementById('btn-mirror'),bI=document.getElementById('btn-independent');
+            if(currentSyncMode==='mirror'){bM.style.background='#06b6d4';bM.className='btn';bI.style.background='';bI.className='btn btn-slate'}
+            else{bI.style.background='#a855f7';bI.className='btn';bM.style.background='';bM.className='btn btn-slate'}
+            document.getElementById('independent-controls').style.display=currentSyncMode==='independent'?'block':'none';
+            syncPeers=d.peers||[];
+            const pairedCount=syncPeers.filter(p=>p.state===3&&p.online).length;
+            document.getElementById('sync-paired-status').textContent=pairedCount>0?pairedCount+' peer(s) online':'No peers';
+            const peerList=document.getElementById('sync-peer-list');
+            if(syncPeers.length===0){peerList.innerHTML='<div style="text-align:center;color:#475569;font-size:12px;padding:12px">No paired poi found. Tap Pair to discover.</div>'}
+            else{
+                let html='';
+                syncPeers.forEach((peer,i)=>{
+                    const stN=['None','Discovering','Requesting','Paired'];
+                    const pc=peer.online?'#22c55e':'#ef4444';
+                    const st=peer.online?'Online':'Offline';
+                    html+='<div class="peer-item" style="--pc:'+pc+'"><div><span class="name">'+(peer.name||'Unknown')+'</span><br><span class="meta">'+st+' | '+stN[peer.state]+'</span></div>';
+                    html+='<button class="btn btn-red btn-sm btn-icon" onclick="unpairSingle('+i+')" style="width:auto">Unpair</button></div>';
+                });
+                peerList.innerHTML=html;
+            }
+            if(currentSyncMode==='independent')renderPeerControls();
+        }catch(e){console.error('Sync error:',e)}
+    }
+
+    function renderPeerControls(){
+        const c=document.getElementById('peer-control-panels');
+        const online=syncPeers.filter(p=>p.state===3&&p.online);
+        if(online.length===0){c.innerHTML='<div style="text-align:center;color:#475569;font-size:12px">No online peers</div>';return}
+        let html='';
+        syncPeers.forEach((peer,i)=>{
+            if(peer.state!==3||!peer.online)return;
+            html+='<div class="peer-panel"><div class="peer-title">'+(peer.name||'Peer '+i)+'</div>';
+            html+='<div class="ctrl"><label style="font-size:12px">Mode</label><select id="peer-mode-'+i+'" style="width:100%;padding:8px;background:#0f172a;border:1px solid #334155;border-radius:8px;color:#e2e8f0" onchange="sendPeerMode('+i+')">';
+            html+='<option value="0">Idle</option><option value="1">Image</option><option value="2">Pattern</option><option value="3">Sequence</option></select></div>';
+            html+='<div class="ctrl"><label style="font-size:12px">Quick Pattern</label><div class="grid3">';
+            [{t:0,n:'Rainbow'},{t:4,n:'Fire'},{t:5,n:'Comet'},{t:6,n:'Breathe'},{t:10,n:'Plasma'},{t:3,n:'Sparkle'},{t:16,n:'Split'},{t:17,n:'Chase'},{t:7,n:'Strobe'}].forEach(p=>{
+                html+='<button class="btn btn-sm" style="background:#a855f7;width:auto" onclick="sendPeerPattern('+i+','+p.t+')">'+p.n+'</button>';
+            });
+            html+='</div></div>';
+            html+='<div class="ctrl"><label style="font-size:12px">Brightness <span id="peer-bv-'+i+'">'+(peer.brightness||128)+'</span></label>';
+            html+='<input type="range" min="0" max="255" value="'+(peer.brightness||128)+'" oninput="sendPeerBrightness('+i+',this.value);document.getElementById(\'peer-bv-'+i+'\').textContent=this.value"></div>';
+            html+='</div>';
+        });
+        c.innerHTML=html;
+    }
+
+    async function setSyncMode(mode){
+        try{await fetch('/api/multipoi/syncmode',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:mode})});currentSyncMode=mode;updateSyncStatus()}catch(e){console.error(e)}
+    }
+    async function pairPoi(){try{await fetch('/api/multipoi/pair',{method:'POST'});showToast('Pairing...');setTimeout(updateSyncStatus,2000)}catch(e){console.error(e)}}
+    async function unpairPoi(){try{await fetch('/api/multipoi/unpair',{method:'POST'});updateSyncStatus()}catch(e){console.error(e)}}
+    async function unpairSingle(i){try{await fetch('/api/multipoi/unpair',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({index:i})});updateSyncStatus()}catch(e){console.error(e)}}
+    async function sendPeerMode(i){
+        const mode=parseInt(document.getElementById('peer-mode-'+i).value);
+        try{await fetch('/api/multipoi/peercmd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({peer:i,cmd:'mode',mode:mode,index:0})})}catch(e){console.error(e)}
+    }
+    async function sendPeerPattern(i,type){
+        const c1=hexToRgb(document.getElementById('color1').value),c2=hexToRgb(document.getElementById('color2').value);
+        const speed=parseInt(document.getElementById('pattern-speed').value);
+        try{await fetch('/api/multipoi/peercmd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({peer:i,cmd:'pattern',index:0,type:type,color1:c1,color2:c2,speed:speed})})}catch(e){console.error(e)}
+    }
+    async function sendPeerBrightness(i,b){
+        try{await fetch('/api/multipoi/peercmd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({peer:i,cmd:'brightness',brightness:parseInt(b)})})}catch(e){console.error(e)}
+    }
+
+    // ===== Settings =====
+    async function loadConfig(){
+        try{
+            const res=await fetch('/api/device/config');const d=await res.json();
+            document.getElementById('cfg-device-name').value=d.deviceName||'';
+            document.getElementById('cfg-sync-group').value=d.syncGroup||'';
+            document.getElementById('cfg-auto-sync').checked=d.autoSync||false;
+            document.getElementById('cfg-device-id').textContent='Device ID: '+(d.deviceId||'--');
+        }catch(e){}
+    }
+    async function saveConfig(){
+        const body={
+            deviceName:document.getElementById('cfg-device-name').value,
+            syncGroup:document.getElementById('cfg-sync-group').value,
+            autoSync:document.getElementById('cfg-auto-sync').checked
+        };
+        try{
+            const res=await fetch('/api/device/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+            document.getElementById('cfg-status').textContent=res.ok?'Configuration saved!':'Save failed';
+            document.getElementById('cfg-status').style.color=res.ok?'#22c55e':'#ef4444';
+            showToast(res.ok?'Config saved':'Save failed');
+        }catch(e){document.getElementById('cfg-status').textContent='Error: '+e.message;document.getElementById('cfg-status').style.color='#ef4444'}
+    }
+
+    // ===== PWA =====
+    let deferredPrompt;
+    window.addEventListener('beforeinstallprompt',(e)=>{
+        e.preventDefault();deferredPrompt=e;
+        const btn=document.getElementById('installButton');btn.style.display='block';
+        btn.addEventListener('click',async()=>{
+            if(deferredPrompt){deferredPrompt.prompt();const{outcome}=await deferredPrompt.userChoice;deferredPrompt=null;btn.style.display='none'}
+        });
+    });
+    if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(()=>{})}
+
+    // ===== Initialize =====
+    initLEDPreview();
+    updateStatus();
+    setInterval(updateStatus,2000);
+    updateSDStatus();refreshSDList();
+    setInterval(updateSDStatus,5000);
+    setInterval(refreshSDList,10000);
+    updateSyncStatus();
+    setInterval(updateSyncStatus,3000);
+    loadConfig();
     </script>
 </body>
 </html>
 )rawliteral";
-  
+
   server.send(200, "text/html", html);
 }
 
@@ -1939,13 +1577,16 @@ void handleUploadImage() {
   
   HTTPUpload& upload = server.upload();
   static uint8_t imageBuffer[MAX_IMAGE_WIDTH * MAX_IMAGE_HEIGHT * 3];  // Max image buffer
-  static uint16_t bufferIndex = 0;
+  static size_t bufferIndex = 0;
+  static bool uploadRejected = false;
   static uint16_t imageWidth = 32;
   static uint16_t imageHeight = 32;
+  static const size_t MAX_UPLOAD_BYTES = (size_t)MAX_IMAGE_WIDTH * MAX_IMAGE_HEIGHT * 3;
   
   if (upload.status == UPLOAD_FILE_START) {
     Serial.printf("Upload Start: %s\n", upload.filename.c_str());
     bufferIndex = 0;
+    uploadRejected = false;
     
     // Parse dimensions from filename (format: image_WxH.rgb)
     String fname = upload.filename;
@@ -1959,42 +1600,60 @@ void handleUploadImage() {
       } else {
         imageHeight = fname.substring(xIdx + 1).toInt();
       }
-      // Clamp to valid range
-      if (imageWidth < 1) imageWidth = 1;
-      if (imageWidth > MAX_IMAGE_WIDTH) imageWidth = MAX_IMAGE_WIDTH;
-      if (imageHeight < 1) imageHeight = 1;
-      if (imageHeight > MAX_IMAGE_HEIGHT) imageHeight = MAX_IMAGE_HEIGHT;
+      // Reject uploads that declare dimensions exceeding firmware limits
+      if (imageWidth < 1 || imageWidth > MAX_IMAGE_WIDTH ||
+          imageHeight < 1 || imageHeight > MAX_IMAGE_HEIGHT) {
+        Serial.printf("Upload rejected: declared dimensions %dx%d exceed limits %dx%d\n",
+                      imageWidth, imageHeight, (int)MAX_IMAGE_WIDTH, (int)MAX_IMAGE_HEIGHT);
+        uploadRejected = true;
+        return;
+      }
+    }
+    // Reject if declared payload would overflow buffer
+    uint32_t declaredBytes = (uint32_t)imageWidth * imageHeight * 3;
+    if (declaredBytes > MAX_UPLOAD_BYTES) {
+      Serial.printf("Upload rejected: declared payload %u bytes exceeds buffer %u bytes\n",
+                    declaredBytes, (unsigned)MAX_UPLOAD_BYTES);
+      uploadRejected = true;
+      return;
     }
     Serial.printf("Parsed dimensions: %dx%d\n", imageWidth, imageHeight);
     
   } else if (upload.status == UPLOAD_FILE_WRITE) {
-    // Accumulate image data
-    size_t bytesToCopy = upload.currentSize;
-    if (bufferIndex + bytesToCopy > sizeof(imageBuffer)) {
-      bytesToCopy = sizeof(imageBuffer) - bufferIndex;
+    if (uploadRejected) return;
+    // Reject if received data would overflow buffer
+    if (bufferIndex + upload.currentSize > MAX_UPLOAD_BYTES) {
+      Serial.printf("Upload rejected: received data exceeds buffer (%u bytes)\n",
+                    (unsigned)(bufferIndex + upload.currentSize));
+      uploadRejected = true;
+      return;
     }
     
-    memcpy(imageBuffer + bufferIndex, upload.buf, bytesToCopy);
-    bufferIndex += bytesToCopy;
+    memcpy(imageBuffer + bufferIndex, upload.buf, upload.currentSize);
+    bufferIndex += upload.currentSize;
     
-    Serial.printf("Upload Write: %d bytes (total: %d)\n", bytesToCopy, bufferIndex);
+    Serial.printf("Upload Write: %d bytes (total: %u)\n", upload.currentSize, (unsigned)bufferIndex);
     
   } else if (upload.status == UPLOAD_FILE_END) {
-    Serial.printf("Upload End: %d bytes\n", bufferIndex);
+    if (uploadRejected) {
+      server.send(413, "application/json", "{\"error\":\"Image dimensions exceed firmware limits\"}");
+      return;
+    }
+    Serial.printf("Upload End: %u bytes\n", (unsigned)bufferIndex);
     
     // Use dimensions parsed from filename
     // Verify against actual data size
-    uint16_t expectedSize = imageWidth * imageHeight * 3;
+    uint32_t expectedSize = (uint32_t)imageWidth * imageHeight * 3;
     if (bufferIndex < expectedSize) {
       // Adjust height to match actual data if needed
       imageHeight = bufferIndex / (imageWidth * 3);
       if (imageHeight < 1) imageHeight = 1;
     }
     
-    uint16_t actualSize = imageWidth * imageHeight * 3;
+    uint32_t actualSize = (uint32_t)imageWidth * imageHeight * 3;
     if (actualSize > bufferIndex) actualSize = bufferIndex;
     
-    Serial.printf("Detected image: %dx%d (%d bytes)\n", imageWidth, imageHeight, actualSize);
+    Serial.printf("Detected image: %dx%d (%u bytes)\n", imageWidth, imageHeight, (unsigned)actualSize);
     
     // Send image data to Teensy for processing
     // Protocol: 0xFF 0x02 dataLen_high dataLen_low width_low width_high height_low height_high [RGB data...] 0xFE
@@ -2009,7 +1668,7 @@ void handleUploadImage() {
     TEENSY_SERIAL.write((imageHeight >> 8) & 0xFF);  // Image height high byte
     
     // Send pixel data
-    for (uint16_t i = 0; i < actualSize && i < bufferIndex; i++) {
+    for (size_t i = 0; i < actualSize && i < bufferIndex; i++) {
       TEENSY_SERIAL.write(imageBuffer[i]);
     }
     TEENSY_SERIAL.write(0xFE);  // End marker
@@ -2335,17 +1994,17 @@ void handleManifest() {
   "description": "Wireless Nebula Poi Control Interface",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#667eea",
+  "background_color": "#020617",
+  "theme_color": "#0f172a",
   "icons": [
     {
-      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='40' fill='%23667eea'/%3E%3Ctext x='50' y='65' font-size='50' text-anchor='middle' fill='white'%3E🎨%3C/text%3E%3C/svg%3E",
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%230f172a'/%3E%3Ccircle cx='50' cy='50' r='30' fill='url(%23g)'/%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%2306b6d4'/%3E%3Cstop offset='1' stop-color='%23a855f7'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ctext x='50' y='58' font-size='28' font-weight='bold' text-anchor='middle' fill='white'%3EN%3C/text%3E%3C/svg%3E",
       "sizes": "192x192",
       "type": "image/svg+xml",
       "purpose": "any maskable"
     },
     {
-      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='40' fill='%23667eea'/%3E%3Ctext x='50' y='65' font-size='50' text-anchor='middle' fill='white'%3E🎨%3C/text%3E%3C/svg%3E",
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%230f172a'/%3E%3Ccircle cx='50' cy='50' r='30' fill='url(%23g)'/%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%2306b6d4'/%3E%3Cstop offset='1' stop-color='%23a855f7'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ctext x='50' y='58' font-size='28' font-weight='bold' text-anchor='middle' fill='white'%3EN%3C/text%3E%3C/svg%3E",
       "sizes": "512x512",
       "type": "image/svg+xml",
       "purpose": "any maskable"
