@@ -663,8 +663,8 @@ void handleRoot() {
                         <input type="number" id="image-width" min="1" max="100" value="32" oninput="updateImageDimensions('width')">
                     </div>
                     <div class="ctrl">
-                        <label>Height (px)</label>
-                        <input type="number" id="image-height" min="1" max="200" value="64" oninput="updateImageDimensions('height')">
+                        <label>Height (px, max 64)</label>
+                        <input type="number" id="image-height" min="1" max="64" value="32" oninput="updateImageDimensions('height')">
                     </div>
                 </div>
                 <div class="flex-row" style="margin-bottom:14px">
@@ -1079,7 +1079,10 @@ void handleRoot() {
         const cv=document.getElementById('gen-canvas');const cx=cv.getContext('2d');
         const ledCount=parseInt(document.getElementById('image-height').value)||32;
         const complexity=parseInt(document.getElementById('gen-complexity').value)||8;
-        const tH=ledCount,tW=tH*4;
+        const tH=Math.min(Math.max(ledCount,1),64);
+        let tW=Math.min(tH*4,400);
+        // Ensure payload does not exceed firmware buffer (400*64*3 = 76800 bytes)
+        while(tW>1&&tW*tH*3>76800)tW--;
         cv.width=tW;cv.height=tH;cv.style.display='block';
         cx.fillStyle='#000';cx.fillRect(0,0,tW,tH);
         const hueStart=colorSeed*360;
@@ -1121,10 +1124,15 @@ void handleRoot() {
     async function uploadGenerated(){
         const cv=document.getElementById('gen-canvas');
         if(!cv.width)return;
-        const cx=cv.getContext('2d');
         const tW=cv.width,tH=cv.height;
+        const payloadSize=tW*tH*3;
+        // Firmware max buffer: MAX_IMAGE_WIDTH(400) * MAX_IMAGE_HEIGHT(64) * 3 = 76800 bytes
+        if(tW<1||tH<1||tW>400||tH>64||payloadSize>76800){
+            showToast('Image too large to upload (max 400x64)');return;
+        }
+        const cx=cv.getContext('2d');
         const iD=cx.getImageData(0,0,tW,tH);const px=iD.data;
-        const rgb=new Uint8Array(tW*tH*3);let ri=0;
+        const rgb=new Uint8Array(payloadSize);let ri=0;
         for(let i=0;i<px.length;i+=4){rgb[ri++]=px[i];rgb[ri++]=px[i+1];rgb[ri++]=px[i+2]}
         const blob=new Blob([rgb],{type:'application/octet-stream'});
         const fd=new FormData();fd.append('file',blob,'image_'+tW+'x'+tH+'.rgb');
@@ -1569,13 +1577,16 @@ void handleUploadImage() {
   
   HTTPUpload& upload = server.upload();
   static uint8_t imageBuffer[MAX_IMAGE_WIDTH * MAX_IMAGE_HEIGHT * 3];  // Max image buffer
-  static uint16_t bufferIndex = 0;
+  static size_t bufferIndex = 0;
+  static bool uploadRejected = false;
   static uint16_t imageWidth = 32;
   static uint16_t imageHeight = 32;
+  static const size_t MAX_UPLOAD_BYTES = (size_t)MAX_IMAGE_WIDTH * MAX_IMAGE_HEIGHT * 3;
   
   if (upload.status == UPLOAD_FILE_START) {
     Serial.printf("Upload Start: %s\n", upload.filename.c_str());
     bufferIndex = 0;
+    uploadRejected = false;
     
     // Parse dimensions from filename (format: image_WxH.rgb)
     String fname = upload.filename;
@@ -1589,42 +1600,60 @@ void handleUploadImage() {
       } else {
         imageHeight = fname.substring(xIdx + 1).toInt();
       }
-      // Clamp to valid range
-      if (imageWidth < 1) imageWidth = 1;
-      if (imageWidth > MAX_IMAGE_WIDTH) imageWidth = MAX_IMAGE_WIDTH;
-      if (imageHeight < 1) imageHeight = 1;
-      if (imageHeight > MAX_IMAGE_HEIGHT) imageHeight = MAX_IMAGE_HEIGHT;
+      // Reject uploads that declare dimensions exceeding firmware limits
+      if (imageWidth < 1 || imageWidth > MAX_IMAGE_WIDTH ||
+          imageHeight < 1 || imageHeight > MAX_IMAGE_HEIGHT) {
+        Serial.printf("Upload rejected: declared dimensions %dx%d exceed limits %dx%d\n",
+                      imageWidth, imageHeight, (int)MAX_IMAGE_WIDTH, (int)MAX_IMAGE_HEIGHT);
+        uploadRejected = true;
+        return;
+      }
+    }
+    // Reject if declared payload would overflow buffer
+    uint32_t declaredBytes = (uint32_t)imageWidth * imageHeight * 3;
+    if (declaredBytes > MAX_UPLOAD_BYTES) {
+      Serial.printf("Upload rejected: declared payload %u bytes exceeds buffer %u bytes\n",
+                    declaredBytes, (unsigned)MAX_UPLOAD_BYTES);
+      uploadRejected = true;
+      return;
     }
     Serial.printf("Parsed dimensions: %dx%d\n", imageWidth, imageHeight);
     
   } else if (upload.status == UPLOAD_FILE_WRITE) {
-    // Accumulate image data
-    size_t bytesToCopy = upload.currentSize;
-    if (bufferIndex + bytesToCopy > sizeof(imageBuffer)) {
-      bytesToCopy = sizeof(imageBuffer) - bufferIndex;
+    if (uploadRejected) return;
+    // Reject if received data would overflow buffer
+    if (bufferIndex + upload.currentSize > MAX_UPLOAD_BYTES) {
+      Serial.printf("Upload rejected: received data exceeds buffer (%u bytes)\n",
+                    (unsigned)(bufferIndex + upload.currentSize));
+      uploadRejected = true;
+      return;
     }
     
-    memcpy(imageBuffer + bufferIndex, upload.buf, bytesToCopy);
-    bufferIndex += bytesToCopy;
+    memcpy(imageBuffer + bufferIndex, upload.buf, upload.currentSize);
+    bufferIndex += upload.currentSize;
     
-    Serial.printf("Upload Write: %d bytes (total: %d)\n", bytesToCopy, bufferIndex);
+    Serial.printf("Upload Write: %d bytes (total: %u)\n", upload.currentSize, (unsigned)bufferIndex);
     
   } else if (upload.status == UPLOAD_FILE_END) {
-    Serial.printf("Upload End: %d bytes\n", bufferIndex);
+    if (uploadRejected) {
+      server.send(413, "application/json", "{\"error\":\"Image dimensions exceed firmware limits\"}");
+      return;
+    }
+    Serial.printf("Upload End: %u bytes\n", (unsigned)bufferIndex);
     
     // Use dimensions parsed from filename
     // Verify against actual data size
-    uint16_t expectedSize = imageWidth * imageHeight * 3;
+    uint32_t expectedSize = (uint32_t)imageWidth * imageHeight * 3;
     if (bufferIndex < expectedSize) {
       // Adjust height to match actual data if needed
       imageHeight = bufferIndex / (imageWidth * 3);
       if (imageHeight < 1) imageHeight = 1;
     }
     
-    uint16_t actualSize = imageWidth * imageHeight * 3;
+    uint32_t actualSize = (uint32_t)imageWidth * imageHeight * 3;
     if (actualSize > bufferIndex) actualSize = bufferIndex;
     
-    Serial.printf("Detected image: %dx%d (%d bytes)\n", imageWidth, imageHeight, actualSize);
+    Serial.printf("Detected image: %dx%d (%u bytes)\n", imageWidth, imageHeight, (unsigned)actualSize);
     
     // Send image data to Teensy for processing
     // Protocol: 0xFF 0x02 dataLen_high dataLen_low width_low width_high height_low height_high [RGB data...] 0xFE
@@ -1639,7 +1668,7 @@ void handleUploadImage() {
     TEENSY_SERIAL.write((imageHeight >> 8) & 0xFF);  // Image height high byte
     
     // Send pixel data
-    for (uint16_t i = 0; i < actualSize && i < bufferIndex; i++) {
+    for (size_t i = 0; i < actualSize && i < bufferIndex; i++) {
       TEENSY_SERIAL.write(imageBuffer[i]);
     }
     TEENSY_SERIAL.write(0xFE);  // End marker
