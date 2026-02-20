@@ -24,9 +24,8 @@
   #endif
 #endif
 
-// SD Card Support - Uncomment to enable SD card features
-// Requires microSD card in Teensy 4.1's built-in SD card slot
-//#define SD_SUPPORT
+// SD Card Support - Enabled: 64GB microSD card installed in Teensy 4.1 built-in slot
+#define SD_SUPPORT
 
 #ifdef SD_SUPPORT
   #include <SD.h>
@@ -60,12 +59,11 @@
 // Display Configuration
 // NOTE: IMAGE_HEIGHT = DISPLAY_LEDS = 32 (fixed, matches physical LEDs)
 //       IMAGE_MAX_WIDTH = variable (calculated from aspect ratio)
-// PSRAM Support: With 16MB PSRAM (2x 8MB chips), we can store more and larger images
+// PSRAM: 2x 8MB chips installed = 16MB PSRAM on Teensy 4.1
 #ifdef ARDUINO_TEENSY41
-  // Check for PSRAM at runtime with external_psram_size
-  // Without PSRAM: 10 images at 32x200 (~60KB)
-  // With 16MB PSRAM: 50 images at 32x400 (~1.8MB, only 11% of PSRAM)
-  #define MAX_IMAGES 50
+  // With 16MB PSRAM: 200 images at 32x400 (~7.3MB, ~46% of PSRAM)
+  // Without PSRAM: 10 images at 32x200 (~60KB internal RAM)
+  #define MAX_IMAGES 200
   #define IMAGE_MAX_WIDTH 400     // Maximum width for stored images (with PSRAM)
 #else
   #define MAX_IMAGES 10
@@ -78,10 +76,10 @@
 const uint8_t kPatternSpeedDivisor = 20;  // Used for split-spin/theater chase speed scaling.
 
 #ifdef SD_SUPPORT
-  // SD Card Configuration
+  // SD Card Configuration - 64GB microSD installed
   #define SD_IMAGE_DIR "/poi_images"
   #define MAX_FILENAME_LEN 32
-  #define MAX_SD_FILES 10
+  #define MAX_SD_FILES 100   // 64GB card can hold thousands; 100 files visible in UI
   #define MAX_FILEPATH_LEN 64
 #endif
 
@@ -157,18 +155,18 @@ CRGB liveBuffer[DISPLAY_LEDS];
 
 // Serial command buffer
 // Buffer size calculation for larger images:
-//   Max image: IMAGE_MAX_WIDTH (400) × IMAGE_HEIGHT (32) × 3 (RGB bytes) = 38,400 bytes
+//   Max image: IMAGE_MAX_WIDTH (400) × IMAGE_HEIGHT*2 (64, max accepted) × 3 (RGB) = 76,800 bytes
 //   Plus protocol overhead (~100 bytes): 0xFF start, cmd, len, 0xFE end markers
-//   Rounded up to 40,000 for safety margin
-// With PSRAM: can afford larger buffer; without PSRAM: use smaller buffer
+//   Rounded up to 80,000 for safety margin
+// With PSRAM (16MB installed): buffer placed in EXTMEM; without PSRAM: reduced buffer
 #ifdef ARDUINO_TEENSY41
-  #define CMD_BUFFER_SIZE 40000
+  #define CMD_BUFFER_SIZE 80000
   EXTMEM uint8_t cmdBuffer[CMD_BUFFER_SIZE];
 #else
   #define CMD_BUFFER_SIZE 6400
   uint8_t cmdBuffer[CMD_BUFFER_SIZE];
 #endif
-uint16_t cmdBufferIndex = 0;
+uint32_t cmdBufferIndex = 0;
 
 void setup() {
   // Initialize Serial for debugging
