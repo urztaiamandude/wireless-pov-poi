@@ -1032,6 +1032,7 @@ void handleRoot() {
                 img.onload=()=>{
                     try{
                         const cv=document.createElement('canvas');const cx=cv.getContext('2d');
+                        const originalImageAspectRatio=img.width/img.height;
                         let tH=parseInt(document.getElementById('image-height').value)||32;
                         tH=Math.min(200,Math.max(1,tH));
                         let tW=parseInt(document.getElementById('image-width').value)||32;
