@@ -830,6 +830,7 @@ void handleRoot() {
     
     <script>
     const NUM_LEDS=32;
+    const DISPLAY_LED_START=1;
     let currentMode=2,currentPattern=0,brightness=128,originalImageAspectRatio=1.0;
     let currentSyncMode='mirror',syncPeers=[];
     let genType='organic',colorSeed=Math.random();
@@ -856,17 +857,17 @@ void handleRoot() {
     // ===== LED Preview =====
     function initLEDPreview(){
         const c=document.getElementById('led-preview');c.innerHTML='';
-        for(let i=0;i<NUM_LEDS;i++){const d=document.createElement('div');d.className='led';d.id='led-'+i;c.appendChild(d)}
+        for(let i=DISPLAY_LED_START;i<NUM_LEDS;i++){const d=document.createElement('div');d.className='led';d.id='led-'+i;c.appendChild(d)}
     }
     function setLEDPreview(i,r,g,b){
         const d=document.getElementById('led-'+i);
         if(d){const s=brightness/255;d.style.background='rgb('+Math.round(r*s)+','+Math.round(g*s)+','+Math.round(b*s)+')'}
     }
     function updateLEDPreviewFromStatus(mode,index){
-        for(let i=0;i<NUM_LEDS;i++)setLEDPreview(i,40,40,40);
+        for(let i=DISPLAY_LED_START;i<NUM_LEDS;i++)setLEDPreview(i,40,40,40);
         if(mode===0)return;
         const hue=(index*16)%256;
-        for(let i=0;i<NUM_LEDS;i++){
+        for(let i=DISPLAY_LED_START;i<NUM_LEDS;i++){
             const h=((i*8+hue)%256)/256;
             const r=h<.333?1:(h<.666?1-(h-.333)*3:0);
             const g=h<.333?h*3:(h<.666?1:1-(h-.666)*3);
@@ -1167,8 +1168,9 @@ void handleRoot() {
     function sendLiveFrame(){
         const cw=canvas.width,ch=canvas.height,midY=Math.floor(ch/2);
         const pixels=[];
-        for(let i=0;i<NUM_LEDS;i++){
-            const x=Math.min(cw-1,Math.floor(i*(cw/NUM_LEDS)+(cw/NUM_LEDS)/2));
+        for(let i=DISPLAY_LED_START;i<NUM_LEDS;i++){
+            const col=i-DISPLAY_LED_START;
+            const x=Math.min(cw-1,Math.floor(col*(cw/NUM_LEDS)+(cw/NUM_LEDS)/2));
             const p=ctx.getImageData(x,midY,1,1).data;
             pixels.push({r:p[0],g:p[1],b:p[2]});
             setLEDPreview(i,p[0],p[1],p[2]);
