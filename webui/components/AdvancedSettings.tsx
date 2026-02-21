@@ -1,6 +1,6 @@
 
-import React, { useState } from 'react';
-import { Settings2, RefreshCw, Grid3X3, Palette, Info, Save, RotateCw, Cpu, Zap, CircuitBoard } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Settings2, RefreshCw, Grid3X3, Palette, Info, Save, RotateCw, Cpu, Zap, CircuitBoard, Wifi, Lock, Trash2 } from 'lucide-react';
 
 interface AdvancedSettingsProps {
   ledCount: number;
@@ -8,6 +8,14 @@ interface AdvancedSettingsProps {
 }
 
 const DEVICE_IP = '192.168.4.1'; // POV-POI-WiFi leader default
+
+interface WifiStatus {
+  apIp: string;
+  apSsid: string;
+  staConnected: boolean;
+  staIp: string;
+  savedSsid: string;
+}
 
 const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCount }) => {
   const [refreshRate, setRefreshRate] = useState(60);
@@ -17,6 +25,38 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCou
   const [clkPin, setClkPin] = useState(13);
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
+
+  // WiFi network (connect to existing network to access web UI over that network)
+  const [wifiStatus, setWifiStatus] = useState<WifiStatus | null>(null);
+  const [wifiLoading, setWifiLoading] = useState(true);
+  const [wifiConnectLoading, setWifiConnectLoading] = useState(false);
+  const [wifiError, setWifiError] = useState<string | null>(null);
+  const [wifiSsid, setWifiSsid] = useState('');
+  const [wifiPassword, setWifiPassword] = useState('');
+
+  const baseUrl = typeof window !== 'undefined' && window.location.hostname !== 'localhost' ? '' : `http://${DEVICE_IP}`;
+
+  const fetchWifiStatus = useCallback(async () => {
+    try {
+      const res = await fetch(`${baseUrl}/api/wifi/status`, { signal: AbortSignal.timeout(3000) });
+      if (res.ok) {
+        const data = await res.json();
+        setWifiStatus(data);
+        setWifiError(null);
+      }
+    } catch {
+      setWifiStatus(null);
+      setWifiError('Could not reach device.');
+    } finally {
+      setWifiLoading(false);
+    }
+  }, [baseUrl]);
+
+  useEffect(() => {
+    fetchWifiStatus();
+    const t = setInterval(fetchWifiStatus, 10000);
+    return () => clearInterval(t);
+  }, [fetchWifiStatus]);
 
   // Deploy config to the firmware via POST /api/device/config
   // NOTE: Current firmware implementation only accepts deviceName, syncGroup, and autoSync.
@@ -46,6 +86,60 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCou
     }
   };
 
+  const handleWifiConnect = async () => {
+    if (!wifiSsid.trim()) {
+      setWifiError('Enter a network name (SSID).');
+      return;
+    }
+    setWifiConnectLoading(true);
+    setWifiError(null);
+    try {
+      const res = await fetch(`${baseUrl}/api/wifi/connect`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ssid: wifiSsid.trim(), password: wifiPassword }),
+        signal: AbortSignal.timeout(5000)
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setWifiError(data.error || 'Connect failed.');
+        return;
+      }
+      setWifiError(null);
+      for (let i = 0; i < 15; i++) {
+        await new Promise((r) => setTimeout(r, 2000));
+        const r2 = await fetch(`${baseUrl}/api/wifi/status`, { signal: AbortSignal.timeout(3000) });
+        if (r2.ok) {
+          const s = await r2.json();
+          setWifiStatus(s);
+          if (s.staConnected) break;
+        }
+      }
+    } catch {
+      setWifiError('Request failed. Try again.');
+    } finally {
+      setWifiConnectLoading(false);
+    }
+  };
+
+  const handleWifiDisconnect = async () => {
+    setWifiConnectLoading(true);
+    setWifiError(null);
+    try {
+      await fetch(`${baseUrl}/api/wifi/disconnect`, {
+        method: 'POST',
+        signal: AbortSignal.timeout(3000)
+      });
+      await fetchWifiStatus();
+      setWifiSsid('');
+      setWifiPassword('');
+    } catch {
+      setWifiError('Disconnect request failed.');
+    } finally {
+      setWifiConnectLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-8 animate-fadeIn">
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -71,6 +165,94 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCou
           )}
         </div>
       </header>
+
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+        <h3 className="text-white font-semibold mb-6 flex items-center gap-2">
+          <Wifi size={18} className="text-cyan-400" /> WiFi Network
+        </h3>
+        <p className="text-slate-400 text-sm mb-4">
+          Connect the device to your home/router WiFi to access the web UI from any device on that network. The device always runs its own access point (POV-POI-WiFi) as well.
+        </p>
+        {wifiLoading && !wifiStatus && (
+          <p className="text-slate-500 text-sm flex items-center gap-2">
+            <RefreshCw className="animate-spin" size={16} /> Loading…
+          </p>
+        )}
+        {wifiStatus && (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              <div className="bg-slate-950 border border-slate-700 rounded-xl p-4">
+                <div className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Access point</div>
+                <div className="font-mono text-cyan-400">{wifiStatus.apSsid}</div>
+                <div className="text-sm text-slate-400">Open <span className="font-mono text-white">{wifiStatus.apIp}</span> when connected to this network</div>
+              </div>
+              <div className="bg-slate-950 border border-slate-700 rounded-xl p-4">
+                <div className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Home network</div>
+                {wifiStatus.staConnected ? (
+                  <>
+                    <div className="font-mono text-green-400">Connected</div>
+                    <div className="text-sm text-slate-400">Use <span className="font-mono text-white">{wifiStatus.staIp}</span> from your LAN</div>
+                    {wifiStatus.savedSsid && <div className="text-xs text-slate-500 mt-1">Saved: {wifiStatus.savedSsid}</div>}
+                  </>
+                ) : (
+                  <>
+                    <div className="text-amber-400">Not connected</div>
+                    {wifiStatus.savedSsid ? (
+                      <div className="text-sm text-slate-400">Saved network: {wifiStatus.savedSsid} (reconnecting…)</div>
+                    ) : (
+                      <div className="text-sm text-slate-400">Connect below to access over your WiFi</div>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-4 items-end">
+              <div className="flex-1 min-w-[140px]">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-widest block mb-1">Network name (SSID)</label>
+                <input
+                  type="text"
+                  value={wifiSsid}
+                  onChange={(e) => setWifiSsid(e.target.value)}
+                  placeholder="Your WiFi name"
+                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white font-mono focus:ring-1 focus:ring-cyan-500 outline-none"
+                />
+              </div>
+              <div className="flex-1 min-w-[140px]">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-widest block mb-1 flex items-center gap-1">
+                  <Lock size={12} /> Password
+                </label>
+                <input
+                  type="password"
+                  value={wifiPassword}
+                  onChange={(e) => setWifiPassword(e.target.value)}
+                  placeholder="WiFi password"
+                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white font-mono focus:ring-1 focus:ring-cyan-500 outline-none"
+                />
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleWifiConnect}
+                  disabled={wifiConnectLoading}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-800 text-white rounded-xl font-semibold transition-all"
+                >
+                  {wifiConnectLoading ? <RefreshCw className="animate-spin" size={18} /> : <Wifi size={18} />}
+                  {wifiConnectLoading ? 'Connecting…' : 'Connect'}
+                </button>
+                {wifiStatus.savedSsid && (
+                  <button
+                    onClick={handleWifiDisconnect}
+                    disabled={wifiConnectLoading}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-slate-700 hover:bg-slate-600 text-white rounded-xl font-semibold transition-all"
+                  >
+                    <Trash2 size={18} /> Disconnect
+                  </button>
+                )}
+              </div>
+            </div>
+            {wifiError && <p className="text-red-400 text-sm mt-3">{wifiError}</p>}
+          </>
+        )}
+      </div>
 
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
         <h3 className="text-white font-semibold mb-6 flex items-center gap-2">

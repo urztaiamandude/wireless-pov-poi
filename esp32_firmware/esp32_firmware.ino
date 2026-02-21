@@ -63,6 +63,10 @@ void handleSyncData();
 void handleSyncPush();
 void handleDeviceConfig();
 void handleDeviceConfigUpdate();
+void handleWifiStatus();
+void handleWifiConnect();
+void handleWifiDisconnect();
+void saveWifiStaConfig(const String& ssid, const String& pass);
 void discoverPeers();
 void performSync(String peerId);
 String getDeviceId();
@@ -121,6 +125,10 @@ struct DeviceConfig {
   bool autoSync;
   unsigned long syncInterval;
 } deviceConfig;
+
+// WiFi STA (client) credentials - saved to Preferences, used to connect to existing network
+String staSsid = "";
+String staPassword = "";
 
 // Peer device structure
 struct PeerDevice {
@@ -265,25 +273,28 @@ void loop() {
 }
 
 void setupWiFi() {
-  Serial.println("Starting Access Point...");
+  Serial.println("Starting Access Point (AP+STA)...");
   
-  // Configure AP
-  WiFi.mode(WIFI_AP);
+  // AP+STA: AP for direct connection (POV-POI-WiFi), STA to connect to existing network
+  WiFi.mode(WIFI_AP_STA);
   WiFi.softAP(ssid, password);
   
-  // Configure IP (192.168.4.1 is default)
+  // Configure AP IP (192.168.4.1 is default)
   IPAddress local_IP(192, 168, 4, 1);
   IPAddress gateway(192, 168, 4, 1);
   IPAddress subnet(255, 255, 255, 0);
-  
   WiFi.softAPConfig(local_IP, gateway, subnet);
   
   Serial.print("AP IP address: ");
   Serial.println(WiFi.softAPIP());
-  Serial.print("SSID: ");
+  Serial.print("AP SSID: ");
   Serial.println(ssid);
-  Serial.print("Password: ");
-  Serial.println(password);
+  
+  // If we have saved STA credentials, try to connect to that network (non-blocking)
+  if (staSsid.length() > 0) {
+    Serial.printf("Connecting to saved network: %s\n", staSsid.c_str());
+    WiFi.begin(staSsid.c_str(), staPassword.c_str());
+  }
 }
 
 void setupWebServer() {
@@ -313,6 +324,11 @@ void setupWebServer() {
   // Device configuration endpoints
   server.on("/api/device/config", HTTP_GET, handleDeviceConfig);
   server.on("/api/device/config", HTTP_POST, handleDeviceConfigUpdate);
+  
+  // WiFi network (STA) configuration - connect to existing network for web UI access
+  server.on("/api/wifi/status", HTTP_GET, handleWifiStatus);
+  server.on("/api/wifi/connect", HTTP_POST, handleWifiConnect);
+  server.on("/api/wifi/disconnect", HTTP_POST, handleWifiDisconnect);
 
   // ESP-NOW multi-poi sync endpoints
   server.on("/api/multipoi/status", HTTP_GET, handleMultiPoiStatus);
@@ -2461,6 +2477,10 @@ void loadDeviceConfig() {
   deviceConfig.autoSync = preferences.getBool("autoSync", AUTO_SYNC_ENABLED);
   deviceConfig.syncInterval = preferences.getULong("syncInterval", AUTO_SYNC_INTERVAL);
   
+  // Load saved WiFi STA (client) credentials for connecting to existing network
+  staSsid = preferences.getString("sta_ssid", "");
+  staPassword = preferences.getString("sta_password", "");
+  
   preferences.end();
 }
 
@@ -2795,6 +2815,94 @@ void handleDeviceConfigUpdate() {
   String json = "{";
   json += "\"status\":\"ok\",";
   json += "\"message\":\"Configuration updated\"";
+  json += "}";
+  
+  server.send(200, "application/json", json);
+}
+
+// Save WiFi STA credentials to Preferences and optionally start connection
+void saveWifiStaConfig(const String& ssid, const String& pass) {
+  staSsid = ssid;
+  staPassword = pass;
+  preferences.begin("povpoi", false);
+  preferences.putString("sta_ssid", staSsid);
+  preferences.putString("sta_password", staPassword);
+  preferences.end();
+}
+
+// GET /api/wifi/status - WiFi AP + STA status for settings UI
+void handleWifiStatus() {
+  bool staConnected = (WiFi.status() == WL_CONNECTED);
+  String staIp = staConnected ? WiFi.localIP().toString() : "";
+  String apIp = WiFi.softAPIP().toString();
+  
+  String json = "{";
+  json += "\"apIp\":\"" + apIp + "\",";
+  json += "\"apSsid\":\"" + String(ssid) + "\",";
+  json += "\"staConnected\":" + String(staConnected ? "true" : "false") + ",";
+  json += "\"staIp\":\"" + staIp + "\",";
+  json += "\"savedSsid\":\"" + staSsid + "\"";
+  json += "}";
+  
+  server.send(200, "application/json", json);
+}
+
+// POST /api/wifi/connect - Save SSID/password and connect to network (body: {"ssid":"...", "password":"..."})
+void handleWifiConnect() {
+  if (!server.hasArg("plain")) {
+    server.send(400, "application/json", "{\"error\":\"No data\"}");
+    return;
+  }
+  
+  String body = server.arg("plain");
+  int ssidIdx = body.indexOf("\"ssid\":");
+  if (ssidIdx == -1) {
+    server.send(400, "application/json", "{\"error\":\"Missing ssid\"}");
+    return;
+  }
+  
+  int ssidStart = body.indexOf("\"", ssidIdx + 7) + 1;
+  int ssidEnd = body.indexOf("\"", ssidStart);
+  String newSsid = body.substring(ssidStart, ssidEnd);
+  newSsid.trim();
+  
+  if (newSsid.length() == 0) {
+    server.send(400, "application/json", "{\"error\":\"SSID cannot be empty\"}");
+    return;
+  }
+  
+  String newPass = "";
+  int passIdx = body.indexOf("\"password\":");
+  if (passIdx != -1) {
+    int passStart = body.indexOf("\"", passIdx + 11) + 1;
+    int passEnd = body.indexOf("\"", passStart);
+    newPass = body.substring(passStart, passEnd);
+  }
+  
+  saveWifiStaConfig(newSsid, newPass);
+  WiFi.begin(newSsid.c_str(), newPass.c_str());
+  
+  String json = "{";
+  json += "\"status\":\"ok\",";
+  json += "\"message\":\"Connecting to network. Check /api/wifi/status for result.\"";
+  json += "}";
+  
+  server.send(200, "application/json", json);
+}
+
+// POST /api/wifi/disconnect - Disconnect from STA and clear saved credentials
+void handleWifiDisconnect() {
+  WiFi.disconnect(true);
+  staSsid = "";
+  staPassword = "";
+  preferences.begin("povpoi", false);
+  preferences.remove("sta_ssid");
+  preferences.remove("sta_password");
+  preferences.end();
+  
+  String json = "{";
+  json += "\"status\":\"ok\",";
+  json += "\"message\":\"Disconnected and credentials cleared\"";
   json += "}";
   
   server.send(200, "application/json", json);

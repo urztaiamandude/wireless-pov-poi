@@ -591,7 +591,6 @@ Planned additions:
 - Preset library management
 - Configuration backup/restore
 - OTA update endpoints
-- Network configuration API
 - Statistics and diagnostics
 
 ---
@@ -929,6 +928,89 @@ Update device name, sync group, and sync settings.
 curl -X POST http://192.168.4.1/api/device/config \
   -H "Content-Type: application/json" \
   -d '{"deviceName":"Left Poi","autoSync":true}'
+```
+
+---
+
+## WiFi Network API
+
+The device runs in **AP+STA** mode: it always provides the **POV-POI-WiFi** access point, and can also connect to your home/router WiFi so you can reach the web UI from any device on your network.
+
+### Get WiFi Status
+
+**Endpoint:** `GET /api/wifi/status`
+
+**Response:**
+```json
+{
+  "apIp": "192.168.4.1",
+  "apSsid": "POV-POI-WiFi",
+  "staConnected": true,
+  "staIp": "192.168.1.42",
+  "savedSsid": "MyHomeWiFi"
+}
+```
+
+- `apIp` / `apSsid`: Access point IP and SSID (always available).
+- `staConnected`: Whether the device is connected to a saved network.
+- `staIp`: Device IP on the home network when `staConnected` is true; use this URL to open the web UI from your LAN.
+- `savedSsid`: SSID of the saved network (empty if none).
+
+**Example:**
+```bash
+curl http://192.168.4.1/api/wifi/status
+```
+
+---
+
+### Connect to a WiFi Network
+
+**Endpoint:** `POST /api/wifi/connect`
+
+**Request Body:**
+```json
+{
+  "ssid": "MyHomeWiFi",
+  "password": "your_wifi_password"
+}
+```
+
+Credentials are saved and the device attempts to connect. Connection is asynchronous; poll `GET /api/wifi/status` to see when `staConnected` becomes true and to get `staIp`.
+
+**Response:**
+```json
+{
+  "status": "ok",
+  "message": "Connecting to network. Check /api/wifi/status for result."
+}
+```
+
+**Example:**
+```bash
+curl -X POST http://192.168.4.1/api/wifi/connect \
+  -H "Content-Type: application/json" \
+  -d '{"ssid":"MyHomeWiFi","password":"your_password"}'
+```
+
+---
+
+### Disconnect and Clear Saved Network
+
+**Endpoint:** `POST /api/wifi/disconnect`
+
+Disconnects from the current STA network and clears saved SSID/password. The device continues to serve the POV-POI-WiFi access point.
+
+**Response:**
+```json
+{
+  "status": "ok",
+  "message": "Disconnected and credentials cleared"
+}
+```
+
+**Example:**
+```bash
+curl -X POST http://192.168.4.1/api/wifi/disconnect
 ```
 
 ---

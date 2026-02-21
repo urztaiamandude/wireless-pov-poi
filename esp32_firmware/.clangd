@@ -1,3 +1,6 @@
+# Use only this config; ignore compile_commands.json to avoid "Duplicate key Add" merge warning
+CompilationDatabase: none
+
 CompileFlags:
   Add:
     - --query-driver=C:/Users/urzam/.platformio/packages/toolchain-xtensa-esp32s3/bin/xtensa-esp32s3-elf-gcc*
@@ -101,5 +104,9 @@ CompileFlags:
     - -I=C:/Users/urzam/.platformio/packages/framework-arduinoespressif32/libraries/ESP Async WebServer
     - -I=C:/Users/urzam/.platformio/packages/framework-arduinoespressif32/libraries/ESPAsyncTCP
     - -I=C:/Users/urzam/.platformio/packages/framework-arduinoespressif32/libraries/AsyncTCP
+    - -mlong-calls
   Remove:
     - -W*
+    - -mlongcalls
+    - -fstrict-volatile-bitfields
+    
