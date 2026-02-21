@@ -5,6 +5,7 @@ This document describes the REST API provided by the ESP32 web server for contro
 ## Base URL
 
 When connected to the POV-POI-WiFi network:
+
 - IP Address: `http://192.168.4.1`
 - mDNS: `http://povpoi.local` (if supported)
 
@@ -17,17 +18,21 @@ Currently, the API does not require authentication. All endpoints are publicly a
 All API responses are in JSON format with appropriate HTTP status codes.
 
 Success Response:
+
 ```json
 {
   "status": "ok"
 }
+
 ```
 
 Error Response:
+
 ```json
 {
   "error": "Error description"
 }
+
 ```
 
 ## Endpoints
@@ -35,11 +40,13 @@ Error Response:
 ### System Status
 
 #### Get System Status
+
 Get current system state and connection status.
 
 **Endpoint:** `GET /api/status`
 
 **Response:**
+
 ```json
 {
   "connected": true,
@@ -48,9 +55,11 @@ Get current system state and connection status.
   "brightness": 128,
   "framerate": 50
 }
+
 ```
 
 **Response Fields:**
+
 - `connected` (boolean): Teensy connection status
 - `mode` (integer): Current display mode (0-4)
   - 0: Idle (off)
@@ -63,8 +72,10 @@ Get current system state and connection status.
 - `framerate` (integer): Display frame rate (10-120 FPS)
 
 **Example:**
+
 ```bash
 curl http://192.168.4.1/api/status
+
 ```
 
 ---
@@ -72,34 +83,42 @@ curl http://192.168.4.1/api/status
 ### Display Mode Control
 
 #### Set Display Mode
+
 Change the current display mode and select which content to display.
 
 **Endpoint:** `POST /api/mode`
 
 **Request Body:**
+
 ```json
 {
   "mode": 2,
   "index": 0
 }
+
 ```
 
 **Request Fields:**
+
 - `mode` (integer, required): Display mode (0-4)
 - `index` (integer, required): Content index to display
 
 **Response:**
+
 ```json
 {
   "status": "ok"
 }
+
 ```
 
 **Example:**
+
 ```bash
 curl -X POST http://192.168.4.1/api/mode \
   -H "Content-Type: application/json" \
   -d '{"mode": 2, "index": 0}'
+
 ```
 
 ---
@@ -107,35 +126,43 @@ curl -X POST http://192.168.4.1/api/mode \
 ### System Settings
 
 #### Set Brightness
+
 Adjust LED brightness.
 
 **Endpoint:** `POST /api/brightness`
 
 **Request Body:**
+
 ```json
 {
   "brightness": 200
 }
+
 ```
 
 **Request Fields:**
+
 - `brightness` (integer, required): Brightness level (0-255)
   - 0: LEDs off
   - 128: Half brightness
   - 255: Full brightness
 
 **Response:**
+
 ```json
 {
   "status": "ok"
 }
+
 ```
 
 **Example:**
+
 ```bash
 curl -X POST http://192.168.4.1/api/brightness \
   -H "Content-Type: application/json" \
   -d '{"brightness": 150}'
+
 ```
 
 **Note:** Lower brightness saves power and reduces heat.
@@ -143,35 +170,43 @@ curl -X POST http://192.168.4.1/api/brightness \
 ---
 
 #### Set Frame Rate
+
 Change the display refresh rate.
 
 **Endpoint:** `POST /api/framerate`
 
 **Request Body:**
+
 ```json
 {
   "framerate": 60
 }
+
 ```
 
 **Request Fields:**
+
 - `framerate` (integer, required): Frame rate in FPS (10-120)
   - 30: Smooth, lower CPU usage
   - 50: Default, good balance
   - 60+: Very smooth, higher CPU usage
 
 **Response:**
+
 ```json
 {
   "status": "ok"
 }
+
 ```
 
 **Example:**
+
 ```bash
 curl -X POST http://192.168.4.1/api/framerate \
   -H "Content-Type: application/json" \
   -d '{"framerate": 60}'
+
 ```
 
 ---
@@ -179,11 +214,13 @@ curl -X POST http://192.168.4.1/api/framerate \
 ### Pattern Control
 
 #### Upload Pattern Configuration
+
 Create or update a pattern with specific colors and animation type.
 
 **Endpoint:** `POST /api/pattern`
 
 **Request Body:**
+
 ```json
 {
   "index": 0,
@@ -200,9 +237,11 @@ Create or update a pattern with specific colors and animation type.
   },
   "speed": 50
 }
+
 ```
 
 **Request Fields:**
+
 - `index` (integer, required): Pattern slot (0-4)
 - `type` (integer, required): Pattern type
   - 0: Rainbow - Rotating rainbow effect
@@ -215,13 +254,16 @@ Create or update a pattern with specific colors and animation type.
 - `speed` (integer, required): Animation speed (1-100)
 
 **Response:**
+
 ```json
 {
   "status": "ok"
 }
+
 ```
 
 **Example:**
+
 ```bash
 curl -X POST http://192.168.4.1/api/pattern \
   -H "Content-Type: application/json" \
@@ -232,6 +274,7 @@ curl -X POST http://192.168.4.1/api/pattern \
     "color2": {"r": 0, "g": 255, "b": 0},
     "speed": 75
   }'
+
 ```
 
 ---
@@ -239,6 +282,7 @@ curl -X POST http://192.168.4.1/api/pattern \
 ### Image Management
 
 #### Upload Image
+
 Upload an image for POV display. The web UI pre-converts images to raw RGB format; external clients may send raw RGB or use the same format.
 
 **Endpoint:** `POST /api/image`
@@ -246,22 +290,28 @@ Upload an image for POV display. The web UI pre-converts images to raw RGB forma
 **Request:** Multipart form data
 
 **Form Fields:**
+
 - `file` (file, required): Raw RGB data with filename encoding dimensions as `image_WxH.rgb` (e.g. `image_32x64.rgb`)
 
 **Response:**
+
 ```json
 {
   "status": "ok"
 }
+
 ```
 
 **Example:**
+
 ```bash
 curl -X POST http://192.168.4.1/api/image \
   -F "image=@myimage.png"
+
 ```
 
 **Image Guidelines:**
+
 - Width: 31 pixels (matching LED count)
 - Height: Up to 64 pixels recommended
 - Format: Any standard image format
@@ -275,11 +325,13 @@ curl -X POST http://192.168.4.1/api/image \
 ### Live Mode
 
 #### Send Live Frame
+
 Send real-time LED data for immediate display.
 
 **Endpoint:** `POST /api/live`
 
 **Request Body:**
+
 ```json
 {
   "pixels": [
@@ -288,21 +340,26 @@ Send real-time LED data for immediate display.
     {"r": 0, "g": 0, "b": 255}
   ]
 }
+
 ```
 
 **Request Fields:**
+
 - `pixels` (array, required): Array of 32 RGB color objects
   - Each object has `r`, `g`, `b` fields (0-255)
   - Array length must be exactly 32 (matching display LEDs)
 
 **Response:**
+
 ```json
 {
   "status": "ok"
 }
+
 ```
 
 **Example:**
+
 ```bash
 curl -X POST http://192.168.4.1/api/live \
   -H "Content-Type: application/json" \
@@ -313,9 +370,11 @@ curl -X POST http://192.168.4.1/api/live \
       {"r": 255, "g": 255, "b": 0}
     ]
   }'
+
 ```
 
 **Use Cases:**
+
 - Real-time drawing applications
 - Music visualization
 - External control from another system
@@ -332,7 +391,8 @@ For developers extending the system, here's the internal serial protocol.
 ### Message Format
 
 All messages follow this structure:
-```
+
+```text
 [0xFF] [CMD] [LEN] [DATA...] [0xFE]
 ```
 
@@ -345,7 +405,7 @@ All messages follow this structure:
 ### Command Codes
 
 | Code | Command | Direction | Description |
-|------|---------|-----------|-------------|
+| ------ | --------- | ----------- | ------------- |
 | 0x01 | Set Mode | ESP32→Teensy | Change display mode |
 | 0x02 | Upload Image | ESP32→Teensy | Transfer image data |
 | 0x03 | Upload Pattern | ESP32→Teensy | Send pattern config |
@@ -371,11 +431,13 @@ All messages follow this structure:
 Saves an image from RAM to SD card for persistent storage.
 
 **Format:**
-```
+
+```text
 0xFF 0x20 [LEN] [FILENAME_LEN] [FILENAME...] [IMG_INDEX] 0xFE
 ```
 
 **Fields:**
+
 - `FILENAME_LEN`: Length of filename (1 byte)
 - `FILENAME`: Filename without extension (max 32 chars)
 - `IMG_INDEX`: Image slot to save (0-9)
@@ -383,7 +445,8 @@ Saves an image from RAM to SD card for persistent storage.
 **Response:** ACK (0xAA)
 
 **Example:** Save image slot 0 as "heart"
-```
+
+```text
 0xFF 0x20 0x07 0x05 'h' 'e' 'a' 'r' 't' 0x00 0xFE
 ```
 
@@ -392,11 +455,13 @@ Saves an image from RAM to SD card for persistent storage.
 Loads a stored image from SD card into RAM.
 
 **Format:**
-```
+
+```text
 0xFF 0x21 [LEN] [FILENAME_LEN] [FILENAME...] [IMG_INDEX] 0xFE
 ```
 
 **Fields:**
+
 - `FILENAME_LEN`: Length of filename (1 byte)
 - `FILENAME`: Filename without extension (max 32 chars)
 - `IMG_INDEX`: Target image slot (0-9)
@@ -404,7 +469,8 @@ Loads a stored image from SD card into RAM.
 **Response:** ACK (0xAA)
 
 **Example:** Load "heart" into slot 0
-```
+
+```text
 0xFF 0x21 0x07 0x05 'h' 'e' 'a' 'r' 't' 0x00 0xFE
 ```
 
@@ -413,23 +479,27 @@ Loads a stored image from SD card into RAM.
 Lists all stored images on SD card.
 
 **Format:**
-```
+
+```text
 0xFF 0x22 0x00 0xFE
 ```
 
 **Response:** List response (0xCC)
-```
+
+```text
 0xFF 0xCC [COUNT] [NAME1_LEN] [NAME1...] [NAME2_LEN] [NAME2...] ... 0xFE
 ```
 
 **Fields:**
+
 - `COUNT`: Number of images found
 - For each image:
   - `NAMEX_LEN`: Length of filename
   - `NAMEX`: Filename without extension
 
 **Example Response:** Two images "heart" and "star"
-```
+
+```text
 0xFF 0xCC 0x02 0x05 'h' 'e' 'a' 'r' 't' 0x04 's' 't' 'a' 'r' 0xFE
 ```
 
@@ -438,18 +508,21 @@ Lists all stored images on SD card.
 Deletes an image file from SD card.
 
 **Format:**
-```
+
+```text
 0xFF 0x23 [LEN] [FILENAME_LEN] [FILENAME...] 0xFE
 ```
 
 **Fields:**
+
 - `FILENAME_LEN`: Length of filename (1 byte)
 - `FILENAME`: Filename without extension (max 32 chars)
 
 **Response:** ACK (0xAA)
 
 **Example:** Delete "heart"
-```
+
+```text
 0xFF 0x23 0x06 0x05 'h' 'e' 'a' 'r' 't' 0xFE
 ```
 
@@ -457,7 +530,7 @@ Deletes an image file from SD card.
 
 Images are stored as `.pov` files with this structure:
 
-```
+```text
 [WIDTH:1] [HEIGHT:1] [RGB_DATA...]
 ```
 
@@ -467,7 +540,7 @@ Images are stored as `.pov` files with this structure:
 
 ### Example: Set Mode Command
 
-```
+```text
 0xFF 0x01 0x02 0x02 0x00 0xFE
 │    │    │    │    │    │
 │    │    │    │    │    └─ End marker
@@ -483,7 +556,7 @@ Images are stored as `.pov` files with this structure:
 ## Error Codes
 
 | HTTP Code | Description |
-|-----------|-------------|
+| ----------- | ------------- |
 | 200 | Success |
 | 400 | Bad Request - Invalid or missing data |
 | 404 | Not Found - Invalid endpoint |
@@ -511,6 +584,7 @@ The API does not currently implement CORS headers. Access is limited to devices 
 ## WebSocket Support
 
 WebSocket support is not currently implemented but could be added for:
+
 - Real-time status updates
 - Bidirectional live mode
 - Lower latency control
@@ -546,6 +620,7 @@ curl -X POST http://192.168.4.1/api/pattern \
     "color2": {"r": 0, "g": 0, "b": 255},
     "speed": 50
   }'
+
 ```
 
 ### Using Postman
@@ -578,6 +653,7 @@ data = {
 }
 response = requests.post(f"{base_url}/api/pattern", json=data)
 print(response.json())
+
 ```
 
 ---
@@ -585,6 +661,7 @@ print(response.json())
 ## Future API Enhancements
 
 Planned additions:
+
 - WebSocket support for real-time updates
 - Authentication for security
 - Sequence management endpoints
@@ -598,6 +675,7 @@ Planned additions:
 ## Support
 
 For API questions or issues:
+
 - Check serial monitor output for debugging
 - Verify WiFi connection to POV-POI-WiFi
 - Test with curl before integration work
@@ -620,6 +698,7 @@ Get current synchronization status and list of peer devices.
 **Endpoint:** `GET /api/sync/status`
 
 **Response:**
+
 ```json
 {
   "deviceId": "A1:B2:C3:D4:E5:F6",
@@ -637,9 +716,11 @@ Get current synchronization status and list of peer devices.
     }
   ]
 }
+
 ```
 
 **Response Fields:**
+
 - `deviceId` (string): Unique device identifier (MAC-based)
 - `deviceName` (string): User-configured device name
 - `syncGroup` (string): Sync group identifier (optional)
@@ -653,8 +734,10 @@ Get current synchronization status and list of peer devices.
   - `online` (boolean): Peer online status
 
 **Example:**
+
 ```bash
 curl http://192.168.4.1/api/sync/status
+
 ```
 
 ---
@@ -670,6 +753,7 @@ Manually trigger peer device discovery using mDNS.
 **Request Body:** None required
 
 **Response:**
+
 ```json
 {
   "status": "ok",
@@ -682,16 +766,20 @@ Manually trigger peer device discovery using mDNS.
     }
   ]
 }
+
 ```
 
 **Response Fields:**
+
 - `status` (string): Operation status
 - `peersFound` (number): Number of peers discovered
 - `peers` (array): List of discovered peers
 
 **Example:**
+
 ```bash
 curl -X POST http://192.168.4.1/api/sync/discover
+
 ```
 
 ---
@@ -705,6 +793,7 @@ Trigger synchronization with a specific peer device.
 **Endpoint:** `POST /api/sync/execute`
 
 **Request Body:**
+
 ```json
 {
   "peerId": "F6:E5:D4:C3:B2:A1",
@@ -713,9 +802,11 @@ Trigger synchronization with a specific peer device.
   "syncPatterns": true,
   "syncSettings": true
 }
+
 ```
 
 **Request Fields:**
+
 - `peerId` (string, required): Target peer device ID
 - `direction` (string, optional): Sync direction
   - `"bidirectional"` (default): Merge data from both devices
@@ -726,6 +817,7 @@ Trigger synchronization with a specific peer device.
 - `syncSettings` (boolean, optional): Sync settings (default: true)
 
 **Response:**
+
 ```json
 {
   "status": "ok",
@@ -734,9 +826,11 @@ Trigger synchronization with a specific peer device.
   "patternsAdded": 1,
   "settingsUpdated": true
 }
+
 ```
 
 **Response Fields:**
+
 - `status` (string): Operation status
 - `itemsSynced` (number): Total items synchronized
 - `imagesAdded` (number): Images added/updated
@@ -744,10 +838,12 @@ Trigger synchronization with a specific peer device.
 - `settingsUpdated` (boolean): Settings updated status
 
 **Example:**
+
 ```bash
 curl -X POST http://192.168.4.1/api/sync/execute \
   -H "Content-Type: application/json" \
   -d '{"peerId":"F6:E5:D4:C3:B2:A1","direction":"bidirectional"}'
+
 ```
 
 ---
@@ -761,6 +857,7 @@ Retrieve device's current data for synchronization.
 **Endpoint:** `GET /api/sync/data`
 
 **Response:**
+
 ```json
 {
   "deviceId": "A1:B2:C3:D4:E5:F6",
@@ -791,9 +888,11 @@ Retrieve device's current data for synchronization.
     "timestamp": 1706518900
   }
 }
+
 ```
 
 **Response Fields:**
+
 - `deviceId` (string): Source device ID
 - `deviceName` (string): Source device name
 - `images` (array): List of images available for sync
@@ -801,8 +900,10 @@ Retrieve device's current data for synchronization.
 - `settings` (object): Current device settings
 
 **Example:**
+
 ```bash
 curl http://192.168.4.1/api/sync/data
+
 ```
 
 ---
@@ -816,6 +917,7 @@ Push synchronization data to this device from peer.
 **Endpoint:** `POST /api/sync/push`
 
 **Request Body:**
+
 ```json
 {
   "deviceId": "F6:E5:D4:C3:B2:A1",
@@ -830,9 +932,11 @@ Push synchronization data to this device from peer.
     "timestamp": 1706518900
   }
 }
+
 ```
 
 **Request Fields:**
+
 - `deviceId` (string): Source device ID
 - `deviceName` (string): Source device name
 - `images` (array, optional): Images to sync
@@ -840,18 +944,22 @@ Push synchronization data to this device from peer.
 - `settings` (object, optional): Settings to sync
 
 **Response:**
+
 ```json
 {
   "status": "ok",
   "message": "Sync data received"
 }
+
 ```
 
 **Example:**
+
 ```bash
 curl -X POST http://192.168.4.1/api/sync/push \
   -H "Content-Type: application/json" \
   -d '{"deviceId":"F6:E5:D4:C3:B2:A1","settings":{"brightness":150}}'
+
 ```
 
 ---
@@ -867,6 +975,7 @@ Get device identification and sync configuration.
 **Endpoint:** `GET /api/device/config`
 
 **Response:**
+
 ```json
 {
   "deviceId": "A1:B2:C3:D4:E5:F6",
@@ -875,9 +984,11 @@ Get device identification and sync configuration.
   "autoSync": true,
   "syncInterval": 30000
 }
+
 ```
 
 **Response Fields:**
+
 - `deviceId` (string): Unique device identifier
 - `deviceName` (string): User-configured device name
 - `syncGroup` (string): Sync group identifier
@@ -885,8 +996,10 @@ Get device identification and sync configuration.
 - `syncInterval` (number): Auto-sync interval (ms)
 
 **Example:**
+
 ```bash
 curl http://192.168.4.1/api/device/config
+
 ```
 
 ---
@@ -900,6 +1013,7 @@ Update device name, sync group, and sync settings.
 **Endpoint:** `POST /api/device/config`
 
 **Request Body:**
+
 ```json
 {
   "deviceName": "Left Poi",
@@ -907,27 +1021,33 @@ Update device name, sync group, and sync settings.
   "autoSync": true,
   "syncInterval": 30000
 }
+
 ```
 
 **Request Fields:**
+
 - `deviceName` (string, optional): New device name
 - `syncGroup` (string, optional): New sync group
 - `autoSync` (boolean, optional): Enable/disable auto-sync
 - `syncInterval` (number, optional): Auto-sync interval in ms
 
 **Response:**
+
 ```json
 {
   "status": "ok",
   "message": "Configuration updated"
 }
+
 ```
 
 **Example:**
+
 ```bash
 curl -X POST http://192.168.4.1/api/device/config \
   -H "Content-Type: application/json" \
   -d '{"deviceName":"Left Poi","autoSync":true}'
+
 ```
 
 ---
@@ -941,6 +1061,7 @@ The device runs in **AP+STA** mode: it always provides the **POV-POI-WiFi** acce
 **Endpoint:** `GET /api/wifi/status`
 
 **Response:**
+
 ```json
 {
   "apIp": "192.168.4.1",
@@ -949,6 +1070,7 @@ The device runs in **AP+STA** mode: it always provides the **POV-POI-WiFi** acce
   "staIp": "192.168.1.42",
   "savedSsid": "MyHomeWiFi"
 }
+
 ```
 
 - `apIp` / `apSsid`: Access point IP and SSID (always available).
@@ -957,8 +1079,10 @@ The device runs in **AP+STA** mode: it always provides the **POV-POI-WiFi** acce
 - `savedSsid`: SSID of the saved network (empty if none).
 
 **Example:**
+
 ```bash
 curl http://192.168.4.1/api/wifi/status
+
 ```
 
 ---
@@ -968,28 +1092,34 @@ curl http://192.168.4.1/api/wifi/status
 **Endpoint:** `POST /api/wifi/connect`
 
 **Request Body:**
+
 ```json
 {
   "ssid": "MyHomeWiFi",
   "password": "your_wifi_password"
 }
+
 ```
 
 Credentials are saved and the device attempts to connect. Connection is asynchronous; poll `GET /api/wifi/status` to see when `staConnected` becomes true and to get `staIp`.
 
 **Response:**
+
 ```json
 {
   "status": "ok",
   "message": "Connecting to network. Check /api/wifi/status for result."
 }
+
 ```
 
 **Example:**
+
 ```bash
 curl -X POST http://192.168.4.1/api/wifi/connect \
   -H "Content-Type: application/json" \
   -d '{"ssid":"MyHomeWiFi","password":"your_password"}'
+
 ```
 
 ---
@@ -1001,16 +1131,20 @@ curl -X POST http://192.168.4.1/api/wifi/connect \
 Disconnects from the current STA network and clears saved SSID/password. The device continues to serve the POV-POI-WiFi access point.
 
 **Response:**
+
 ```json
 {
   "status": "ok",
   "message": "Disconnected and credentials cleared"
 }
+
 ```
 
 **Example:**
+
 ```bash
 curl -X POST http://192.168.4.1/api/wifi/disconnect
+
 ```
 
 ---
@@ -1076,6 +1210,7 @@ if peers['peersFound'] > 0:
     print(f"Sync complete: {result}")
 else:
     print("No peers found")
+
 ```
 
 ### JavaScript Example: Auto-Sync Monitor
@@ -1124,6 +1259,7 @@ async function syncNow(peerId) {
 
 // Run monitor every 5 seconds
 setInterval(monitorSyncStatus, 5000);
+
 ```
 
 ---
@@ -1131,6 +1267,7 @@ setInterval(monitorSyncStatus, 5000);
 ## Future Sync API Enhancements
 
 Planned additions:
+
 - Image binary data transfer
 - Pattern data structures
 - Sequence synchronization
