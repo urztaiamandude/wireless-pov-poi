@@ -3026,14 +3026,24 @@ void handleWifiStatus() {
 
 // GET /api/wifi/scan - Scan for nearby WiFi networks (synchronous, takes ~3s)
 void handleWifiScan() {
-  int n = WiFi.scanNetworks(false, true);  // sync scan, include hidden networks
-  if (n < 0) n = 0;
+  int n = WiFi.scanNetworks(/*async=*/false, /*show_hidden=*/true);
 
-  // Each network entry: ~90 bytes (ssid up to 32 chars + rssi + secure + JSON overhead)
-  DynamicJsonDocument doc(64 + n * 96);
-  JsonArray networks = doc.createNestedArray("networks");
+  // scanNetworks() returns a negative value on failure
+  if (n < 0) {
+    JsonDocument err;
+    err["error"] = "scan_failed";
+    err["code"] = n;
+    err["networks"].to<JsonArray>();  // always present for callers
+    String json;
+    serializeJson(err, json);
+    server.send(500, "application/json", json);
+    return;
+  }
+
+  JsonDocument doc;
+  JsonArray networks = doc["networks"].to<JsonArray>();
   for (int i = 0; i < n; i++) {
-    JsonObject net = networks.createNestedObject();
+    JsonObject net = networks.add<JsonObject>();
     net["ssid"] = WiFi.SSID(i);
     net["rssi"] = WiFi.RSSI(i);
     net["secure"] = (WiFi.encryptionType(i) != WIFI_AUTH_OPEN);
