@@ -132,6 +132,8 @@ String staSsid = "";
 String staPassword = "";
 // mDNS hostname (e.g. "povpoi-a1b2c3") set once in setup(), reused across handlers
 String mdnsHostname = "";
+// Set to true only when MDNS.begin() succeeds; used to guard mdnsName in /api/wifi/status
+bool mdnsStarted = false;
 
 // Peer device structure
 struct PeerDevice {
@@ -207,6 +209,7 @@ void setup() {
   mdnsHostname = "povpoi-" + deviceConfig.deviceId.substring(deviceConfig.deviceId.length() - 6);
   mdnsHostname.replace(":", "");
   if (MDNS.begin(mdnsHostname.c_str())) {
+    mdnsStarted = true;
     Serial.printf("mDNS responder started: http://%s.local\n", mdnsHostname.c_str());
     // Add service for discovery - advertises on both AP and STA interfaces
     MDNS.addService("povpoi", "tcp", 80);
@@ -3005,39 +3008,40 @@ void saveWifiStaConfig(const String& ssid, const String& pass) {
 // GET /api/wifi/status - WiFi AP + STA status for settings UI
 void handleWifiStatus() {
   bool staConnected = (WiFi.status() == WL_CONNECTED);
-  String staIp = staConnected ? WiFi.localIP().toString() : "";
-  String apIp = WiFi.softAPIP().toString();
-  
-  String json = "{";
-  json += "\"apIp\":\"" + apIp + "\",";
-  json += "\"apSsid\":\"" + String(ssid) + "\",";
-  json += "\"staConnected\":" + String(staConnected ? "true" : "false") + ",";
-  json += "\"staIp\":\"" + staIp + "\",";
-  json += "\"savedSsid\":\"" + staSsid + "\",";
-  json += "\"mdnsName\":\"" + mdnsHostname + "\"";
-  json += "}";
 
+  DynamicJsonDocument doc(384);
+  doc["apIp"] = WiFi.softAPIP().toString();
+  doc["apSsid"] = ssid;
+  doc["staConnected"] = staConnected;
+  doc["staIp"] = staConnected ? WiFi.localIP().toString() : "";
+  doc["savedSsid"] = staSsid;
+  if (mdnsStarted) {
+    doc["mdnsName"] = mdnsHostname;
+  }
+
+  String json;
+  serializeJson(doc, json);
   server.send(200, "application/json", json);
 }
 
 // GET /api/wifi/scan - Scan for nearby WiFi networks (synchronous, takes ~3s)
 void handleWifiScan() {
   int n = WiFi.scanNetworks(false, true);  // sync scan, include hidden networks
-  String json = "{\"networks\":[";
+  if (n < 0) n = 0;
+
+  // Each network entry: ~90 bytes (ssid up to 32 chars + rssi + secure + JSON overhead)
+  DynamicJsonDocument doc(64 + n * 96);
+  JsonArray networks = doc.createNestedArray("networks");
   for (int i = 0; i < n; i++) {
-    if (i > 0) json += ",";
-    String scanSsid = WiFi.SSID(i);
-    // Escape JSON-special characters in SSID
-    scanSsid.replace("\\", "\\\\");
-    scanSsid.replace("\"", "\\\"");
-    json += "{";
-    json += "\"ssid\":\"" + scanSsid + "\",";
-    json += "\"rssi\":" + String(WiFi.RSSI(i)) + ",";
-    json += "\"secure\":" + String(WiFi.encryptionType(i) != WIFI_AUTH_OPEN ? "true" : "false");
-    json += "}";
+    JsonObject net = networks.createNestedObject();
+    net["ssid"] = WiFi.SSID(i);
+    net["rssi"] = WiFi.RSSI(i);
+    net["secure"] = (WiFi.encryptionType(i) != WIFI_AUTH_OPEN);
   }
   WiFi.scanDelete();
-  json += "]}";
+
+  String json;
+  serializeJson(doc, json);
   server.send(200, "application/json", json);
 }
 
