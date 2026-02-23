@@ -3009,7 +3009,7 @@ void saveWifiStaConfig(const String& ssid, const String& pass) {
 void handleWifiStatus() {
   bool staConnected = (WiFi.status() == WL_CONNECTED);
 
-  DynamicJsonDocument doc(384);
+  JsonDocument doc;
   doc["apIp"] = WiFi.softAPIP().toString();
   doc["apSsid"] = ssid;
   doc["staConnected"] = staConnected;
@@ -3030,10 +3030,10 @@ void handleWifiScan() {
   if (n < 0) n = 0;
 
   // Each network entry: ~90 bytes (ssid up to 32 chars + rssi + secure + JSON overhead)
-  DynamicJsonDocument doc(64 + n * 96);
-  JsonArray networks = doc.createNestedArray("networks");
+  JsonDocument doc;
+  JsonArray networks = doc["networks"].to<JsonArray>();
   for (int i = 0; i < n; i++) {
-    JsonObject net = networks.createNestedObject();
+    JsonObject net = networks.add<JsonObject>();
     net["ssid"] = WiFi.SSID(i);
     net["rssi"] = WiFi.RSSI(i);
     net["secure"] = (WiFi.encryptionType(i) != WIFI_AUTH_OPEN);
