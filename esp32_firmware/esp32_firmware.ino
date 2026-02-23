@@ -1496,22 +1496,30 @@ void handleRoot() {
             if(_wifiPollTimer)clearInterval(_wifiPollTimer);
             _wifiPollTimer=setInterval(async()=>{
                 attempts++;
-                let status=null;
                 try{
                     const res=await fetch('/api/wifi/status');
-                    status=await res.json();
+                    const d=await res.json();
+                    if(!!d.staConnected){
+                        clearInterval(_wifiPollTimer);_wifiPollTimer=null;
+                        await loadWifiStatus();
+                        msg.textContent='Connected to network!';
+                        msg.style.color='#22c55e';
+                        showToast('Connected to '+ssid);
+                    }else if(attempts>=10){
+                        clearInterval(_wifiPollTimer);_wifiPollTimer=null;
+                        msg.textContent='Connection timed out. Check credentials.';
+                        msg.style.color='#ef4444';
+                    }else{
+                        msg.textContent='Connecting... ('+attempts+'/10)';
+                    }
                 }catch(e){
-                    status=null;
-                }
-                await loadWifiStatus();
-                const connected=!!(status&&status.staConnected===true);
-                if(connected||attempts>=10){
-                    clearInterval(_wifiPollTimer);_wifiPollTimer=null;
-                    msg.textContent=connected?'Connected to network!':'Connection timed out. Check credentials.';
-                    msg.style.color=connected?'#22c55e':'#ef4444';
-                    if(connected)showToast('Connected to '+ssid);
-                }else{
-                    msg.textContent='Connecting... ('+attempts+'/10)';
+                    if(attempts>=10){
+                        clearInterval(_wifiPollTimer);_wifiPollTimer=null;
+                        msg.textContent='Connection timed out. Check credentials.';
+                        msg.style.color='#ef4444';
+                    }else{
+                        msg.textContent='Connecting... ('+attempts+'/10)';
+                    }
                 }
             },1500);
         }catch(e){msg.textContent='Connection request failed. Please try again.';msg.style.color='#ef4444';}
