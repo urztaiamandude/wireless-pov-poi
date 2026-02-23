@@ -1436,11 +1436,16 @@ void handleRoot() {
                     document.getElementById('wifi-ssid-input').value=d.savedSsid;
                 }
             }
-            if(d.mdnsName){
+            if(d.staConnected && d.mdnsName){
                 mdnsEl.textContent='http://'+d.mdnsName+'.local';
                 mdnsRow.style.display='block';
+            }else{
+                mdnsRow.style.display='none';
+                mdnsEl.textContent='';
             }
+            return !!d.staConnected;
         }catch(e){}
+        return false;
     }
 
     async function scanWifi(){
@@ -1484,8 +1489,7 @@ void handleRoot() {
             if(_wifiPollTimer)clearInterval(_wifiPollTimer);
             _wifiPollTimer=setInterval(async()=>{
                 attempts++;
-                await loadWifiStatus();
-                const connected=document.getElementById('wifi-sta-dot').style.background==='rgb(34, 197, 94)';
+                const connected=await loadWifiStatus();
                 if(connected||attempts>=10){
                     clearInterval(_wifiPollTimer);_wifiPollTimer=null;
                     msg.textContent=connected?'Connected to network!':'Connection timed out. Check credentials.';
@@ -3009,7 +3013,7 @@ void saveWifiStaConfig(const String& ssid, const String& pass) {
 void handleWifiStatus() {
   bool staConnected = (WiFi.status() == WL_CONNECTED);
 
-  DynamicJsonDocument doc(384);
+  JsonDocument doc;
   doc["apIp"] = WiFi.softAPIP().toString();
   doc["apSsid"] = ssid;
   doc["staConnected"] = staConnected;
@@ -3026,14 +3030,15 @@ void handleWifiStatus() {
 
 // GET /api/wifi/scan - Scan for nearby WiFi networks (synchronous, takes ~3s)
 void handleWifiScan() {
+  const int MAX_SCAN_RESULTS = 20;
   int n = WiFi.scanNetworks(false, true);  // sync scan, include hidden networks
   if (n < 0) n = 0;
+  int count = min(n, MAX_SCAN_RESULTS);
 
-  // Each network entry: ~90 bytes (ssid up to 32 chars + rssi + secure + JSON overhead)
-  DynamicJsonDocument doc(64 + n * 96);
-  JsonArray networks = doc.createNestedArray("networks");
-  for (int i = 0; i < n; i++) {
-    JsonObject net = networks.createNestedObject();
+  JsonDocument doc;
+  JsonArray networks = doc["networks"].to<JsonArray>();
+  for (int i = 0; i < count; i++) {
+    JsonObject net = networks.add<JsonObject>();
     net["ssid"] = WiFi.SSID(i);
     net["rssi"] = WiFi.RSSI(i);
     net["secure"] = (WiFi.encryptionType(i) != WIFI_AUTH_OPEN);
