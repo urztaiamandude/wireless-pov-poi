@@ -64,6 +64,7 @@ void handleSyncPush();
 void handleDeviceConfig();
 void handleDeviceConfigUpdate();
 void handleWifiStatus();
+void handleWifiScan();
 void handleWifiConnect();
 void handleWifiDisconnect();
 void saveWifiStaConfig(const String& ssid, const String& pass);
@@ -129,6 +130,10 @@ struct DeviceConfig {
 // WiFi STA (client) credentials - saved to Preferences, used to connect to existing network
 String staSsid = "";
 String staPassword = "";
+// mDNS hostname (e.g. "povpoi-a1b2c3") set once in setup(), reused across handlers
+String mdnsHostname = "";
+// Set to true only when MDNS.begin() succeeds; used to guard mdnsName in /api/wifi/status
+bool mdnsStarted = false;
 
 // Peer device structure
 struct PeerDevice {
@@ -141,6 +146,7 @@ struct PeerDevice {
 
 // Maximum peers (legacy HTTP sync)
 #define MAX_PEERS 5
+#define MAX_SCAN_RESULTS 20
 PeerDevice peers[MAX_PEERS];
 int peerCount = 0;
 
@@ -201,11 +207,12 @@ void setup() {
   setupWebServer();
 
   // Initialize mDNS
-  String mdnsName = "povpoi-" + deviceConfig.deviceId.substring(deviceConfig.deviceId.length() - 6);
-  mdnsName.replace(":", "");
-  if (MDNS.begin(mdnsName.c_str())) {
-    Serial.printf("mDNS responder started: http://%s.local\n", mdnsName.c_str());
-    // Add service for discovery
+  mdnsHostname = "povpoi-" + deviceConfig.deviceId.substring(deviceConfig.deviceId.length() - 6);
+  mdnsHostname.replace(":", "");
+  if (MDNS.begin(mdnsHostname.c_str())) {
+    mdnsStarted = true;
+    Serial.printf("mDNS responder started: http://%s.local\n", mdnsHostname.c_str());
+    // Add service for discovery - advertises on both AP and STA interfaces
     MDNS.addService("povpoi", "tcp", 80);
     MDNS.addServiceTxt("povpoi", "tcp", "deviceId", deviceConfig.deviceId.c_str());
     MDNS.addServiceTxt("povpoi", "tcp", "deviceName", deviceConfig.deviceName.c_str());
@@ -327,6 +334,7 @@ void setupWebServer() {
   
   // WiFi network (STA) configuration - connect to existing network for web UI access
   server.on("/api/wifi/status", HTTP_GET, handleWifiStatus);
+  server.on("/api/wifi/scan", HTTP_GET, handleWifiScan);
   server.on("/api/wifi/connect", HTTP_POST, handleWifiConnect);
   server.on("/api/wifi/disconnect", HTTP_POST, handleWifiDisconnect);
 
@@ -811,6 +819,60 @@ void handleRoot() {
                 <div id="cfg-status" style="margin-top:10px;font-size:12px;color:#64748b;text-align:center"></div>
             </div>
 
+            <!-- ===== WiFi Manager ===== -->
+            <div class="card">
+                <div class="card-title"><span class="dot" style="background:#22c55e"></span> WiFi Network</div>
+
+                <!-- Direct access AP - always on -->
+                <div style="margin-bottom:12px;padding:10px 14px;background:#0f172a;border:1px solid #1e293b;border-radius:10px">
+                    <div style="font-size:10px;font-weight:700;letter-spacing:.08em;color:#475569;margin-bottom:6px;text-transform:uppercase">Direct Access (always available)</div>
+                    <div style="display:flex;align-items:center;gap:8px">
+                        <span style="width:8px;height:8px;border-radius:50%;background:#22c55e;flex-shrink:0"></span>
+                        <span style="font-family:monospace;font-size:13px;color:#06b6d4">POV-POI-WiFi</span>
+                        <span style="margin-left:auto;font-family:monospace;font-size:12px;color:#94a3b8">192.168.4.1</span>
+                    </div>
+                    <div style="margin-top:4px;font-size:11px;color:#475569">Connect to this network, then open <span style="color:#94a3b8">http://192.168.4.1</span></div>
+                </div>
+
+                <!-- Router / home network STA status -->
+                <div style="margin-bottom:12px;padding:10px 14px;background:#0f172a;border:1px solid #1e293b;border-radius:10px">
+                    <div style="font-size:10px;font-weight:700;letter-spacing:.08em;color:#475569;margin-bottom:6px;text-transform:uppercase">Router / Home Network</div>
+                    <div style="display:flex;align-items:center;gap:8px">
+                        <span id="wifi-sta-dot" style="width:8px;height:8px;border-radius:50%;background:#475569;flex-shrink:0"></span>
+                        <span id="wifi-sta-text" style="font-family:monospace;font-size:13px;color:#94a3b8">Not connected</span>
+                        <span id="wifi-sta-ip" style="margin-left:auto;font-family:monospace;font-size:12px;color:#94a3b8"></span>
+                    </div>
+                    <div id="wifi-mdns-row" style="margin-top:4px;font-size:11px;color:#475569;display:none">mDNS: <span id="wifi-mdns" style="color:#a855f7;font-family:monospace"></span> &mdash; reachable on both networks</div>
+                </div>
+
+                <!-- Connect form -->
+                <div id="wifi-connect-form">
+                    <div class="ctrl">
+                        <label>Network SSID</label>
+                        <div style="display:flex;gap:8px">
+                            <input type="text" id="wifi-ssid-input" style="flex:1;padding:10px 14px;background:#0f172a;border:1px solid #334155;border-radius:10px;color:#e2e8f0;font-size:14px;outline:none" placeholder="Router network name">
+                            <button id="wifi-scan-btn" class="btn" style="padding:0 16px;background:#1e293b;color:#94a3b8;font-size:13px;white-space:nowrap" onclick="scanWifi()">Scan</button>
+                        </div>
+                        <select id="wifi-scan-list" style="display:none;width:100%;margin-top:8px;padding:10px 14px;background:#0f172a;border:1px solid #334155;border-radius:10px;color:#e2e8f0;font-size:14px;outline:none" onchange="if(this.value)document.getElementById('wifi-ssid-input').value=this.value">
+                            <option value="">-- select a network --</option>
+                        </select>
+                    </div>
+                    <div class="ctrl">
+                        <label>Password</label>
+                        <div style="position:relative">
+                            <input type="password" id="wifi-pass-input" style="width:100%;padding:10px 44px 10px 14px;background:#0f172a;border:1px solid #334155;border-radius:10px;color:#e2e8f0;font-size:14px;outline:none" placeholder="WiFi password (leave blank if open)">
+                            <button onclick="toggleWifiPass()" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:#64748b;cursor:pointer;font-size:12px;padding:4px 6px" id="wifi-pass-eye">show</button>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" onclick="connectWifi()" style="width:100%">Connect to Network</button>
+                </div>
+
+                <!-- Disconnect button (visible when STA is connected) -->
+                <button id="wifi-disconnect-btn" class="btn" style="display:none;width:100%;margin-top:8px;background:#1e293b;color:#ef4444;border:1px solid rgba(239,68,68,0.25)" onclick="disconnectWifi()">Disconnect from Router</button>
+
+                <div id="wifi-status-msg" style="margin-top:10px;font-size:12px;color:#64748b;text-align:center;min-height:18px"></div>
+            </div>
+
             <div class="card">
                 <div class="card-title"><span class="dot" style="background:#a855f7"></span> Hardware Info</div>
                 <div style="font-family:monospace;font-size:12px;color:#94a3b8;line-height:2">
@@ -859,6 +921,7 @@ void handleRoot() {
             document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
             tab.classList.add('active');
             document.getElementById('tab-'+tab.dataset.tab).classList.add('active');
+            if(tab.dataset.tab==='settings')loadWifiStatus();
         });
     });
 
@@ -1342,6 +1405,145 @@ void handleRoot() {
         }catch(e){document.getElementById('cfg-status').textContent='Error: '+e.message;document.getElementById('cfg-status').style.color='#ef4444'}
     }
 
+    // ===== WiFi Manager =====
+    let _wifiPollTimer=null;
+
+    async function loadWifiStatus(){
+        try{
+            const res=await fetch('/api/wifi/status');
+            const d=await res.json();
+            const dot=document.getElementById('wifi-sta-dot');
+            const txt=document.getElementById('wifi-sta-text');
+            const ip=document.getElementById('wifi-sta-ip');
+            const disBtn=document.getElementById('wifi-disconnect-btn');
+            const form=document.getElementById('wifi-connect-form');
+            const mdnsRow=document.getElementById('wifi-mdns-row');
+            const mdnsEl=document.getElementById('wifi-mdns');
+            if(d.staConnected){
+                dot.style.background='#22c55e';
+                txt.textContent=d.savedSsid||'Connected';
+                txt.style.color='#22c55e';
+                ip.textContent=d.staIp;
+                disBtn.style.display='block';
+                form.style.display='none';
+            }else{
+                dot.style.background='#475569';
+                txt.textContent=d.savedSsid?'Not connected ('+d.savedSsid+' saved)':'Not connected';
+                txt.style.color='#94a3b8';
+                ip.textContent='';
+                disBtn.style.display='none';
+                form.style.display='block';
+                if(d.savedSsid&&!document.getElementById('wifi-ssid-input').value){
+                    document.getElementById('wifi-ssid-input').value=d.savedSsid;
+                }
+            }
+            if(d.staConnected && d.mdnsName){
+                mdnsEl.textContent='http://'+d.mdnsName+'.local';
+                mdnsRow.style.display='block';
+            }else{
+                mdnsRow.style.display='none';
+                mdnsEl.textContent='';
+            }
+            return d;
+        }catch(e){return null;}
+    }
+
+    async function scanWifi(){
+        const btn=document.getElementById('wifi-scan-btn');
+        const list=document.getElementById('wifi-scan-list');
+        btn.textContent='Scanning...';
+        btn.disabled=true;
+        list.style.display='none';
+        try{
+            let d=null;
+            let retries=0;
+            const MAX_RETRIES=8;
+            while(retries<MAX_RETRIES){
+                const res=await fetch('/api/wifi/scan');
+                d=await res.json();
+                if(!d.scanning)break;
+                retries++;
+                await new Promise(r=>setTimeout(r,1500));
+            }
+            if(d&&!d.scanning&&d.networks&&d.networks.length>0){
+                list.innerHTML='<option value="">-- select a network --</option>';
+                d.networks.forEach(n=>{
+                    const opt=document.createElement('option');
+                    opt.value=n.ssid;
+                    const bars=n.rssi>-60?'[####]':n.rssi>-75?'[###.]':n.rssi>-85?'[##..]':'[#...]';
+                    opt.textContent=n.ssid+'  '+bars+(n.secure?'  [lock]':'');
+                    list.appendChild(opt);
+                });
+                list.style.display='block';
+                showToast('Found '+d.networks.length+' networks');
+            }else{
+                showToast('No networks found');
+            }
+        }catch(e){showToast('Scan failed');}
+        btn.textContent='Scan';
+        btn.disabled=false;
+    }
+
+    async function connectWifi(){
+        const ssid=document.getElementById('wifi-ssid-input').value.trim();
+        const pass=document.getElementById('wifi-pass-input').value;
+        if(!ssid){showToast('Enter a network name');return;}
+        const msg=document.getElementById('wifi-status-msg');
+        msg.textContent='Connecting...';
+        msg.style.color='#f59e0b';
+        try{
+            await fetch(window.location.origin + '/api/wifi/connect',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ssid,password:pass})});
+            let attempts=0;
+            if(_wifiPollTimer)clearInterval(_wifiPollTimer);
+            _wifiPollTimer=setInterval(async()=>{
+                attempts++;
+                try{
+                    const res=await fetch('/api/wifi/status');
+                    const d=await res.json();
+                    if(!!d.staConnected){
+                        clearInterval(_wifiPollTimer);_wifiPollTimer=null;
+                        await loadWifiStatus();
+                        msg.textContent='Connected to network!';
+                        msg.style.color='#22c55e';
+                        showToast('Connected to '+ssid);
+                    }else if(attempts>=10){
+                        clearInterval(_wifiPollTimer);_wifiPollTimer=null;
+                        msg.textContent='Connection timed out. Check credentials.';
+                        msg.style.color='#ef4444';
+                    }else{
+                        msg.textContent='Connecting... ('+attempts+'/10)';
+                    }
+                }catch(e){
+                    if(attempts>=10){
+                        clearInterval(_wifiPollTimer);_wifiPollTimer=null;
+                        msg.textContent='Connection timed out. Check credentials.';
+                        msg.style.color='#ef4444';
+                    }else{
+                        msg.textContent='Connecting... ('+attempts+'/10)';
+                    }
+                }
+            },1500);
+        }catch(e){msg.textContent='Connection request failed. Please try again.';msg.style.color='#ef4444';}
+    }
+
+    async function disconnectWifi(){
+        try{
+            await fetch('/api/wifi/disconnect',{method:'POST'});
+            document.getElementById('wifi-ssid-input').value='';
+            document.getElementById('wifi-pass-input').value='';
+            document.getElementById('wifi-status-msg').textContent='';
+            await loadWifiStatus();
+            showToast('Disconnected from router network');
+        }catch(e){}
+    }
+
+    function toggleWifiPass(){
+        const inp=document.getElementById('wifi-pass-input');
+        const btn=document.getElementById('wifi-pass-eye');
+        if(inp.type==='password'){inp.type='text';btn.textContent='hide';}
+        else{inp.type='password';btn.textContent='show';}
+    }
+
     // ===== PWA =====
     let deferredPrompt;
     window.addEventListener('beforeinstallprompt',(e)=>{
@@ -1363,6 +1565,7 @@ void handleRoot() {
     updateSyncStatus();
     setInterval(updateSyncStatus,3000);
     loadConfig();
+    loadWifiStatus();
     </script>
 </body>
 </html>
@@ -2833,17 +3036,62 @@ void saveWifiStaConfig(const String& ssid, const String& pass) {
 // GET /api/wifi/status - WiFi AP + STA status for settings UI
 void handleWifiStatus() {
   bool staConnected = (WiFi.status() == WL_CONNECTED);
-  String staIp = staConnected ? WiFi.localIP().toString() : "";
-  String apIp = WiFi.softAPIP().toString();
-  
-  String json = "{";
-  json += "\"apIp\":\"" + apIp + "\",";
-  json += "\"apSsid\":\"" + String(ssid) + "\",";
-  json += "\"staConnected\":" + String(staConnected ? "true" : "false") + ",";
-  json += "\"staIp\":\"" + staIp + "\",";
-  json += "\"savedSsid\":\"" + staSsid + "\"";
-  json += "}";
-  
+
+  JsonDocument doc;
+  doc["apIp"] = WiFi.softAPIP().toString();
+  doc["apSsid"] = ssid;
+  doc["staConnected"] = staConnected;
+  doc["staIp"] = staConnected ? WiFi.localIP().toString() : "";
+  doc["savedSsid"] = staSsid;
+  if (mdnsStarted) {
+    doc["mdnsName"] = mdnsHostname;
+  }
+
+  String json;
+  serializeJson(doc, json);
+  server.send(200, "application/json", json);
+}
+
+// GET /api/wifi/scan - Scan for nearby WiFi networks (async, non-blocking)
+void handleWifiScan() {
+  int16_t n = WiFi.scanComplete();
+
+  // Start a new async scan if no scan is running or previous failed
+  if (n == WIFI_SCAN_FAILED) {
+    WiFi.scanNetworks(true, true);  // async, include hidden networks
+    JsonDocument doc;
+    doc["scanning"] = true;
+    String json;
+    serializeJson(doc, json);
+    server.send(200, "application/json", json);
+    return;
+  }
+
+  // Scan still in progress - tell client to retry
+  if (n == WIFI_SCAN_RUNNING) {
+    JsonDocument doc;
+    doc["scanning"] = true;
+    String json;
+    serializeJson(doc, json);
+    server.send(200, "application/json", json);
+    return;
+  }
+
+  // n >= 0: scan complete - return results (clamped to MAX_SCAN_RESULTS)
+  int count = min((int)n, MAX_SCAN_RESULTS);
+  JsonDocument doc;
+  doc["scanning"] = false;
+  JsonArray networks = doc["networks"].to<JsonArray>();
+  for (int i = 0; i < count; i++) {
+    JsonObject net = networks.add<JsonObject>();
+    net["ssid"] = WiFi.SSID(i);
+    net["rssi"] = WiFi.RSSI(i);
+    net["secure"] = (WiFi.encryptionType(i) != WIFI_AUTH_OPEN);
+  }
+  WiFi.scanDelete();
+
+  String json;
+  serializeJson(doc, json);
   server.send(200, "application/json", json);
 }
 
