@@ -1479,7 +1479,7 @@ void handleRoot() {
         msg.textContent='Connecting...';
         msg.style.color='#f59e0b';
         try{
-            await fetch('/api/wifi/connect',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ssid,password:pass})});
+            await fetch(window.location.origin + '/api/wifi/connect',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ssid,password:pass})});
             let attempts=0;
             if(_wifiPollTimer)clearInterval(_wifiPollTimer);
             _wifiPollTimer=setInterval(async()=>{
