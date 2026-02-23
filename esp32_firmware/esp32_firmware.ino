@@ -1444,7 +1444,8 @@ void handleRoot() {
                 mdnsRow.style.display='none';
                 mdnsEl.textContent='';
             }
-        }catch(e){}
+            return d;
+        }catch(e){return null;}
     }
 
     async function scanWifi(){
