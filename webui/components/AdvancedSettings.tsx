@@ -7,7 +7,7 @@ interface AdvancedSettingsProps {
   setLedCount: (count: number) => void;
 }
 
-const DEVICE_IP = '192.168.4.1'; // POV-POI-WiFi leader default
+const DEVICE_IP = '10.100.9.230';
 
 interface WifiStatus {
   apIp: string;
@@ -34,7 +34,7 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCou
   const [wifiSsid, setWifiSsid] = useState('');
   const [wifiPassword, setWifiPassword] = useState('');
 
-  const baseUrl = typeof window !== 'undefined' && window.location.hostname !== 'localhost' ? '' : `http://${DEVICE_IP}`;
+  const baseUrl = (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') ? '' : `http://${DEVICE_IP}`;
 
   const fetchWifiStatus = useCallback(async () => {
     try {
@@ -67,7 +67,7 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCou
     setSaveStatus(null);
     const payload = { ledCount, dataPin, clkPin, refreshRate, pixelDensity, colorDepth };
     try {
-      const res = await fetch(`http://${DEVICE_IP}/api/device/config`, {
+      const res = await fetch(`${baseUrl}/api/device/config`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

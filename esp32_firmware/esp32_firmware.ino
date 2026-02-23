@@ -8,8 +8,7 @@
  * Features:
  * - WiFi Access Point mode
  * - BLE support via Nordic UART Service
- * - Web server with file upload
- * - Image/pattern/sequence management
+Add * - Image/pattern/sequence management
  * - Serial communication with Teensy
  * - REST API for web UI and integrations
  * - ESP-NOW multi-poi synchronization (mirror + independent modes)
@@ -272,8 +271,25 @@ void loop() {
   }
 }
 
+void onWiFiEvent(WiFiEvent_t event) {
+  switch (event) {
+    case ARDUINO_EVENT_WIFI_STA_GOT_IP:
+      Serial.printf("STA connected! IP: %s (network: %s)\n",
+                     WiFi.localIP().toString().c_str(), staSsid.c_str());
+      break;
+    case ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
+      Serial.println("STA disconnected, reconnecting...");
+      WiFi.begin(staSsid.c_str(), staPassword.c_str());
+      break;
+    default:
+      break;
+  }
+}
+
 void setupWiFi() {
   Serial.println("Starting Access Point (AP+STA)...");
+  
+  WiFi.onEvent(onWiFiEvent);
   
   // AP+STA: AP for direct connection (POV-POI-WiFi), STA to connect to existing network
   WiFi.mode(WIFI_AP_STA);
@@ -357,12 +373,12 @@ void setupWebServer() {
   
   server.onNotFound(handleNotFound);
   
+  server.enableCORS(true);
   server.begin();
   Serial.println("Web server started");
 }
 
-void handleRoot() {
-  String html = R"rawliteral(
+static const char rootPage[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1368,7 +1384,18 @@ void handleRoot() {
 </html>
 )rawliteral";
 
-  server.send(200, "text/html", html);
+void handleRoot() {
+  size_t len = strlen_P(rootPage);
+  server.setContentLength(len);
+  server.send(200, "text/html", "");
+  const size_t chunkSize = 1024;
+  for (size_t i = 0; i < len; i += chunkSize) {
+    char buf[chunkSize + 1];
+    size_t n = min(chunkSize, len - i);
+    memcpy_P(buf, rootPage + i, n);
+    buf[n] = 0;
+    server.sendContent(buf, n);
+  }
 }
 
 void handleStatus() {
@@ -2478,8 +2505,9 @@ void loadDeviceConfig() {
   deviceConfig.syncInterval = preferences.getULong("syncInterval", AUTO_SYNC_INTERVAL);
   
   // Load saved WiFi STA (client) credentials for connecting to existing network
-  staSsid = preferences.getString("sta_ssid", "");
-  staPassword = preferences.getString("sta_password", "");
+  // Default to "Office" network so phone can stay on its home WiFi with internet
+  staSsid = preferences.getString("sta_ssid", "Office");
+  staPassword = preferences.getString("sta_password", "6195717200");
   
   preferences.end();
 }

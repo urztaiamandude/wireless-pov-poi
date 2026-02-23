@@ -1368,19 +1368,7 @@ void initSDCard() {
     SD.mkdir(SD_IMAGE_DIR);
   }
   
-  // Print card info (with error handling)
-  Serial.print("SD Card Type: ");
-  if (SD.card) {
-    switch (SD.card.type()) {
-      case 0: Serial.println("UNKNOWN"); break;
-      case 1: Serial.println("SD1"); break;
-      case 2: Serial.println("SD2"); break;
-      case 3: Serial.println("SDHC/SDXC"); break;
-      default: Serial.println("ERROR"); break;
-    }
-  } else {
-    Serial.println("ERROR: Cannot read card type");
-  }
+  Serial.println("SD Card: Ready");
 }
 
 void saveImageToSD() {

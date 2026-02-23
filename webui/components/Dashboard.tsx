@@ -12,7 +12,13 @@ interface DashboardProps {
   previewUrl: string | null;
 }
 
-// Default devices matching the Nebula POI fleet (POV-POI-WiFi AP addresses)
+function getDeviceBase(ip: string): string {
+  if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+    return ''; // Vite proxy handles /api -> ESP32
+  }
+  return window.location.origin; // deployed on ESP32 itself
+}
+
 const DEFAULT_DEVICES: Device[] = [
   { id: 'A1B2C3', name: 'POV_LEADER', ip: '192.168.4.1', status: 'Sync Leader', type: 'success', isPlaying: false, brightness: 128 },
   { id: 'D4E5F6', name: 'POV_FOLLOWER', ip: '192.168.4.2', status: 'Awaiting Sync', type: 'info', isPlaying: false, brightness: 128 }
@@ -40,7 +46,8 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
   useEffect(() => {
     const checkConnection = async () => {
       try {
-        const res = await fetch(`http://${activeDevice.ip}/api/status`, { signal: AbortSignal.timeout(1500) });
+        const base = getDeviceBase(activeDevice.ip);
+        const res = await fetch(`${base}/api/status`, { signal: AbortSignal.timeout(1500) });
         setIsOnline(res.ok);
       } catch {
         setIsOnline(false);
@@ -91,7 +98,8 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
       formData.append('file', file, file.name);
 
       try {
-        const res = await fetch(`http://${target.ip}/api/image`, { method: 'POST', body: formData });
+        const base = getDeviceBase(target.ip);
+        const res = await fetch(`${base}/api/image`, { method: 'POST', body: formData });
         if (res.ok) {
           updateDevice(target.id, { status: `Synced: ${file.name}`, type: 'success' });
           addLog(`[OK] ${target.name} received ${file.name}`, 'text-green-400');
@@ -136,23 +144,24 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
             index = 0;
           }
 
-          url = `http://${dev.ip}/api/mode`;
+          const base = getDeviceBase(dev.ip);
+          url = `${base}/api/mode`;
           await fetch(url, {
             method,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ mode, index }),
           });
         } else if (action === 'brightness') {
-          // POST /api/brightness with JSON { brightness }
-          url = `http://${dev.ip}/api/brightness`;
+          const base = getDeviceBase(dev.ip);
+          url = `${base}/api/brightness`;
           await fetch(url, {
             method,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ brightness: Number(value) })
           });
         } else if (action === 'load') {
-          // POST /api/sd/load with file param
-          url = `http://${dev.ip}/api/sd/load`;
+          const base = getDeviceBase(dev.ip);
+          url = `${base}/api/sd/load`;
           const body = new FormData();
           body.append('file', String(value));
           await fetch(url, { method, body });
@@ -161,7 +170,7 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
         // In sync mode, also trigger the UDP broadcast endpoint
         if (isSyncMode && action !== 'brightness') {
           try {
-            await fetch(`http://${dev.ip}/api/sync/execute`, {
+            await fetch(`${getDeviceBase(dev.ip)}/api/sync/execute`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ action, val: value ?? '' })

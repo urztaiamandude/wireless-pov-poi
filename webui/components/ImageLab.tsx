@@ -16,8 +16,8 @@ interface ImageLabProps {
   setLedCount: (count: number) => void;
 }
 
-// Nebula POI fleet IPs (matching the POV-POI-WiFi AP)
-const FLEET_IPS = ['192.168.4.1', '192.168.4.2'];
+// Nebula POI fleet IPs
+const FLEET_IPS = ['10.100.9.230'];
 
 const ImageLab: React.FC<ImageLabProps> = ({ onPreviewUpdate, initialPreview, ledCount, setLedCount }) => {
   const [labMode, setLabMode] = useState<'upload' | 'procedural'>('upload');
