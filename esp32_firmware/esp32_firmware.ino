@@ -146,6 +146,7 @@ struct PeerDevice {
 
 // Maximum peers (legacy HTTP sync)
 #define MAX_PEERS 5
+#define MAX_SCAN_RESULTS 20
 PeerDevice peers[MAX_PEERS];
 int peerCount = 0;
 
@@ -1436,9 +1437,12 @@ void handleRoot() {
                     document.getElementById('wifi-ssid-input').value=d.savedSsid;
                 }
             }
-            if(d.mdnsName){
+            if(d.staConnected && d.mdnsName){
                 mdnsEl.textContent='http://'+d.mdnsName+'.local';
                 mdnsRow.style.display='block';
+            }else{
+                mdnsRow.style.display='none';
+                mdnsEl.textContent='';
             }
         }catch(e){}
     }
@@ -1450,9 +1454,17 @@ void handleRoot() {
         btn.disabled=true;
         list.style.display='none';
         try{
-            const res=await fetch('/api/wifi/scan');
-            const d=await res.json();
-            if(d.networks&&d.networks.length>0){
+            let d=null;
+            let retries=0;
+            const MAX_RETRIES=8;
+            while(retries<MAX_RETRIES){
+                const res=await fetch('/api/wifi/scan');
+                d=await res.json();
+                if(!d.scanning)break;
+                retries++;
+                await new Promise(r=>setTimeout(r,1500));
+            }
+            if(d&&!d.scanning&&d.networks&&d.networks.length>0){
                 list.innerHTML='<option value="">-- select a network --</option>';
                 d.networks.forEach(n=>{
                     const opt=document.createElement('option');
@@ -1484,8 +1496,15 @@ void handleRoot() {
             if(_wifiPollTimer)clearInterval(_wifiPollTimer);
             _wifiPollTimer=setInterval(async()=>{
                 attempts++;
+                let status=null;
+                try{
+                    const res=await fetch('/api/wifi/status');
+                    status=await res.json();
+                }catch(e){
+                    status=null;
+                }
                 await loadWifiStatus();
-                const connected=document.getElementById('wifi-sta-dot').style.background==='rgb(34, 197, 94)';
+                const connected=!!(status&&status.staConnected===true);
                 if(connected||attempts>=10){
                     clearInterval(_wifiPollTimer);_wifiPollTimer=null;
                     msg.textContent=connected?'Connected to network!':'Connection timed out. Check credentials.';
@@ -1495,7 +1514,7 @@ void handleRoot() {
                     msg.textContent='Connecting... ('+attempts+'/10)';
                 }
             },1500);
-        }catch(e){msg.textContent='Error: '+e.message;msg.style.color='#ef4444';}
+        }catch(e){msg.textContent='Connection request failed. Please try again.';msg.style.color='#ef4444';}
     }
 
     async function disconnectWifi(){
@@ -3009,7 +3028,7 @@ void saveWifiStaConfig(const String& ssid, const String& pass) {
 void handleWifiStatus() {
   bool staConnected = (WiFi.status() == WL_CONNECTED);
 
-  DynamicJsonDocument doc(384);
+  JsonDocument doc;
   doc["apIp"] = WiFi.softAPIP().toString();
   doc["apSsid"] = ssid;
   doc["staConnected"] = staConnected;
@@ -3024,16 +3043,38 @@ void handleWifiStatus() {
   server.send(200, "application/json", json);
 }
 
-// GET /api/wifi/scan - Scan for nearby WiFi networks (synchronous, takes ~3s)
+// GET /api/wifi/scan - Scan for nearby WiFi networks (async, non-blocking)
 void handleWifiScan() {
-  int n = WiFi.scanNetworks(false, true);  // sync scan, include hidden networks
-  if (n < 0) n = 0;
+  int16_t n = WiFi.scanComplete();
 
-  // Each network entry: ~90 bytes (ssid up to 32 chars + rssi + secure + JSON overhead)
-  DynamicJsonDocument doc(64 + n * 96);
-  JsonArray networks = doc.createNestedArray("networks");
-  for (int i = 0; i < n; i++) {
-    JsonObject net = networks.createNestedObject();
+  // Start a new async scan if no scan is running or previous failed
+  if (n == WIFI_SCAN_FAILED) {
+    WiFi.scanNetworks(true, true);  // async, include hidden networks
+    JsonDocument doc;
+    doc["scanning"] = true;
+    String json;
+    serializeJson(doc, json);
+    server.send(200, "application/json", json);
+    return;
+  }
+
+  // Scan still in progress - tell client to retry
+  if (n == WIFI_SCAN_RUNNING) {
+    JsonDocument doc;
+    doc["scanning"] = true;
+    String json;
+    serializeJson(doc, json);
+    server.send(200, "application/json", json);
+    return;
+  }
+
+  // n >= 0: scan complete - return results (clamped to MAX_SCAN_RESULTS)
+  int count = min((int)n, MAX_SCAN_RESULTS);
+  JsonDocument doc;
+  doc["scanning"] = false;
+  JsonArray networks = doc["networks"].to<JsonArray>();
+  for (int i = 0; i < count; i++) {
+    JsonObject net = networks.add<JsonObject>();
     net["ssid"] = WiFi.SSID(i);
     net["rssi"] = WiFi.RSSI(i);
     net["secure"] = (WiFi.encryptionType(i) != WIFI_AUTH_OPEN);
