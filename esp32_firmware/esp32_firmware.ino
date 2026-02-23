@@ -1440,7 +1440,8 @@ void handleRoot() {
                 mdnsEl.textContent='http://'+d.mdnsName+'.local';
                 mdnsRow.style.display='block';
             }
-        }catch(e){}
+            return d;
+        }catch(e){return null;}
     }
 
     async function scanWifi(){
@@ -1484,8 +1485,8 @@ void handleRoot() {
             if(_wifiPollTimer)clearInterval(_wifiPollTimer);
             _wifiPollTimer=setInterval(async()=>{
                 attempts++;
-                await loadWifiStatus();
-                const connected=document.getElementById('wifi-sta-dot').style.background==='rgb(34, 197, 94)';
+                const status=await loadWifiStatus();
+                const connected=!!(status&&status.staConnected);
                 if(connected||attempts>=10){
                     clearInterval(_wifiPollTimer);_wifiPollTimer=null;
                     msg.textContent=connected?'Connected to network!':'Connection timed out. Check credentials.';
