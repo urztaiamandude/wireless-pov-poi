@@ -1495,7 +1495,7 @@ void handleRoot() {
                     msg.textContent='Connecting... ('+attempts+'/10)';
                 }
             },1500);
-        }catch(e){msg.textContent='Error: '+e.message;msg.style.color='#ef4444';}
+        }catch(e){console.error('WiFi connect error:',e);msg.textContent='Connection failed. Please try again.';msg.style.color='#ef4444';}
     }
 
     async function disconnectWifi(){
