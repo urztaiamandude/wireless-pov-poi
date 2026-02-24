@@ -1,0 +1,31 @@
+# AGENTS.md
+
+## Cursor Cloud specific instructions
+
+### Project overview
+
+Wireless LED POV Poi System with three locally-testable components:
+
+| Component | Path | Run command | Port |
+|---|---|---|---|
+| **React Web UI** | `webui/` | `npm run dev` | 3000 |
+| **Mock API Server** | `esp32_firmware/test_webui_server.js` | `node esp32_firmware/test_webui_server.js` | 8765 |
+| **Python image tools + tests** | `examples/` | `python3 -m pytest test_*.py -v` | N/A |
+
+Firmware (Teensy 4.1 / ESP32-S3) requires physical hardware and cannot be tested in the cloud environment.
+
+### Key commands
+
+- **Type check**: `cd webui && npx tsc --noEmit`
+- **Build**: `cd webui && npm run build`
+- **Dev server**: `cd webui && npm run dev` (port 3000, host 0.0.0.0)
+- **Python tests**: `cd examples && python3 -m pytest test_*.py -v` (28 tests, requires Pillow)
+- **Mock API**: `node esp32_firmware/test_webui_server.js` (port 8765, simulates ESP32 endpoints)
+
+### Non-obvious caveats
+
+- The Vite proxy in `webui/vite.config.ts` points to a hardcoded IP (`10.100.9.230`) which is the real ESP32 device. Without hardware, API calls from the React UI will fail but the UI itself renders and is interactive. The mock API server at port 8765 serves the embedded ESP32 web preview (a separate, standalone HTML interface), not the React UI.
+- Use `python3` (not `python`) — the system does not have a `python` symlink.
+- There is no ESLint configuration in the project; `tsc --noEmit` is the primary static analysis tool for the web UI.
+- No pre-commit hooks, lint-staged, or Husky configured in this repo.
+- See `CLAUDE.md` and `.github/copilot-instructions.md` for comprehensive project context, hardware constraints, and code style conventions.
