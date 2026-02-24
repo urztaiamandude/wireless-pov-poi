@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 #### Core Firmware
+
 - Teensy 4.1 firmware with APA102 LED control (32 LEDs)
 - ESP32 firmware with WiFi Access Point and web server
 - Serial communication protocol between Teensy and ESP32
@@ -21,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Adjustable brightness (0-255) and frame rate (10-120 FPS)
 
 #### Web Interface
+
 - Modern, responsive web portal design
 - Display mode selection (Idle, Image, Pattern, Sequence, Live)
 - System controls with real-time sliders
@@ -32,6 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Mobile-friendly responsive design
 
 #### REST API
+
 - `/api/status` - Get system status
 - `/api/mode` - Set display mode
 - `/api/brightness` - Adjust brightness
@@ -43,6 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Error handling and validation
 
 #### Documentation
+
 - Comprehensive README with quick start guide
 - Detailed setup and installation guide (docs/README.md)
 - Complete wiring diagram and assembly guide (docs/WIRING.md)
@@ -53,11 +57,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - MIT License
 
 #### Examples and Tools
+
 - Python image converter script
 - Pattern configuration examples
 - Image creation guidelines
 
 #### Development Tools
+
 - PlatformIO configuration
 - Setup verification script
 - .gitignore for clean repository
@@ -66,6 +72,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 #### Hardware Support
+
 - Teensy 4.1 @ 600 MHz
 - ESP32 (any variant with Serial2)
 - APA102 LED strips (32 LEDs)
@@ -73,6 +80,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Serial communication at 115200 baud
 
 #### Display Modes
+
 - **Idle Mode** - LEDs off, low power
 - **Image Mode** - Display uploaded POV images
 - **Pattern Mode** - Animated pattern display
@@ -80,6 +88,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Live Mode** - Real-time control from web/app
 
 #### Patterns
+
 - **Rainbow** - Rotating rainbow effect across LEDs
 - **Wave** - Animated color wave with configurable colors
 - **Gradient** - Smooth color gradient between two colors
@@ -87,14 +96,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Customizable colors and animation speed
 
 #### Network Features
+
 - WiFi Access Point mode (no router needed)
 - Default SSID: POV-POI-WiFi
 - Default password: povpoi123
-- mDNS support (http://povpoi.local)
+- mDNS support (<http://povpoi.local>)
 - Web server on port 80
 - SPIFFS file system support
 
 #### Performance
+
 - Up to 120 FPS frame rate
 - Sub-50ms command response time
 - Support for 31x64 pixel images
@@ -123,10 +134,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Dependencies
 
 #### Teensy 4.1
+
 - FastLED library 3.5.0+
 - Arduino/Teensyduino
 
 #### ESP32
+
 - ESP32 Arduino Core
 - WiFi library (included)
 - WebServer library (included)
@@ -143,6 +156,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Future Roadmap
 
 ### Planned for v1.1.0
+
 - Image processing improvements
 - More pattern types
 - Sequence editor in web interface
@@ -150,12 +164,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - OTA firmware updates
 
 ### Planned for v1.2.0
+
 - IMU/gyroscope integration
 - Rotation-based triggering
 - Music synchronization
 - Multiple poi synchronization
 
 ### Planned for v2.0.0
+
 - Bluetooth LE support
 - Cloud storage integration
 - Advanced pattern editor

@@ -214,7 +214,7 @@ python image_converter_gui.py
 python image_converter.py input_image.jpg
 
 # Web upload (automatic conversion)
-# Upload at http://192.168.4.1
+# Upload at <http://192.168.4.1>
 ```
 
 ### Testing
@@ -344,10 +344,10 @@ for (int y = 0; y < NUM_LEDS; y++) {
 
 ## External Resources
 
-- **FastLED Library**: https://github.com/FastLED/FastLED
-- **Teensy 4.1 Docs**: https://www.pjrc.com/store/teensy41.html
-- **APA102 Datasheet**: https://cdn-shop.adafruit.com/product-files/2343/APA102C.pdf
-- **ESP32-S3 Docs**: https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/
+- **FastLED Library**: <https://github.com/FastLED/FastLED>
+- **Teensy 4.1 Docs**: <https://www.pjrc.com/store/teensy41.html>
+- **APA102 Datasheet**: <https://cdn-shop.adafruit.com/product-files/2343/APA102C.pdf>
+- **ESP32-S3 Docs**: <https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/>
 
 ---
 

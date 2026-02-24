@@ -256,7 +256,7 @@ python image_converter.py your_image.jpg
 ```
 
 ### Option 3: Web Interface (No Installation)
-Upload directly through the POV device's web interface at http://192.168.4.1 - images are automatically converted
+Upload directly through the POV device's web interface at <http://192.168.4.1> - images are automatically converted
 
 ### Option 4: Online Tool
 - **POISonic Online Converter**: [https://web.archive.org/web/20210509110926/https://www.orchardelica.com/poisonic/poi_page.html](https://web.archive.org/web/20210509110926/https://www.orchardelica.com/poisonic/poi_page.html) - Browser-based converter
