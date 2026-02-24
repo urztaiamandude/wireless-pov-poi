@@ -156,7 +156,7 @@ IMAGE:<width>,<height>,<hex_data>
 
 **Parameters:**
 - `width`: Image width in pixels
-- `height`: Must be 31 (LED count)
+- `height`: Must be 32 (LED count)
 - `hex_data`: RGB pixel data in hex format
 
 **Format:**
@@ -164,15 +164,15 @@ IMAGE:<width>,<height>,<hex_data>
 - Bottom row first, top row last
 - Left to right within each row
 
-**Example (2×31 image):**
+**Example (2×32 image):**
 ```
-IMAGE:2,31,FF0000FF0000[...RGB data for 62 pixels...]
+IMAGE:2,32,FF0000FF0000[...RGB data for 64 pixels...]
 ```
 
 **Constraints:**
-- Height MUST be 31 pixels
+- Height MUST be 32 pixels
 - Width limited by available RAM (~100 pixels max)
-- Total size: width × 31 × 3 bytes
+- Total size: width × 32 × 3 bytes
 
 ---
 
@@ -184,12 +184,12 @@ LIVE:<frame_data>
 ```
 
 **Parameters:**
-- `frame_data`: 31 × 3 bytes hex-encoded (RRGGBB for each LED)
+- `frame_data`: 32 × 3 bytes hex-encoded (RRGGBB for each LED)
 
 **Format:**
 - LED 0 (bottom): First 6 hex chars
-- LED 30 (top): Last 6 hex chars
-- Total: 186 hex characters (93 bytes)
+- LED 31 (top): Last 6 hex chars
+- Total: 192 hex characters (96 bytes)
 
 **Example:**
 ```

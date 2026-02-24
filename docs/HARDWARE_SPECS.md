@@ -78,8 +78,8 @@
 
 **Type:** APA102-C (Dotstar compatible)
 - **Count:** 32 LEDs
-- **Display:** 31 LEDs (LED 1-31)
-- **Level Shifter:** 1 LED (LED 0, not visible)
+- **Display:** 32 LEDs (LED 0-31)
+- **Level Shifter:** Hardware level shifter (3.3V -> 5V)
 
 **Electrical:**
 - **Voltage:** 5V DC
@@ -189,16 +189,16 @@ Common Ground       ←→ Common Ground
 
 **Connections:**
 ```
-Teensy Pin 11 (MOSI) → APA102 DI (Data In)
-Teensy Pin 13 (SCK)  → APA102 CI (Clock In)
+Teensy Pin 11 (MOSI) → Level Shifter IN → Level Shifter OUT → APA102 DI (Data In)
+Teensy Pin 13 (SCK)  → Level Shifter IN → Level Shifter OUT → APA102 CI (Clock In)
 5V Power             → APA102 5V
 Common Ground        → APA102 GND
 ```
 
 **Level Shifting:**
-- First LED (LED 0) acts as level shifter
-- Teensy 3.3V → LED 0 → 5V output to LED 1
-- LED 0 not used for display (reserved)
+- Hardware level shifter used (e.g., 74AHCT125)
+- Teensy 3.3V -> Level Shifter -> 5V output to LED strip
+- All 32 LEDs used for display
 
 ---
 

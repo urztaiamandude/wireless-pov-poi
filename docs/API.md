@@ -312,13 +312,13 @@ curl -X POST http://192.168.4.1/api/image \
 
 **Image Guidelines:**
 
-- Width: 31 pixels (matching LED count)
+- Width: 32 pixels (matching LED count)
 - Height: Up to 64 pixels recommended
 - Format: Any standard image format
 - High contrast works best for POV
 - Simple graphics better than photos
 
-**Note:** Image processing converts the uploaded image to LED-compatible format. Complex images may not translate well to 31-pixel width.
+**Note:** Image processing converts the uploaded image to LED-compatible format. Complex images may not translate well to 32-pixel width.
 
 ---
 

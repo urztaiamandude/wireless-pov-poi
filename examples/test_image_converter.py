@@ -4,7 +4,7 @@ Test script for POV Image Converter
 Creates test images and validates conversion functionality
 
 NOTE: The POV display uses LEDs as the VERTICAL axis:
-- HEIGHT is FIXED at 31 pixels (matching 31 display LEDs)
+- HEIGHT is FIXED at 32 pixels (matching 32 display LEDs)
 - WIDTH is calculated to maintain aspect ratio
 """
 
@@ -32,7 +32,7 @@ def create_test_image(width, height, color, filename):
     return filename
 
 def test_basic_conversion():
-    """Test basic image conversion - HEIGHT should be fixed at 31"""
+    """Test basic image conversion - HEIGHT should be fixed at 32"""
     print("\n=== Test 1: Basic Conversion ===")
     
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -42,7 +42,7 @@ def test_basic_conversion():
         
         output_img = os.path.join(tmpdir, "test_output.png")
         
-        # Convert image - HEIGHT is fixed at 31
+        # Convert image - HEIGHT is fixed at 32
         success = convert_image_for_pov(test_img, output_img, height=32, max_width=200)
         
         if not success:
@@ -54,7 +54,7 @@ def test_basic_conversion():
             print("❌ FAILED: Output file not created")
             return False
         
-        # Verify dimensions - HEIGHT should be 31 (fixed)
+        # Verify dimensions - HEIGHT should be 32 (fixed)
         result = Image.open(output_img)
         if result.height != 32:
             print(f"❌ FAILED: Expected height 32, got {result.height}")
@@ -64,7 +64,7 @@ def test_basic_conversion():
         return True
 
 def test_large_image():
-    """Test conversion of large image - HEIGHT fixed at 31"""
+    """Test conversion of large image - HEIGHT fixed at 32"""
     print("\n=== Test 2: Large Image Conversion ===")
     
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -74,14 +74,14 @@ def test_large_image():
         
         output_img = os.path.join(tmpdir, "large_output.png")
         
-        # Convert image - HEIGHT is fixed at 31
+        # Convert image - HEIGHT is fixed at 32
         success = convert_image_for_pov(test_img, output_img)
         
         if not success:
             print("❌ FAILED: Conversion returned False")
             return False
         
-        # Verify dimensions - HEIGHT should be 31 (fixed)
+        # Verify dimensions - HEIGHT should be 32 (fixed)
         result = Image.open(output_img)
         if result.height != 32:
             print(f"❌ FAILED: Expected height 32, got {result.height}")
@@ -132,9 +132,9 @@ def test_width_limiting():
     print("\n=== Test 4: Width Limiting ===")
     
     with tempfile.TemporaryDirectory() as tmpdir:
-        # Create very wide image (31 height, very wide)
+        # Create very wide image (32 height, very wide)
         test_img = os.path.join(tmpdir, "very_wide_test.png")
-        create_test_image(1000, 31, (255, 0, 255), test_img)
+        create_test_image(1000, 32, (255, 0, 255), test_img)
         
         output_img = os.path.join(tmpdir, "very_wide_output.png")
         
@@ -151,7 +151,7 @@ def test_width_limiting():
             print(f"❌ FAILED: Width {result.width} exceeds max 100")
             return False
         
-        # Height should still be 31 (fixed)
+        # Height should still be 32 (fixed)
         if result.height != 32:
             print(f"❌ FAILED: Expected height 32, got {result.height}")
             return False

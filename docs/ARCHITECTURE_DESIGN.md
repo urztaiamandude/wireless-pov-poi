@@ -26,7 +26,7 @@
                      │ SPI
 ┌────────────────────▼─────────────────────────────────────┐
 │                Display Layer                              │
-│  APA102 LED Strip: 32 LEDs (31 display + 1 shifter)      │
+│  APA102 LED Strip: 32 LEDs (32 display LEDs)             │
 └──────────────────────────────────────────────────────────┘
 ```
 
@@ -283,11 +283,11 @@ public:
 
 ---
 
-### Decision 3: 31-Pixel Fixed Height
+### Decision 3: 32-Pixel Fixed Height
 
 **Question:** Should images be any size and scaled at runtime?
 
-**Decision:** Pre-scale to 31 pixels height, vary width
+**Decision:** Pre-scale to 32 pixels height, vary width
 
 **Rationale:**
 - **Memory constraint:** Teensy has 1MB RAM
@@ -296,12 +296,12 @@ public:
 
 **Implementation:**
 ```cpp
-#define DISPLAY_LEDS 31  // Fixed height
+#define DISPLAY_LEDS 32  // Fixed height
 int imageWidth = variable;  // Calculated from aspect ratio
 ```
 
 **Benefits:**
-- Simple memory allocation: `width × 31 × 3 bytes`
+- Simple memory allocation: `width × 32 × 3 bytes`
 - Fast image rendering (no scaling needed)
 - Predictable performance
 

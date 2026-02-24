@@ -51,7 +51,7 @@ def convert_image_for_pov(input_path, output_path=None, height=32, max_width=200
         flip_horizontal: Flip image horizontally (default False)
     
     Note: No vertical flip is applied because the LED arrangement already
-    maps correctly: LED 1 (bottom) displays bottom of image, LED 31 (top)
+    maps correctly: LED 0 (bottom) displays bottom of image, LED 31 (top)
     displays top of image.
     """
     
@@ -94,8 +94,8 @@ def convert_image_for_pov(input_path, output_path=None, height=32, max_width=200
             print("Flipping image horizontally")
             img = img.transpose(Image.FLIP_LEFT_RIGHT)
         
-        # No vertical flip needed - LED 1 is bottom, LED 31 is top
-        # This maps directly to image coordinates (y=0 is top, but LED 1 shows row 0)
+        # No vertical flip needed - LED 0 is bottom, LED 31 is top
+        # This maps directly to image coordinates (y=0 is top, but LED 0 shows row 0)
         
         # Enhance contrast if requested
         if enhance_contrast:

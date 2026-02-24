@@ -13,7 +13,7 @@ Flutter App (Windows/Web)
          ↓ Serial UART (translated protocol)
     Teensy 4.1 (LED Controller)
          ↓ SPI
-    APA102 LED Strip (31 pixels)
+    APA102 LED Strip (32 pixels)
 ```
 
 ## Nordic UART Service (NUS)

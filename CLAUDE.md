@@ -38,39 +38,38 @@ APA102 LED Strip (32 LEDs)
 
 ### 1. LED Array Layout
 ```
-⚠️ CRITICAL: LED 0 is NEVER used for display - level shifting only!
+⚠️ CRITICAL: All 32 LEDs are used for display - hardware level shifter is used!
 
 Physical LED Strip:
 ┌────┬────┬────┬────┬─────┬────┐
 │ 0  │ 1  │ 2  │... │ 30  │ 31 │
 └────┴────┴────┴────┴─────┴────┘
-  ↑    ↑─────────────────────↑
-Level   Display pixels (31 total)
-Shift
+  ↑───────────────────────────↑
+      Display pixels (32 total)
 ```
 
 **ALL display code MUST:**
-- Start loops at index 1: `for (int i = 1; i < NUM_LEDS; i++)`
-- Use `DISPLAY_LEDS` (31) for height calculations
-- Use `DISPLAY_LED_START` (1) as first display index
+- Use `NUM_LEDS` (32) for loops: `for (int i = 0; i < NUM_LEDS; i++)`
+- Use `DISPLAY_LEDS` (32) for height calculations
+- Use `DISPLAY_LED_START` (0) as first display index
 
 ### 2. Image Orientation & Dimensions
 
 **POV Display Orientation:**
-- **HEIGHT = 31 pixels** (FIXED - one pixel per display LED)
-- **WIDTH = variable** (calculated from aspect ratio, max 200px)
+- **HEIGHT = 32 pixels** (FIXED - one pixel per display LED)
+- **WIDTH = variable** (calculated from aspect ratio, max 400px with PSRAM)
 - LED strip forms the VERTICAL axis when spinning
-- LED 1 (bottom of strip) = bottom of image
+- LED 0 (bottom of strip) = bottom of image
 - LED 31 (top of strip) = top of image
 - Images scroll horizontally as poi spins
 
 **Image Storage Format:**
 ```cpp
 // Storage: pixels[x][y] where y is LED index
-CRGB pixels[IMAGE_WIDTH][IMAGE_HEIGHT];  // Max 31x200
+CRGB pixels[IMAGE_WIDTH][IMAGE_HEIGHT];  // Max 32x400
 
 // Display mapping (NO flip needed):
-leds[y] = pixels[current_column][y];  // y ranges 1-31
+leds[y] = pixels[current_column][y];  // y ranges 0-31
 ```
 
 ### 3. Communication Protocol
@@ -243,7 +242,7 @@ python test_ble_protocol.py
 - `POST /framerate` - Set frame rate (10-120)
 - `POST /mode` - Change display mode
 - `POST /pattern` - Configure pattern
-- `POST /image/upload` - Upload image (auto-converts to 31px height)
+- `POST /image/upload` - Upload image (auto-converts to 32px height)
 - `GET /image/list` - List stored images
 - `POST /live/frame` - Send live frame data
 
@@ -261,12 +260,7 @@ See `docs/API.md` for complete reference.
 
 ### LED Index Usage
 ```cpp
-// ✅ CORRECT - Skip LED 0
-for (int i = 1; i < NUM_LEDS; i++) {
-  leds[i] = CRGB::Red;
-}
-
-// ❌ WRONG - Includes LED 0 (level shift LED)
+// ✅ CORRECT - All 32 LEDs are display LEDs
 for (int i = 0; i < NUM_LEDS; i++) {
   leds[i] = CRGB::Red;
 }
@@ -275,7 +269,7 @@ for (int i = 0; i < NUM_LEDS; i++) {
 ### Image Pixel Access
 ```cpp
 // ✅ CORRECT - Direct mapping (no flip)
-for (int y = 1; y < NUM_LEDS; y++) {
+for (int y = 0; y < NUM_LEDS; y++) {
   leds[y] = image.pixels[column][y];
 }
 
@@ -331,7 +325,7 @@ for (int y = 1; y < NUM_LEDS; y++) {
 
 ### Image orientation incorrect
 - Images should display correctly without manual flipping
-- LED 1 = bottom of strip = bottom of image
+- LED 0 = bottom of strip = bottom of image
 - If upside down, check physical LED strip orientation
 - See `docs/POV_DISPLAY_ORIENTATION_GUIDE.md`
 

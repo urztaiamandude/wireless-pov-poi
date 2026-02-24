@@ -19,13 +19,13 @@
 │  │   │             │     │  │   └───┘              │         │
 │  │   └─────────────┘     │  │                       │         │
 │  │                       │  │                       │         │
-│  │ Original: 200x300px   │  │ POV Format: 31x46px  │         │
+│  │ Original: 200x300px   │  │ POV Format: 32x46px  │         │
 │  └───────────────────────┘  └───────────────────────┘         │
 │                                                                 │
 │  ┌── Conversion Settings ───────────────────────────────────┐  │
 │  │                                                           │  │
 │  │  Width:        [64  ▼] pixels (default: 64)             │  │
-│  │  Max Height:   [31  ▼] pixels (default: 31)             │  │
+│  │  Max Height:   [32  ▼] pixels (default: 32)             │  │
 │  │  ☑ Enhance Contrast (recommended for better visibility) │  │
 │  │  ☑ Lock Aspect Ratio                                    │  │
 │  │                                                           │  │
@@ -56,7 +56,7 @@
 - Real-time preview updates when settings change
 
 ### 3. Conversion Settings
-- **Width**: Target width in pixels (1-100, default: 31 for POV system)
+- **Width**: Target width in pixels (1-100, default: 32 for POV system)
 - **Max Height**: Maximum height in pixels (1-200, default: 64)
 - **Enhance Contrast**: Toggle contrast enhancement for better visibility
 - **Lock Aspect Ratio**: When checked, changing width automatically updates height (and vice versa) to maintain original proportions

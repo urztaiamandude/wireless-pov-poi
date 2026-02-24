@@ -176,7 +176,7 @@ The web portal provides a modern, **mobile-responsive** interface with:
 - System controls (brightness and frame rate sliders)
 - Quick pattern buttons (Rainbow, Wave, Gradient, Sparkle)
 - Color picker for custom pattern colors
-- **Image upload with automatic conversion** (any size → 31px HIGH, width calculated from aspect ratio)
+- **Image upload with automatic conversion** (any size → 32px HIGH, width calculated from aspect ratio)
 - Live drawing canvas for real-time control
 - Real-time status display
 - **PWA support** - Install as native app on mobile devices
@@ -187,7 +187,7 @@ The web portal provides a modern, **mobile-responsive** interface with:
 The LED strip forms the VERTICAL axis of the POV display:
 - **HEIGHT is FIXED at 32 pixels** - One pixel per display LED
 - **WIDTH is CALCULATED** - Based on original image aspect ratio
-- **LED 1** (bottom of strip) displays the **bottom** of the image
+- **LED 0** (bottom of strip) displays the **bottom** of the image
 - **LED 31** (top of 32-LED strip) displays the **top** of the image
 - **No flip needed** - The LED arrangement maps directly to image pixels
 - When poi are spun, images scroll naturally in correct orientation
@@ -234,7 +234,7 @@ For best results with persistence of vision:
 
 ## Image Conversion
 
-Convert images to POV-compatible format (31 pixels HIGH):
+Convert images to POV-compatible format (32 pixels HIGH):
 
 ### Option 1: GUI Converter (Recommended for Desktop)
 ```bash

@@ -319,7 +319,7 @@ You can customize these constants in your code:
 - Bottom-up or top-down format
 
 **For POV Displays:**
-- Recommended height: 31 pixels (matches LED count)
+- Recommended height: 32 pixels (matches LED count)
 - Width: As needed (typically 32-200 pixels)
 - Use high contrast images for best visibility
 

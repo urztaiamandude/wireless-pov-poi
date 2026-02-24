@@ -225,7 +225,7 @@ class POVImageConverterGUI:
             height_frame,
             text="pixels (FIXED: 32 = display LEDs)",
             font=("Arial", 9),
-            fg="#e74c3c"
+            fg="#27ae60"
         ).pack(side=tk.LEFT)
         
         # Max width setting (scaled proportionally)
