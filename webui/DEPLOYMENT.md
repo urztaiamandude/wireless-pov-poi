@@ -20,6 +20,7 @@ npm run build
 ```
 
 This creates an optimized bundle in `dist/` with:
+
 - Single JavaScript chunk (no code splitting)
 - Minified assets
 - Compressed for embedded systems
@@ -36,12 +37,14 @@ This creates an optimized bundle in `dist/` with:
    - Restart Arduino IDE
 
 2. **Create data directory**
+
    ```bash
    cd ../esp32_firmware
    mkdir -p data
    ```
 
 3. **Copy web UI files**
+
    ```bash
    cp -r ../webui/dist/* data/
    ```
@@ -53,8 +56,9 @@ This creates an optimized bundle in `dist/` with:
 ### Option B: PlatformIO
 
 1. **Configure platformio.ini**
-   
+
    Ensure your `esp32_firmware/platformio.ini` includes:
+
    ```ini
    [env:esp32]
    board_build.filesystem = littlefs
@@ -63,6 +67,7 @@ This creates an optimized bundle in `dist/` with:
    ```
 
 2. **Copy web UI to data directory**
+
    ```bash
    cd ../esp32_firmware
    mkdir -p data
@@ -70,6 +75,7 @@ This creates an optimized bundle in `dist/` with:
    ```
 
 3. **Upload filesystem**
+
    ```bash
    pio run --target uploadfs
    ```
@@ -79,24 +85,27 @@ This creates an optimized bundle in `dist/` with:
 For direct filesystem image upload:
 
 1. **Install esptool**
+
    ```bash
    pip install esptool
    ```
 
 2. **Create filesystem image** (using mklittlefs or mkspiffs)
+
    ```bash
    # For LittleFS:
    mklittlefs -c data -s 0x100000 littlefs.bin
-   
+
    # For SPIFFS:
    mkspiffs -c data -s 0x100000 spiffs.bin
    ```
 
 3. **Flash to ESP32**
+
    ```bash
    esptool.py --port /dev/ttyUSB0 write_flash 0x310000 littlefs.bin
    ```
-   
+
    (Adjust address based on your partition table)
 
 ## Step 3: Configure ESP32 Firmware
@@ -173,6 +182,7 @@ Reduce bundle size:
    - Rebuild: `npm run build`
 
 2. **Optimize images**
+
    ```bash
    # If you add images to the UI
    npm install -D imagemin imagemin-pngquant
@@ -189,6 +199,7 @@ For larger web UIs, increase SPIFFS/LittleFS partition size:
 ### Option 1: Use Predefined Table
 
 In `platformio.ini`:
+
 ```ini
 board_build.partitions = min_spiffs.csv  # 1.9MB app, ~190KB SPIFFS
 # or
@@ -198,6 +209,7 @@ board_build.partitions = default.csv     # 1.2MB app, ~1.5MB SPIFFS
 ### Option 2: Custom Partition Table
 
 Create `partitions_custom.csv`:
+
 ```csv
 # Name,   Type, SubType, Offset,  Size,    Flags
 nvs,      data, nvs,     0x9000,  0x5000,
@@ -208,6 +220,7 @@ spiffs,   data, spiffs,  0x290000,0x170000,
 ```
 
 Reference in `platformio.ini`:
+
 ```ini
 board_build.partitions = partitions_custom.csv
 ```
@@ -215,21 +228,25 @@ board_build.partitions = partitions_custom.csv
 ## Troubleshooting
 
 ### "SPIFFS Mount Failed"
+
 - Filesystem not formatted: Flash with `-f` flag or use `SPIFFS.format()`
 - Wrong partition table: Verify partition addresses
 - Corrupted filesystem: Reflash filesystem image
 
 ### "404 Not Found" for static files
+
 - Files not copied to data directory
 - Filesystem not uploaded after copying files
 - Incorrect SPIFFS/LittleFS path in firmware code
 
 ### Web UI loads but broken
+
 - Missing assets (check browser network tab)
 - API endpoints not matching (update DEVICE_IP in components)
 - CORS issues (ensure firmware allows API requests)
 
 ### Out of memory during upload
+
 - Reduce bundle size (remove unused components)
 - Increase partition size (see Partition Table section)
 - Use GZIP compression
@@ -263,6 +280,7 @@ echo "Deployment complete!"
 ```
 
 Make executable:
+
 ```bash
 chmod +x deploy.sh
 ./deploy.sh
