@@ -60,7 +60,7 @@ for (int i = 0; i < NUM_LEDS; i++) {
 | `teensy_firmware/` | Arduino IDE firmware | `teensy_firmware.ino` (1681 lines) | **Production-ready** ⭐ |
 | `firmware/teensy41/` | PlatformIO modular firmware | `src/main.cpp`, `src/pov_engine.cpp` | ~95% complete |
 | `esp32_firmware/` | WiFi/BLE co-processor | `esp32_firmware.ino` | Production-ready |
-| `webui/` | React web interface | `App.tsx`, `components/` | Production-ready |
+| `esp32_firmware/webui/` | React web interface | `App.tsx`, `components/` | Production-ready |
 | `examples/` | Python tools & tests | `image_converter.py`, `test_*.py` | Complete |
 | `docs/` | Documentation | `API.md`, `WIRING.md`, 22 guides | Complete |
 
@@ -86,7 +86,7 @@ pio run -e esp32 -t upload    # Upload ESP32
 
 ### Web UI (React + TypeScript)
 ```bash
-cd webui
+cd esp32_firmware/webui
 npm install                   # Install dependencies
 npm run dev                   # Development server on localhost:3000
 npm run build                 # Production build to dist/
@@ -240,7 +240,7 @@ case 18:  // New pattern ID
 
 ### Modifying Web UI
 ```bash
-cd webui
+cd esp32_firmware/webui
 npm install          # First time only
 npm run dev          # Start dev server with hot reload
 
@@ -311,7 +311,7 @@ python image_converter.py input.jpg
 ### Web UI Build Issues
 ```bash
 # Clear and reinstall dependencies
-cd webui
+cd esp32_firmware/webui
 rm -rf node_modules package-lock.json
 npm install
 

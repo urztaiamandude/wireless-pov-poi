@@ -15,7 +15,7 @@ The ESP32 serves the web UI as static files from its internal filesystem (SPIFFS
 ## Step 1: Build Production Bundle
 
 ```bash
-cd webui
+cd esp32_firmware/webui
 npm run build
 ```
 
@@ -39,14 +39,13 @@ This creates an optimized bundle in `dist/` with:
 2. **Create data directory**
 
    ```bash
-   cd ../esp32_firmware
    mkdir -p data
    ```
 
 3. **Copy web UI files**
 
    ```bash
-   cp -r ../webui/dist/* data/
+   cp -r webui/dist/* data/
    ```
 
 4. **Upload filesystem**
@@ -69,9 +68,8 @@ This creates an optimized bundle in `dist/` with:
 2. **Copy web UI to data directory**
 
    ```bash
-   cd ../esp32_firmware
    mkdir -p data
-   cp -r ../webui/dist/* data/
+   cp -r webui/dist/* data/
    ```
 
 3. **Upload filesystem**
@@ -253,7 +251,7 @@ board_build.partitions = partitions_custom.csv
 
 ## Automated Deployment Script
 
-Create `deploy.sh` in webui directory:
+Create `deploy.sh` in the webui directory:
 
 ```bash
 #!/bin/bash
@@ -263,12 +261,12 @@ echo "Building web UI..."
 npm run build
 
 echo "Copying to ESP32 data directory..."
-mkdir -p ../esp32_firmware/data
-rm -rf ../esp32_firmware/data/*
-cp -r dist/* ../esp32_firmware/data/
+mkdir -p ../data
+rm -rf ../data/*
+cp -r dist/* ../data/
 
 echo "Uploading filesystem..."
-cd ../esp32_firmware
+cd ..
 
 # For PlatformIO:
 pio run --target uploadfs

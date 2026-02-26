@@ -19,7 +19,7 @@ A comprehensive React-based web interface for controlling and configuring the Ne
 ## Installation
 
 ```bash
-cd webui
+cd esp32_firmware/webui
 npm install
 ```
 
@@ -136,7 +136,7 @@ Modify this array to match your multi-device setup.
 ## Project Structure
 
 ```
-webui/
+esp32_firmware/webui/
 ├── components/          # React components
 │   ├── Dashboard.tsx    # Fleet control interface
 │   ├── ImageLab.tsx     # Image processing and sequences

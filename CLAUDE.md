@@ -164,7 +164,9 @@ wireless-pov-poi/
 │   ├── BMPImageReader.h      # SD card BMP reading
 │   └── BMPImageSequence.h    # Image playlist management
 ├── esp32_firmware/            # ESP32/S3 firmware
-│   └── esp32_firmware.ino    # WiFi + web server + BLE
+│   ├── esp32_firmware.ino    # WiFi + web server + BLE
+│   ├── webui/                # React web UI (deployed to ESP32 filesystem)
+│   └── web_preview.html      # Standalone UI preview (no hardware needed)
 ├── firmware/teensy41/         # PlatformIO version (advanced)
 ├── docs/                      # Complete documentation
 │   ├── WIRING.md             # Hardware connections

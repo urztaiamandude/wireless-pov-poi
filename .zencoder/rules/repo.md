@@ -13,7 +13,7 @@ The **Wireless POV Poi** (also known as **Nebula Poi**) is a high-performance pe
 
 - **teensy_firmware/**: Core POV engine and LED controller firmware for Teensy 4.1.
 - **esp32_firmware/**: WiFi/BLE co-processor firmware for ESP32-S3, including an embedded web server.
-- **webui/**: React-based web interface for controlling the poi system.
+- **esp32_firmware/webui/**: React-based web interface for controlling the poi system (deployed to ESP32 filesystem).
 - **examples/**: Python-based tools for image conversion, testing, and protocol validation.
 - **docs/**: Comprehensive documentation covering hardware wiring, API, and protocols.
 - **scripts/**: Utility scripts for serial debugging and firmware management.
@@ -94,7 +94,7 @@ pio run -e esp32s3 -t upload
 
 ### Web UI
 
-**Configuration File**: [./webui/package.json](./webui/package.json)
+**Configuration File**: [./esp32_firmware/webui/package.json](./esp32_firmware/webui/package.json)
 
 #### Web UI Language & Runtime
 
@@ -114,7 +114,7 @@ pio run -e esp32s3 -t upload
 #### Web UI Build & Installation
 
 ```bash
-cd webui
+cd esp32_firmware/webui
 npm install
 npm run build
 ```
