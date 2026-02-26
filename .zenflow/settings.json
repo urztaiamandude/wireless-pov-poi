@@ -1,0 +1,5 @@
+{
+  "setup_script": "cd webui && npm install && cd .. && pip install -r examples/requirements.txt",
+  "dev_script": "cd webui && npm run dev",
+  "verification_script": "cd webui && npx tsc --noEmit && cd .. && cd examples && python3 -m pytest test_*.py -v"
+}
