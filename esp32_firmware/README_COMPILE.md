@@ -14,13 +14,13 @@
 #### Build only:
 ```bash
 cd esp32_firmware
-pio run -e esp32
+pio run -e esp32s3
 ```
 
 #### Build and upload to COM8:
 ```bash
 cd esp32_firmware
-pio run -e esp32 --target upload --upload-port COM8
+pio run -e esp32s3 --target upload --upload-port COM8
 ```
 
 #### Monitor serial output:

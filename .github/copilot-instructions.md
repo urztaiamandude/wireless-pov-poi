@@ -78,10 +78,9 @@ for (int i = 0; i < NUM_LEDS; i++) {
 
 # PlatformIO builds
 pio run -e teensy41           # Build Teensy firmware
-pio run -e esp32              # Build ESP32 firmware
 pio run -e esp32s3            # Build ESP32-S3 firmware (recommended)
 pio run -e teensy41 -t upload # Upload Teensy
-pio run -e esp32 -t upload    # Upload ESP32
+pio run -e esp32s3 -t upload  # Upload ESP32-S3
 ```
 
 ### Web UI (React + TypeScript)

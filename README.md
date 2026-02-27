@@ -117,9 +117,6 @@ See [docs/WIRING.md](docs/WIRING.md) for detailed wiring instructions.
 
 **Option B: Using PlatformIO**
 ```bash
-# For ESP32
-pio run -e esp32 -t upload
-
 # For ESP32-S3 (recommended for new builds)
 pio run -e esp32s3 -t upload
 ```

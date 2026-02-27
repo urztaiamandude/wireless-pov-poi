@@ -199,9 +199,6 @@ wireless-pov-poi/
 # Teensy
 pio run -e teensy41 -t upload
 
-# ESP32
-pio run -e esp32 -t upload
-
 # ESP32-S3 (recommended for new builds)
 pio run -e esp32s3 -t upload
 ```
