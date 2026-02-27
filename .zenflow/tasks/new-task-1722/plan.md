@@ -102,6 +102,7 @@ After all changes:
 ---
 
 ### [ ] Step: Write report
+<!-- chat-id: 4fa1a60a-8d73-46e6-a5e5-6899b880716a -->
 
 After all implementation steps complete, write `.zenflow/tasks/new-task-1722/report.md` describing:
 - What was implemented
