@@ -229,6 +229,7 @@ void setup() {
   state.lastSync = 0;
   state.lastDiscovery = 0;
   state.sdCardPresent = false;
+  state.powerMode = 1;  // Start in balanced mode (matches JS default)
   
   Serial.println("ESP32 Nebula Poi Controller Ready!");
   Serial.print("IP Address: ");
@@ -1015,6 +1016,19 @@ static const char rootPage[] PROGMEM = R"rawliteral(
             document.getElementById('framerate-value').textContent=d.framerate;
             if(d.mode===2){currentPattern=d.index;updatePatternActiveState()}
             updateLEDPreviewFromStatus(d.mode,d.index);
+            if(d.powerMode!==undefined){
+                const pmNames=['performance','balanced','powersave','ultrasave'];
+                const pmName=pmNames[d.powerMode]||'balanced';
+                if(pmName!==currentPowerMode){
+                    currentPowerMode=pmName;
+                    ['performance','balanced','powersave','ultrasave'].forEach(m=>{
+                        const btn=document.getElementById('pm-'+m);
+                        if(btn)btn.style.border=m===pmName?'2px solid #22c55e':'';
+                    });
+                    const desc=document.getElementById('pm-desc');
+                    if(desc)desc.textContent=PM_LABELS[pmName]||pmName;
+                }
+            }
             if(d.sdCardPresent!==undefined){
                 const st=document.getElementById('sd-status-text');
                 st.textContent=d.sdCardPresent?'Present':'Not Present';
@@ -1075,12 +1089,15 @@ static const char rootPage[] PROGMEM = R"rawliteral(
     }
     async function nextImage(){
         const el=document.getElementById('content-index');
-        el.value=parseInt(el.value||'0')+1;
+        const maxVal=parseInt(el.max)||17;
+        el.value=Math.min(maxVal,parseInt(el.value||'0')+1);
         await changeContentIndex();
     }
 
     // ===== Power Mode =====
-    const PM_LABELS={performance:'240 MHz — max brightness & FPS',balanced:'160 MHz — default settings',powersave:'80 MHz — reduced FPS & brightness cap',ultrasave:'40 MHz — minimum FPS, dim output'};
+    const PM_LABELS={performance:'240 MHz — max brightness & FPS',balanced:'160 MHz — default settings',powersave:'80 MHz — reduced FPS & brightness cap',ultrasave:'80 MHz — minimum FPS & dim output (WiFi minimum)'};
+    const PM_FPS={performance:120,balanced:60,powersave:30,ultrasave:15};
+    const PM_BRIGHT={performance:255,balanced:255,powersave:150,ultrasave:80};
     let currentPowerMode='balanced';
     async function setPowerMode(mode){
         currentPowerMode=mode;
@@ -1093,6 +1110,10 @@ static const char rootPage[] PROGMEM = R"rawliteral(
         try{
             await fetch('/api/power/mode',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode})});
             showToast('Power mode: '+mode);
+            const frEl=document.getElementById('framerate');
+            if(frEl){frEl.value=PM_FPS[mode];updateFrameRate(PM_FPS[mode]);}
+            const bEl=document.getElementById('brightness');
+            if(bEl&&parseInt(bEl.value)>PM_BRIGHT[mode]){bEl.value=PM_BRIGHT[mode];updateBrightness(PM_BRIGHT[mode]);}
         }catch(e){showToast('Power mode failed')}
     }
 
@@ -1660,6 +1681,7 @@ void handleStatus() {
   doc["brightness"] = state.brightness;
   doc["framerate"] = state.frameRate;
   doc["sdCardPresent"] = state.sdCardPresent;
+  doc["powerMode"] = state.powerMode;
   
   String response;
   serializeJson(doc, response);
@@ -1774,7 +1796,7 @@ void handlePowerMode() {
         cpuMhz = 80; fpsLimit = 30; brightnessLimit = 150;
       } else if (modeStr == "ultrasave") {
         state.powerMode = 3;
-        cpuMhz = 40; fpsLimit = 15; brightnessLimit = 80;
+        cpuMhz = 80; fpsLimit = 15; brightnessLimit = 80;  // 80 MHz is minimum with WiFi active
       } else {
         server.send(400, "application/json", "{\"error\":\"Unknown mode\"}");
         return;
@@ -1787,12 +1809,18 @@ void handlePowerMode() {
       sendTeensyCommand(0x07, 1);
       TEENSY_SERIAL.write(state.cachedFrameDelay);
       TEENSY_SERIAL.write(0xFE);
+      if (!_syncCommandInProgress) {
+        espNowSync.broadcastFrameRate(state.cachedFrameDelay);
+      }
 
       if (brightnessLimit < state.brightness) {
         state.brightness = brightnessLimit;
         sendTeensyCommand(0x06, 1);
         TEENSY_SERIAL.write(state.brightness);
         TEENSY_SERIAL.write(0xFE);
+        if (!_syncCommandInProgress) {
+          espNowSync.broadcastBrightness(state.brightness);
+        }
       }
 
       server.send(200, "application/json", "{\"status\":\"ok\",\"cpuMhz\":" + String(cpuMhz) + ",\"fpsLimit\":" + String(fpsLimit) + "}");
