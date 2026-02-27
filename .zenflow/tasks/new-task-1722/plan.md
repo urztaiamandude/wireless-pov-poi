@@ -55,7 +55,7 @@ Modify `esp32_firmware/esp32_firmware.ino`:
 
 ---
 
-### [ ] Step: Fix Teensy pattern bugs (Gradient animation, Strobe timing)
+### [x] Step: Fix Teensy pattern bugs (Gradient animation, Strobe timing)
 <!-- chat-id: 49bbd39b-4730-459c-a858-cdfcaa38c4ae -->
 
 Modify `teensy_firmware/teensy_firmware.ino`:

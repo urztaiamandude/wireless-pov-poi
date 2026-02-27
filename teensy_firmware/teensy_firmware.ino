@@ -865,10 +865,14 @@ void displayPattern() {
       }
       break;
       
-    case 2:  // Gradient
-      for (int i = DISPLAY_LED_START; i < NUM_LEDS; i++) {
-        uint8_t blendAmount = (i * 255) / DISPLAY_LEDS;
-        leds[i] = blend(pat.color1, pat.color2, blendAmount);
+    case 2:  // Gradient - scrolling blend between two colors
+      {
+        uint32_t gradMillis = (uint32_t)((int32_t)millis() + syncTimeOffset);
+        uint8_t offset = (gradMillis * pat.speed / 500) & 0xFF;
+        for (int i = DISPLAY_LED_START; i < NUM_LEDS; i++) {
+          uint8_t blendAmount = ((i - DISPLAY_LED_START) * 255 / DISPLAY_LEDS + offset) & 0xFF;
+          leds[i] = blend(pat.color1, pat.color2, blendAmount);
+        }
       }
       break;
       
@@ -930,14 +934,15 @@ void displayPattern() {
       }
       break;
       
-    case 7:  // Strobe - quick flashes
+    case 7:  // Strobe - quick flashes using wall-clock time
       {
         static bool strobeOn = false;
-        static uint32_t lastStrobe = 0;
-        uint32_t strobeDelay = map(pat.speed, 1, 255, 100, 10);
-        if (patternTime - lastStrobe > strobeDelay) {
+        static uint32_t lastStrobeMs = 0;
+        uint32_t strobeDelayMs = map(pat.speed, 1, 255, 500, 10);
+        uint32_t nowMs = millis();
+        if (nowMs - lastStrobeMs >= strobeDelayMs) {
           strobeOn = !strobeOn;
-          lastStrobe = patternTime;
+          lastStrobeMs = nowMs;
         }
         for (int i = DISPLAY_LED_START; i < NUM_LEDS; i++) {
           leds[i] = strobeOn ? pat.color1 : CRGB::Black;
