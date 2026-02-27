@@ -19,7 +19,7 @@ Wireless LED POV Poi System — the Teensy 4.1 (POV engine) and ESP32-S3 (WiFi/B
 ### Key commands
 
 - **Build Teensy 4.1**: `pio run -e teensy41` (from repo root; uses root `platformio.ini`)
-- **Build ESP32-S3**: `cd esp32_firmware && pio run -e esp32s3` (uses `esp32_firmware/platformio.ini`)
+- **Build ESP32-S3**: `cd esp32_firmware && pio run -e esp32s3` (uses `esp32_firmware/platformio.ini`; note: `-e esp32` is not a valid env in this repo)
 - **Type check (Web UI)**: `cd esp32_firmware/webui && npx tsc --noEmit`
 - **Build (Web UI)**: `cd esp32_firmware/webui && npm run build`
 - **Dev server (Web UI)**: `cd esp32_firmware/webui && npm run dev` (port 3000, host 0.0.0.0)
