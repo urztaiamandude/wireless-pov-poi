@@ -868,10 +868,12 @@ void displayPattern() {
     case 2:  // Gradient - scrolling blend between two colors
       {
         uint32_t gradMillis = (uint32_t)((int32_t)millis() + syncTimeOffset);
-        uint8_t offset = (gradMillis * pat.speed / 500) & 0xFF;
+        // Divide before multiplying to stay well within uint32_t at any uptime
+        uint8_t timeOffset = (uint8_t)((gradMillis / 500u) * (uint32_t)pat.speed);
         for (int i = DISPLAY_LED_START; i < NUM_LEDS; i++) {
-          uint8_t blendAmount = ((i - DISPLAY_LED_START) * 255 / DISPLAY_LEDS + offset) & 0xFF;
-          leds[i] = blend(pat.color1, pat.color2, blendAmount);
+          // sin8 gives a smooth 0-255 wave that wraps naturally (no hard snap)
+          uint8_t phase = (uint8_t)((i - DISPLAY_LED_START) * 255 / DISPLAY_LEDS) + timeOffset;
+          leds[i] = blend(pat.color1, pat.color2, sin8(phase));
         }
       }
       break;
