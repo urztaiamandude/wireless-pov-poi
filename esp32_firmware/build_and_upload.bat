@@ -1,8 +1,8 @@
 @echo off
-REM Build and upload ESP32 firmware to COM8
-echo Building ESP32 firmware...
+REM Build and upload ESP32-S3 firmware to COM8
+echo Building ESP32-S3 firmware...
 cd /d "%~dp0"
-pio run -e esp32
+pio run -e esp32s3
 if %ERRORLEVEL% NEQ 0 (
     echo Build failed!
     pause
@@ -10,7 +10,7 @@ if %ERRORLEVEL% NEQ 0 (
 )
 echo.
 echo Uploading to COM8...
-pio run -e esp32 --target upload --upload-port COM8
+pio run -e esp32s3 --target upload --upload-port COM8
 if %ERRORLEVEL% NEQ 0 (
     echo Upload failed!
     pause

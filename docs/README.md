@@ -156,9 +156,6 @@ See the build wiki for HEX and CLI instructions:
 
 **Using PlatformIO:**
 ```bash
-# For ESP32
-pio run -e esp32 -t upload
-
 # For ESP32-S3
 pio run -e esp32s3 -t upload
 ```
