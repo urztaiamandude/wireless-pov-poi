@@ -38,6 +38,7 @@ Key findings:
 ---
 
 ### [ ] Step: Fix PROGMEM HTML bugs and add next/prev image + power modes
+<!-- chat-id: 9c57eb7c-8a50-4466-8150-5e5d7f120743 -->
 
 Modify `esp32_firmware/esp32_firmware.ino`:
 

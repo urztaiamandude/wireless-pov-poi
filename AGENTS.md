@@ -6,13 +6,15 @@
 
 Wireless LED POV Poi System with three locally-testable components:
 
-| Component | Path | Run command | Port |
+| Component | Path | Build / Run command | Port |
 |---|---|---|---|
 | **React Web UI** | `esp32_firmware/webui/` | `npm run dev` | 3000 |
 | **Mock API Server** | `esp32_firmware/test_webui_server.js` | `node esp32_firmware/test_webui_server.js` | 8765 |
 | **Python image tools + tests** | `examples/` | `python3 -m pytest test_*.py -v` | N/A |
+| **Teensy 4.1 firmware** ⚠️ hardware required | `teensy_firmware/` | Build: `pio run -e teensy41` · Upload: `pio run -e teensy41 -t upload` | N/A |
+| **ESP32-S3 firmware** ⚠️ hardware required | `esp32_firmware/` | Build: `pio run -e esp32s3` · Upload: `pio run -e esp32s3 -t upload` | N/A |
 
-Firmware (Teensy 4.1 / ESP32-S3) requires physical hardware and cannot be tested in the cloud environment.
+> **Note:** The `pio run` commands above only compile the firmware. Adding `-t upload` flashes it to the connected device. Firmware testing requires physical hardware and cannot be done in the cloud environment.
 
 ### Key commands
 
