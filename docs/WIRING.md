@@ -43,7 +43,7 @@ See [ESP32-S3 Compatibility Guide](ESP32_S3_COMPATIBILITY.md) for detailed compa
 │  Pin 1 (TX1) ────┼──┐
 │  Pin 0 (RX1) ◄───┼──┼─┐
 │                   │  │ │      ┌──────────────────┐
-│  Pin A0 ◄────────┼──┼─┼─────►│  MAX9814 (Opt.)  │
+│  Pin A0/14 ◄─────┼──┼─┼─────►│  MAX9814 (Opt.)  │
 │  3.3V ───────────┼──┼─┼─────►│  Microphone      │
 │  GND ────────────┼──┼─┼─────►│  For Audio       │
 └───────────────────┘  │ │      └──────────────────┘
@@ -87,7 +87,7 @@ See [ESP32-S3 Compatibility Guide](ESP32_S3_COMPATIBILITY.md) for detailed varia
 | Pin 13 | SPI SCK (Clock) | APA102 CLOCK (CI) | LED clock signal |
 | Pin 0 | UART RX1 | ESP32 GPIO17 (TX2) | Serial receive from ESP32 |
 | Pin 1 | UART TX1 | ESP32 GPIO16 (RX2) | Serial transmit to ESP32 |
-| Pin A0 | Analog Input | MAX9814 OUT (optional) | Audio input for music-reactive patterns |
+| Pin A0 (pin 14) | Analog Input | MAX9814 OUT (optional) | Audio input for music-reactive patterns |
 | 3.3V | Power Output | MAX9814 VCC (optional) | Power for microphone module |
 | GND | Ground | Common Ground | Shared with ESP32 and LEDs |
 | VIN | Power Input | 5V Power Supply | 5V input (or USB power) |
@@ -289,7 +289,7 @@ The MAX9814 breakout module has **5 pins**. With the microphone capsule facing *
 │  Microphone      │
 │                  │
 │  AR   ───────────┼──── see AR table below
-│  OUT  ───────────┼──── Teensy Pin A0 (analog audio input)
+│  OUT  ───────────┼──── Teensy Pin A0 / pin 14 (analog audio input)
 │  GAIN ───────────┼──── see gain table below
 │  VCC  ───────────┼──── Teensy 3.3V  (⚠️ Use 3.3V, NOT 5V!)
 │  GND  ───────────┼──── GND          (common ground with Teensy)
@@ -301,7 +301,7 @@ The MAX9814 breakout module has **5 pins**. With the microphone capsule facing *
 | Pin # | Module Pin | Full Name | Connects To | Notes |
 |-------|------------|-----------|-------------|-------|
 | 1 | **AR** | Attack/Release | See AR table ↓ | Controls AGC response timing |
-| 2 | **OUT** | Audio Output | Teensy **Pin A0** | Analog signal (0–3.3V). This is the one wire that carries the audio |
+| 2 | **OUT** | Audio Output | Teensy **Pin A0** (pin 14) | Analog signal (0–3.3V). This is the one wire that carries the audio |
 | 3 | **GAIN** | Gain Select | See gain table ↓ | Sets microphone amplification level |
 | 4 | **VCC** | Power Supply | Teensy **3.3V** pin | ⚠️ **3.3V only** — do NOT connect to 5V |
 | 5 | **GND** | Ground | Common Ground rail | Shared with Teensy GND |
@@ -332,13 +332,13 @@ The AR pin controls how fast the automatic gain control (AGC) responds to change
 
 ```
 MAX9814 AR   ──  (leave unconnected for default AGC)
-MAX9814 OUT  ──► Teensy A0
+MAX9814 OUT  ──► Teensy A0 (pin 14)
 MAX9814 GAIN ──  (leave unconnected for 60 dB default)
 MAX9814 VCC  ──► Teensy 3.3V
 MAX9814 GND  ──► Teensy GND
 ```
 
-Only **3 wires are required**: OUT → A0, VCC → 3.3V, GND → GND.
+Only **3 wires are required**: OUT → A0 (pin 14), VCC → 3.3V, GND → GND.
 AR and GAIN can both be left unconnected for a working default configuration.
 
 **Alternative Microphone Options:**

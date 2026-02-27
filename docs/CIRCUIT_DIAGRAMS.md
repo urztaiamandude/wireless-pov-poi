@@ -308,7 +308,7 @@ With the microphone capsule facing **up**, pins run **left to right**: AR → OU
 ```
 MAX9814 pin layout (mic capsule facing up, left → right):
   AR   ─── leave floating (default AGC timing)
-  OUT  ─── Teensy Pin A0  (WHITE wire)
+  OUT  ─── Teensy Pin A0 / pin 14  (WHITE wire)
   GAIN ─── leave floating (60 dB default gain)
   VCC  ─── Teensy 3.3V    (RED wire)   ← ⚠️ 3.3V only, never 5V
   GND  ─── Common Ground  (BLACK wire)
@@ -317,7 +317,7 @@ MAX9814 pin layout (mic capsule facing up, left → right):
 | Pin # | MAX9814 Pin | Connects To | Wire Color | Notes |
 |-------|-------------|-------------|------------|-------|
 | 1 | AR | (unconnected) | — | Float = default AGC timing |
-| 2 | OUT | Teensy A0 | White | Audio signal |
+| 2 | OUT | Teensy A0 (pin 14) | White | Audio signal |
 | 3 | GAIN | (unconnected) | — | Float = 60 dB default |
 | 4 | VCC | Teensy 3.3V | Red | ⚠️ 3.3V only |
 | 5 | GND | Common Ground | Black | Shared ground |
