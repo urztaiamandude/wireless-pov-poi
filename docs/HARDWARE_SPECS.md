@@ -120,23 +120,23 @@
 
 **Module Pin Layout (5 pins):**
 
-The MAX9814 breakout has 5 pins. Some cheap modules label GND as "0V" or leave it unlabelled — it can look like a second "OUT" pin but it is ground.
+With the microphone capsule facing **up**, pins run **left to right**: AR → OUT → GAIN → VCC → GND.
 
-| Pin | Name | Connects To | Notes |
-|-----|------|-------------|-------|
+| Pin # | Name | Connects To | Notes |
+|-------|------|-------------|-------|
 | 1 | **AR** | Leave floating (recommended) | Attack/Release for AGC timing. Unconnected = default (~10 ms attack, ~500 ms release) |
 | 2 | **OUT** | Teensy **Pin A0** | Analog audio signal output |
-| 3 | **GND** | Common Ground | May be labelled "0V" or unlabelled on some modules |
-| 4 | **GAIN** | Leave floating (60 dB default) | Float = 60 dB, GND = 50 dB, VCC = 40 dB |
-| 5 | **VCC** | Teensy **3.3V** | ⚠️ 3.3V only — never connect to 5V |
+| 3 | **GAIN** | Leave floating (60 dB default) | Float = 60 dB, GND = 50 dB, VCC = 40 dB |
+| 4 | **VCC** | Teensy **3.3V** | ⚠️ 3.3V only — never connect to 5V |
+| 5 | **GND** | Common Ground | Shared ground rail |
 
 **Minimum required connections (3 wires):**
 ```
+MAX9814 OUT  →  Teensy A0
 MAX9814 VCC  →  Teensy 3.3V
 MAX9814 GND  →  Teensy GND
-MAX9814 OUT  →  Teensy A0
 ```
-GAIN and AR can both be left unconnected for a fully working default setup.
+AR and GAIN can both be left unconnected for a fully working default setup.
 
 **Not Required If:**
 - You only use basic patterns (0-10)

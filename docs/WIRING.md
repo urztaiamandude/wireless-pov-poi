@@ -262,23 +262,24 @@ The MAX9814 is an ideal choice because it:
 
 #### MAX9814 Module Pin Identification
 
-The MAX9814 breakout module has **5 pins**. They are typically arranged and labelled as:
+The MAX9814 breakout module has **5 pins**. With the microphone capsule facing **up**, the pins run **left to right** in this order:
 
 ```
-┌─────────────────────────┐
-│  MAX9814 MODULE         │
-│  (5-pin breakout board) │
-│                         │
-│  AR   ●  ─────────────► (1) Attack/Release control
-│  OUT  ●  ─────────────► (2) Audio signal output
-│  GND  ●  ─────────────► (3) Ground  ← may read as "0V" or
-│  GAIN ●  ─────────────► (4) Gain select          a blank/unlabelled pin
-│  VCC  ●  ─────────────► (5) Power input
-│                         │
-└─────────────────────────┘
+┌─────────────────────────────────────────────────────────┐
+│  MAX9814 MODULE  (microphone capsule facing UP)         │
+│                                                         │
+│  ← LEFT                                      RIGHT →   │
+│                                                         │
+│  AR   ●  ─────────────► (1) Attack/Release control     │
+│  OUT  ●  ─────────────► (2) Audio signal output        │
+│  GAIN ●  ─────────────► (3) Gain select                │
+│  VCC  ●  ─────────────► (4) Power input                │
+│  GND  ●  ─────────────► (5) Ground                     │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
 ```
 
-> **Note:** Some modules (especially from AliExpress) label the GND pin as **"0V"**, leave it **blank**, or use hard-to-read silkscreen — it may look like a second "OUT" pin. It is **GND** (ground). If your module shows: `AR · OUT · GAIN · VCC · [unlabelled]`, the unlabelled pin at the end is GND.
+> **Note:** Some modules (especially from AliExpress) use hard-to-read silkscreen. If any label is unclear, the pin order from left to right (mic facing up) is always: **AR → OUT → GAIN → VCC → GND**.
 
 #### Wiring Diagram
 
@@ -287,23 +288,23 @@ The MAX9814 breakout module has **5 pins**. They are typically arranged and labe
 │  MAX9814         │
 │  Microphone      │
 │                  │
-│  VCC  ───────────┼──── Teensy 3.3V  (⚠️ Use 3.3V, NOT 5V!)
-│  GND  ───────────┼──── GND          (common ground with Teensy)
+│  AR   ───────────┼──── see AR table below
 │  OUT  ───────────┼──── Teensy Pin A0 (analog audio input)
 │  GAIN ───────────┼──── see gain table below
-│  AR   ───────────┼──── see AR table below
+│  VCC  ───────────┼──── Teensy 3.3V  (⚠️ Use 3.3V, NOT 5V!)
+│  GND  ───────────┼──── GND          (common ground with Teensy)
 └──────────────────┘
 ```
 
 #### Pin-by-Pin Connection Table
 
-| Module Pin | Full Name | Connects To | Notes |
-|------------|-----------|-------------|-------|
-| **VCC** | Power Supply | Teensy **3.3V** pin | ⚠️ **3.3V only** — do NOT connect to 5V |
-| **GND** | Ground | Common Ground rail | Shared with Teensy GND. May be labelled **0V** or unlabelled on cheap modules |
-| **OUT** | Audio Output | Teensy **Pin A0** | Analog signal (0–3.3V). This is the one wire that carries the audio |
-| **GAIN** | Gain Select | See gain table ↓ | Sets microphone amplification level |
-| **AR** | Attack/Release | See AR table ↓ | Controls AGC response timing |
+| Pin # | Module Pin | Full Name | Connects To | Notes |
+|-------|------------|-----------|-------------|-------|
+| 1 | **AR** | Attack/Release | See AR table ↓ | Controls AGC response timing |
+| 2 | **OUT** | Audio Output | Teensy **Pin A0** | Analog signal (0–3.3V). This is the one wire that carries the audio |
+| 3 | **GAIN** | Gain Select | See gain table ↓ | Sets microphone amplification level |
+| 4 | **VCC** | Power Supply | Teensy **3.3V** pin | ⚠️ **3.3V only** — do NOT connect to 5V |
+| 5 | **GND** | Ground | Common Ground rail | Shared with Teensy GND |
 
 #### GAIN Pin Options
 
@@ -330,15 +331,15 @@ The AR pin controls how fast the automatic gain control (AGC) responds to change
 #### Recommended Wiring (Quick-Start)
 
 ```
-MAX9814 VCC  ──► Teensy 3.3V
-MAX9814 GND  ──► Teensy GND
+MAX9814 AR   ──  (leave unconnected for default AGC)
 MAX9814 OUT  ──► Teensy A0
 MAX9814 GAIN ──  (leave unconnected for 60 dB default)
-MAX9814 AR   ──  (leave unconnected for default AGC)
+MAX9814 VCC  ──► Teensy 3.3V
+MAX9814 GND  ──► Teensy GND
 ```
 
-Only **3 wires are required**: VCC → 3.3V, GND → GND, OUT → A0.
-GAIN and AR can both be left unconnected for a working default configuration.
+Only **3 wires are required**: OUT → A0, VCC → 3.3V, GND → GND.
+AR and GAIN can both be left unconnected for a working default configuration.
 
 **Alternative Microphone Options:**
 - **Electret Microphone with Amplifier** - Cheaper but requires manual gain tuning
