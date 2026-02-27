@@ -260,29 +260,85 @@ The MAX9814 is an ideal choice because it:
 - Low noise floor
 - Frequency response: 20Hz - 20kHz
 
-**Wiring:**
+#### MAX9814 Module Pin Identification
+
+The MAX9814 breakout module has **5 pins**. They are typically arranged and labelled as:
+
+```
+┌─────────────────────────┐
+│  MAX9814 MODULE         │
+│  (5-pin breakout board) │
+│                         │
+│  AR   ●  ─────────────► (1) Attack/Release control
+│  OUT  ●  ─────────────► (2) Audio signal output
+│  GND  ●  ─────────────► (3) Ground  ← may read as "0V" or
+│  GAIN ●  ─────────────► (4) Gain select          a blank/unlabelled pin
+│  VCC  ●  ─────────────► (5) Power input
+│                         │
+└─────────────────────────┘
+```
+
+> **Note:** Some modules (especially from AliExpress) label the GND pin as **"0V"**, leave it **blank**, or use hard-to-read silkscreen — it may look like a second "OUT" pin. It is **GND** (ground). If your module shows: `AR · OUT · GAIN · VCC · [unlabelled]`, the unlabelled pin at the end is GND.
+
+#### Wiring Diagram
+
 ```
 ┌──────────────────┐
-│   MAX9814        │
-│   Microphone     │
+│  MAX9814         │
+│  Microphone      │
 │                  │
-│  VCC ────────────┼──── 3.3V (Teensy 3.3V output)
-│  GND ────────────┼──── GND (Common ground)
-│  OUT ────────────┼──── Teensy Pin A0 (Analog input)
-│  GAIN ───────────┼──── Leave floating or connect to GND/VCC
-│  AR (Attack/Rel) │      (see module datasheet for gain selection)
+│  VCC  ───────────┼──── Teensy 3.3V  (⚠️ Use 3.3V, NOT 5V!)
+│  GND  ───────────┼──── GND          (common ground with Teensy)
+│  OUT  ───────────┼──── Teensy Pin A0 (analog audio input)
+│  GAIN ───────────┼──── see gain table below
+│  AR   ───────────┼──── see AR table below
 └──────────────────┘
 ```
 
-**Pin Connections:**
+#### Pin-by-Pin Connection Table
 
-| MAX9814 Pin | Function | Connects To | Notes |
-|-------------|----------|-------------|-------|
-| VCC | Power | Teensy 3.3V pin | **Use 3.3V, NOT 5V** |
-| GND | Ground | Common Ground | Shared ground rail |
-| OUT | Audio Signal | Teensy Pin A0 | Analog audio output |
-| GAIN | Gain Select | Float/GND/VCC | Optional: Controls mic sensitivity |
-| AR | Attack/Release | Optional | Optional: Adjust AGC response |
+| Module Pin | Full Name | Connects To | Notes |
+|------------|-----------|-------------|-------|
+| **VCC** | Power Supply | Teensy **3.3V** pin | ⚠️ **3.3V only** — do NOT connect to 5V |
+| **GND** | Ground | Common Ground rail | Shared with Teensy GND. May be labelled **0V** or unlabelled on cheap modules |
+| **OUT** | Audio Output | Teensy **Pin A0** | Analog signal (0–3.3V). This is the one wire that carries the audio |
+| **GAIN** | Gain Select | See gain table ↓ | Sets microphone amplification level |
+| **AR** | Attack/Release | See AR table ↓ | Controls AGC response timing |
+
+#### GAIN Pin Options
+
+| GAIN connection | Resulting gain | When to use |
+|-----------------|---------------|-------------|
+| Leave **floating** (unconnected) | **60 dB** (default, highest) | Best for quiet environments |
+| Connect to **GND** | **50 dB** | Medium-noise environments |
+| Connect to **VCC** (3.3V) | **40 dB** | Loud environments (concerts, speakers nearby) |
+
+**Recommendation:** Start with GAIN floating (60 dB). If the audio patterns are too sensitive or always maxed out, connect GAIN to GND (50 dB).
+
+#### AR (Attack/Release) Pin Options
+
+The AR pin controls how fast the automatic gain control (AGC) responds to changes in volume.
+
+| AR connection | Effect | When to use |
+|---------------|--------|-------------|
+| Leave **floating** (unconnected) | Default AGC timing (~10 ms attack, ~500 ms release) | **Recommended for most uses** |
+| Capacitor (e.g. 1 µF) to **GND** | Slower AGC response | Smooth, gradual adjustments to volume changes |
+| Short to **GND** | Fastest AGC response | Very dynamic sounds, rapid beats |
+
+**Recommendation:** Leave AR **unconnected** (floating). This gives the default AGC timing which works well for music-reactive patterns.
+
+#### Recommended Wiring (Quick-Start)
+
+```
+MAX9814 VCC  ──► Teensy 3.3V
+MAX9814 GND  ──► Teensy GND
+MAX9814 OUT  ──► Teensy A0
+MAX9814 GAIN ──  (leave unconnected for 60 dB default)
+MAX9814 AR   ──  (leave unconnected for default AGC)
+```
+
+Only **3 wires are required**: VCC → 3.3V, GND → GND, OUT → A0.
+GAIN and AR can both be left unconnected for a working default configuration.
 
 **Alternative Microphone Options:**
 - **Electret Microphone with Amplifier** - Cheaper but requires manual gain tuning
@@ -292,9 +348,9 @@ The MAX9814 is an ideal choice because it:
 **Configuration Notes:**
 1. Position microphone to face sound source
 2. Avoid placing near spinning components (mechanical noise)
-3. Calibrate sensitivity by testing patterns at different volumes
-4. The analog input range is 0-3.3V (Teensy ADC reads 0-1023)
-5. Audio patterns sample at high frequency (~1kHz) for responsiveness
+3. Calibrate sensitivity using the GAIN pin if patterns are too sensitive or not sensitive enough
+4. The analog input range is 0–3.3V (Teensy ADC reads 0–1023)
+5. Audio patterns sample at high frequency (~1 kHz) for responsiveness
 
 **Purchasing:**
 - Adafruit: MAX9814 Microphone Amplifier Module
