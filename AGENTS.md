@@ -24,7 +24,7 @@ Wireless LED POV Poi System — the Teensy 4.1 (POV engine) and ESP32-S3 (WiFi/B
 - **Build (Web UI)**: `cd esp32_firmware/webui && npm run build`
 - **Dev server (Web UI)**: `cd esp32_firmware/webui && npm run dev` (port 3000, host 0.0.0.0)
 - **Python tests**: `cd examples && python3 -m pytest test_*.py -v` (28 tests, requires Pillow)
-- **Mock API**: `node esp32_firmware/test_webui_server.js` (port 8765, simulates ESP32 endpoints)
+- **Mock API**: `node esp32_firmware/test_webui_server.js` (port 8765, simulates ESP32-S3 endpoints)
 
 ### Non-obvious caveats
 
