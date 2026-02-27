@@ -75,6 +75,7 @@ Modify `teensy_firmware/teensy_firmware.ino`:
 ---
 
 ### [ ] Step: Enhance React Web UI Dashboard with full controls
+<!-- chat-id: ce8079f9-7bb7-4081-81e0-05669f1458c6 -->
 
 Modify `esp32_firmware/webui/components/Dashboard.tsx`:
 
