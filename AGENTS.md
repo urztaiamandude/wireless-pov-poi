@@ -6,7 +6,7 @@
 
 Wireless LED POV Poi System — the Teensy 4.1 (POV engine) and ESP32-S3 (WiFi/BLE co-processor) work together as one device. Both firmwares live in this repo and are buildable with PlatformIO.
 
-| Component | Path | Build command | Port |
+| Component | Path | Command | Port |
 |---|---|---|---|
 | **Teensy 4.1 firmware** | `teensy_firmware/` | `pio run -e teensy41` (from repo root) | N/A |
 | **ESP32-S3 firmware** | `esp32_firmware/` | `cd esp32_firmware && pio run -e esp32s3` | N/A |
