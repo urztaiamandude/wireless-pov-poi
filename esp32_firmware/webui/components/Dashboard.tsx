@@ -1,10 +1,10 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
-  Play, Square, Sun, Smartphone,
+  Square, Sun, Smartphone,
   Wifi, Upload, Terminal, Dices, Sparkles, Monitor, Activity,
-  Crown, Users, ChevronLeft, ChevronRight, Zap, Battery, BatteryLow,
-  Music, Layers, SkipBack, SkipForward, Gauge, Flame, Wind, Image
+  Crown, Users, Zap, Battery, BatteryLow,
+  Music, Layers, SkipBack, SkipForward, Gauge, Image
 } from 'lucide-react';
 import { Device, PowerMode } from '../types';
 import { useDebounce } from '../hooks';
@@ -58,7 +58,7 @@ const POWER_MODES: { id: PowerMode; label: string; sub: string; icon: React.Elem
   { id: 'performance', label: 'Performance', sub: '240 MHz', icon: Zap,       color: 'bg-yellow-600 hover:bg-yellow-500' },
   { id: 'balanced',    label: 'Balanced',    sub: '160 MHz', icon: Gauge,     color: 'bg-blue-600   hover:bg-blue-500'   },
   { id: 'powersave',   label: 'Power Save',  sub: '80 MHz',  icon: Battery,   color: 'bg-green-700  hover:bg-green-600'  },
-  { id: 'ultrasave',   label: 'Ultra Save',  sub: '40 MHz',  icon: BatteryLow,color: 'bg-slate-700  hover:bg-slate-600'  },
+  { id: 'ultrasave',   label: 'Ultra Save',  sub: '80 MHz*', icon: BatteryLow,color: 'bg-slate-700  hover:bg-slate-600'  },
 ];
 
 const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
@@ -77,10 +77,30 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
   const [currentPattern, setCurrentPattern] = useState<number>(0);
   const [localFrameRate, setLocalFrameRate] = useState<number>(60);
   const [powerMode, setPowerModeState] = useState<PowerMode>('balanced');
-  const [showPatterns, setShowPatterns] = useState(false);
+  const [maxContentIndex, setMaxContentIndex] = useState<number>(49);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const lastBrightnessInteraction = useRef<number>(0);
+  const lastFrameRateInteraction = useRef<number>(0);
+  const lastModeInteraction = useRef<number>(0);
+
   const activeDevice = devices.find(d => d.id === selectedDeviceId) || devices[0];
+
+  const isSyncModeRef = useRef(isSyncMode);
+  const devicesRef = useRef(devices);
+  const activeDeviceRef = useRef(activeDevice);
+
+  useEffect(() => {
+    isSyncModeRef.current = isSyncMode;
+  }, [isSyncMode]);
+
+  useEffect(() => {
+    devicesRef.current = devices;
+  }, [devices]);
+
+  useEffect(() => {
+    activeDeviceRef.current = activeDevice;
+  }, [activeDevice]);
 
   useEffect(() => {
     setLocalBrightness(activeDevice.brightness);
@@ -94,9 +114,11 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
         if (res.ok) {
           const data = await res.json();
           setIsOnline(true);
-          if (typeof data.mode === 'number') setCurrentMode(data.mode);
-          if (typeof data.brightness === 'number') setLocalBrightness(data.brightness);
-          if (typeof data.framerate === 'number') setLocalFrameRate(data.framerate);
+          const now = Date.now();
+          if (typeof data.mode === 'number' && now - lastModeInteraction.current > 1000) setCurrentMode(data.mode);
+          if (typeof data.brightness === 'number' && now - lastBrightnessInteraction.current > 1000) setLocalBrightness(data.brightness);
+          if (typeof data.framerate === 'number' && now - lastFrameRateInteraction.current > 1000) setLocalFrameRate(data.framerate);
+          if (typeof data.count === 'number' && data.count > 0) setMaxContentIndex(data.count - 1);
         } else {
           setIsOnline(false);
         }
@@ -128,7 +150,7 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
 
   const debouncedFrameRateUpdate = useDebounce(
     useCallback(async (fps: number) => {
-      const targets = isSyncMode ? [devices[0]] : [activeDevice];
+      const targets = isSyncModeRef.current ? [devicesRef.current[0]] : [activeDeviceRef.current];
       for (const dev of targets) {
         try {
           const base = getDeviceBase(dev.ip);
@@ -142,22 +164,25 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
           addLog(`[Error] Failed to set frame rate on ${dev.name}`, 'text-red-400');
         }
       }
-    }, [isSyncMode, devices, activeDevice]),
+    }, []),
     300
   );
 
   const handleBrightnessChange = (value: number) => {
+    lastBrightnessInteraction.current = Date.now();
     setLocalBrightness(value);
     updateDevice(activeDevice.id, { brightness: value });
     debouncedBrightnessUpdate(value);
   };
 
   const handleFrameRateChange = (value: number) => {
+    lastFrameRateInteraction.current = Date.now();
     setLocalFrameRate(value);
     debouncedFrameRateUpdate(value);
   };
 
   const handleModeSelect = async (mode: number) => {
+    lastModeInteraction.current = Date.now();
     setCurrentMode(mode);
     const targets = isSyncMode ? [devices[0]] : [activeDevice];
     for (const dev of targets) {
@@ -200,7 +225,7 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
   };
 
   const handleContentNav = async (delta: number) => {
-    const next = Math.max(0, contentIndex + delta);
+    const next = Math.max(0, Math.min(maxContentIndex, contentIndex + delta));
     setContentIndex(next);
     const targets = isSyncMode ? [devices[0]] : [activeDevice];
     for (const dev of targets) {
@@ -478,7 +503,8 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
                 </div>
                 <button
                   onClick={() => handleContentNav(1)}
-                  className="p-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl transition-all active:scale-95 border border-slate-700"
+                  disabled={contentIndex >= maxContentIndex}
+                  className="p-3 bg-slate-800 hover:bg-slate-700 disabled:opacity-30 text-white rounded-xl transition-all active:scale-95 border border-slate-700"
                 >
                   <SkipForward size={18} />
                 </button>

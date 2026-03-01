@@ -258,7 +258,9 @@ const ImageLab: React.FC<ImageLabProps> = ({ onPreviewUpdate, initialPreview, le
         const filename = `seq_${idx}.bmp`;
         formData.append('file', item.blob, filename);
 
-        // Push to device via POST /api/image
+        // Push to the connected device via POST /api/image.
+        // Multi-device fleet broadcast is handled at the firmware level via ESP-NOW
+        // (see esp32_firmware.ino /api/sync/execute). The UI targets one device only.
         const base = getDeviceBase();
         const syncPromises = [async () => {
           try {
