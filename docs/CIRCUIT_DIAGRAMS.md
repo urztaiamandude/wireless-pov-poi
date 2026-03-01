@@ -300,6 +300,28 @@ ESP32
 - **Control**: DI ← Teensy Pin 11, CI ← Teensy Pin 13
 - **Total wires**: 4 (2 power + 2 control)
 
+#### MAX9814 Microphone (Optional)
+
+The MAX9814 module has **5 pins**. Only 3 wires are needed for basic use; GAIN and AR can be left unconnected.
+With the microphone capsule facing **up**, pins run **left to right**: AR → OUT → GAIN → VCC → GND.
+
+```
+MAX9814 pin layout (mic capsule facing up, left → right):
+  AR   ─── leave floating (default AGC timing)
+  OUT  ─── Teensy Pin A0 / pin 14  (WHITE wire)
+  GAIN ─── leave floating (60 dB default gain)
+  VCC  ─── Teensy 3.3V    (RED wire)   ← ⚠️ 3.3V only, never 5V
+  GND  ─── Common Ground  (BLACK wire)
+```
+
+| Pin # | MAX9814 Pin | Connects To | Wire Color | Notes |
+|-------|-------------|-------------|------------|-------|
+| 1 | AR | (unconnected) | — | Float = default AGC timing |
+| 2 | OUT | Teensy A0 (pin 14) | White | Audio signal |
+| 3 | GAIN | (unconnected) | — | Float = 60 dB default |
+| 4 | VCC | Teensy 3.3V | Red | ⚠️ 3.3V only |
+| 5 | GND | Common Ground | Black | Shared ground |
+
 ---
 
 ## Step-by-Step Wiring Guide
