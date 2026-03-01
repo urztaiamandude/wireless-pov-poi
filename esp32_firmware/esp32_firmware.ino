@@ -40,6 +40,7 @@ void handleStatus();
 void handleSetMode();
 void handleSetBrightness();
 void handleSetFrameRate();
+void handlePowerMode();
 void handleUploadPattern();
 void handleUploadImage();
 void handleLiveFrame();
@@ -164,6 +165,7 @@ struct SystemState {
   unsigned long lastSync;
   unsigned long lastDiscovery;
   bool sdCardPresent;
+  uint8_t powerMode;  // 0=performance, 1=balanced, 2=powersave, 3=ultrasave
 } state;
 
 void setup() {
@@ -227,6 +229,7 @@ void setup() {
   state.lastSync = 0;
   state.lastDiscovery = 0;
   state.sdCardPresent = false;
+  state.powerMode = 1;  // Start in balanced mode (matches JS default)
   
   Serial.println("ESP32 Nebula Poi Controller Ready!");
   Serial.print("IP Address: ");
@@ -329,6 +332,7 @@ void setupWebServer() {
   server.on("/api/mode", HTTP_POST, handleSetMode);
   server.on("/api/brightness", HTTP_POST, handleSetBrightness);
   server.on("/api/framerate", HTTP_POST, handleSetFrameRate);
+  server.on("/api/power/mode", HTTP_POST, handlePowerMode);
   server.on("/api/pattern", HTTP_POST, handleUploadPattern);
   server.on("/api/image", HTTP_POST, 
     []() { 
@@ -612,7 +616,11 @@ static const char rootPage[] PROGMEM = R"rawliteral(
                 </div>
                 <div class="ctrl">
                     <label>Content Index <span id="idx-display">0</span></label>
-                    <input type="number" id="content-index" min="0" max="17" value="0" onchange="changeContentIndex()">
+                    <div style="display:flex;gap:6px;align-items:center">
+                        <button class="btn btn-slate" style="padding:6px 12px;flex-shrink:0" onclick="prevImage()">&#9664;</button>
+                        <input type="number" id="content-index" min="0" max="17" value="0" onchange="changeContentIndex()" style="flex:1">
+                        <button class="btn btn-slate" style="padding:6px 12px;flex-shrink:0" onclick="nextImage()">&#9654;</button>
+                    </div>
                 </div>
                 <div style="padding:10px;background:#1e293b;border-radius:8px;font-size:12px;color:#64748b;margin-top:4px">
                     Images: 0=Smiley, 1=Rainbow, 2=Heart | Patterns: 0-17 | Sequences: 0=Demo Mix
@@ -630,6 +638,19 @@ static const char rootPage[] PROGMEM = R"rawliteral(
                     <label>Frame Rate <span id="framerate-value">50</span> FPS</label>
                     <input type="range" id="framerate" min="10" max="120" value="50" oninput="updateFrameRate(this.value)">
                 </div>
+            </div>
+
+            <!-- Power Mode -->
+            <div class="card">
+                <div class="card-title"><span class="dot" style="background:#22c55e"></span> Power Mode</div>
+                <div style="font-size:11px;color:#64748b;margin-bottom:10px">Balance performance vs. battery life</div>
+                <div class="grid2">
+                    <button id="pm-performance" class="btn btn-slate" onclick="setPowerMode('performance')">&#9889; Performance</button>
+                    <button id="pm-balanced" class="btn btn-slate" onclick="setPowerMode('balanced')">&#9876; Balanced</button>
+                    <button id="pm-powersave" class="btn btn-slate" onclick="setPowerMode('powersave')">&#127807; Power Save</button>
+                    <button id="pm-ultrasave" class="btn btn-slate" onclick="setPowerMode('ultrasave')">&#128337; Ultra Save</button>
+                </div>
+                <div id="pm-desc" style="padding:8px 10px;background:#1e293b;border-radius:8px;font-size:11px;color:#64748b;margin-top:8px">Select a power mode above</div>
             </div>
         </div>
 
@@ -925,6 +946,7 @@ static const char rootPage[] PROGMEM = R"rawliteral(
     <script>
     const NUM_LEDS=32;
     const DISPLAY_LEDS=32;
+    const DISPLAY_LED_START=0;
     let currentMode=2,currentPattern=0,brightness=128,originalImageAspectRatio=1.0;
     let currentSyncMode='mirror',syncPeers=[];
     let genType='organic',colorSeed=Math.random();
@@ -994,6 +1016,19 @@ static const char rootPage[] PROGMEM = R"rawliteral(
             document.getElementById('framerate-value').textContent=d.framerate;
             if(d.mode===2){currentPattern=d.index;updatePatternActiveState()}
             updateLEDPreviewFromStatus(d.mode,d.index);
+            if(d.powerMode!==undefined){
+                const pmNames=['performance','balanced','powersave','ultrasave'];
+                const pmName=pmNames[d.powerMode]||'balanced';
+                if(pmName!==currentPowerMode){
+                    currentPowerMode=pmName;
+                    ['performance','balanced','powersave','ultrasave'].forEach(m=>{
+                        const btn=document.getElementById('pm-'+m);
+                        if(btn)btn.style.border=m===pmName?'2px solid #22c55e':'';
+                    });
+                    const desc=document.getElementById('pm-desc');
+                    if(desc)desc.textContent=PM_LABELS[pmName]||pmName;
+                }
+            }
             if(d.sdCardPresent!==undefined){
                 const st=document.getElementById('sd-status-text');
                 st.textContent=d.sdCardPresent?'Present':'Not Present';
@@ -1046,6 +1081,42 @@ static const char rootPage[] PROGMEM = R"rawliteral(
         fetch('/api/framerate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({framerate:parseInt(value)})});
     }
 
+    // ===== Image Navigation =====
+    async function prevImage(){
+        const el=document.getElementById('content-index');
+        el.value=Math.max(0,parseInt(el.value||'0')-1);
+        await changeContentIndex();
+    }
+    async function nextImage(){
+        const el=document.getElementById('content-index');
+        const maxVal=parseInt(el.max)||17;
+        el.value=Math.min(maxVal,parseInt(el.value||'0')+1);
+        await changeContentIndex();
+    }
+
+    // ===== Power Mode =====
+    const PM_LABELS={performance:'240 MHz — max brightness & FPS',balanced:'160 MHz — default settings',powersave:'80 MHz — reduced FPS & brightness cap',ultrasave:'80 MHz — minimum FPS & dim output (WiFi minimum)'};
+    const PM_FPS={performance:120,balanced:60,powersave:30,ultrasave:15};
+    const PM_BRIGHT={performance:255,balanced:255,powersave:150,ultrasave:80};
+    let currentPowerMode='balanced';
+    async function setPowerMode(mode){
+        currentPowerMode=mode;
+        ['performance','balanced','powersave','ultrasave'].forEach(m=>{
+            const btn=document.getElementById('pm-'+m);
+            if(btn)btn.style.border=m===mode?'2px solid #22c55e':'';
+        });
+        const desc=document.getElementById('pm-desc');
+        if(desc)desc.textContent=PM_LABELS[mode]||mode;
+        try{
+            await fetch('/api/power/mode',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode})});
+            showToast('Power mode: '+mode);
+            const frEl=document.getElementById('framerate');
+            if(frEl){frEl.value=PM_FPS[mode];updateFrameRate(PM_FPS[mode]);}
+            const bEl=document.getElementById('brightness');
+            if(bEl&&parseInt(bEl.value)>PM_BRIGHT[mode]){bEl.value=PM_BRIGHT[mode];updateBrightness(PM_BRIGHT[mode]);}
+        }catch(e){showToast('Power mode failed')}
+    }
+
     // ===== Patterns =====
     async function setPattern(type){
         currentPattern=type;updatePatternActiveState();
@@ -1080,7 +1151,7 @@ static const char rootPage[] PROGMEM = R"rawliteral(
                     const tH=DISPLAY_LEDS;
                     hI.value=tH;
                     if(document.getElementById('aspect-ratio-lock').checked){
-                        wI.value=Math.min(100,Math.max(1,Math.round(tH/originalImageAspectRatio)));
+                        wI.value=Math.min(400,Math.max(1,Math.round(tH/originalImageAspectRatio)));
                     }
                     // Show preview
                     const box=document.getElementById('img-preview-box');
@@ -1099,7 +1170,7 @@ static const char rootPage[] PROGMEM = R"rawliteral(
         const hI=document.getElementById('image-height');
         if(lock){
             const h=DISPLAY_LEDS;hI.value=h;
-            wI.value=Math.min(100,Math.max(1,Math.round(h/originalImageAspectRatio)));
+            wI.value=Math.min(400,Math.max(1,Math.round(h/originalImageAspectRatio)));
         }
     }
 
@@ -1134,10 +1205,10 @@ static const char rootPage[] PROGMEM = R"rawliteral(
                             const ar = (typeof originalImageAspectRatio === 'number' && originalImageAspectRatio > 0) ? originalImageAspectRatio : 1.0; // width/height
                             tW = Math.round(tH * ar);
                         }
-                        tW=Math.min(100,Math.max(1,tW));
+                        tW=Math.min(400,Math.max(1,tW));
                         const fV=document.getElementById('flip-vertical').checked;
                         const fH=document.getElementById('flip-horizontal').checked;
-                        if(tW<1||tW>100){reject(new Error('Invalid dimensions'));return}
+                        if(tW<1||tW>400){reject(new Error('Invalid dimensions'));return}
                         cv.width=tW;cv.height=tH;cx.save();
                         if(fH){cx.translate(tW,0);cx.scale(-1,1)}
                         cx.imageSmoothingEnabled=false;cx.drawImage(img,0,0,tW,tH);cx.restore();
@@ -1610,6 +1681,7 @@ void handleStatus() {
   doc["brightness"] = state.brightness;
   doc["framerate"] = state.frameRate;
   doc["sdCardPresent"] = state.sdCardPresent;
+  doc["powerMode"] = state.powerMode;
   
   String response;
   serializeJson(doc, response);
@@ -1697,6 +1769,65 @@ void handleSetFrameRate() {
     }
   }
   server.send(400, "application/json", "{\"error\":\"Invalid data\"}");
+}
+
+void handlePowerMode() {
+  if (server.hasArg("plain")) {
+    String body = server.arg("plain");
+    int idx = body.indexOf("\"mode\":");
+    if (idx != -1) {
+      int start = idx + 7;
+      while (start < (int)body.length() && (body[start] == ' ' || body[start] == '"')) start++;
+      String modeStr = body.substring(start);
+      modeStr = modeStr.substring(0, modeStr.indexOf('"'));
+
+      uint8_t cpuMhz = 160;
+      uint8_t fpsLimit = 60;
+      uint8_t brightnessLimit = 255;
+
+      if (modeStr == "performance") {
+        state.powerMode = 0;
+        cpuMhz = 240; fpsLimit = 120; brightnessLimit = 255;
+      } else if (modeStr == "balanced") {
+        state.powerMode = 1;
+        cpuMhz = 160; fpsLimit = 60; brightnessLimit = 255;
+      } else if (modeStr == "powersave") {
+        state.powerMode = 2;
+        cpuMhz = 80; fpsLimit = 30; brightnessLimit = 150;
+      } else if (modeStr == "ultrasave") {
+        state.powerMode = 3;
+        cpuMhz = 80; fpsLimit = 15; brightnessLimit = 80;  // 80 MHz is minimum with WiFi active
+      } else {
+        server.send(400, "application/json", "{\"error\":\"Unknown mode\"}");
+        return;
+      }
+
+      setCpuFrequencyMhz(cpuMhz);
+
+      state.frameRate = fpsLimit;
+      state.cachedFrameDelay = 1000 / max((uint8_t)1, state.frameRate);
+      sendTeensyCommand(0x07, 1);
+      TEENSY_SERIAL.write(state.cachedFrameDelay);
+      TEENSY_SERIAL.write(0xFE);
+      if (!_syncCommandInProgress) {
+        espNowSync.broadcastFrameRate(state.cachedFrameDelay);
+      }
+
+      if (brightnessLimit < state.brightness) {
+        state.brightness = brightnessLimit;
+        sendTeensyCommand(0x06, 1);
+        TEENSY_SERIAL.write(state.brightness);
+        TEENSY_SERIAL.write(0xFE);
+        if (!_syncCommandInProgress) {
+          espNowSync.broadcastBrightness(state.brightness);
+        }
+      }
+
+      server.send(200, "application/json", "{\"status\":\"ok\",\"cpuMhz\":" + String(cpuMhz) + ",\"fpsLimit\":" + String(fpsLimit) + "}");
+      return;
+    }
+  }
+  server.send(400, "application/json", "{\"error\":\"No data\"}");
 }
 
 void handleUploadPattern() {

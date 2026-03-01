@@ -7,8 +7,6 @@ interface AdvancedSettingsProps {
   setLedCount: (count: number) => void;
 }
 
-const DEVICE_IP = '10.100.9.230';
-
 interface WifiStatus {
   apIp: string;
   apSsid: string;
@@ -34,7 +32,7 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCou
   const [wifiSsid, setWifiSsid] = useState('');
   const [wifiPassword, setWifiPassword] = useState('');
 
-  const baseUrl = (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') ? '' : `http://${DEVICE_IP}`;
+  const baseUrl = '';
 
   const fetchWifiStatus = useCallback(async () => {
     try {
@@ -147,7 +145,7 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCou
           <h2 className="text-3xl font-bold text-white mb-2 flex items-center gap-3">
             <Settings2 className="text-cyan-400" /> Display Configuration
           </h2>
-          <p className="text-slate-400">Fine-tune hardware pins and display performance. Deploys to <span className="font-mono text-cyan-400">{DEVICE_IP}/api/device/config</span>.</p>
+          <p className="text-slate-400">Fine-tune hardware pins and display performance. Deploys to <span className="font-mono text-cyan-400">/api/device/config</span>.</p>
         </div>
         <div className="flex flex-col items-end gap-2">
           <button
