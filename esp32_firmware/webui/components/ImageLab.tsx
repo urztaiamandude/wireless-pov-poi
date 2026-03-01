@@ -16,8 +16,12 @@ interface ImageLabProps {
   setLedCount: (count: number) => void;
 }
 
-// Nebula POI fleet IPs
-const FLEET_IPS = ['10.100.9.230'];
+function getDeviceBase(): string {
+  if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+    return '';
+  }
+  return window.location.origin;
+}
 
 const ImageLab: React.FC<ImageLabProps> = ({ onPreviewUpdate, initialPreview, ledCount, setLedCount }) => {
   const [labMode, setLabMode] = useState<'upload' | 'procedural'>('upload');
@@ -254,38 +258,40 @@ const ImageLab: React.FC<ImageLabProps> = ({ onPreviewUpdate, initialPreview, le
         const filename = `seq_${idx}.bmp`;
         formData.append('file', item.blob, filename);
 
-        // Push to all fleet IPs via POST /api/image and track per-device status
-        const syncPromises = FLEET_IPS.map(async (ip) => {
+        // Push to device via POST /api/image
+        const base = getDeviceBase();
+        const syncPromises = [async () => {
           try {
-            const response = await fetch(`http://${ip}/api/image`, { method: 'POST', body: formData });
+            const response = await fetch(`${base}/api/image`, { method: 'POST', body: formData });
             if (!response.ok) {
-              failedUploadIps.add(ip);
+              failedUploadIps.add(base || 'device');
             }
           } catch {
-            failedUploadIps.add(ip);
+            failedUploadIps.add(base || 'device');
           }
-        });
+        }].map(fn => fn());
         await Promise.all(syncPromises);
       }
 
       // Auto-load the first frame after upload
       const failedLoadIps = new Set<string>();
       if (targets.length > 0) {
-        const loadPromises = FLEET_IPS.map(async (ip) => {
+        const loadBase = getDeviceBase();
+        const loadPromises = [async () => {
           const form = new FormData();
           form.append('file', 'seq_0.bmp');
           try {
-            const response = await fetch(`http://${ip}/api/sd/load`, {
+            const response = await fetch(`${loadBase}/api/sd/load`, {
               method: 'POST',
               body: form
             });
             if (!response.ok) {
-              failedLoadIps.add(ip);
+              failedLoadIps.add(loadBase || 'device');
             }
           } catch {
-            failedLoadIps.add(ip);
+            failedLoadIps.add(loadBase || 'device');
           }
-        });
+        }].map(fn => fn());
         await Promise.all(loadPromises);
       }
 

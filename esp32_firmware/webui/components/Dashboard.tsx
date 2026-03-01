@@ -3,9 +3,10 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Play, Square, Sun, Smartphone,
   Wifi, Upload, Terminal, Dices, Sparkles, Monitor, Activity,
-  Crown, Users
+  Crown, Users, ChevronLeft, ChevronRight, Zap, Battery, BatteryLow,
+  Music, Layers, SkipBack, SkipForward, Gauge, Flame, Wind, Image
 } from 'lucide-react';
-import { Device } from '../types';
+import { Device, PowerMode } from '../types';
 import { useDebounce } from '../hooks';
 
 interface DashboardProps {
@@ -24,6 +25,42 @@ const DEFAULT_DEVICES: Device[] = [
   { id: 'D4E5F6', name: 'POV_FOLLOWER', ip: '192.168.4.2', status: 'Awaiting Sync', type: 'info', isPlaying: false, brightness: 128 }
 ];
 
+const DISPLAY_MODES = [
+  { id: 0, label: 'Idle', icon: Square },
+  { id: 1, label: 'Image', icon: Image },
+  { id: 2, label: 'Pattern', icon: Sparkles },
+  { id: 3, label: 'Sequence', icon: Layers },
+  { id: 4, label: 'Live', icon: Activity },
+];
+
+const PATTERNS = [
+  { id: 0,  label: 'Rainbow',       group: 'basic' },
+  { id: 1,  label: 'Wave',          group: 'basic' },
+  { id: 2,  label: 'Gradient',      group: 'basic' },
+  { id: 3,  label: 'Sparkle',       group: 'basic' },
+  { id: 4,  label: 'Fire',          group: 'basic' },
+  { id: 5,  label: 'Comet',         group: 'basic' },
+  { id: 6,  label: 'Breathing',     group: 'basic' },
+  { id: 7,  label: 'Strobe',        group: 'basic' },
+  { id: 8,  label: 'Meteor',        group: 'basic' },
+  { id: 9,  label: 'Wipe',          group: 'basic' },
+  { id: 10, label: 'Plasma',        group: 'basic' },
+  { id: 11, label: 'VU Meter',      group: 'audio' },
+  { id: 12, label: 'Pulse',         group: 'audio' },
+  { id: 13, label: 'Audio Rainbow', group: 'audio' },
+  { id: 14, label: 'Center Burst',  group: 'audio' },
+  { id: 15, label: 'Audio Sparkle', group: 'audio' },
+  { id: 16, label: 'Split Spin',    group: 'advanced' },
+  { id: 17, label: 'Theater Chase', group: 'advanced' },
+];
+
+const POWER_MODES: { id: PowerMode; label: string; sub: string; icon: React.ElementType; color: string }[] = [
+  { id: 'performance', label: 'Performance', sub: '240 MHz', icon: Zap,       color: 'bg-yellow-600 hover:bg-yellow-500' },
+  { id: 'balanced',    label: 'Balanced',    sub: '160 MHz', icon: Gauge,     color: 'bg-blue-600   hover:bg-blue-500'   },
+  { id: 'powersave',   label: 'Power Save',  sub: '80 MHz',  icon: Battery,   color: 'bg-green-700  hover:bg-green-600'  },
+  { id: 'ultrasave',   label: 'Ultra Save',  sub: '40 MHz',  icon: BatteryLow,color: 'bg-slate-700  hover:bg-slate-600'  },
+];
+
 const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
   const [devices, setDevices] = useState<Device[]>(DEFAULT_DEVICES);
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(devices[0].id);
@@ -34,21 +71,35 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
   const [logs, setLogs] = useState<{time: string, msg: string, color: string}[]>([]);
   const [localBrightness, setLocalBrightness] = useState<number>(128);
 
+  // New control state
+  const [currentMode, setCurrentMode] = useState<number>(0);
+  const [contentIndex, setContentIndex] = useState<number>(0);
+  const [currentPattern, setCurrentPattern] = useState<number>(0);
+  const [localFrameRate, setLocalFrameRate] = useState<number>(60);
+  const [powerMode, setPowerModeState] = useState<PowerMode>('balanced');
+  const [showPatterns, setShowPatterns] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const activeDevice = devices.find(d => d.id === selectedDeviceId) || devices[0];
 
-  // Sync local brightness with active device
   useEffect(() => {
     setLocalBrightness(activeDevice.brightness);
   }, [activeDevice.brightness]);
 
-  // Poll connection status using the firmware's /api/status endpoint
   useEffect(() => {
     const checkConnection = async () => {
       try {
         const base = getDeviceBase(activeDevice.ip);
         const res = await fetch(`${base}/api/status`, { signal: AbortSignal.timeout(1500) });
-        setIsOnline(res.ok);
+        if (res.ok) {
+          const data = await res.json();
+          setIsOnline(true);
+          if (typeof data.mode === 'number') setCurrentMode(data.mode);
+          if (typeof data.brightness === 'number') setLocalBrightness(data.brightness);
+          if (typeof data.framerate === 'number') setLocalFrameRate(data.framerate);
+        } else {
+          setIsOnline(false);
+        }
       } catch {
         setIsOnline(false);
       }
@@ -59,7 +110,6 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
   }, [activeDevice.ip]);
 
   const addLog = (msg: string, color: string = 'text-slate-400') => {
-    // Simplified time formatting (faster than toLocaleTimeString)
     const now = new Date();
     const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
     setLogs(prev => [{ time, msg, color }, ...prev].slice(0, 50));
@@ -69,22 +119,123 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
     setDevices(prev => prev.map(d => d.id === id ? { ...d, ...updates } : d));
   };
 
-  // Debounced brightness update - delays API call until user stops moving slider
   const debouncedBrightnessUpdate = useDebounce(
     useCallback((brightness: number) => {
       handleGlobalAction('brightness', brightness);
-    }, []), // handleGlobalAction is defined below
-    200 // 200ms debounce delay
+    }, []),
+    200
+  );
+
+  const debouncedFrameRateUpdate = useDebounce(
+    useCallback(async (fps: number) => {
+      const targets = isSyncMode ? [devices[0]] : [activeDevice];
+      for (const dev of targets) {
+        try {
+          const base = getDeviceBase(dev.ip);
+          await fetch(`${base}/api/framerate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ framerate: fps }),
+          });
+          addLog(`[OK] Frame rate set to ${fps} FPS on ${dev.name}`, 'text-green-400');
+        } catch {
+          addLog(`[Error] Failed to set frame rate on ${dev.name}`, 'text-red-400');
+        }
+      }
+    }, [isSyncMode, devices, activeDevice]),
+    300
   );
 
   const handleBrightnessChange = (value: number) => {
     setLocalBrightness(value);
-    // Update UI immediately but debounce the API call
     updateDevice(activeDevice.id, { brightness: value });
     debouncedBrightnessUpdate(value);
   };
 
-  // Upload BMP image via POST /api/image (matches existing firmware)
+  const handleFrameRateChange = (value: number) => {
+    setLocalFrameRate(value);
+    debouncedFrameRateUpdate(value);
+  };
+
+  const handleModeSelect = async (mode: number) => {
+    setCurrentMode(mode);
+    const targets = isSyncMode ? [devices[0]] : [activeDevice];
+    for (const dev of targets) {
+      try {
+        const base = getDeviceBase(dev.ip);
+        await fetch(`${base}/api/mode`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mode, index: mode === 2 ? currentPattern : contentIndex }),
+        });
+        addLog(`[OK] Mode → ${DISPLAY_MODES[mode]?.label} on ${dev.name}`, 'text-cyan-400');
+      } catch {
+        addLog(`[Error] Mode change failed on ${dev.name}`, 'text-red-400');
+      }
+    }
+  };
+
+  const handlePatternSelect = async (patternId: number) => {
+    setCurrentPattern(patternId);
+    setCurrentMode(2);
+    const targets = isSyncMode ? [devices[0]] : [activeDevice];
+    for (const dev of targets) {
+      try {
+        const base = getDeviceBase(dev.ip);
+        await fetch(`${base}/api/pattern`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: patternId, speed: 50 }),
+        });
+        await fetch(`${base}/api/mode`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mode: 2, index: patternId }),
+        });
+        addLog(`[OK] Pattern → ${PATTERNS[patternId]?.label} on ${dev.name}`, 'text-purple-400');
+      } catch {
+        addLog(`[Error] Pattern change failed on ${dev.name}`, 'text-red-400');
+      }
+    }
+  };
+
+  const handleContentNav = async (delta: number) => {
+    const next = Math.max(0, contentIndex + delta);
+    setContentIndex(next);
+    const targets = isSyncMode ? [devices[0]] : [activeDevice];
+    for (const dev of targets) {
+      try {
+        const base = getDeviceBase(dev.ip);
+        await fetch(`${base}/api/mode`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mode: currentMode, index: next }),
+        });
+        addLog(`[OK] Content index → ${next} on ${dev.name}`, 'text-cyan-400');
+      } catch {
+        addLog(`[Error] Content nav failed on ${dev.name}`, 'text-red-400');
+      }
+    }
+  };
+
+  const handlePowerMode = async (mode: PowerMode) => {
+    setPowerModeState(mode);
+    const targets = isSyncMode ? [devices[0]] : [activeDevice];
+    for (const dev of targets) {
+      try {
+        const base = getDeviceBase(dev.ip);
+        await fetch(`${base}/api/power/mode`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mode }),
+        });
+        addLog(`[OK] Power → ${mode} on ${dev.name}`, 'text-yellow-400');
+      } catch {
+        addLog(`[Error] Power mode failed on ${dev.name}`, 'text-red-400');
+      }
+    }
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -117,57 +268,50 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
     addLog(`[Fleet] Upload sequence complete.`, 'text-green-400');
   };
 
-  // Send control commands to the firmware's REST API endpoints
   const handleGlobalAction = async (action: 'play' | 'stop' | 'brightness' | 'load' | 'random', value?: string | number) => {
     const targets = isSyncMode ? [devices[0]] : [activeDevice];
 
     for (const dev of targets) {
       addLog(`[CMD] ${action.toUpperCase()} -> ${dev.name}`, 'text-cyan-400');
       try {
-        let url = '';
         let method = 'POST';
 
         if (action === 'play' || action === 'stop' || action === 'random') {
-          // Map to /api/mode endpoint with numeric mode/index per firmware:
-          // 0=Idle, 1=Image, 2=Pattern, 3=Sequence, 4=Live
           let mode = 0;
           let index = 0;
 
           if (action === 'stop') {
-            mode = 0; // Idle
+            mode = 0;
             index = 0;
           } else if (action === 'play') {
-            mode = 3; // Sequence playback
+            mode = 3;
             index = 0;
           } else if (action === 'random') {
-            mode = 2; // Pattern mode (firmware can choose/randomize pattern)
+            mode = 2;
             index = 0;
           }
 
+          setCurrentMode(mode);
           const base = getDeviceBase(dev.ip);
-          url = `${base}/api/mode`;
-          await fetch(url, {
+          await fetch(`${base}/api/mode`, {
             method,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ mode, index }),
           });
         } else if (action === 'brightness') {
           const base = getDeviceBase(dev.ip);
-          url = `${base}/api/brightness`;
-          await fetch(url, {
+          await fetch(`${base}/api/brightness`, {
             method,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ brightness: Number(value) })
           });
         } else if (action === 'load') {
           const base = getDeviceBase(dev.ip);
-          url = `${base}/api/sd/load`;
           const body = new FormData();
           body.append('file', String(value));
-          await fetch(url, { method, body });
+          await fetch(`${base}/api/sd/load`, { method, body });
         }
 
-        // In sync mode, also trigger the UDP broadcast endpoint
         if (isSyncMode && action !== 'brightness') {
           try {
             await fetch(`${getDeviceBase(dev.ip)}/api/sync/execute`, {
@@ -175,10 +319,9 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ action, val: value ?? '' })
             });
-          } catch { /* best-effort sync broadcast */ }
+          } catch { /* best-effort */ }
         }
 
-        // Update local UI state
         if (isSyncMode) {
           devices.forEach(d => {
             if (action === 'play') updateDevice(d.id, { isPlaying: true, status: 'Synced Play' });
@@ -197,6 +340,8 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
       }
     }
   };
+
+  const activePowerMode = POWER_MODES.find(p => p.id === powerMode);
 
   return (
     <div className="space-y-6 pb-20 lg:pb-0">
@@ -264,9 +409,154 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
               <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-60" />
             </div>
           </div>
+
+          {/* Power Mode Card */}
+          <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 space-y-3">
+            <div className="text-[9px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+              {activePowerMode && <activePowerMode.icon size={12} className="text-yellow-400" />}
+              Power Mode
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {POWER_MODES.map(pm => (
+                <button
+                  key={pm.id}
+                  onClick={() => handlePowerMode(pm.id)}
+                  className={`p-2.5 rounded-xl text-white text-[10px] font-bold flex flex-col items-center gap-1 transition-all active:scale-95 border ${
+                    powerMode === pm.id
+                      ? `${pm.color} border-white/20 shadow-lg`
+                      : 'bg-slate-800 border-slate-700 opacity-60'
+                  }`}
+                >
+                  <pm.icon size={14} />
+                  <span>{pm.label}</span>
+                  <span className="text-[8px] opacity-70 font-mono">{pm.sub}</span>
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
-        <div className="lg:col-span-8 space-y-6">
+        <div className="lg:col-span-8 space-y-4">
+          {/* Mode Selector */}
+          <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4">
+            <div className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-3">Display Mode</div>
+            <div className="flex gap-2 flex-wrap">
+              {DISPLAY_MODES.map(m => (
+                <button
+                  key={m.id}
+                  onClick={() => handleModeSelect(m.id)}
+                  className={`flex-1 min-w-[80px] py-3 px-2 rounded-xl text-[11px] font-bold flex flex-col items-center gap-1.5 transition-all active:scale-95 border ${
+                    currentMode === m.id
+                      ? 'bg-cyan-600 border-cyan-400/30 text-white shadow-lg shadow-cyan-900/20'
+                      : 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700'
+                  }`}
+                >
+                  <m.icon size={16} />
+                  {m.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Content Navigation (Image / Sequence mode) */}
+          {(currentMode === 1 || currentMode === 3) && (
+            <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4">
+              <div className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-3">
+                {currentMode === 1 ? 'Image' : 'Sequence'} Navigation
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => handleContentNav(-1)}
+                  disabled={contentIndex === 0}
+                  className="p-3 bg-slate-800 hover:bg-slate-700 disabled:opacity-30 text-white rounded-xl transition-all active:scale-95 border border-slate-700"
+                >
+                  <SkipBack size={18} />
+                </button>
+                <div className="flex-1 text-center">
+                  <span className="text-slate-500 text-[9px] uppercase tracking-widest block">Index</span>
+                  <span className="text-white font-mono text-xl font-bold">{contentIndex}</span>
+                </div>
+                <button
+                  onClick={() => handleContentNav(1)}
+                  className="p-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl transition-all active:scale-95 border border-slate-700"
+                >
+                  <SkipForward size={18} />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Pattern Panel (Pattern mode) */}
+          {currentMode === 2 && (
+            <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Patterns</div>
+                <div className="text-[9px] text-cyan-400 font-mono">{PATTERNS.find(p => p.id === currentPattern)?.label ?? '—'}</div>
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <div className="text-[8px] text-slate-600 uppercase tracking-widest mb-1.5">Basic</div>
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {PATTERNS.filter(p => p.group === 'basic').map(p => (
+                      <button
+                        key={p.id}
+                        onClick={() => handlePatternSelect(p.id)}
+                        className={`py-2 px-1 rounded-lg text-[9px] font-bold transition-all active:scale-95 border ${
+                          currentPattern === p.id
+                            ? 'bg-indigo-600 border-indigo-400/30 text-white'
+                            : 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700'
+                        }`}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="text-[8px] text-slate-600 uppercase tracking-widest mb-1.5 flex items-center gap-1">
+                    <Music size={9} /> Audio Reactive
+                  </div>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {PATTERNS.filter(p => p.group === 'audio').map(p => (
+                      <button
+                        key={p.id}
+                        onClick={() => handlePatternSelect(p.id)}
+                        className={`py-2 px-1 rounded-lg text-[9px] font-bold transition-all active:scale-95 border ${
+                          currentPattern === p.id
+                            ? 'bg-pink-600 border-pink-400/30 text-white'
+                            : 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700'
+                        }`}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="text-[8px] text-slate-600 uppercase tracking-widest mb-1.5">Advanced</div>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {PATTERNS.filter(p => p.group === 'advanced').map(p => (
+                      <button
+                        key={p.id}
+                        onClick={() => handlePatternSelect(p.id)}
+                        className={`py-2 px-1 rounded-lg text-[9px] font-bold transition-all active:scale-95 border ${
+                          currentPattern === p.id
+                            ? 'bg-violet-600 border-violet-400/30 text-white'
+                            : 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700'
+                        }`}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-6 lg:p-8 backdrop-blur-xl">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-4">
@@ -292,11 +582,12 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
                 </button>
               </div>
 
-              <div className="space-y-6">
-                <div className="bg-slate-950/50 p-6 rounded-2xl border border-slate-800">
-                  <div className="flex justify-between items-center mb-4">
+              <div className="space-y-4">
+                {/* Brightness */}
+                <div className="bg-slate-950/50 p-5 rounded-2xl border border-slate-800">
+                  <div className="flex justify-between items-center mb-3">
                     <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                      <Sun size={14} className="text-yellow-500" /> Global Intensity
+                      <Sun size={14} className="text-yellow-500" /> Brightness
                     </label>
                     <span className="text-cyan-400 font-mono text-sm">{Math.round((localBrightness / 255) * 100)}%</span>
                   </div>
@@ -307,6 +598,22 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
                   />
                 </div>
 
+                {/* Frame Rate */}
+                <div className="bg-slate-950/50 p-5 rounded-2xl border border-slate-800">
+                  <div className="flex justify-between items-center mb-3">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                      <Gauge size={14} className="text-blue-400" /> Frame Rate
+                    </label>
+                    <span className="text-cyan-400 font-mono text-sm">{localFrameRate} FPS</span>
+                  </div>
+                  <input
+                    type="range" min="10" max="120" value={localFrameRate}
+                    onChange={(e) => handleFrameRateChange(parseInt(e.target.value))}
+                    className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                  />
+                </div>
+
+                {/* Upload */}
                 <div className="bg-slate-950/50 p-4 rounded-2xl border border-slate-800 flex items-center gap-4">
                   <div className="flex-1">
                     <div className="text-[8px] font-black text-slate-600 uppercase mb-1">Active Asset</div>
@@ -319,7 +626,7 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
                   >
                     {isUploading ? <Wifi size={18} className="animate-pulse" /> : <Upload size={20} />}
                   </button>
-                  <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept=".bmp" />
+                  <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept=".bmp,.png,.jpg,.jpeg" />
                 </div>
               </div>
             </div>
@@ -335,9 +642,9 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
                 <div className="text-slate-700">Connect to POV-POI-WiFi and start issuing commands...</div>
               )}
               {logs.map((log, i) => (
-                <div key={i} className="flex gap-2">
-                  <span className="text-slate-800 shrink-0">{log.time}</span>
-                  <span className={log.color}>{log.msg}</span>
+                <div key={i} className={`${log.color} flex gap-2`}>
+                  <span className="text-slate-700 shrink-0">{log.time}</span>
+                  <span>{log.msg}</span>
                 </div>
               ))}
             </div>

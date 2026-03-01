@@ -32,6 +32,8 @@ export interface ArduinoSketch {
   libraries: string[];
 }
 
+export type PowerMode = 'performance' | 'balanced' | 'powersave' | 'ultrasave';
+
 export interface SequenceItem {
   id: string;
   name: string;
