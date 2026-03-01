@@ -1726,7 +1726,11 @@ void handleSetBrightness() {
     int idx = body.indexOf("\"brightness\":");
     
     if (idx != -1) {
-      state.brightness = body.substring(idx + 13, body.indexOf("}", idx)).toInt();
+      uint8_t requested = (uint8_t)body.substring(idx + 13, body.indexOf("}", idx)).toInt();
+      // Clamp to current power mode's brightness limit
+      const uint8_t pmLimit[] = {255, 255, 150, 80};
+      uint8_t limit = pmLimit[min((uint8_t)3, state.powerMode)];
+      state.brightness = min(requested, limit);
       
       // Send command to Teensy
       sendTeensyCommand(0x06, 1);

@@ -14,10 +14,11 @@ interface DashboardProps {
 }
 
 function getDeviceBase(ip: string): string {
-  if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
-    return ''; // Vite proxy handles /api -> ESP32
-  }
-  return window.location.origin; // deployed on ESP32 itself
+  const isLocalhost = typeof window !== 'undefined' &&
+    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+  if (isLocalhost) return ''; // Vite proxy handles /api -> ESP32
+  const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
+  return ip ? `${protocol}//${ip}` : window.location.origin;
 }
 
 const DEFAULT_DEVICES: Device[] = [
@@ -152,8 +153,21 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
   };
 
   const debouncedBrightnessUpdate = useDebounce(
-    useCallback((brightness: number) => {
-      handleGlobalAction('brightness', brightness);
+    useCallback(async (brightness: number) => {
+      const targets = isSyncModeRef.current ? [devicesRef.current[0]] : [activeDeviceRef.current];
+      for (const dev of targets) {
+        try {
+          const base = getDeviceBase(dev.ip);
+          await fetch(`${base}/api/brightness`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ brightness }),
+          });
+          addLog(`[OK] Brightness set to ${brightness} on ${dev.name}`, 'text-green-400');
+        } catch {
+          addLog(`[Error] Failed to set brightness on ${dev.name}`, 'text-red-400');
+        }
+      }
     }, []),
     200
   );
@@ -342,9 +356,11 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
           });
         } else if (action === 'load') {
           const base = getDeviceBase(dev.ip);
-          const body = new FormData();
-          body.append('file', String(value));
-          await fetch(`${base}/api/sd/load`, { method, body });
+          await fetch(`${base}/api/sd/load`, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ filename: String(value) }),
+          });
         }
 
         if (isSyncMode && action !== 'brightness') {
@@ -662,7 +678,7 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
                   >
                     {isUploading ? <Wifi size={18} className="animate-pulse" /> : <Upload size={20} />}
                   </button>
-                  <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept=".bmp,.png,.jpg,.jpeg" />
+                  <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept=".rgb" />
                 </div>
               </div>
             </div>

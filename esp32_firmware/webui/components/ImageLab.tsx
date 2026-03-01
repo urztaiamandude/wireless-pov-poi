@@ -107,6 +107,30 @@ const ImageLab: React.FC<ImageLabProps> = ({ onPreviewUpdate, initialPreview, le
     return new Blob([buffer], { type: 'image/bmp' });
   };
 
+  // Creates a raw RGB blob (R, G, B per pixel, top-to-bottom) suitable for the firmware's
+  // /api/image endpoint. Filename must be image_WxH.rgb for dimension parsing.
+  const createRawRGB = (canvas: HTMLCanvasElement): { blob: Blob; filename: string } => {
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) throw new Error("Context failed");
+    const width = canvas.width;
+    const height = canvas.height;
+    const imgData = ctx.getImageData(0, 0, width, height).data;
+    const buffer = new Uint8Array(width * height * 3);
+    let offset = 0;
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const i = (y * width + x) * 4;
+        buffer[offset++] = imgData[i];     // R
+        buffer[offset++] = imgData[i + 1]; // G
+        buffer[offset++] = imgData[i + 2]; // B
+      }
+    }
+    return {
+      blob: new Blob([buffer], { type: 'application/octet-stream' }),
+      filename: `image_${width}x${height}.rgb`,
+    };
+  };
+
   const generateProceduralArt = useCallback(() => {
     if (!canvasRef.current) return;
     const canvas = canvasRef.current;
@@ -245,18 +269,46 @@ const ImageLab: React.FC<ImageLabProps> = ({ onPreviewUpdate, initialPreview, le
     setStatus("Broadcasting Sequence to Fleet via /api/image...");
 
     try {
-      const targets = sequence.length > 0 ? sequence : [{
+      // Build target list; convert canvas to raw RGB blobs for firmware compatibility
+      const rawTargets: Array<{ blob: Blob; filename: string }> = [];
+      type SyncSource = { blob?: Blob; name: string };
+      const sourceItems: SyncSource[] = sequence.length > 0 ? sequence : [{
         blob: bmpBlob || (canvasRef.current ? createBMP(canvasRef.current) : undefined),
         name: 'single_frame.bmp'
       }];
+      for (const item of sourceItems) {
+        if (!item.blob) continue;
+        // If we have a canvas, prefer fresh raw RGB; otherwise convert the stored blob via ImageBitmap
+        if (canvasRef.current && sequence.length === 0) {
+          rawTargets.push(createRawRGB(canvasRef.current));
+        } else {
+          // Re-draw the stored blob onto an offscreen canvas, then export raw RGB
+          const offscreen = document.createElement('canvas');
+          const url = URL.createObjectURL(item.blob);
+          await new Promise<void>(resolve => {
+            const img = new window.Image();
+            img.onload = () => {
+              offscreen.width = img.naturalWidth;
+              offscreen.height = img.naturalHeight;
+              const ctx = offscreen.getContext('2d');
+              ctx?.drawImage(img, 0, 0);
+              URL.revokeObjectURL(url);
+              resolve();
+            };
+            img.onerror = () => { URL.revokeObjectURL(url); resolve(); };
+            img.src = url;
+          });
+          rawTargets.push(createRawRGB(offscreen));
+        }
+      }
 
       const failedUploadIps = new Set<string>();
+      let firstFilename = '';
 
-      for (const [idx, item] of (targets as any[]).entries()) {
-        if (!item.blob) continue;
+      for (const [idx, target] of rawTargets.entries()) {
         const formData = new FormData();
-        const filename = `seq_${idx}.bmp`;
-        formData.append('file', item.blob, filename);
+        formData.append('file', target.blob, target.filename);
+        if (idx === 0) firstFilename = target.filename;
 
         // Push to the connected device via POST /api/image.
         // Multi-device fleet broadcast is handled at the firmware level via ESP-NOW
@@ -277,15 +329,14 @@ const ImageLab: React.FC<ImageLabProps> = ({ onPreviewUpdate, initialPreview, le
 
       // Auto-load the first frame after upload
       const failedLoadIps = new Set<string>();
-      if (targets.length > 0) {
+      if (rawTargets.length > 0 && firstFilename) {
         const loadBase = getDeviceBase();
         const loadPromises = [async () => {
-          const form = new FormData();
-          form.append('file', 'seq_0.bmp');
           try {
             const response = await fetch(`${loadBase}/api/sd/load`, {
               method: 'POST',
-              body: form
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ filename: firstFilename }),
             });
             if (!response.ok) {
               failedLoadIps.add(loadBase || 'device');
