@@ -119,6 +119,7 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
           if (typeof data.brightness === 'number' && now - lastBrightnessInteraction.current > 1000) setLocalBrightness(data.brightness);
           if (typeof data.framerate === 'number' && now - lastFrameRateInteraction.current > 1000) setLocalFrameRate(data.framerate);
           if (typeof data.count === 'number' && data.count > 0) setMaxContentIndex(data.count - 1);
+          if (typeof data.powerMode === 'number' && data.powerMode >= 0 && data.powerMode < POWER_MODES.length) setPowerModeState(POWER_MODES[data.powerMode].id);
         } else {
           setIsOnline(false);
         }
