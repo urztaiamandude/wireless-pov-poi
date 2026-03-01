@@ -27,6 +27,7 @@ If you are blocked and need user clarification, mark the current step with `[!]`
 ## Workflow Steps
 
 ### [ ] Step: Implementation
+<!-- chat-id: 74b4955d-65b5-40a6-bc91-06dbcc86efae -->
 
 Implement the task directly based on the task description.
 
