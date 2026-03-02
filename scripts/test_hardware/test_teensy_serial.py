@@ -68,7 +68,9 @@ def _send_and_expect_status(ser: serial.Serial) -> tuple[TestResult, Optional[St
 
     status = parse_status(raw)
     if status:
-        msg = f"mode={status.mode} index={status.index} sd={status.sd_present}"
+        msg = f"mode={status.mode} index={status.index}"
+        if hasattr(status, "sd_present"):
+            msg += f" sd={status.sd_present}"
         return TestResult("Status request", Verdict.PASS, elapsed, msg), status
     elif len(raw) == 0:
         return TestResult("Status request", Verdict.FAIL, elapsed, "No response"), None
