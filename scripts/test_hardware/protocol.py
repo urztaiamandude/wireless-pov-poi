@@ -124,12 +124,16 @@ def parse_status(data: bytes) -> Optional[StatusResponse]:
     if result is None:
         return None
     code, payload = result
-    if code != Resp.STATUS or len(payload) < 3:
+    # Teensy status frame is: 0xFF 0xBB <mode> <index> 0xFE
+    # Some firmware versions may optionally append an SD-present flag byte.
+    # Require at least mode and index, treat sd_present as optional.
+    if code != Resp.STATUS or len(payload) < 2:
         return None
+    sd_present = bool(payload[2]) if len(payload) >= 3 else False
     return StatusResponse(
         mode=payload[0],
         index=payload[1],
-        sd_present=bool(payload[2]),
+        sd_present=sd_present,
     )
 
 
