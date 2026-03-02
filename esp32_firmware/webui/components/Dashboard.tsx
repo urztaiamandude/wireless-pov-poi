@@ -110,7 +110,11 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
   useEffect(() => {
     const checkConnection = async () => {
       try {
-        const base = getDeviceBase(activeDevice.ip);
+        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
+        const base = isLocalhost || !activeDevice.ip
+          ? window.location.origin
+          : `${protocol}//${activeDevice.ip}`;
         const res = await fetch(`${base}/api/status`, { signal: AbortSignal.timeout(1500) });
         if (res.ok) {
           const data = await res.json();
