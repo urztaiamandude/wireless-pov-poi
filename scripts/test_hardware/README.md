@@ -85,7 +85,7 @@ python3 -m scripts.test_hardware.run_tests --suite api --esp32-url http://povpoi
 python3 -m scripts.test_hardware.run_tests --build --flash
 
 # Save JSON report
-python -m scripts.test_hardware.run_tests --report test_results.json
+python3 -m scripts.test_hardware.run_tests --report test_results.json
 ```
 
 ### Windows
