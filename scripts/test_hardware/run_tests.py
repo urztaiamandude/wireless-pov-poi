@@ -173,7 +173,6 @@ def main():
     parser.add_argument("--flash", action="store_true", help="Flash firmware before testing")
     parser.add_argument("--report", help="Save JSON report to this path")
     parser.add_argument("--list-ports", action="store_true", help="List serial ports and exit")
-    parser.add_argument("--no-color", action="store_true", help="Disable colored output")
 
     args = parser.parse_args()
 
