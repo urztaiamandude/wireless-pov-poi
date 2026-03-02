@@ -63,6 +63,7 @@ esp32_firmware/*.bin
 
 # Web development
 web_portal/node_modules/
+node_modules/
 web_portal/dist/
 
 # Testing
