@@ -71,6 +71,46 @@ pio run --target uploadfs
 
 A deployment script will be added to automate the build and filesystem upload process.
 
+## Native Mobile App Shell (Capacitor)
+
+The Web UI now includes a native app shell for Android and iOS using Capacitor.
+This keeps the same React UI while allowing mobile-native packaging and permissions.
+
+### First-time setup
+
+```bash
+cd esp32_firmware/webui
+npm install
+```
+
+Capacitor platforms are already added in this repository:
+- `android/`
+- `ios/`
+
+### Build and sync native projects
+
+```bash
+# Android
+npm run native:android
+
+# iOS
+npm run native:ios
+```
+
+### Open native IDE projects
+
+```bash
+npm run cap:open:android
+npm run cap:open:ios
+```
+
+### Networking notes
+
+- The app talks to the device over local HTTP (`http://192.168.4.1` by default).
+- Android cleartext traffic is enabled in `AndroidManifest.xml`.
+- iOS local-network usage + ATS settings are configured in `ios/App/App/Info.plist`.
+- ESP32 firmware enables CORS (`server.enableCORS(true)`), so the native shell can call REST endpoints directly.
+
 ## Configuration
 
 ### Tailwind CSS Setup

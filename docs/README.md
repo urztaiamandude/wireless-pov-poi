@@ -21,6 +21,13 @@ A complete persistence of vision (POV) LED poi system using Teensy 4.1 and ESP32
 - Adjustable brightness and frame rate
 - WiFi Access Point for direct connection
 
+## Recommended First Steps
+
+For a first-time, user-friendly path to a working physical pair, start with:
+
+- `FIRST_PAIR_QUICKSTART.md` - beginner-friendly setup, testing, and go/no-go checklist
+- `POI_PAIRING.md` - detailed pairing and synchronization behavior
+
 ## Hardware Setup
 
 ### Components Required

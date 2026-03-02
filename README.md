@@ -23,6 +23,13 @@ Welcome to the wireless POV Poi project - a creative venture that combines art a
 2. Use the mobile application to select designs.
 3. Spin your poi to see the magic!
 
+## Start Here (First Release)
+
+If you are setting up your first physical pair of poi, follow:
+
+- `docs/FIRST_PAIR_QUICKSTART.md` (beginner-friendly setup and validation checklist)
+- `docs/POI_PAIRING.md` (pairing and synchronization details)
+
 ## Contributing
 
 We welcome contributions from the community. Please fork the repository and create a pull request.
