@@ -128,7 +128,6 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
             const candidate = data.powerMode as PowerMode;
             if (POWER_MODES.some(p => p.id === candidate)) setPowerModeState(candidate);
           }
-          if (typeof data.powerMode === 'number' && data.powerMode >= 0 && data.powerMode < POWER_MODES.length) setPowerModeState(POWER_MODES[data.powerMode].id);
         } else {
           setIsOnline(false);
         }
@@ -152,8 +151,26 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
   };
 
   const debouncedBrightnessUpdate = useDebounce(
-    useCallback((brightness: number) => {
-      handleGlobalAction('brightness', brightness);
+    useCallback(async (brightness: number) => {
+      const targets = isSyncModeRef.current ? [devicesRef.current[0]] : [activeDeviceRef.current];
+      for (const dev of targets) {
+        try {
+          const base = getDeviceBase(dev.ip);
+          const res = await fetch(`${base}/api/brightness`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ brightness }),
+          });
+          if (res.ok) {
+            addLog(`[OK] Brightness set to ${brightness} on ${dev.name}`, 'text-green-400');
+          } else {
+            const errText = await res.text();
+            addLog(`[Error] Brightness set failed on ${dev.name}: ${res.status} ${errText}`, 'text-red-400');
+          }
+        } catch {
+          addLog(`[Error] Failed to set brightness on ${dev.name}`, 'text-red-400');
+        }
+      }
     }, []),
     200
   );
@@ -164,12 +181,17 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
       for (const dev of targets) {
         try {
           const base = getDeviceBase(dev.ip);
-          await fetch(`${base}/api/framerate`, {
+          const res = await fetch(`${base}/api/framerate`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ framerate: fps }),
           });
-          addLog(`[OK] Frame rate set to ${fps} FPS on ${dev.name}`, 'text-green-400');
+          if (res.ok) {
+            addLog(`[OK] Frame rate set to ${fps} FPS on ${dev.name}`, 'text-green-400');
+          } else {
+            const errText = await res.text();
+            addLog(`[Error] Frame rate set failed on ${dev.name}: ${res.status} ${errText}`, 'text-red-400');
+          }
         } catch {
           addLog(`[Error] Failed to set frame rate on ${dev.name}`, 'text-red-400');
         }
@@ -198,12 +220,17 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
     for (const dev of targets) {
       try {
         const base = getDeviceBase(dev.ip);
-        await fetch(`${base}/api/mode`, {
+        const res = await fetch(`${base}/api/mode`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ mode, index: mode === 2 ? currentPattern : contentIndex }),
         });
-        addLog(`[OK] Mode → ${DISPLAY_MODES[mode]?.label} on ${dev.name}`, 'text-cyan-400');
+        if (res.ok) {
+          addLog(`[OK] Mode → ${DISPLAY_MODES[mode]?.label} on ${dev.name}`, 'text-cyan-400');
+        } else {
+          const errText = await res.text();
+          addLog(`[Error] Mode change failed on ${dev.name}: ${res.status} ${errText}`, 'text-red-400');
+        }
       } catch {
         addLog(`[Error] Mode change failed on ${dev.name}`, 'text-red-400');
       }
@@ -217,19 +244,27 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
     for (const dev of targets) {
       try {
         const base = getDeviceBase(dev.ip);
-        await fetch(`${base}/api/pattern`, {
+        const resPattern = await fetch(`${base}/api/pattern`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ type: patternId, speed: 50 }),
         });
-        await fetch(`${base}/api/mode`, {
+        if (!resPattern.ok) {
+          const errText = await resPattern.text();
+          throw new Error(`HTTP ${resPattern.status} ${errText}`);
+        }
+        const resMode = await fetch(`${base}/api/mode`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ mode: 2, index: patternId }),
         });
+        if (!resMode.ok) {
+          const errText = await resMode.text();
+          throw new Error(`HTTP ${resMode.status} ${errText}`);
+        }
         addLog(`[OK] Pattern → ${PATTERNS[patternId]?.label} on ${dev.name}`, 'text-purple-400');
-      } catch {
-        addLog(`[Error] Pattern change failed on ${dev.name}`, 'text-red-400');
+      } catch (err) {
+        addLog(`[Error] Pattern change failed on ${dev.name}${err instanceof Error ? ': ' + err.message : ''}`, 'text-red-400');
       }
     }
   };
@@ -241,12 +276,17 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
     for (const dev of targets) {
       try {
         const base = getDeviceBase(dev.ip);
-        await fetch(`${base}/api/mode`, {
+        const res = await fetch(`${base}/api/mode`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ mode: currentMode, index: next }),
         });
-        addLog(`[OK] Content index → ${next} on ${dev.name}`, 'text-cyan-400');
+        if (res.ok) {
+          addLog(`[OK] Content index → ${next} on ${dev.name}`, 'text-cyan-400');
+        } else {
+          const errText = await res.text();
+          addLog(`[Error] Content nav failed on ${dev.name}: ${res.status} ${errText}`, 'text-red-400');
+        }
       } catch {
         addLog(`[Error] Content nav failed on ${dev.name}`, 'text-red-400');
       }
@@ -259,12 +299,17 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
     for (const dev of targets) {
       try {
         const base = getDeviceBase(dev.ip);
-        await fetch(`${base}/api/power/mode`, {
+        const res = await fetch(`${base}/api/power/mode`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ mode }),
         });
-        addLog(`[OK] Power → ${mode} on ${dev.name}`, 'text-yellow-400');
+        if (res.ok) {
+          addLog(`[OK] Power → ${mode} on ${dev.name}`, 'text-yellow-400');
+        } else {
+          const errText = await res.text();
+          addLog(`[Error] Power mode failed on ${dev.name}: ${res.status} ${errText}`, 'text-red-400');
+        }
       } catch {
         addLog(`[Error] Power mode failed on ${dev.name}`, 'text-red-400');
       }
@@ -328,23 +373,35 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
 
           setCurrentMode(mode);
           const base = getDeviceBase(dev.ip);
-          await fetch(`${base}/api/mode`, {
+          const res = await fetch(`${base}/api/mode`, {
             method,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ mode, index }),
           });
+          if (!res.ok) {
+            const errText = await res.text();
+            throw new Error(`HTTP ${res.status} ${errText}`);
+          }
         } else if (action === 'brightness') {
           const base = getDeviceBase(dev.ip);
-          await fetch(`${base}/api/brightness`, {
+          const res = await fetch(`${base}/api/brightness`, {
             method,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ brightness: Number(value) })
           });
+          if (!res.ok) {
+            const errText = await res.text();
+            throw new Error(`HTTP ${res.status} ${errText}`);
+          }
         } else if (action === 'load') {
           const base = getDeviceBase(dev.ip);
           const body = new FormData();
           body.append('file', String(value));
-          await fetch(`${base}/api/sd/load`, { method, body });
+          const res = await fetch(`${base}/api/sd/load`, { method, body });
+          if (!res.ok) {
+            const errText = await res.text();
+            throw new Error(`HTTP ${res.status} ${errText}`);
+          }
         }
 
         if (isSyncMode && action !== 'brightness') {
