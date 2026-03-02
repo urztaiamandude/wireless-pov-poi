@@ -399,11 +399,14 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
             throw new Error(`HTTP ${res.status} ${errText}`);
           }
         } else if (action === 'load') {
+          if (!value || typeof value !== 'string' || value.trim() === '') {
+            throw new Error('Filename is required to load an image');
+          }
           const base = getDeviceBase(dev.ip);
           const res = await fetch(`${base}/api/sd/load`, {
             method,
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ filename: String(value) })
+            body: JSON.stringify({ filename: value })
           });
           if (!res.ok) {
             const errText = await res.text();
