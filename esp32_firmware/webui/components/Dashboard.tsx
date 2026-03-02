@@ -396,9 +396,11 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
           }
         } else if (action === 'load') {
           const base = getDeviceBase(dev.ip);
-          const body = new FormData();
-          body.append('file', String(value));
-          const res = await fetch(`${base}/api/sd/load`, { method, body });
+          const res = await fetch(`${base}/api/sd/load`, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ filename: String(value) })
+          });
           if (!res.ok) {
             const errText = await res.text();
             throw new Error(`HTTP ${res.status} ${errText}`);
