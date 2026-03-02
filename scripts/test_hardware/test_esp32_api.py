@@ -280,21 +280,21 @@ def run(base_url: str = DEFAULT_BASE_URL) -> TestReport:
         return report
 
     # 2. Status
-    status_result, status = test_get_status(base_url)
-    report.add(status_result)
+    statusResult, status = test_get_status(base_url)
+    report.add(statusResult)
 
     # Save original state for restore
-    orig_brightness = status.get("brightness", 128) if status else 128
-    orig_framerate = status.get("framerate", 30) if status else 30
+    origBrightness = status.get("brightness", 128) if status else 128
+    origFramerate = status.get("framerate", 30) if status else 30
 
     # 3. Brightness control
     report.add(test_set_brightness(base_url, 64))
     report.add(test_set_brightness(base_url, 255))
-    report.add(test_set_brightness(base_url, orig_brightness))
+    report.add(test_set_brightness(base_url, origBrightness))
 
     # 4. Frame rate control
     report.add(test_set_framerate(base_url, 60))
-    report.add(test_set_framerate(base_url, orig_framerate))
+    report.add(test_set_framerate(base_url, origFramerate))
 
     # 5. Mode switching
     modes = [
