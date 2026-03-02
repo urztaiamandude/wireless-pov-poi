@@ -12,6 +12,7 @@ This confirms the full communication chain:
 
 import json
 import time
+import urllib.parse
 import urllib.request
 import urllib.error
 import serial
@@ -28,6 +29,9 @@ STATUS_TIMEOUT = 0.5
 
 
 def _get(url: str) -> tuple[int, str]:
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        raise ValueError(f"Unsafe URL scheme: {parsed.scheme!r}; only http/https are allowed")
     req = urllib.request.Request(url)
     try:
         with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT) as resp:
@@ -161,6 +165,7 @@ def test_roundtrip_latency(
     Measure the round-trip time: HTTP POST -> ESP32 -> Teensy -> ACK -> HTTP response.
     """
     times = []
+    last_exc = None
     for _ in range(5):
         t0 = time.time()
         try:
@@ -168,13 +173,13 @@ def test_roundtrip_latency(
             t1 = time.time()
             if code == 200:
                 times.append((t1 - t0) * 1000)
-        except Exception:
-            pass
+        except Exception as e:
+            last_exc = e
         time.sleep(0.1)
 
     if not times:
         return TestResult("Roundtrip latency", Verdict.FAIL, 0,
-                          "All 5 requests failed")
+                          f"All 5 requests failed{f': {last_exc}' if last_exc else ''}")
 
     avg = sum(times) / len(times)
     mn = min(times)

@@ -31,11 +31,12 @@ def _read_response(ser: serial.Serial, timeout: float = RESPONSE_TIMEOUT) -> byt
         if waiting:
             buf += ser.read(waiting)
             # Check for complete frame
-            if 0xFF in buf and 0xFE in buf:
+            if 0xFF in buf:
                 start = buf.index(0xFF)
-                end = buf.index(0xFE, start)
-                if end > start:
-                    return buf
+                if 0xFE in buf[start + 1:]:
+                    end = buf.index(0xFE, start + 1)
+                    if end > start:
+                        return buf
         time.sleep(0.01)
     return buf
 
@@ -130,6 +131,11 @@ def test_modes(ser: serial.Serial) -> list[TestResult]:
         (Mode.PATTERN, 8, "Pattern 8 (Meteor)"),
         (Mode.PATTERN, 9, "Pattern 9 (Wipe)"),
         (Mode.PATTERN, 10, "Pattern 10 (Plasma)"),
+        (Mode.PATTERN, 11, "Pattern 11 (VU Meter)"),
+        (Mode.PATTERN, 12, "Pattern 12 (Music Pulse)"),
+        (Mode.PATTERN, 13, "Pattern 13 (Music Rainbow)"),
+        (Mode.PATTERN, 14, "Pattern 14 (Music Center)"),
+        (Mode.PATTERN, 15, "Pattern 15 (Music Sparkle)"),
         (Mode.PATTERN, 16, "Pattern 16 (Split Spin)"),
         (Mode.PATTERN, 17, "Pattern 17 (Theater Chase)"),
         (Mode.SEQUENCE, 0, "Sequence 0 (Demo)"),
@@ -141,14 +147,15 @@ def test_modes(ser: serial.Serial) -> list[TestResult]:
         results.append(result)
         time.sleep(0.15)
 
-        # Verify mode via status
+        # Verify mode and index via status
         stat_result, status = _send_and_expect_status(ser)
-        if status and status.mode == mode:
+        if status and status.mode == mode and status.index == idx:
             stat_result.name = f"Verify mode: {label}"
         elif status:
             stat_result = TestResult(
                 f"Verify mode: {label}", Verdict.FAIL, stat_result.duration_ms,
-                f"Expected mode={mode}, got mode={status.mode}")
+                f"Expected mode={mode} index={idx}, "
+                f"got mode={status.mode} index={status.index}")
         results.append(stat_result)
         time.sleep(0.15)
 
@@ -164,20 +171,28 @@ def test_pattern_upload(ser: serial.Serial) -> TestResult:
 
 
 def test_live_frame(ser: serial.Serial) -> TestResult:
-    """Send a live frame of all-red pixels."""
+    """Send a live frame of all-red pixels after switching to live mode."""
     pixels = [(255, 0, 0)] * 31
     pkt = live_frame(pixels)
     start = time.time()
+
+    # Switch to live mode first and wait for ACK
     ser.reset_input_buffer()
-    ser.write(pkt)
-    # Live frames don't always produce an ACK - just check no error
-    time.sleep(0.2)
-    elapsed = (time.time() - start) * 1000
-    # Put us in live mode first
     ser.write(set_mode(Mode.LIVE, 0))
-    time.sleep(0.1)
+    ack_raw = _read_response(ser)
+    if not is_ack(ack_raw):
+        elapsed = (time.time() - start) * 1000
+        return TestResult("Live frame (31 red pixels)", Verdict.FAIL, elapsed,
+                          "No ACK for live mode switch")
+
+    # Now send the live frame and read the response
     ser.write(pkt)
-    time.sleep(0.2)
+    frame_raw = _read_response(ser)
+    elapsed = (time.time() - start) * 1000
+    if is_ack(frame_raw):
+        return TestResult("Live frame (31 red pixels)", Verdict.PASS, elapsed,
+                          "ACK received for live frame")
+    # Live frames may not return ACK on all firmware versions
     return TestResult("Live frame (31 red pixels)", Verdict.PASS, elapsed,
                       "Frame sent (visual check recommended)")
 

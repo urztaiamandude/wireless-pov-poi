@@ -5,22 +5,22 @@ Post-build/flash hardware test runner for Wireless POV Poi.
 Usage
 -----
   # Run all tests (auto-detect serial ports)
-  python -m scripts.test_hardware.run_tests
+  python3 -m scripts.test_hardware.run_tests
 
   # Teensy serial tests only
-  python -m scripts.test_hardware.run_tests --suite teensy --teensy-port COM3
+  python3 -m scripts.test_hardware.run_tests --suite teensy --teensy-port COM3
 
   # ESP32 API tests only (must be connected to POV-POI-WiFi)
-  python -m scripts.test_hardware.run_tests --suite api
+  python3 -m scripts.test_hardware.run_tests --suite api
 
   # Integration tests (needs both Teensy serial AND ESP32 WiFi)
-  python -m scripts.test_hardware.run_tests --suite integration
+  python3 -m scripts.test_hardware.run_tests --suite integration
 
   # Full pipeline: build, flash, then test
-  python -m scripts.test_hardware.run_tests --build --flash
+  python3 -m scripts.test_hardware.run_tests --build --flash
 
   # Save JSON report
-  python -m scripts.test_hardware.run_tests --report results.json
+  python3 -m scripts.test_hardware.run_tests --report results.json
 """
 
 import argparse
@@ -64,7 +64,7 @@ ESP32_VID_PID = [
 BAUD = 115200
 
 
-def find_port(vid_pid_list: list[tuple[int, int]], label: str) -> Optional[str]:
+def find_port(vid_pid_list: list[tuple[int, int]]) -> Optional[str]:
     """Auto-detect a serial port matching known VID:PID pairs."""
     for port_info in serial.tools.list_ports.comports():
         if port_info.vid is not None and port_info.pid is not None:
@@ -74,7 +74,7 @@ def find_port(vid_pid_list: list[tuple[int, int]], label: str) -> Optional[str]:
     return None
 
 
-def list_serial_ports():
+def list_serial_ports() -> None:
     """Print all visible serial ports for diagnostics."""
     ports = serial.tools.list_ports.comports()
     if not ports:
@@ -123,7 +123,7 @@ def run_cmd(label: str, cmd: list[str], cwd: Optional[str] = None) -> TestResult
 def build_firmware() -> TestReport:
     report = TestReport("Build")
     report.add(run_cmd("Build Teensy firmware", ["pio", "run", "-e", "teensy41"]))
-    report.add(run_cmd("Build ESP32 firmware", ["pio", "run", "-e", "esp32"],
+    report.add(run_cmd("Build ESP32 firmware", ["pio", "run", "-e", "esp32s3"],
                        cwd=str(PROJECT_ROOT / "esp32_firmware")))
     report.finish()
     return report
@@ -141,7 +141,7 @@ def flash_firmware(teensy_port: Optional[str], esp32_port: Optional[str]) -> Tes
 
     if esp32_port:
         report.add(run_cmd("Flash ESP32", [
-            "pio", "run", "-e", "esp32", "-t", "upload",
+            "pio", "run", "-e", "esp32s3", "-t", "upload",
             "--upload-port", esp32_port,
         ], cwd=str(PROJECT_ROOT / "esp32_firmware")))
     else:
@@ -155,7 +155,7 @@ def flash_firmware(teensy_port: Optional[str], esp32_port: Optional[str]) -> Tes
 # Main
 # ---------------------------------------------------------------------------
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description="Post-build/flash hardware test runner for Wireless POV Poi",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -188,9 +188,9 @@ def main():
     esp32_port = args.esp32_port
 
     if not teensy_port:
-        teensy_port = find_port(TEENSY_VID_PID, "Teensy")
+        teensy_port = find_port(TEENSY_VID_PID)
     if not esp32_port:
-        esp32_port = find_port(ESP32_VID_PID, "ESP32")
+        esp32_port = find_port(ESP32_VID_PID)
 
     print("=" * 72)
     print("  Wireless POV Poi - Hardware Test Runner")
@@ -303,7 +303,7 @@ def _skip_report(name: str, reason: str) -> TestReport:
     return report
 
 
-def _save_and_exit(reports: list[TestReport], report_path: Optional[str], exit_code: int):
+def _save_and_exit(reports: list[TestReport], report_path: Optional[str], exit_code: int) -> None:
     if report_path:
         combined = {
             "timestamp": time.time(),

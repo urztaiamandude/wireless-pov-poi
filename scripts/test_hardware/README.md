@@ -85,7 +85,7 @@ python3 -m scripts.test_hardware.run_tests --suite api --esp32-url http://povpoi
 python3 -m scripts.test_hardware.run_tests --build --flash
 
 # Save JSON report
-python -m scripts.test_hardware.run_tests --report test_results.json
+python3 -m scripts.test_hardware.run_tests --report test_results.json
 ```
 
 ### Windows
@@ -118,7 +118,7 @@ export ESP32_PORT=/dev/ttyUSB0
 
 The test runner prints a structured report:
 
-```
+```text
 ========================================================================
   Teensy Serial Tests
 ========================================================================
@@ -147,7 +147,7 @@ integration.
 
 ## Architecture
 
-```
+```text
 scripts/test_hardware/
     __init__.py             Package init
     protocol.py             Protocol encoding/decoding (0xFF/0xFE and 0xD0/0xD1)
