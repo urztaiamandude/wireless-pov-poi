@@ -404,7 +404,7 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
           const res = await fetch(`${base}/api/sd/load`, {
             method,
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ filename: String(value) })
+            body: JSON.stringify({ filename: value })
           });
           if (!res.ok) {
             const errText = await res.text();
