@@ -14,10 +14,11 @@ interface DashboardProps {
 }
 
 function getDeviceBase(ip: string): string {
-  if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
-    return ''; // Vite proxy handles /api -> ESP32
-  }
-  return window.location.origin; // deployed on ESP32 itself
+  const isLocalhost = typeof window !== 'undefined' &&
+    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+  if (isLocalhost) return ''; // Vite proxy handles /api -> ESP32
+  const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
+  return ip ? `${protocol}//${ip}` : window.location.origin;
 }
 
 const DEFAULT_DEVICES: Device[] = [
@@ -719,7 +720,7 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
                   >
                     {isUploading ? <Wifi size={18} className="animate-pulse" /> : <Upload size={20} />}
                   </button>
-                  <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept=".bmp,.png,.jpg,.jpeg" />
+                  <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept=".rgb" />
                 </div>
               </div>
             </div>
