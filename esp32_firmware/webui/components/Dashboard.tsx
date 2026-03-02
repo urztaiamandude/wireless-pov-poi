@@ -720,7 +720,7 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
                   >
                     {isUploading ? <Wifi size={18} className="animate-pulse" /> : <Upload size={20} />}
                   </button>
-                  <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept=".rgb" />
+                  <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept=".bmp" />
                 </div>
               </div>
             </div>
