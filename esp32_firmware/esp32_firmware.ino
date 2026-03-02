@@ -1619,16 +1619,17 @@ void handleStatus() {
 void handleSetMode() {
   if (server.hasArg("plain")) {
     String body = server.arg("plain");
-    
-    // Simple JSON parsing
-    int modeIdx = body.indexOf("\"mode\":");
-    int indexIdx = body.indexOf("\"index\":");
-    
-    if (modeIdx != -1) {
-      state.currentMode = body.substring(modeIdx + 7, body.indexOf(",", modeIdx)).toInt();
+
+    JsonDocument doc;
+    if (deserializeJson(doc, body)) {
+      server.send(400, "application/json", "{\"error\":\"Invalid JSON\"}");
+      return;
     }
-    if (indexIdx != -1) {
-      state.currentIndex = body.substring(indexIdx + 8, body.indexOf("}", indexIdx)).toInt();
+    if (doc["mode"].is<int>()) {
+      state.currentMode = doc["mode"].as<uint8_t>();
+    }
+    if (doc["index"].is<int>()) {
+      state.currentIndex = doc["index"].as<uint8_t>();
     }
     
     // Send command to Teensy
@@ -1651,24 +1652,25 @@ void handleSetMode() {
 void handleSetBrightness() {
   if (server.hasArg("plain")) {
     String body = server.arg("plain");
-    int idx = body.indexOf("\"brightness\":");
-    
-    if (idx != -1) {
-      state.brightness = body.substring(idx + 13, body.indexOf("}", idx)).toInt();
-      
-      // Send command to Teensy
-      sendTeensyCommand(0x06, 1);
-      TEENSY_SERIAL.write(state.brightness);
-      TEENSY_SERIAL.write(0xFE);
-
-      // Broadcast to paired peers via ESP-NOW (mirror mode)
-      if (!_syncCommandInProgress) {
-        espNowSync.broadcastBrightness(state.brightness);
-      }
-
-      server.send(200, "application/json", "{\"status\":\"ok\"}");
+    JsonDocument doc;
+    if (deserializeJson(doc, body) || !doc["brightness"].is<int>()) {
+      server.send(400, "application/json", "{\"error\":\"Invalid data\"}");
       return;
     }
+    state.brightness = doc["brightness"].as<uint8_t>();
+
+    // Send command to Teensy
+    sendTeensyCommand(0x06, 1);
+    TEENSY_SERIAL.write(state.brightness);
+    TEENSY_SERIAL.write(0xFE);
+
+    // Broadcast to paired peers via ESP-NOW (mirror mode)
+    if (!_syncCommandInProgress) {
+      espNowSync.broadcastBrightness(state.brightness);
+    }
+
+    server.send(200, "application/json", "{\"status\":\"ok\"}");
+    return;
   }
   server.send(400, "application/json", "{\"error\":\"Invalid data\"}");
 }
@@ -1676,25 +1678,26 @@ void handleSetBrightness() {
 void handleSetFrameRate() {
   if (server.hasArg("plain")) {
     String body = server.arg("plain");
-    int idx = body.indexOf("\"framerate\":");
-    
-    if (idx != -1) {
-      state.frameRate = body.substring(idx + 12, body.indexOf("}", idx)).toInt();
-      state.cachedFrameDelay = 1000 / max((uint8_t)1, state.frameRate);  // Update cache
-
-      // Send command to Teensy
-      sendTeensyCommand(0x07, 1);
-      TEENSY_SERIAL.write(state.cachedFrameDelay);
-      TEENSY_SERIAL.write(0xFE);
-
-      // Broadcast to paired peers via ESP-NOW (mirror mode)
-      if (!_syncCommandInProgress) {
-        espNowSync.broadcastFrameRate(state.cachedFrameDelay);
-      }
-
-      server.send(200, "application/json", "{\"status\":\"ok\"}");
+    JsonDocument doc;
+    if (deserializeJson(doc, body) || !doc["framerate"].is<int>()) {
+      server.send(400, "application/json", "{\"error\":\"Invalid data\"}");
       return;
     }
+    state.frameRate = doc["framerate"].as<uint8_t>();
+    state.cachedFrameDelay = 1000 / max((uint8_t)1, state.frameRate);  // Update cache
+
+    // Send command to Teensy
+    sendTeensyCommand(0x07, 1);
+    TEENSY_SERIAL.write(state.cachedFrameDelay);
+    TEENSY_SERIAL.write(0xFE);
+
+    // Broadcast to paired peers via ESP-NOW (mirror mode)
+    if (!_syncCommandInProgress) {
+      espNowSync.broadcastFrameRate(state.cachedFrameDelay);
+    }
+
+    server.send(200, "application/json", "{\"status\":\"ok\"}");
+    return;
   }
   server.send(400, "application/json", "{\"error\":\"Invalid data\"}");
 }
@@ -1702,8 +1705,8 @@ void handleSetFrameRate() {
 void handleUploadPattern() {
   if (server.hasArg("plain")) {
     String body = server.arg("plain");
-    
-    // Parse JSON manually (simple parsing, no external libs)
+
+    // Parse JSON using ArduinoJson
     // Expected format:
     // {
     //   "index": N,
@@ -1712,83 +1715,27 @@ void handleUploadPattern() {
     //   "color2": {"r":R,"g":G,"b":B},
     //   "speed": N
     // }
-    uint8_t index = 0;
-    uint8_t type = 0;
-    uint8_t r1 = 255, g1 = 0, b1 = 0;
-    uint8_t r2 = 0, g2 = 0, b2 = 255;
-    uint8_t speed = 50;
-
-    auto parseUintField = [&](const char* key, uint8_t& outValue, uint8_t defaultValue) {
-      int k = body.indexOf(key);
-      if (k == -1) {
-        outValue = defaultValue;
-        return;
-      }
-      int start = body.indexOf(":", k);
-      if (start == -1) {
-        outValue = defaultValue;
-        return;
-      }
-      // Read until comma or closing brace
-      int end = body.indexOf(",", start);
-      int endBrace = body.indexOf("}", start);
-      if (end == -1 || (endBrace != -1 && endBrace < end)) {
-        end = endBrace;
-      }
-      if (end == -1) {
-        end = body.length();
-      }
-      String num = body.substring(start + 1, end);
-      num.trim();
-      long v = num.toInt();
-      if (v < 0) v = 0;
-      if (v > 255) v = 255;
-      outValue = (uint8_t)v;
-    };
-
-    // Top-level scalar fields
-    parseUintField("\"index\"", index, 0);
-    parseUintField("\"type\"", type, 0);
-    parseUintField("\"speed\"", speed, 50);
-
-    auto parseUintFieldIn = [&](const String& src, const char* key, uint8_t& outValue, uint8_t defaultValue) {
-      int k = src.indexOf(key);
-      if (k == -1) { outValue = defaultValue; return; }
-      int start = src.indexOf(":", k);
-      if (start == -1) { outValue = defaultValue; return; }
-      int end = src.indexOf(",", start);
-      int endBrace = src.indexOf("}", start);
-      if (end == -1 || (endBrace != -1 && endBrace < end)) end = endBrace;
-      if (end == -1) end = src.length();
-      String num = src.substring(start + 1, end);
-      num.trim();
-      long v = num.toInt();
-      if (v < 0) v = 0;
-      if (v > 255) v = 255;
-      outValue = (uint8_t)v;
-    };
-
-    int c1 = body.indexOf("\"color1\"");
-    if (c1 != -1) {
-      String c1Sub = body.substring(c1);
-      parseUintFieldIn(c1Sub, "\"r\"", r1, r1);
-      parseUintFieldIn(c1Sub, "\"g\"", g1, g1);
-      parseUintFieldIn(c1Sub, "\"b\"", b1, b1);
+    JsonDocument doc;
+    if (deserializeJson(doc, body)) {
+      server.send(400, "application/json", "{\"error\":\"No data\"}");
+      return;
     }
 
-    int c2 = body.indexOf("\"color2\"");
-    if (c2 != -1) {
-      String c2Sub = body.substring(c2);
-      parseUintFieldIn(c2Sub, "\"r\"", r2, r2);
-      parseUintFieldIn(c2Sub, "\"g\"", g2, g2);
-      parseUintFieldIn(c2Sub, "\"b\"", b2, b2);
-    }
-    
+    uint8_t index = doc["index"] | 0;
+    uint8_t type  = doc["type"]  | 0;
+    uint8_t speed = doc["speed"] | 50;
+    uint8_t r1 = doc["color1"]["r"] | 255;
+    uint8_t g1 = doc["color1"]["g"] | 0;
+    uint8_t b1 = doc["color1"]["b"] | 0;
+    uint8_t r2 = doc["color2"]["r"] | 0;
+    uint8_t g2 = doc["color2"]["g"] | 0;
+    uint8_t b2 = doc["color2"]["b"] | 255;
+
     // Clamp the pattern index to the supported upper bound (0-17)
     if (index > kMaxPatternIndex) {
       index = kMaxPatternIndex;
     }
-    
+
     // Send pattern to Teensy (simple protocol)
     // Data format expected by Teensy:
     // [index][type][r1][g1][b1][r2][g2][b2][speed]  (9 bytes)
@@ -1975,62 +1922,22 @@ void handleUploadImage() {
 void handleLiveFrame() {
   if (server.hasArg("plain")) {
     String body = server.arg("plain");
-    
+
     // Parse JSON payload: {"pixels":[{"r":R,"g":G,"b":B}, ...]}
     const int ledCount = 32;  // Display LEDs (all 32 LEDs used for display)
     uint8_t rgb[ledCount * 3];
-    for (int i = 0; i < ledCount * 3; i++) {
-      rgb[i] = 0;
-    }
+    memset(rgb, 0, sizeof(rgb));
 
-    int pixelsIdx = body.indexOf("\"pixels\"");
-    if (pixelsIdx != -1) {
-      int pos = body.indexOf("[", pixelsIdx);
-      int end = body.indexOf("]", pos);
-      if (pos != -1 && end != -1) {
-        String arr = body.substring(pos, end);
-        int led = 0;
-        int cursor = 0;
-        while (led < ledCount) {
-          int objStart = arr.indexOf("{", cursor);
-          if (objStart == -1) break;
-          int objEnd = arr.indexOf("}", objStart);
-          if (objEnd == -1) break;
-          String obj = arr.substring(objStart, objEnd + 1);
-
-          auto parseComp = [&](const char* key, uint8_t& outValue) {
-            int k = obj.indexOf(key);
-            if (k == -1) return;
-            int s = obj.indexOf(":", k);
-            if (s == -1) return;
-            int e = obj.indexOf(",", s);
-            int eBrace = obj.indexOf("}", s);
-            if (e == -1 || (eBrace != -1 && eBrace < e)) {
-              e = eBrace;
-            }
-            if (e == -1) {
-              e = obj.length();
-            }
-            String num = obj.substring(s + 1, e);
-            num.trim();
-            long v = num.toInt();
-            if (v < 0) v = 0;
-            if (v > 255) v = 255;
-            outValue = (uint8_t)v;
-          };
-
-          uint8_t r = 0, g = 0, b = 0;
-          parseComp("\"r\"", r);
-          parseComp("\"g\"", g);
-          parseComp("\"b\"", b);
-
-          rgb[led * 3 + 0] = r;
-          rgb[led * 3 + 1] = g;
-          rgb[led * 3 + 2] = b;
-
-          led++;
-          cursor = objEnd + 1;
-        }
+    JsonDocument doc;
+    if (deserializeJson(doc, body) == DeserializationError::Ok) {
+      JsonArray pixels = doc["pixels"].as<JsonArray>();
+      int led = 0;
+      for (JsonObject pixel : pixels) {
+        if (led >= ledCount) break;
+        rgb[led * 3 + 0] = pixel["r"] | 0;
+        rgb[led * 3 + 1] = pixel["g"] | 0;
+        rgb[led * 3 + 2] = pixel["b"] | 0;
+        led++;
       }
     }
 
@@ -2161,30 +2068,23 @@ void handleSDInfo() {
 void handleSDDelete() {
   if (server.hasArg("plain")) {
     String body = server.arg("plain");
-    
+
     // Parse JSON: {"filename":"name.pov"}
-    int filenameIdx = body.indexOf("\"filename\":");
-    if (filenameIdx == -1) {
+    JsonDocument doc;
+    if (deserializeJson(doc, body) || !doc["filename"].is<const char*>()) {
       server.send(400, "application/json", "{\"error\":\"Missing filename\"}");
       return;
     }
-    
-    int start = body.indexOf("\"", filenameIdx + 11);
-    int end = body.indexOf("\"", start + 1);
-    if (start == -1 || end == -1) {
-      server.send(400, "application/json", "{\"error\":\"Invalid filename format\"}");
-      return;
-    }
-    
-    String filename = body.substring(start + 1, end);
+
+    String filename = doc["filename"].as<String>();
     uint8_t filenameLen = filename.length();
     if (filenameLen > 63) filenameLen = 63;
-    
+
     // Send delete command
     sendTeensyCommand(0x22, filenameLen);
     TEENSY_SERIAL.write((const uint8_t*)filename.c_str(), filenameLen);
     TEENSY_SERIAL.write(0xFE);
-    
+
     server.send(200, "application/json", "{\"status\":\"ok\"}");
   } else {
     server.send(400, "application/json", "{\"error\":\"No data\"}");
@@ -2194,30 +2094,23 @@ void handleSDDelete() {
 void handleSDLoad() {
   if (server.hasArg("plain")) {
     String body = server.arg("plain");
-    
+
     // Parse JSON: {"filename":"name.pov"}
-    int filenameIdx = body.indexOf("\"filename\":");
-    if (filenameIdx == -1) {
+    JsonDocument doc;
+    if (deserializeJson(doc, body) || !doc["filename"].is<const char*>()) {
       server.send(400, "application/json", "{\"error\":\"Missing filename\"}");
       return;
     }
-    
-    int start = body.indexOf("\"", filenameIdx + 11);
-    int end = body.indexOf("\"", start + 1);
-    if (start == -1 || end == -1) {
-      server.send(400, "application/json", "{\"error\":\"Invalid filename format\"}");
-      return;
-    }
-    
-    String filename = body.substring(start + 1, end);
+
+    String filename = doc["filename"].as<String>();
     uint8_t filenameLen = filename.length();
     if (filenameLen > 63) filenameLen = 63;
-    
+
     // Send load command
     sendTeensyCommand(0x24, filenameLen);
     TEENSY_SERIAL.write((const uint8_t*)filename.c_str(), filenameLen);
     TEENSY_SERIAL.write(0xFE);
-    
+
     // Switch to image mode after loading
     delay(100);
     state.currentMode = 1;
@@ -2226,7 +2119,7 @@ void handleSDLoad() {
     TEENSY_SERIAL.write(state.currentMode);
     TEENSY_SERIAL.write(state.currentIndex);
     TEENSY_SERIAL.write(0xFE);
-    
+
     server.send(200, "application/json", "{\"status\":\"ok\"}");
   } else {
     server.send(400, "application/json", "{\"error\":\"No data\"}");
@@ -2549,9 +2442,9 @@ void handleMultiPoiPair() {
 void handleMultiPoiUnpair() {
   if (server.hasArg("plain")) {
     String body = server.arg("plain");
-    int indexIdx = body.indexOf("\"index\":");
-    if (indexIdx != -1) {
-      int peerIdx = body.substring(indexIdx + 8).toInt();
+    JsonDocument doc;
+    if (deserializeJson(doc, body) == DeserializationError::Ok && doc["index"].is<int>()) {
+      int peerIdx = doc["index"].as<int>();
       espNowSync.unpairPeer(peerIdx);
       server.send(200, "application/json", "{\"status\":\"ok\"}");
       return;
@@ -2569,18 +2462,28 @@ void handleMultiPoiSyncMode() {
   }
 
   String body = server.arg("plain");
-  int modeIdx = body.indexOf("\"mode\":");
-  if (modeIdx == -1) {
+  JsonDocument doc;
+  if (deserializeJson(doc, body) || doc["mode"].isNull()) {
     server.send(400, "application/json", "{\"error\":\"Missing mode\"}");
     return;
   }
 
-  String modeStr = body.substring(modeIdx + 7);
-  modeStr.trim();
+  // Accept both string ("mirror"/"independent") and numeric (0/1) mode values
+  JsonVariant modeVar = doc["mode"];
+  bool isMirror = false, isIndependent = false;
+  if (modeVar.is<const char*>()) {
+    String modeStr = modeVar.as<String>();
+    isMirror = (modeStr == "mirror");
+    isIndependent = (modeStr == "independent");
+  } else {
+    int modeNum = modeVar.as<int>();
+    isMirror = (modeNum == 0);
+    isIndependent = (modeNum == 1);
+  }
 
-  if (modeStr.startsWith("\"mirror\"") || modeStr.startsWith("0")) {
+  if (isMirror) {
     espNowSync.setSyncMode(SYNC_MIRROR);
-  } else if (modeStr.startsWith("\"independent\"") || modeStr.startsWith("1")) {
+  } else if (isIndependent) {
     espNowSync.setSyncMode(SYNC_INDEPENDENT);
   } else {
     server.send(400, "application/json", "{\"error\":\"Invalid mode (use mirror or independent)\"}");
@@ -2604,71 +2507,47 @@ void handleMultiPoiPeerCmd() {
   }
 
   String body = server.arg("plain");
+  JsonDocument doc;
+  if (deserializeJson(doc, body)) {
+    server.send(400, "application/json", "{\"error\":\"Invalid JSON\"}");
+    return;
+  }
 
-  // Parse peer index
-  int peerFieldIdx = body.indexOf("\"peer\":");
-  if (peerFieldIdx == -1) {
+  int peerIdx = doc["peer"] | -1;
+  if (peerIdx == -1) {
     server.send(400, "application/json", "{\"error\":\"Missing peer index\"}");
     return;
   }
-  int peerIdx = body.substring(peerFieldIdx + 7).toInt();
 
-  // Parse command type
-  int cmdFieldIdx = body.indexOf("\"cmd\":");
-  if (cmdFieldIdx == -1) {
+  if (!doc["cmd"].is<const char*>()) {
     server.send(400, "application/json", "{\"error\":\"Missing cmd\"}");
     return;
   }
-  int cmdStart = body.indexOf("\"", cmdFieldIdx + 6) + 1;
-  int cmdEnd = body.indexOf("\"", cmdStart);
-  String cmd = body.substring(cmdStart, cmdEnd);
+  String cmd = doc["cmd"].as<String>();
 
   if (cmd == "mode") {
-    int mIdx = body.indexOf("\"mode\":", cmdEnd);
-    int iIdx = body.indexOf("\"index\":");
-    uint8_t mode = (mIdx != -1) ? body.substring(mIdx + 7).toInt() : 0;
-    uint8_t index = (iIdx != -1) ? body.substring(iIdx + 8).toInt() : 0;
+    uint8_t mode  = doc["mode"]  | 0;
+    uint8_t index = doc["index"] | 0;
     espNowSync.sendPeerModeChange(peerIdx, mode, index);
   }
   else if (cmd == "pattern") {
-    uint8_t type = 0, r1 = 255, g1 = 0, b1 = 0, r2 = 0, g2 = 0, b2 = 255, speed = 50, idx = 0;
-    int tIdx = body.indexOf("\"type\":");
-    if (tIdx != -1) type = body.substring(tIdx + 7).toInt();
-    int sIdx = body.indexOf("\"speed\":");
-    if (sIdx != -1) speed = body.substring(sIdx + 8).toInt();
-    int iIdx = body.indexOf("\"index\":");
-    if (iIdx != -1) idx = body.substring(iIdx + 8).toInt();
-
-    int c1 = body.indexOf("\"color1\"");
-    if (c1 != -1) {
-      String c1s = body.substring(c1, body.indexOf("}", c1) + 1);
-      int ri = c1s.indexOf("\"r\":");
-      int gi = c1s.indexOf("\"g\":");
-      int bi = c1s.indexOf("\"b\":");
-      if (ri != -1) r1 = c1s.substring(ri + 4).toInt();
-      if (gi != -1) g1 = c1s.substring(gi + 4).toInt();
-      if (bi != -1) b1 = c1s.substring(bi + 4).toInt();
-    }
-    int c2 = body.indexOf("\"color2\"");
-    if (c2 != -1) {
-      String c2s = body.substring(c2, body.indexOf("}", c2) + 1);
-      int ri = c2s.indexOf("\"r\":");
-      int gi = c2s.indexOf("\"g\":");
-      int bi = c2s.indexOf("\"b\":");
-      if (ri != -1) r2 = c2s.substring(ri + 4).toInt();
-      if (gi != -1) g2 = c2s.substring(gi + 4).toInt();
-      if (bi != -1) b2 = c2s.substring(bi + 4).toInt();
-    }
+    uint8_t type  = doc["type"]          | 0;
+    uint8_t speed = doc["speed"]         | 50;
+    uint8_t idx   = doc["index"]         | 0;
+    uint8_t r1    = doc["color1"]["r"]   | 255;
+    uint8_t g1    = doc["color1"]["g"]   | 0;
+    uint8_t b1    = doc["color1"]["b"]   | 0;
+    uint8_t r2    = doc["color2"]["r"]   | 0;
+    uint8_t g2    = doc["color2"]["g"]   | 0;
+    uint8_t b2    = doc["color2"]["b"]   | 255;
     espNowSync.sendPeerPattern(peerIdx, idx, type, r1, g1, b1, r2, g2, b2, speed);
   }
   else if (cmd == "brightness") {
-    int bIdx = body.indexOf("\"brightness\":");
-    uint8_t brightness = (bIdx != -1) ? body.substring(bIdx + 13).toInt() : 128;
+    uint8_t brightness = doc["brightness"] | 128;
     espNowSync.sendPeerBrightness(peerIdx, brightness);
   }
   else if (cmd == "framerate") {
-    int fIdx = body.indexOf("\"framerate\":");
-    uint8_t fps = (fIdx != -1) ? body.substring(fIdx + 12).toInt() : 50;
+    uint8_t fps = doc["framerate"] | 50;
     uint8_t frameDelay = 1000 / max((uint8_t)1, fps);
     espNowSync.sendPeerFrameRate(peerIdx, frameDelay);
   }
@@ -2899,20 +2778,17 @@ void handleSyncExecute() {
     server.send(400, "application/json", "{\"error\":\"No data\"}");
     return;
   }
-  
+
   String body = server.arg("plain");
-  
-  // Parse peer ID (simplified - should use proper JSON parser)
-  int peerIdIdx = body.indexOf("\"peerId\":");
-  if (peerIdIdx == -1) {
+
+  // Parse peer ID using ArduinoJson
+  JsonDocument doc;
+  if (deserializeJson(doc, body) || !doc["peerId"].is<const char*>()) {
     server.send(400, "application/json", "{\"error\":\"Missing peerId\"}");
     return;
   }
-  
-  // Extract peer ID (simplified parsing)
-  int startIdx = body.indexOf("\"", peerIdIdx + 9) + 1;
-  int endIdx = body.indexOf("\"", startIdx);
-  String peerId = body.substring(startIdx, endIdx);
+
+  String peerId = doc["peerId"].as<String>();
   
   // Perform sync
   performSync(peerId);
@@ -3015,39 +2891,34 @@ void handleDeviceConfigUpdate() {
     server.send(400, "application/json", "{\"error\":\"No data\"}");
     return;
   }
-  
+
   String body = server.arg("plain");
-  
-  // Parse and update configuration (simplified)
-  // In full implementation, would use proper JSON parser
-  
-  int nameIdx = body.indexOf("\"deviceName\":");
-  if (nameIdx != -1) {
-    int startIdx = body.indexOf("\"", nameIdx + 13) + 1;
-    int endIdx = body.indexOf("\"", startIdx);
-    deviceConfig.deviceName = body.substring(startIdx, endIdx);
+
+  // Parse and update configuration using ArduinoJson
+  JsonDocument doc;
+  if (deserializeJson(doc, body)) {
+    server.send(400, "application/json", "{\"error\":\"Invalid JSON\"}");
+    return;
   }
-  
-  int groupIdx = body.indexOf("\"syncGroup\":");
-  if (groupIdx != -1) {
-    int startIdx = body.indexOf("\"", groupIdx + 12) + 1;
-    int endIdx = body.indexOf("\"", startIdx);
-    deviceConfig.syncGroup = body.substring(startIdx, endIdx);
+
+  if (doc["deviceName"].is<const char*>()) {
+    deviceConfig.deviceName = doc["deviceName"].as<String>();
   }
-  
-  int autoSyncIdx = body.indexOf("\"autoSync\":");
-  if (autoSyncIdx != -1) {
-    deviceConfig.autoSync = body.indexOf("true", autoSyncIdx) != -1;
+  if (doc["syncGroup"].is<const char*>()) {
+    deviceConfig.syncGroup = doc["syncGroup"].as<String>();
   }
-  
+  if (doc["autoSync"].is<bool>()) {
+    deviceConfig.autoSync = doc["autoSync"].as<bool>();
+  }
+
   // Save configuration
   saveDeviceConfig();
-  
+
   String json = "{";
   json += "\"status\":\"ok\",";
   json += "\"message\":\"Configuration updated\"";
   json += "}";
-  
+
   server.send(200, "application/json", json);
 }
 
@@ -3129,40 +3000,32 @@ void handleWifiConnect() {
     server.send(400, "application/json", "{\"error\":\"No data\"}");
     return;
   }
-  
+
   String body = server.arg("plain");
-  int ssidIdx = body.indexOf("\"ssid\":");
-  if (ssidIdx == -1) {
+  JsonDocument doc;
+  if (deserializeJson(doc, body) || !doc["ssid"].is<const char*>()) {
     server.send(400, "application/json", "{\"error\":\"Missing ssid\"}");
     return;
   }
-  
-  int ssidStart = body.indexOf("\"", ssidIdx + 7) + 1;
-  int ssidEnd = body.indexOf("\"", ssidStart);
-  String newSsid = body.substring(ssidStart, ssidEnd);
+
+  String newSsid = doc["ssid"].as<String>();
   newSsid.trim();
-  
+
   if (newSsid.length() == 0) {
     server.send(400, "application/json", "{\"error\":\"SSID cannot be empty\"}");
     return;
   }
-  
-  String newPass = "";
-  int passIdx = body.indexOf("\"password\":");
-  if (passIdx != -1) {
-    int passStart = body.indexOf("\"", passIdx + 11) + 1;
-    int passEnd = body.indexOf("\"", passStart);
-    newPass = body.substring(passStart, passEnd);
-  }
-  
+
+  String newPass = doc["password"] | "";
+
   saveWifiStaConfig(newSsid, newPass);
   WiFi.begin(newSsid.c_str(), newPass.c_str());
-  
+
   String json = "{";
   json += "\"status\":\"ok\",";
   json += "\"message\":\"Connecting to network. Check /api/wifi/status for result.\"";
   json += "}";
-  
+
   server.send(200, "application/json", json);
 }
 
