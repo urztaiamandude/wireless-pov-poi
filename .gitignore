@@ -67,6 +67,7 @@ web_portal/dist/
 
 # Testing
 test_results/
+test_results.json
 *.test
 
 # Documentation generated files
