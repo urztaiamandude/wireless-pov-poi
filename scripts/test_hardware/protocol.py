@@ -57,6 +57,10 @@ def build_packet(cmd: int, data: bytes = b"") -> bytes:
     if cmd == Cmd.UPLOAD_IMAGE:
         # Image upload uses 16-bit length
         return bytes([INTERNAL_START, cmd, (length >> 8) & 0xFF, length & 0xFF]) + data + bytes([INTERNAL_END])
+    if length > 0xFF:
+        raise ValueError(
+            f"Payload too large for 8-bit length field: {length} bytes (max 255)"
+        )
     return bytes([INTERNAL_START, cmd, length & 0xFF]) + data + bytes([INTERNAL_END])
 
 

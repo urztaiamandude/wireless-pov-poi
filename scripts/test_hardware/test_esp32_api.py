@@ -8,6 +8,7 @@ values, then restore the original state.
 
 import json
 import time
+import urllib.parse
 import urllib.request
 import urllib.error
 from typing import Optional
@@ -21,18 +22,22 @@ REQUEST_TIMEOUT = 5  # seconds
 
 def _get(url: str, timeout: float = REQUEST_TIMEOUT) -> tuple[int, str]:
     """HTTP GET, returns (status_code, body)."""
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        raise ValueError(f"Unsafe URL scheme: {parsed.scheme!r}; only http/https are allowed")
     req = urllib.request.Request(url)
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             return resp.status, resp.read().decode("utf-8", errors="replace")
     except urllib.error.HTTPError as e:
         return e.code, e.read().decode("utf-8", errors="replace")
-    except Exception as e:
-        raise
 
 
 def _post_json(url: str, data: dict, timeout: float = REQUEST_TIMEOUT) -> tuple[int, str]:
     """HTTP POST with JSON body, returns (status_code, body)."""
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        raise ValueError(f"Unsafe URL scheme: {parsed.scheme!r}; only http/https are allowed")
     body = json.dumps(data).encode("utf-8")
     req = urllib.request.Request(url, data=body, method="POST")
     req.add_header("Content-Type", "application/json")
@@ -41,8 +46,6 @@ def _post_json(url: str, data: dict, timeout: float = REQUEST_TIMEOUT) -> tuple[
             return resp.status, resp.read().decode("utf-8", errors="replace")
     except urllib.error.HTTPError as e:
         return e.code, e.read().decode("utf-8", errors="replace")
-    except Exception as e:
-        raise
 
 
 # ---------------------------------------------------------------------------

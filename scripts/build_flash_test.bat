@@ -23,7 +23,7 @@ if "%~1"=="--test-only" (
     shift
     goto :parse_args
 )
-set EXTRA_ARGS=%EXTRA_ARGS% %1
+set EXTRA_ARGS=%EXTRA_ARGS% "%~1"
 shift
 goto :parse_args
 :done_args
@@ -32,8 +32,8 @@ set BUILD_ARGS=
 if %TEST_ONLY%==0 set BUILD_ARGS=--build --flash
 
 set PORT_ARGS=
-if defined TEENSY_PORT set PORT_ARGS=%PORT_ARGS% --teensy-port %TEENSY_PORT%
-if defined ESP32_PORT  set PORT_ARGS=%PORT_ARGS% --esp32-port %ESP32_PORT%
-if defined ESP32_URL   set PORT_ARGS=%PORT_ARGS% --esp32-url %ESP32_URL%
+if defined TEENSY_PORT set PORT_ARGS=%PORT_ARGS% --teensy-port "%TEENSY_PORT%"
+if defined ESP32_PORT  set PORT_ARGS=%PORT_ARGS% --esp32-port "%ESP32_PORT%"
+if defined ESP32_URL   set PORT_ARGS=%PORT_ARGS% --esp32-url "%ESP32_URL%"
 
-python -m scripts.test_hardware.run_tests %BUILD_ARGS% %PORT_ARGS% --report test_results.json %EXTRA_ARGS%
+python3 -m scripts.test_hardware.run_tests %BUILD_ARGS% %PORT_ARGS% --report test_results.json %EXTRA_ARGS%
