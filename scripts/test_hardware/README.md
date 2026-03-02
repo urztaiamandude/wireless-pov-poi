@@ -67,22 +67,22 @@ Teensy's serial status to confirm the command actually reached the hardware:
 cd wireless-pov-poi
 
 # List available serial ports
-python -m scripts.test_hardware.run_tests --list-ports
+python3 -m scripts.test_hardware.run_tests --list-ports
 
 # Run all suites (auto-detect ports)
-python -m scripts.test_hardware.run_tests
+python3 -m scripts.test_hardware.run_tests
 
 # Teensy only
-python -m scripts.test_hardware.run_tests --suite teensy --teensy-port /dev/ttyACM0
+python3 -m scripts.test_hardware.run_tests --suite teensy --teensy-port /dev/ttyACM0
 
 # ESP32 API only (connect to POV-POI-WiFi first)
-python -m scripts.test_hardware.run_tests --suite api
+python3 -m scripts.test_hardware.run_tests --suite api
 
 # Custom ESP32 URL
-python -m scripts.test_hardware.run_tests --suite api --esp32-url http://povpoi.local
+python3 -m scripts.test_hardware.run_tests --suite api --esp32-url http://povpoi.local
 
 # Build + flash + test
-python -m scripts.test_hardware.run_tests --build --flash
+python3 -m scripts.test_hardware.run_tests --build --flash
 
 # Save JSON report
 python -m scripts.test_hardware.run_tests --report test_results.json
