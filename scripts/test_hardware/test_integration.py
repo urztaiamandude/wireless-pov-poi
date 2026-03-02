@@ -96,12 +96,19 @@ def test_mode_through_api(
             return TestResult(f"E2E mode: {label}", Verdict.FAIL, elapsed,
                               "Teensy status unreadable after API call")
 
-        if status.mode == mode:
+        if status.mode == mode and status.index == index:
             return TestResult(f"E2E mode: {label}", Verdict.PASS, elapsed,
                               f"Teensy confirmed mode={status.mode} index={status.index}")
 
-        return TestResult(f"E2E mode: {label}", Verdict.FAIL, elapsed,
-                          f"Expected mode={mode}, Teensy reports mode={status.mode}")
+        return TestResult(
+            f"E2E mode: {label}",
+            Verdict.FAIL,
+            elapsed,
+            (
+                f"Expected mode={mode}, index={index}; "
+                f"Teensy reports mode={status.mode}, index={status.index}"
+            ),
+        )
     except Exception as e:
         elapsed = (time.time() - start) * 1000
         return TestResult(f"E2E mode: {label}", Verdict.FAIL, elapsed, str(e))
