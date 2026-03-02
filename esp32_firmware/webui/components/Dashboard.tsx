@@ -399,6 +399,11 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
             throw new Error(`HTTP ${res.status} ${errText}`);
           }
         } else if (action === 'load') {
+          if (!value || (typeof value === 'string' && value.trim() === '')) {
+            addLog(`[Error] Load aborted: no filename specified.`, 'text-red-500');
+            updateDevice(dev.id, { status: 'Load failed: missing filename', type: 'error' });
+            continue;
+          }
           const base = getDeviceBase(dev.ip);
           const res = await fetch(`${base}/api/sd/load`, {
             method,
