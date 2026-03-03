@@ -8,7 +8,7 @@
  * Features:
  * - WiFi Access Point mode
  * - BLE support via Nordic UART Service
-Add * - Image/pattern/sequence management
+ * - Image/pattern/sequence management
  * - Serial communication with Teensy
  * - REST API for web UI and integrations
  * - ESP-NOW multi-poi synchronization (mirror + independent modes)
