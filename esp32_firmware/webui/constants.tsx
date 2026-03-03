@@ -139,7 +139,8 @@ export const getTeensySketch = (ledCount: number): ArduinoSketch => ({
 #define SERIAL_BAUD 115200
 #define DEFAULT_BRIGHTNESS 128
 
-// Note: LED 0 is reserved for hardware level shifting; display loops start at index 1.
+// Note: All 32 LEDs are active display pixels (hardware MOSFET level shifter handles 3.3V → 5V).
+// Display loops start at index 0: for (int i = 0; i < NUM_LEDS; i++) { leds[i] = color; }
 
 constexpr uint8_t kPixelBytes = 3;
 
@@ -153,8 +154,8 @@ uint8_t currentMode = 0;  // 0=Idle, 1=Image, 2=Pattern
 void displayPattern(uint8_t patternIndex) {
   static uint8_t hue = 0;
   
-  // Example: Rainbow pattern - start from 1 to skip level-shift LED 0
-  for (int i = 1; i < NUM_LEDS; i++) {
+  // Example: Rainbow pattern across all 32 display LEDs
+  for (int i = 0; i < NUM_LEDS; i++) {
     leds[i] = CHSV(hue + (i * 10), 255, 255);
   }
   hue++;
@@ -162,8 +163,7 @@ void displayPattern(uint8_t patternIndex) {
 }
 
 void clearLEDs() {
-  // NUM_LEDS is 32 (total); skip LED 0 (reserved), clear display LEDs 1-31
-  fill_solid(leds + 1, NUM_LEDS - 1, CRGB::Black);
+  fill_solid(leds, NUM_LEDS, CRGB::Black);
   FastLED.show();
 }
 

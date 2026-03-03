@@ -24,31 +24,30 @@ APA102 LED Strip (32 LEDs)
 
 ### ⚠️ LED Array Layout - ALWAYS FOLLOW THIS
 
-**CRITICAL**: LED 0 is NEVER used for display - it's reserved for hardware level shifting!
+**Hardware**: A MOSFET-type level shifter handles 3.3V → 5V signal conversion externally. All 32 LEDs are active display pixels — none are sacrificial.
 
 ```
 Physical LED Strip:
 ┌────┬────┬────┬────┬─────┬────┐
 │ 0  │ 1  │ 2  │... │ 30  │ 31 │
 └────┴────┴────┴────┴─────┴────┘
-  ↑    ↑─────────────────────↑
-Level   Display pixels (31 total)
-Shift
+  ↑────────────────────────────↑
+       Display pixels (32 total)
 ```
 
 **ALL display code MUST:**
-- Start loops at index 1: `for (int i = 1; i < NUM_LEDS; i++)`
-- Use `DISPLAY_LEDS` (31) for height calculations
-- Use `DISPLAY_LED_START` (1) as first display index
+- Start loops at index 0: `for (int i = 0; i < NUM_LEDS; i++)`
+- Use `DISPLAY_LEDS` (32) for height calculations
+- Use `DISPLAY_LED_START` (0) as first display index
 
 ```cpp
-// ✅ CORRECT - Skip LED 0
-for (int i = 1; i < NUM_LEDS; i++) { 
+// ✅ CORRECT - All 32 LEDs are display pixels
+for (int i = 0; i < NUM_LEDS; i++) { 
   leds[i] = color; 
 }
 
-// ❌ WRONG - Includes LED 0 (level shift LED)
-for (int i = 0; i < NUM_LEDS; i++) { 
+// ❌ WRONG - Skips LED 0 (all LEDs are display LEDs, none reserved)
+for (int i = 1; i < NUM_LEDS; i++) { 
   leds[i] = color; 
 }
 ```
@@ -113,7 +112,7 @@ Base URL: `http://192.168.4.1` (or `http://povpoi.local` via mDNS)
 | `/api/mode` | POST | Set mode & index: `{"mode": 2, "index": 0}` |
 | `/api/brightness` | POST | `{"brightness": 128}` (0-255) |
 | `/api/framerate` | POST | `{"framerate": 60}` (10-120) |
-| `/api/image` | POST | Multipart upload, auto-converts to 31px tall |
+| `/api/image` | POST | Multipart upload, auto-converts to 32px tall |
 | `/api/pattern` | POST | `{"type": 0, "color1": "#FF0000", "speed": 50}` |
 | `/api/live` | POST | Raw RGB frame for live mode |
 
@@ -133,7 +132,7 @@ Patterns defined in `displayPattern()` switch. Types 0-15 exist (Rainbow→Music
 ```cpp
 // In teensy_firmware.ino displayPattern()
 case 16:  // New pattern
-  for (int i = 1; i < NUM_LEDS; i++) {  // Start from 1!
+  for (int i = 0; i < NUM_LEDS; i++) {
     leds[i] = CHSV(hue + i * 8, 255, 255);
   }
   break;
@@ -158,26 +157,26 @@ Audio config in `teensy_firmware.ino`: `AUDIO_PIN A0`, `AUDIO_SAMPLES 64`, `AUDI
 ## Image Conversion & Orientation
 
 ### Image Dimensions
-- **HEIGHT**: 31 pixels (FIXED - one pixel per display LED)
+- **HEIGHT**: 32 pixels (FIXED - one pixel per display LED)
 - **WIDTH**: Variable (calculated from aspect ratio, max ~200px)
 - LED strip forms the VERTICAL axis when spinning
-- LED 1 (bottom of strip) = bottom of image
+- LED 0 (bottom of strip) = bottom of image
 - LED 31 (top of strip) = top of image
 
 ### Image Storage Format
 ```cpp
 // Storage: pixels[x][y] where y is LED index
-CRGB pixels[IMAGE_WIDTH][IMAGE_HEIGHT];  // Max 31x200
+CRGB pixels[IMAGE_WIDTH][IMAGE_HEIGHT];  // Max 32x200
 
 // Display mapping (NO flip needed in latest code):
-leds[y] = pixels[current_column][y];  // y ranges 1-31
+leds[y] = pixels[current_column][y];  // y ranges 0-31
 ```
 
 ### Python Converters
-All converters must produce 31px tall images:
+All converters must produce 32px tall images:
 ```python
 # Resize maintaining aspect ratio
-target_height = 31  # FIXED for 31 display LEDs
+target_height = 32  # FIXED for 32 display LEDs
 aspect_ratio = img.width / img.height
 target_width = int(target_height * aspect_ratio)
 img = img.resize((target_width, target_height), Image.LANCZOS)
@@ -203,7 +202,7 @@ pytest test_*.py -v
 **Common test failures:**
 - Missing Pillow: `pip install Pillow`
 - Wrong working directory: must run from `examples/`
-- Image dimension assertions: check 31px height (fixed), variable width
+- Image dimension assertions: check 32px height (fixed), variable width
 
 ### Manual Testing
 ```bash
@@ -226,7 +225,7 @@ Patterns defined in `displayPattern()` switch in `teensy_firmware.ino`. Types 0-
 ```cpp
 // In teensy_firmware.ino displayPattern()
 case 18:  // New pattern ID
-  for (int i = 1; i < NUM_LEDS; i++) {  // Start from 1!
+  for (int i = 0; i < NUM_LEDS; i++) {
     leds[i] = CHSV(hue + i * 8, 255, 255);
   }
   break;
@@ -263,7 +262,7 @@ python image_converter_gui.py
 
 # CLI converter
 python image_converter.py input.jpg
-# Creates: input_31px.bin (binary), input_31px.png (preview)
+# Creates: input_32px.bin (binary), input_32px.png (preview)
 
 # Web upload - automatic conversion
 # Access http://192.168.4.1 and use upload button
@@ -276,10 +275,12 @@ python image_converter.py input.jpg
 2. Verify APA102 connections:
    - Teensy Pin 11 → LED Data (DI)
    - Teensy Pin 13 → LED Clock (CI)
-3. **LED 0 must be connected** (required for level shifting)
+3. Verify APA102 connections:
+   - Teensy Pin 11 → LED Data (DI)
+   - Teensy Pin 13 → LED Clock (CI)
 4. Test with simple code:
    ```cpp
-   leds[1] = CRGB::Red;
+   leds[0] = CRGB::Red;
    FastLED.show();
    ```
 
@@ -303,7 +304,7 @@ python image_converter.py input.jpg
 
 ### Image Orientation Issues
 - Images should display correctly without manual flipping
-- LED 1 = bottom of strip = bottom of image
+- LED 0 = bottom of strip = bottom of image
 - LED 31 = top of strip = top of image
 - If upside down, check physical LED strip orientation
 - See `docs/POV_DISPLAY_ORIENTATION_GUIDE.md`
@@ -331,7 +332,7 @@ node --version
 ## Key Constraints
 
 - **Display modes**: 0=Idle, 1=Image, 2=Pattern, 3=Sequence, 4=Live
-- **Ranges**: brightness 0-255, FPS 10-120, image dimensions W×31 (width variable, height fixed at 31px)
+- **Ranges**: brightness 0-255, FPS 10-120, image dimensions W×32 (width variable, height fixed at 32px)
 - **WiFi**: SSID `POV-POI-WiFi`, password `povpoi123`, IP `192.168.4.1`
 - **Performance**: Teensy loop is time-critical - no blocking calls
 - **Power**: Full brightness LEDs draw 2-3A at 5V
@@ -465,7 +466,7 @@ String response = "{\"brightness\":" + String(brightness) + "}";
 - **Functions**: `camelCase` (e.g., `displayPattern()`)
 - **Constants**: `UPPER_CASE` (e.g., `NUM_LEDS`, `DISPLAY_LEDS`)
 - **Variables**: `camelCase` (e.g., `currentPatternIndex`)
-- **LED loops**: ALWAYS start from index 1
+- **LED loops**: ALWAYS start from index 0
 - **Comments**: Use for complex logic, match existing style
 - **No blocking calls** in Teensy loop - it's time-critical
 

@@ -220,7 +220,7 @@ Common GND         → ESP32-S3 GND
    APA102 CI → Level Shifter → Teensy Pin 13 (SCK)
    ```
    - Hardware level shifter converts 3.3V → 5V for data/clock signals
-   - LEDs 1–31 are used for display (LED 0 is reserved per LED layout guidelines)
+   - All 32 LEDs (0-31) are used for display (hardware MOSFET level shifter converts 3.3V → 5V)
 
 2. **Power Connections**
    ```

@@ -256,7 +256,7 @@ POV (Persistence of Vision) works by rapidly displaying different columns of an 
 ### Tips for Best Results
 - Spin at consistent speed (2-3 rotations per second)
 - Use higher frame rates for smoother display
-- Images should be 31 pixels tall (matching the 31-LED display area; LED 0 is reserved for level shifting)
+- Images should be 32 pixels tall (matching LED count)
 - Height can be up to 64 pixels
 - High contrast images work best
 - Use in low-light environments for best effect
@@ -293,7 +293,7 @@ Change these values in `teensy_firmware/teensy_firmware.ino`:
 #define NUM_LEDS 32        // Total LEDs
 #define DATA_PIN 11        // Data pin
 #define CLOCK_PIN 13       // Clock pin
-#define DISPLAY_LEDS 31    // Active display LEDs (LEDs 1-31; LED 0 reserved for level shifting)
+#define DISPLAY_LEDS 32    // Active display LEDs (all 32 with hardware level shifter)
 ```
 
 ## Troubleshooting
