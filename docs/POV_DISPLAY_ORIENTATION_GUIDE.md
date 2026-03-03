@@ -1,7 +1,7 @@
 # POV Display Orientation Guide
 
 ## LED Strip Layout Diagrams
-- **Diagram**: ASCII representation of the 32 LED strip, showcasing how all 32 LEDs are used for display with a hardware level shifter. LED 0 (bottom) displays row 0, and LED 31 (top) displays row 31.
+- **Diagram**: ASCII representation of the 32 LED strip. All 32 LEDs are active display pixels (hardware MOSFET level shifter). LED 0 (bottom) displays row 0, and LED 31 (top) displays row 31.
 
 ```
     LED 31 (Top)
@@ -17,12 +17,12 @@
 ```
 
 ## Image Data Structure Explanation
-Images are converted to **32 pixels tall**, matching the 32 display LEDs (LED 0-LED 31). Each image column is streamed as a time slice while the poi spins. For every column:
+Images are converted to **32 pixels tall**, matching the 32 display LEDs (LED 0–LED 31). All 32 LEDs are active display pixels — the hardware MOSFET level shifter handles 3.3V → 5V signal conversion externally. Each image column is streamed as a time slice while the poi spins. For every column:
 
 - **Row 0 → LED 0** (bottom display LED)
 - **Row 31 → LED 31** (top display LED)
 
-This means the image array is indexed from row 0 at the bottom to row 31 at the top, and the firmware writes all LEDs 0-31.
+This means the image array is indexed from row 0 at the bottom to row 31 at the top, and the firmware writes all LEDs 0–31.
 
 ## POV Spinning Effect Visualization
 Each column of pixels is shown in sequence as the poi rotates. Persistence of vision blends those time slices into a full 2D image around the arc of the spin:
@@ -56,7 +56,7 @@ Use simple patterns to confirm orientation before loading complex images:
 ## Troubleshooting for Common Orientation Issues
 - **Upside-down image**: Ensure the converter flips vertically (`Image.FLIP_TOP_BOTTOM`) before upload.
 - **Wrong colors**: Verify RGB order and APA102 wiring (data/clock). Confirm FastLED color order.
-- **Level Shift Issues**: Ensure hardware level shifter is correctly wired.
+- **Level Shift Issues**: Ensure hardware MOSFET level shifter is correctly wired.
 - **Stretched images**: Confirm height is fixed at 32 pixels and aspect ratio is preserved.
 - **Missing rows**: Check image height and ensure LED indices 0-31 are addressed.
 
@@ -64,8 +64,8 @@ Use simple patterns to confirm orientation before loading complex images:
 | Spec | Value |
 |------|-------|
 | Total LEDs | 32 |
-| Display LEDs | 32 (LED 0-LED 31) |
-| Level-shift LED | Hardware Level Shifter |
+| Display LEDs | 32 (LED 0–LED 31) |
+| Level-shift method | Hardware MOSFET level shifter (external) |
 | Image height | 32 pixels (rows 0-31) |
 | Brightness range | 0-255 |
 | Frame rate range | 10-120 FPS (firmware limit; validate on hardware) |

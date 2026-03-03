@@ -139,8 +139,8 @@ export const getTeensySketch = (ledCount: number): ArduinoSketch => ({
 #define SERIAL_BAUD 115200
 #define DEFAULT_BRIGHTNESS 128
 
-// Note: In production, DISPLAY_LED_START=0 and all 32 LEDs are display pixels
-// with hardware level shifter. This example uses simplified indexing.
+// Note: All 32 LEDs are active display pixels (hardware MOSFET level shifter handles 3.3V → 5V).
+// Display loops start at index 0: for (int i = 0; i < NUM_LEDS; i++) { leds[i] = color; }
 
 constexpr uint8_t kPixelBytes = 3;
 
@@ -154,7 +154,7 @@ uint8_t currentMode = 0;  // 0=Idle, 1=Image, 2=Pattern
 void displayPattern(uint8_t patternIndex) {
   static uint8_t hue = 0;
   
-  // Example: Rainbow pattern
+  // Example: Rainbow pattern across all 32 display LEDs
   for (int i = 0; i < NUM_LEDS; i++) {
     leds[i] = CHSV(hue + (i * 10), 255, 255);
   }

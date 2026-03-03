@@ -4,7 +4,7 @@ Test script for GUI image converter
 Tests the core functionality without requiring tkinter display
 
 NOTE: The POV display uses LEDs as the VERTICAL axis:
-- HEIGHT is FIXED at 31 pixels (matching 31 display LEDs)
+- HEIGHT is FIXED at 32 pixels (matching 32 display LEDs)
 - WIDTH is calculated to maintain aspect ratio
 """
 

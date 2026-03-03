@@ -221,7 +221,7 @@ def test_different_formats():
             img = Image.new('RGB', (100, 100), color=(128, 128, 128))
             img.save(test_img, format=fmt)
             
-            # Convert - HEIGHT is fixed at 31
+            # Convert - HEIGHT is fixed at 32
             success = convert_image_for_pov(test_img, output_img)
             
             if not success:
