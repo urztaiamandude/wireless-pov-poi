@@ -20,7 +20,7 @@ pio run -e esp32s3
 #### Build and upload Web UI filesystem (SPIFFS):
 ```bash
 cd esp32_firmware/webui
-npm ci
+npm ci  # or: npm install
 npm run build
 
 cd ../
