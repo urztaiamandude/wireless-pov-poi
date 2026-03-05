@@ -16,6 +16,7 @@ The ESP32 serves the web UI as static files from its internal filesystem (SPIFFS
 
 ```bash
 cd esp32_firmware/webui
+npm ci  # or: npm install
 npm run build
 ```
 
@@ -256,6 +257,9 @@ Create `deploy.sh` in the webui directory:
 ```bash
 #!/bin/bash
 set -e
+
+echo "Installing dependencies..."
+npm ci
 
 echo "Building web UI..."
 npm run build
