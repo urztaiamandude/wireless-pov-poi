@@ -1654,9 +1654,11 @@ void handleRoot() {
   // Prefer SPIFFS index.html (uploaded via uploadfs from webui/dist)
   if (SPIFFS.exists("/index.html")) {
     File file = SPIFFS.open("/index.html", "r");
-    server.streamFile(file, "text/html");
-    file.close();
-    return;
+    if (file) {
+      server.streamFile(file, "text/html");
+      file.close();
+      return;
+    }
   }
   // Fallback to embedded root page
   size_t len = strlen_P(rootPage);
@@ -2347,9 +2349,11 @@ void handleNotFound() {
   String path = server.uri();
   if (SPIFFS.exists(path)) {
     File file = SPIFFS.open(path, "r");
-    server.streamFile(file, getContentType(path));
-    file.close();
-    return;
+    if (file) {
+      server.streamFile(file, getContentType(path));
+      file.close();
+      return;
+    }
   }
   server.send(404, "text/plain", "Not Found");
 }
