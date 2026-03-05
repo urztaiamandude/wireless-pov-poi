@@ -252,7 +252,9 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
         const resPattern = await fetch(`${base}/api/pattern`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ type: patternId, speed: 50 }),
+          // Keep pattern storage index aligned with selected pattern ID.
+          // Teensy displays `patterns[currentIndex]`, so missing index causes dark slots.
+          body: JSON.stringify({ index: patternId, type: patternId, speed: 50 }),
         });
         if (!resPattern.ok) {
           const errText = await resPattern.text();

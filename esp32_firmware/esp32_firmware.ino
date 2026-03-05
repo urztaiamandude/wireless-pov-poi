@@ -175,7 +175,7 @@ void setup() {
   Serial.println("\n\nESP32 Nebula Poi Controller Starting...");
   
   // Initialize Teensy Serial
-  TEENSY_SERIAL.begin(SERIAL_BAUD, SERIAL_8N1, 44, 43);  // RX=GPIO44 (U0RXD), TX=GPIO43 (U0TXD)
+  TEENSY_SERIAL.begin(SERIAL_BAUD, SERIAL_8N1, 16, 17);  // RX=GPIO16, TX=GPIO17
   
   // Initialize SPIFFS for web files
   if (!SPIFFS.begin(true)) {
@@ -920,7 +920,7 @@ static const char rootPage[] PROGMEM = R"rawliteral(
                     <div>IP Address: <span style="color:#06b6d4">192.168.4.1</span></div>
                     <div>Serial Baud: <span style="color:#06b6d4">115200</span></div>
                     <div>LEDs: <span style="color:#06b6d4">32x APA102 (SPI)</span></div>
-                    <div>UART TX: <span style="color:#06b6d4">GPIO43</span> | RX: <span style="color:#06b6d4">GPIO44</span></div>
+                    <div>UART TX: <span style="color:#06b6d4">GPIO17</span> | RX: <span style="color:#06b6d4">GPIO16</span></div>
                     <div id="cfg-device-id" style="color:#64748b">Device ID: --</div>
                 </div>
             </div>
@@ -2353,10 +2353,10 @@ void sendTeensyCommand(uint8_t cmd, uint8_t dataLen) {
 }
 
 void checkTeensyConnection() {
+  static bool lastConnected = false;
+  static unsigned long lastDisconnectLog = 0;
+
   // Request status from Teensy
-  // #region agent log
-  Serial.println("[DBG][H2] checkTeensyConnection: sending 0x10 status request to Teensy");
-  // #endregion
   sendTeensyCommand(0x10, 0);
   TEENSY_SERIAL.write(0xFE);
   
@@ -2368,30 +2368,29 @@ void checkTeensyConnection() {
     if (av >= 5) {
       uint8_t b0 = TEENSY_SERIAL.read();
       uint8_t b1 = TEENSY_SERIAL.read();
-      // #region agent log
-      Serial.printf("[DBG][H2] checkTeensyConnection: got %d bytes, header=0x%02X 0x%02X (expect FF BB)\n", av, b0, b1);
-      // #endregion
       if (b0 == 0xFF && b1 == 0xBB) {
         state.currentMode = TEENSY_SERIAL.read();
         state.currentIndex = TEENSY_SERIAL.read();
         state.sdCardPresent = (TEENSY_SERIAL.read() != 0);
         state.connected = true;
-        // #region agent log
-        Serial.println("[DBG][H2] checkTeensyConnection: SUCCESS connected=true");
-        // #endregion
+        if (!lastConnected) {
+          Serial.println("[LINK] Teensy connection established");
+        }
+        lastConnected = true;
         return;
       }
     }
   }
   state.connected = false;
   state.sdCardPresent = false;
-  // #region agent log
-  static unsigned long _lastFailLog = 0;
-  if (millis() - _lastFailLog > 5000) {
-    Serial.println("[DBG][H2] checkTeensyConnection: FAILED no valid response (H1/H4: wiring or timeout)");
-    _lastFailLog = millis();
+  if (lastConnected) {
+    Serial.println("[LINK] Teensy connection lost");
+    lastConnected = false;
+    lastDisconnectLog = millis();
+  } else if (millis() - lastDisconnectLog > 15000) {
+    Serial.println("[LINK] Waiting for Teensy response...");
+    lastDisconnectLog = millis();
   }
-  // #endregion
 }
 
 // ============================================================================
