@@ -8,14 +8,15 @@ The ESP32 serves the web UI as static files from its internal filesystem (SPIFFS
 
 ## Prerequisites
 
-- Built web UI (see main README.md)
+- Node.js 18+ and npm (run `npm install` once after cloning to install dependencies)
 - ESP32 firmware with web server enabled
 - Filesystem uploader tool for your development environment
 
-## Step 1: Build Production Bundle
+## Step 1: Install Dependencies & Build Production Bundle
 
 ```bash
 cd esp32_firmware/webui
+npm install          # one-time: install dependencies (needed on fresh checkout)
 npm run build
 ```
 
@@ -256,6 +257,9 @@ Create `deploy.sh` in the webui directory:
 ```bash
 #!/bin/bash
 set -e
+
+echo "Installing dependencies..."
+npm install
 
 echo "Building web UI..."
 npm run build
