@@ -17,6 +17,17 @@ cd esp32_firmware
 pio run -e esp32s3
 ```
 
+#### Build and upload Web UI filesystem (SPIFFS):
+```bash
+cd esp32_firmware/webui
+npm run build
+
+cd ../
+pio run -e esp32s3 --target uploadfs
+```
+
+> `uploadfs` uses `webui/dist` directly (configured in `esp32_firmware/platformio.ini` as `data_dir = webui/dist`).
+
 #### Build and upload to COM8:
 ```bash
 cd esp32_firmware
