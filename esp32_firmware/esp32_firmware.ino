@@ -1659,6 +1659,14 @@ static const char rootPage[] PROGMEM = R"rawliteral(
 )rawliteral";
 
 void handleRoot() {
+  // Try serving index.html from SPIFFS first (uploaded via uploadfs)
+  if (SPIFFS.exists("/index.html")) {
+    File file = SPIFFS.open("/index.html", "r");
+    server.streamFile(file, "text/html");
+    file.close();
+    return;
+  }
+  // Fall back to embedded UI
   size_t len = strlen_P(rootPage);
   server.setContentLength(len);
   server.send(200, "text/html", "");
@@ -2333,6 +2341,30 @@ self.addEventListener('activate', (event) => {
 }
 
 void handleNotFound() {
+  String path = server.uri();
+  // Try serving the requested path from SPIFFS (for React app assets)
+  if (SPIFFS.exists(path)) {
+    String contentType = "application/octet-stream";
+    if (path.endsWith(".html")) contentType = "text/html";
+    else if (path.endsWith(".css")) contentType = "text/css";
+    else if (path.endsWith(".js")) contentType = "application/javascript";
+    else if (path.endsWith(".json")) contentType = "application/json";
+    else if (path.endsWith(".png")) contentType = "image/png";
+    else if (path.endsWith(".jpg") || path.endsWith(".jpeg")) contentType = "image/jpeg";
+    else if (path.endsWith(".svg")) contentType = "image/svg+xml";
+    else if (path.endsWith(".ico")) contentType = "image/x-icon";
+    File file = SPIFFS.open(path, "r");
+    server.streamFile(file, contentType);
+    file.close();
+    return;
+  }
+  // SPA fallback: serve index.html for non-API GET requests when SPIFFS UI is available
+  if (server.method() == HTTP_GET && !path.startsWith("/api/") && SPIFFS.exists("/index.html")) {
+    File file = SPIFFS.open("/index.html", "r");
+    server.streamFile(file, "text/html");
+    file.close();
+    return;
+  }
   server.send(404, "text/plain", "Not Found");
 }
 
