@@ -5,8 +5,11 @@
   #include <Arduino.h>
 #elif __has_include(<WProgram.h>)
   #include <WProgram.h>
-#else
-  // Fallback for editor/indexer environments that do not provide Arduino headers.
+#elif defined(__INTELLISENSE__) || defined(__clangd__) || !defined(ARDUINO)
+  // Shims for editor/indexer (IntelliSense, clangd) or non-Arduino host builds only.
+  // In a real Arduino build where Arduino.h is missing this block is skipped and the
+  // #error below fires, preserving the hard compile failure that would expose the
+  // misconfiguration.
   #include <cstddef>
   #include <cstdint>
 
@@ -23,6 +26,8 @@
   };
 
   static BMPImageReaderSerialShim Serial;
+#else
+  #error "Arduino.h not found. Ensure the Arduino core is installed and your board is correctly configured."
 #endif
 
 /*
