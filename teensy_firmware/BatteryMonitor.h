@@ -18,7 +18,47 @@
 #ifndef BATTERY_MONITOR_H
 #define BATTERY_MONITOR_H
 
-#include <Wire.h>
+#if __has_include(<Arduino.h>) && __has_include(<Wire.h>)
+  #include <Arduino.h>
+  #include <Wire.h>
+#elif __has_include(<WProgram.h>) && __has_include(<Wire.h>)
+  #include <WProgram.h>
+  #include <Wire.h>
+#else
+  // Fallback for editor/indexer environments without Arduino core headers.
+  #include <cstdint>
+
+  struct BatteryMonitorSerialShim {
+    template <typename T>
+    void println(const T&) {}
+  };
+
+  struct BatteryMonitorWireShim {
+    void begin() {}
+    void setClock(uint32_t) {}
+    void beginTransmission(uint8_t) {}
+    uint8_t endTransmission() { return 0; }
+    void write(uint8_t) {}
+    void requestFrom(uint8_t, uint8_t) {}
+    int available() { return 0; }
+    int read() { return 0; }
+  };
+
+  static BatteryMonitorSerialShim Serial;
+  static BatteryMonitorWireShim Wire;
+
+  inline void delay(unsigned long) {}
+
+  template <typename T>
+  inline T constrain(T value, T low, T high) {
+    return (value < low) ? low : ((value > high) ? high : value);
+  }
+
+  template <typename T>
+  inline T max(T a, T b) {
+    return (a > b) ? a : b;
+  }
+#endif
 
 // INA219 I2C Address
 #define INA219_ADDRESS 0x40  // Default address (A0/A1 pins not connected)
@@ -166,7 +206,7 @@ inline float BatteryMonitor::getPercentage() {
   if (voltage <= minVoltage) return 0.0;
 
   float percentage = ((voltage - minVoltage) / (maxVoltage - minVoltage)) * 100.0;
-  return constrain(percentage, 0.0, 100.0);
+  return constrain(percentage, 0.0f, 100.0f);
 }
 
 inline int BatteryMonitor::getRuntimeMinutes() {
