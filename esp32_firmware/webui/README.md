@@ -35,7 +35,7 @@ The dev server will start on `http://localhost:3000` and proxy API requests to `
 
 ## Building for Production
 
-Build the optimized production bundle:
+Build the optimized production bundle (run `npm install` first if you haven't already):
 
 ```bash
 npm run build
@@ -50,10 +50,11 @@ The output will be in the `dist/` directory, optimized for ESP32's SPIFFS/Little
 
 ### Option 1: Manual SPIFFS Upload (Recommended for Development)
 
-1. Build the production bundle: `npm run build`
-2. Install the ESP32 filesystem uploader plugin for Arduino IDE or PlatformIO
-3. Copy contents of `dist/` to the ESP32's `data/` directory
-4. Upload to SPIFFS/LittleFS using the uploader tool
+1. Install dependencies (if not done already): `npm install`
+2. Build the production bundle: `npm run build`
+3. Install the ESP32 filesystem uploader plugin for Arduino IDE or PlatformIO
+4. Copy contents of `dist/` to the ESP32's `data/` directory
+5. Upload to SPIFFS/LittleFS using the uploader tool
 
 **Arduino IDE:**
 ```bash
