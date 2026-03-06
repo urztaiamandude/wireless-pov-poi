@@ -18,15 +18,17 @@
 #ifndef BATTERY_MONITOR_H
 #define BATTERY_MONITOR_H
 
-#if __has_include(<Arduino.h>) && __has_include(<Wire.h>)
+#if defined(ARDUINO)
   #include <Arduino.h>
   #include <Wire.h>
-#elif __has_include(<WProgram.h>) && __has_include(<Wire.h>)
+#elif __has_include(<WProgram.h>)
   #include <WProgram.h>
   #include <Wire.h>
 #else
-  // Fallback for editor/indexer environments without Arduino core headers.
-  #include <cstdint>
+  // Fallback shims for editor/indexer environments (e.g. IntelliSense, clangd).
+  // Real embedded builds always define ARDUINO, so this branch is never
+  // reached during a normal firmware build.
+  #include <stdint.h>
 
   struct BatteryMonitorSerialShim {
     template <typename T>

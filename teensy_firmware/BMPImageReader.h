@@ -1,14 +1,16 @@
 #ifndef _BMPIMAGEREADER_H
 #define _BMPIMAGEREADER_H
 
-#if __has_include(<Arduino.h>)
+#if defined(ARDUINO)
   #include <Arduino.h>
 #elif __has_include(<WProgram.h>)
   #include <WProgram.h>
 #else
-  // Fallback for editor/indexer environments that do not provide Arduino headers.
-  #include <cstddef>
-  #include <cstdint>
+  // Fallback shims for editor/indexer environments (e.g. IntelliSense, clangd).
+  // Real embedded builds always define ARDUINO, so this branch is never
+  // reached during a normal firmware build.
+  #include <stddef.h>
+  #include <stdint.h>
 
   #ifndef F
     #define F(x) x
