@@ -1,7 +1,7 @@
 #ifndef _BMPIMAGEREADER_H
 #define _BMPIMAGEREADER_H
 
-#if __has_include(<Arduino.h>)
+#if defined(ARDUINO)
   #include <Arduino.h>
 #elif __has_include(<WProgram.h>)
   #include <WProgram.h>

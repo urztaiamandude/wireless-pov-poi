@@ -18,10 +18,10 @@
 #ifndef BATTERY_MONITOR_H
 #define BATTERY_MONITOR_H
 
-#if __has_include(<Arduino.h>) && __has_include(<Wire.h>)
+#if defined(ARDUINO)
   #include <Arduino.h>
   #include <Wire.h>
-#elif __has_include(<WProgram.h>) && __has_include(<Wire.h>)
+#elif __has_include(<WProgram.h>)
   #include <WProgram.h>
   #include <Wire.h>
 #elif defined(__INTELLISENSE__) || defined(__clangd__) || !defined(ARDUINO)
