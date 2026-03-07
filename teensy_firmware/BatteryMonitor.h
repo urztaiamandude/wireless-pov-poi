@@ -18,17 +18,10 @@
 #ifndef BATTERY_MONITOR_H
 #define BATTERY_MONITOR_H
 
-#if defined(ARDUINO)
-  #include <Arduino.h>
-  #include <Wire.h>
-#elif __has_include(<WProgram.h>)
-  #include <WProgram.h>
-  #include <Wire.h>
-#elif defined(__INTELLISENSE__) || defined(__clangd__) || !defined(ARDUINO)
-  // Shims for editor/indexer (IntelliSense, clangd) or non-Arduino host builds only.
-  // In a real Arduino build where Wire.h is missing this block is skipped and the
-  // #error below fires, preserving the hard compile failure that would expose the
-  // misconfiguration.
+#if defined(__INTELLISENSE__) || defined(__clangd__)
+  // Shims for editor/indexer environments (IntelliSense, clangd).
+  // Checked first so that editors defining ARDUINO still get stubs instead of
+  // trying to resolve unavailable Arduino core headers.
   #include <cstdint>
 
   struct BatteryMonitorSerialShim {
@@ -61,7 +54,17 @@
   inline T max(T a, T b) {
     return (a > b) ? a : b;
   }
+#elif __has_include(<Arduino.h>)
+  #include <Arduino.h>
+  #include <Wire.h>
+#elif __has_include(<WProgram.h>)
+  // Fallback for older Arduino cores that ship WProgram.h instead of Arduino.h.
+  #include <WProgram.h>
+  #include <Wire.h>
 #else
+  // Reached only when neither Arduino.h nor WProgram.h is available and we are
+  // not inside an editor/indexer session.  This produces a clear compile-time
+  // error instead of a cryptic "file not found" message.
   #error "Wire.h not found. Ensure the Wire library is installed and your board is correctly configured."
 #endif
 

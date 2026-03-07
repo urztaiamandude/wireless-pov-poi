@@ -1,15 +1,10 @@
 #ifndef _BMPIMAGEREADER_H
 #define _BMPIMAGEREADER_H
 
-#if defined(ARDUINO)
-  #include <Arduino.h>
-#elif __has_include(<WProgram.h>)
-  #include <WProgram.h>
-#elif defined(__INTELLISENSE__) || defined(__clangd__) || !defined(ARDUINO)
-  // Shims for editor/indexer (IntelliSense, clangd) or non-Arduino host builds only.
-  // In a real Arduino build, a missing Arduino.h will cause a failure at the #include
-  // above before this block or the #error below are considered. The #error is only
-  // reachable on non-Arduino builds where neither Arduino.h nor WProgram.h is available.
+#if defined(__INTELLISENSE__) || defined(__clangd__)
+  // Shims for editor/indexer environments (IntelliSense, clangd).
+  // Checked first so that editors defining ARDUINO still get stubs instead of
+  // trying to resolve unavailable Arduino core headers.
   #include <cstddef>
   #include <cstdint>
 
@@ -26,7 +21,15 @@
   };
 
   static BMPImageReaderSerialShim Serial;
+#elif __has_include(<Arduino.h>)
+  #include <Arduino.h>
+#elif __has_include(<WProgram.h>)
+  // Fallback for older Arduino cores that ship WProgram.h instead of Arduino.h.
+  #include <WProgram.h>
 #else
+  // Reached only when neither Arduino.h nor WProgram.h is available and we are
+  // not inside an editor/indexer session.  This produces a clear compile-time
+  // error instead of a cryptic "file not found" message.
   #error "Arduino.h not found. Ensure the Arduino core is installed and your board is correctly configured."
 #endif
 
