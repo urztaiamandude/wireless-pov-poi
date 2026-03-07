@@ -7,9 +7,9 @@
   #include <WProgram.h>
 #elif defined(__INTELLISENSE__) || defined(__clangd__) || !defined(ARDUINO)
   // Shims for editor/indexer (IntelliSense, clangd) or non-Arduino host builds only.
-  // In a real Arduino build where Arduino.h is missing this block is skipped and the
-  // #error below fires, preserving the hard compile failure that would expose the
-  // misconfiguration.
+  // In a real Arduino build, a missing Arduino.h will cause a failure at the #include
+  // above before this block or the #error below are considered. The #error is only
+  // reachable on non-Arduino builds where neither Arduino.h nor WProgram.h is available.
   #include <cstddef>
   #include <cstdint>
 
