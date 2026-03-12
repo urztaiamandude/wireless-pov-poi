@@ -94,6 +94,10 @@ const char* password = "povpoi123";
 // Serial Configuration
 #define TEENSY_SERIAL Serial2
 #define SERIAL_BAUD 115200
+#define SERIAL_TX_PIN 17  // DO NOT CHANGE: Teensy serial link
+#define SERIAL_RX_PIN 16  // DO NOT CHANGE: Teensy serial link
+static_assert(SERIAL_TX_PIN == 17, "SERIAL_TX_PIN must remain 17 for Teensy serial link");
+static_assert(SERIAL_RX_PIN == 16, "SERIAL_RX_PIN must remain 16 for Teensy serial link");
 const uint8_t kMaxPatternIndex = 17;
 
 // Image dimension limits
@@ -175,7 +179,7 @@ void setup() {
   Serial.println("\n\nESP32 Nebula Poi Controller Starting...");
   
   // Initialize Teensy Serial
-  TEENSY_SERIAL.begin(SERIAL_BAUD, SERIAL_8N1, 16, 17);  // RX=GPIO16, TX=GPIO17
+  TEENSY_SERIAL.begin(SERIAL_BAUD, SERIAL_8N1, SERIAL_RX_PIN, SERIAL_TX_PIN);
   
   // Initialize SPIFFS for web files
   if (!SPIFFS.begin(true)) {
@@ -1579,7 +1583,7 @@ static const char rootPage[] PROGMEM = R"rawliteral(
         msg.textContent='Connecting...';
         msg.style.color='#f59e0b';
         try{
-            await fetch(window.location.origin + '/api/wifi/connect',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ssid,password:pass})});
+            await fetch('/api/wifi/connect',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ssid,password:pass})});
             let attempts=0;
             if(_wifiPollTimer)clearInterval(_wifiPollTimer);
             _wifiPollTimer=setInterval(async()=>{

@@ -10,7 +10,7 @@
  * - APA102 LED Strip (32 LEDs)
  * - Hardware level shifter (3.3V -> 5V for data/clock)
  * - MAX9814 Microphone Amplifier Module (for audio-reactive patterns)
- * - ESP32 connected via Serial1 (RX1=0, TX1=1)
+ * - ESP32 connected via Serial1 (TX=0, RX=1)
  * - Optional: microSD card in Teensy 4.1 built-in slot (for SD_SUPPORT)
  * - Optional: 2x 8MB PSRAM chips for 16MB external RAM (for PSRAM support)
  */
@@ -36,7 +36,8 @@
 // All 32 LEDs are used for display (hardware level shifter handles 3.3V -> 5V)
 // All display loops start from index 0.
 // Example: for (int i = 0; i < NUM_LEDS; i++) { leds[i] = color; }
-#define NUM_LEDS 32
+#define NUM_LEDS 32  // DO NOT CHANGE: MOSFET level shifter used, all 32 LEDs are display LEDs
+static_assert(NUM_LEDS == 32, "NUM_LEDS must be 32 - hardware uses MOSFET level shifter, no sacrificial LED needed");
 #define DATA_PIN 11
 #define CLOCK_PIN 13
 #define LED_TYPE APA102
@@ -54,6 +55,10 @@
 
 // Communication
 #define SERIAL_BAUD 115200
+#define SERIAL_TX_PIN 0   // DO NOT CHANGE: ESP32-S3 serial link
+#define SERIAL_RX_PIN 1   // DO NOT CHANGE: ESP32-S3 serial link
+static_assert(SERIAL_TX_PIN == 0, "SERIAL_TX_PIN must remain 0 for ESP32-S3 serial link");
+static_assert(SERIAL_RX_PIN == 1, "SERIAL_RX_PIN must remain 1 for ESP32-S3 serial link");
 #define ESP32_SERIAL Serial1
 
 // Display Configuration

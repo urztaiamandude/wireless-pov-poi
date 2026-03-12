@@ -364,7 +364,7 @@
 <body>
 
   <!-- Preview Banner -->
-  <div class="preview-banner">Preview Mode — Open esp32_firmware/webui/ with <code>npm run dev</code> for the full React experience</div>
+  <div class="preview-banner">Preview Mode — Self-contained firmware-compatible UI (no internet or build tools required)</div>
 
   <!-- Toast -->
   <div id="toast" class="toast"></div>
@@ -655,8 +655,8 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" style="color:var(--cyan-400)"><path d="m8 3 4 8 5-5 5 15H2L8 3z"/></svg>
             UART Bridge
           </h3>
-          <div class="wire-row"><div class="wire-from">ESP32-S3 TX (GPIO 43)</div><div class="wire-to"><div class="wire-line"></div>Teensy 4.1 RX1 (Pin 0)</div></div>
-          <div class="wire-row"><div class="wire-from">ESP32-S3 RX (GPIO 44)</div><div class="wire-to"><div class="wire-line"></div>Teensy 4.1 TX1 (Pin 1)</div></div>
+          <div class="wire-row"><div class="wire-from">ESP32-S3 TX (GPIO 17)</div><div class="wire-to"><div class="wire-line"></div>Teensy 4.1 RX (Pin 1)</div></div>
+          <div class="wire-row"><div class="wire-from">ESP32-S3 RX (GPIO 16)</div><div class="wire-to"><div class="wire-line"></div>Teensy 4.1 TX (Pin 0)</div></div>
         </div>
         <div class="card wiring-card">
           <h3>
