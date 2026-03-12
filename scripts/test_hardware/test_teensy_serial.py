@@ -12,7 +12,8 @@ from typing import Optional
 
 from .protocol import (
     Cmd, Resp, Mode,
-    set_mode, set_brightness, set_framerate, request_status,
+    set_mode, set_brightness, set_framerate, set_framerate_legacy,
+    request_status,
     upload_pattern, live_frame, build_packet,
     parse_response, parse_status, is_ack, StatusResponse,
 )
@@ -104,8 +105,14 @@ def test_brightness(ser: serial.Serial) -> list[TestResult]:
 
 def test_framerate(ser: serial.Serial) -> list[TestResult]:
     results = []
-    for val, label in [(10, "10ms/100fps"), (33, "33ms/30fps"), (100, "100ms/10fps")]:
-        pkt = set_framerate(val)
+    # Test new 2-byte FPS protocol (Teensy computes delay)
+    for fps, label in [(100, "100fps"), (30, "30fps"), (10, "10fps"), (500, "500fps")]:
+        pkt = set_framerate(fps)
+        results.append(_send_and_expect_ack(ser, pkt, f"Frame rate {label} (uint16)"))
+        time.sleep(0.15)
+    # Test legacy 1-byte delay protocol (backward compat)
+    for val, label in [(10, "10ms/legacy"), (33, "33ms/legacy")]:
+        pkt = set_framerate_legacy(val)
         results.append(_send_and_expect_ack(ser, pkt, f"Frame rate {label}"))
         time.sleep(0.15)
     return results
