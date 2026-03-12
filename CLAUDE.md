@@ -221,7 +221,7 @@ wireless-pov-poi/
 ├── esp32_firmware/            # ESP32/S3 firmware
 │   ├── esp32_firmware.ino    # WiFi + web server + BLE
 │   ├── webui/                # React web UI (deployed to ESP32 filesystem)
-│   └── web_preview.html      # Standalone UI preview (no hardware needed)
+│   └── web_preview.html      # ⚠️ Standalone preview ONLY — NOT compiled into firmware
 ├── firmware/teensy41/         # PlatformIO version (advanced)
 ├── docs/                      # Complete documentation
 │   ├── WIRING.md             # Hardware connections
@@ -234,6 +234,19 @@ wireless-pov-poi/
 │   └── image_converter_gui.py # GUI image converter
 └── scripts/                   # Build and utility scripts
 ```
+
+### ⚠️ Non-Compiled Files — DO NOT apply firmware fixes here
+
+The following files are **NOT compiled into any firmware build**. Do not apply bug fixes, input validation, or security patches to these files expecting them to ship on hardware:
+
+| File | Purpose | Why it's excluded |
+|------|---------|-------------------|
+| `esp32_firmware/web_preview.html` | Standalone browser preview of the web UI | Not uploaded to SPIFFS/LittleFS, not served by ESP32 |
+| `esp32_firmware/test_webui_server.js` | Mock API server for local development | Node.js dev tool only |
+
+**The actual shipped web UI code lives in:**
+1. **`esp32_firmware/webui/`** — React app built to `dist/`, uploaded to SPIFFS/LittleFS via `pio run --target uploadfs`
+2. **`esp32_firmware/esp32_firmware.ino`** (PROGMEM `rootPage`) — Embedded fallback HTML served when SPIFFS is empty
 
 ---
 

@@ -277,7 +277,7 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCou
               <input
                 type="number"
                 value={dataPin}
-                onChange={(e) => { const v = parseInt(e.target.value); if (!isNaN(v)) setDataPin(v); }}
+                onChange={(e) => setDataPin(parseInt(e.target.value) || 11)}
                 className="bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white font-mono w-full focus:ring-1 focus:ring-cyan-500 outline-none"
               />
               <Cpu size={18} className="text-cyan-500 shrink-0" />
@@ -290,7 +290,7 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCou
               <input
                 type="number"
                 value={clkPin}
-                onChange={(e) => { const v = parseInt(e.target.value); if (!isNaN(v)) setClkPin(v); }}
+                onChange={(e) => setClkPin(parseInt(e.target.value) || 13)}
                 className="bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white font-mono w-full focus:ring-1 focus:ring-cyan-500 outline-none"
               />
               <Cpu size={18} className="text-purple-500 shrink-0" />
