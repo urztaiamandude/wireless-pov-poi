@@ -710,8 +710,8 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
                     <span className="text-cyan-400 font-mono text-sm">{localFrameRate} FPS</span>
                   </div>
                   <input
-                    type="range" min="10" max="120" value={localFrameRate}
-                    onChange={(e) => { const v = parseInt(e.target.value); if (!isNaN(v)) handleFrameRateChange(Math.max(10, Math.min(120, v))); }}
+                    type="range" min="10" max="250" value={localFrameRate}
+                    onChange={(e) => { const v = parseInt(e.target.value); if (!isNaN(v)) handleFrameRateChange(Math.max(10, Math.min(250, v))); }}
                     className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
                   />
                 </div>

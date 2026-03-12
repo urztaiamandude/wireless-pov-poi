@@ -276,22 +276,22 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCou
         <ConfigCard
           icon={<RotateCw className="text-blue-400" />}
           title="Refresh Rate"
-          value={`${refreshRate} Hz`}
-          description="Frame rate sent to Teensy via /api/framerate. Changes are applied immediately over UART."
+          value={`${refreshRate} FPS`}
+          description="Frame rate sent to Teensy 4.1 via /api/framerate. The Teensy controls actual LED timing — the ESP32 only relays this value."
         >
           <input
             type="range"
             min="10"
-            max="120"
+            max="250"
             step="5"
             value={refreshRate}
             onChange={(e) => { const v = parseInt(e.target.value); if (!isNaN(v)) handleRefreshRateChange(v); }}
             className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-400"
           />
           <div className="flex justify-between text-[10px] text-slate-500 mt-2 font-mono">
-            <span>10Hz</span>
-            <span>60Hz</span>
-            <span>120Hz</span>
+            <span>10 FPS</span>
+            <span>120 FPS</span>
+            <span>250 FPS</span>
           </div>
           {refreshRateStatus && (
             <div className={`flex items-center gap-1 mt-2 text-[10px] font-mono ${refreshRateStatus.startsWith('Applied') ? 'text-green-400' : 'text-red-400'}`}>
