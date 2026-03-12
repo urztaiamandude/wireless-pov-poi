@@ -1,8 +1,25 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/*
+ * LittleFS-safe fallback stylesheet.
+ * Intentionally free of Tailwind/build directives for raw deployment.
+ */
 
-/* Custom scrollbar styling for dark theme */
+:root {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: #334155 #0f172a;
+}
+
+body {
+  margin: 0;
+  background: #020617;
+  color: #e2e8f0;
+  font-family: "Segoe UI", Tahoma, sans-serif;
+}
+
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -19,10 +36,4 @@
 
 ::-webkit-scrollbar-thumb:hover {
   background: #475569;
-}
-
-/* Firefox scrollbar */
-* {
-  scrollbar-width: thin;
-  scrollbar-color: #334155 #0f172a;
 }
