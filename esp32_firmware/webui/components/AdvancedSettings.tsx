@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Settings2, RefreshCw, Grid3X3, Palette, Info, RotateCw, Zap, CircuitBoard, Wifi, Lock, Trash2 } from 'lucide-react';
+import { Settings2, RefreshCw, Grid3X3, Palette, Info, RotateCw, Zap, CircuitBoard, Wifi, Lock, Trash2, Check } from 'lucide-react';
+import { useDebounce } from '../hooks';
 
 interface AdvancedSettingsProps {
   ledCount: number;
@@ -17,6 +18,7 @@ interface WifiStatus {
 
 const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCount }) => {
   const [refreshRate, setRefreshRate] = useState(60);
+  const [refreshRateStatus, setRefreshRateStatus] = useState<string | null>(null);
   const [pixelDensity, setPixelDensity] = useState(144);
   const [colorDepth, setColorDepth] = useState(24);
 
@@ -51,6 +53,34 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCou
     const t = setInterval(fetchWifiStatus, 10000);
     return () => clearInterval(t);
   }, [fetchWifiStatus]);
+
+  // Send refresh rate to Teensy via ESP32's /api/framerate endpoint (command 0x07)
+  const debouncedFrameRateUpdate = useDebounce(
+    useCallback(async (fps: number) => {
+      try {
+        const res = await fetch(`${baseUrl}/api/framerate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ framerate: fps }),
+          signal: AbortSignal.timeout(3000)
+        });
+        if (res.ok) {
+          setRefreshRateStatus(`Applied ${fps} FPS to Teensy.`);
+        } else {
+          setRefreshRateStatus(`Failed to set frame rate (HTTP ${res.status}).`);
+        }
+      } catch {
+        setRefreshRateStatus('Could not reach device.');
+      }
+    }, [baseUrl]),
+    300
+  );
+
+  const handleRefreshRateChange = (value: number) => {
+    setRefreshRate(value);
+    setRefreshRateStatus(null);
+    debouncedFrameRateUpdate(value);
+  };
 
   const handleWifiConnect = async () => {
     if (!wifiSsid.trim()) {
@@ -247,22 +277,28 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCou
           icon={<RotateCw className="text-blue-400" />}
           title="Refresh Rate"
           value={`${refreshRate} Hz`}
-          description="Number of frame slices rendered per rotation. Higher values reduce flicker but increase CPU load."
+          description="Frame rate sent to Teensy via /api/framerate. Changes are applied immediately over UART."
         >
           <input
             type="range"
-            min="30"
-            max="240"
-            step="10"
+            min="10"
+            max="120"
+            step="5"
             value={refreshRate}
-            onChange={(e) => { const v = parseInt(e.target.value); if (!isNaN(v)) setRefreshRate(v); }}
+            onChange={(e) => { const v = parseInt(e.target.value); if (!isNaN(v)) handleRefreshRateChange(v); }}
             className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-400"
           />
           <div className="flex justify-between text-[10px] text-slate-500 mt-2 font-mono">
-            <span>30Hz</span>
+            <span>10Hz</span>
+            <span>60Hz</span>
             <span>120Hz</span>
-            <span>240Hz</span>
           </div>
+          {refreshRateStatus && (
+            <div className={`flex items-center gap-1 mt-2 text-[10px] font-mono ${refreshRateStatus.startsWith('Applied') ? 'text-green-400' : 'text-red-400'}`}>
+              {refreshRateStatus.startsWith('Applied') && <Check size={10} />}
+              {refreshRateStatus}
+            </div>
+          )}
         </ConfigCard>
 
         <ConfigCard
