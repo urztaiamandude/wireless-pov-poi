@@ -106,7 +106,8 @@ def test_brightness(ser: serial.Serial) -> list[TestResult]:
 def test_framerate(ser: serial.Serial) -> list[TestResult]:
     results = []
     # Test new 2-byte FPS protocol (Teensy computes delay)
-    for fps, label in [(100, "100fps"), (30, "30fps"), (10, "10fps"), (500, "500fps")]:
+    for fps, label in [(1, "1fps/min"), (30, "30fps"), (100, "100fps"),
+                       (500, "500fps"), (1000, "1000fps")]:
         pkt = set_framerate(fps)
         results.append(_send_and_expect_ack(ser, pkt, f"Frame rate {label} (uint16)"))
         time.sleep(0.15)
