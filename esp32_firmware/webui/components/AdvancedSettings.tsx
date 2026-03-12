@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Settings2, RefreshCw, Grid3X3, Palette, Info, Save, RotateCw, Zap, CircuitBoard, Wifi, Lock, Trash2 } from 'lucide-react';
+import { Settings2, RefreshCw, Grid3X3, Palette, Info, RotateCw, Zap, CircuitBoard, Wifi, Lock, Trash2 } from 'lucide-react';
 
 interface AdvancedSettingsProps {
   ledCount: number;
@@ -19,8 +19,6 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCou
   const [refreshRate, setRefreshRate] = useState(60);
   const [pixelDensity, setPixelDensity] = useState(144);
   const [colorDepth, setColorDepth] = useState(24);
-  const [isSaving, setIsSaving] = useState(false);
-  const [saveStatus, setSaveStatus] = useState<string | null>(null);
 
   // WiFi network (connect to existing network to access web UI over that network)
   const [wifiStatus, setWifiStatus] = useState<WifiStatus | null>(null);
@@ -53,34 +51,6 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCou
     const t = setInterval(fetchWifiStatus, 10000);
     return () => clearInterval(t);
   }, [fetchWifiStatus]);
-
-  // Deploy config to the firmware via POST /api/device/config
-  // NOTE: Current firmware implementation only accepts deviceName, syncGroup, and autoSync.
-  // Hardware parameters (ledCount, pins, etc.) are not yet supported by the backend.
-  // This is a UI-ready implementation pending firmware support.
-  const handleSave = async () => {
-    setIsSaving(true);
-    setSaveStatus(null);
-    const payload = { ledCount, refreshRate, pixelDensity, colorDepth };
-    try {
-      const res = await fetch(`${baseUrl}/api/device/config`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(3000)
-      });
-      if (res.ok) {
-        setSaveStatus('Config deployed successfully.');
-      } else {
-        const text = await res.text();
-        setSaveStatus(`Warning: Endpoint exists but may not support all parameters. Response: ${text.substring(0, 50)}`);
-      }
-    } catch {
-      setSaveStatus('Could not reach device. Verify POV-POI-WiFi connection.');
-    } finally {
-      setIsSaving(false);
-    }
-  };
 
   const handleWifiConnect = async () => {
     if (!wifiSsid.trim()) {
@@ -138,27 +108,12 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCou
 
   return (
     <div className="space-y-8 animate-fadeIn">
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <header>
         <div>
           <h2 className="text-3xl font-bold text-white mb-2 flex items-center gap-3">
             <Settings2 className="text-cyan-400" /> Display Configuration
           </h2>
-          <p className="text-slate-400">Fine-tune display performance settings. Deploys to <span className="font-mono text-cyan-400">/api/device/config</span>.</p>
-        </div>
-        <div className="flex flex-col items-end gap-2">
-          <button
-            onClick={handleSave}
-            disabled={isSaving}
-            className="flex items-center gap-2 px-8 py-3 bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-800 text-white rounded-xl font-bold shadow-lg shadow-cyan-900/20 transition-all active:scale-95"
-          >
-            {isSaving ? <RefreshCw className="animate-spin" size={20} /> : <Save size={20} />}
-            {isSaving ? 'Syncing...' : 'Deploy Settings'}
-          </button>
-          {saveStatus && (
-            <span className={`text-[10px] font-mono ${saveStatus.startsWith('Error') || saveStatus.startsWith('Could') ? 'text-red-400' : 'text-green-400'}`}>
-              {saveStatus}
-            </span>
-          )}
+          <p className="text-slate-400">Reference settings for the Teensy 4.1 POV engine. Hardware pins and LED count are configured in Teensy firmware.</p>
         </div>
       </header>
 
@@ -384,7 +339,7 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCou
               <div className="text-cyan-400">#define NUM_LEDS {ledCount}</div>
               <div className="text-cyan-400">CRGB leds[NUM_LEDS];</div>
               <div className="text-purple-400">FastLED.addLeds&lt;APA102, 11, 13&gt;(leds, NUM_LEDS);</div>
-              <div className="text-slate-300 mt-2">// POST /api/device/config to sync</div>
+              <div className="text-slate-300 mt-2">// Configured in Teensy firmware (not via ESP32)</div>
             </div>
           </div>
         </div>
