@@ -748,7 +748,9 @@ function togglePower() {
 }
 
 function setBrightness(val) {
-  brightness = parseInt(val);
+  var parsed = parseInt(val);
+  if (isNaN(parsed)) return;
+  brightness = Math.max(0, Math.min(255, parsed));
   document.getElementById('bri-val').textContent = Math.round(brightness / 255 * 100) + '%';
   clearTimeout(briTimer);
   briTimer = setTimeout(function() {
@@ -777,7 +779,9 @@ function setMode(m) {
 // FRAME RATE
 // ===================================================================
 function setFramerate(val) {
-  framerate = parseInt(val);
+  var parsed = parseInt(val);
+  if (isNaN(parsed)) return;
+  framerate = Math.max(10, Math.min(120, parsed));
   document.getElementById('fps-val').textContent = framerate + ' FPS';
   clearTimeout(fpsTimer);
   fpsTimer = setTimeout(function() {
@@ -1057,12 +1061,28 @@ function setColorDepth(d) {
 }
 
 function deployConfig() {
+  var ledCount    = parseInt(document.getElementById('led-count').value);
+  var dataPin     = parseInt(document.getElementById('led-data').value);
+  var clkPin      = parseInt(document.getElementById('led-clk').value);
+  var refreshRate = parseInt(document.getElementById('fps-cfg').value);
+  var pixelDensity= parseInt(document.getElementById('pxd-cfg').value);
+  var invalid = [];
+  if (isNaN(ledCount)) invalid.push('LED Count');
+  if (isNaN(dataPin)) invalid.push('Data Pin');
+  if (isNaN(clkPin)) invalid.push('Clock Pin');
+  if (isNaN(refreshRate)) invalid.push('Refresh Rate');
+  if (isNaN(pixelDensity)) invalid.push('Pixel Density');
+  if (invalid.length) {
+    log('[ERR] Invalid: ' + invalid.join(', '), 'err');
+    toast('Invalid: ' + invalid.join(', '));
+    return;
+  }
   var cfg = {
-    ledCount:    parseInt(document.getElementById('led-count').value),
-    dataPin:     parseInt(document.getElementById('led-data').value),
-    clkPin:      parseInt(document.getElementById('led-clk').value),
-    refreshRate: parseInt(document.getElementById('fps-cfg').value),
-    pixelDensity:parseInt(document.getElementById('pxd-cfg').value),
+    ledCount:    ledCount,
+    dataPin:     dataPin,
+    clkPin:      clkPin,
+    refreshRate: refreshRate,
+    pixelDensity:pixelDensity,
     colorDepth:  colorDepth
   };
   apiPost('/api/device/config', cfg, function() {
