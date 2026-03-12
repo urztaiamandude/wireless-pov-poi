@@ -14,7 +14,7 @@ Quick-lookup for ports, pins, constants, and non-secret configuration.
 | Co-processor (recommended) | ESP32-S3 N16R8 (16 MB Flash, 8 MB OPI PSRAM) |
 | Co-processor (legacy supported) | ESP32 WROOM-32 (4 MB Flash, no PSRAM) |
 | LED strip | APA102, 32 physical LEDs |
-| Display LEDs | 31 (LED 1–31); LED 32 is level-shift sacrificial LED only |
+| Display LEDs | 32 (LED 0–31); all LEDs used for display (hardware MOSFET level shifter) |
 | LED interface | SPI via FastLED |
 
 ---
@@ -43,7 +43,8 @@ Quick-lookup for ports, pins, constants, and non-secret configuration.
 
 ```cpp
 #define NUM_LEDS      32    // physical LEDs on strip
-#define DISPLAY_LEDS  31    // LEDs used for display (NUM_LEDS - 1)
+#define DISPLAY_LEDS  32    // all LEDs used for display (hardware level shifter)
+#define DISPLAY_LED_START 0 // first display LED index
 #define DATA_PIN      11
 #define CLOCK_PIN     13
 #define SERIAL_BAUD   115200
@@ -55,8 +56,8 @@ Quick-lookup for ports, pins, constants, and non-secret configuration.
 
 | Parameter | Value | Notes |
 |-----------|-------|-------|
-| Display height | **31 pixels** | Fixed — one per display LED |
-| Display width | Variable | `round(src_width × (31 / src_height))` |
+| Display height | **32 pixels** | Fixed — one per display LED |
+| Display width | Variable | `round(src_width × (32 / src_height))` |
 | Max brightness | 255 | Adjustable 0–255 |
 | Frame rate range | 10–120 FPS | Adjustable |
 | Recommended spin rate | 2–3 RPS | For good POV persistence |
