@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Settings2, RefreshCw, Grid3X3, Palette, Info, Save, RotateCw, Cpu, Zap, CircuitBoard, Wifi, Lock, Trash2 } from 'lucide-react';
+import { Settings2, RefreshCw, Grid3X3, Palette, Info, Save, RotateCw, Zap, CircuitBoard, Wifi, Lock, Trash2 } from 'lucide-react';
 
 interface AdvancedSettingsProps {
   ledCount: number;
@@ -19,8 +19,6 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCou
   const [refreshRate, setRefreshRate] = useState(60);
   const [pixelDensity, setPixelDensity] = useState(144);
   const [colorDepth, setColorDepth] = useState(24);
-  const [dataPin, setDataPin] = useState(11);
-  const [clkPin, setClkPin] = useState(13);
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
 
@@ -63,7 +61,7 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCou
   const handleSave = async () => {
     setIsSaving(true);
     setSaveStatus(null);
-    const payload = { ledCount, dataPin, clkPin, refreshRate, pixelDensity, colorDepth };
+    const payload = { ledCount, refreshRate, pixelDensity, colorDepth };
     try {
       const res = await fetch(`${baseUrl}/api/device/config`, {
         method: 'POST',
@@ -145,7 +143,7 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCou
           <h2 className="text-3xl font-bold text-white mb-2 flex items-center gap-3">
             <Settings2 className="text-cyan-400" /> Display Configuration
           </h2>
-          <p className="text-slate-400">Fine-tune hardware pins and display performance. Deploys to <span className="font-mono text-cyan-400">/api/device/config</span>.</p>
+          <p className="text-slate-400">Fine-tune display performance settings. Deploys to <span className="font-mono text-cyan-400">/api/device/config</span>.</p>
         </div>
         <div className="flex flex-col items-end gap-2">
           <button
@@ -273,28 +271,18 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCou
 
           <div className="space-y-2">
             <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Data Pin (MOSI)</label>
-            <div className="flex items-center gap-4">
-              <input
-                type="number"
-                value={dataPin}
-                onChange={(e) => setDataPin(parseInt(e.target.value))}
-                className="bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white font-mono w-full focus:ring-1 focus:ring-cyan-500 outline-none"
-              />
-              <Cpu size={18} className="text-cyan-500 shrink-0" />
+            <div className="bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-slate-400 font-mono">
+              Pin 11
             </div>
+            <p className="text-[10px] text-slate-500 italic">Hardwired on Teensy 4.1 (not configurable from ESP32).</p>
           </div>
 
           <div className="space-y-2">
             <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Clock Pin (SCK)</label>
-            <div className="flex items-center gap-4">
-              <input
-                type="number"
-                value={clkPin}
-                onChange={(e) => setClkPin(parseInt(e.target.value))}
-                className="bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white font-mono w-full focus:ring-1 focus:ring-cyan-500 outline-none"
-              />
-              <Cpu size={18} className="text-purple-500 shrink-0" />
+            <div className="bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-slate-400 font-mono">
+              Pin 13
             </div>
+            <p className="text-[10px] text-slate-500 italic">Hardwired on Teensy 4.1 (not configurable from ESP32).</p>
           </div>
         </div>
       </div>
@@ -395,7 +383,7 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCou
               <div className="text-slate-500 mb-2">// Hardware Allocation (Teensy 4.1)</div>
               <div className="text-cyan-400">#define NUM_LEDS {ledCount}</div>
               <div className="text-cyan-400">CRGB leds[NUM_LEDS];</div>
-              <div className="text-purple-400">FastLED.addLeds&lt;APA102, {dataPin}, {clkPin}&gt;(leds, NUM_LEDS);</div>
+              <div className="text-purple-400">FastLED.addLeds&lt;APA102, 11, 13&gt;(leds, NUM_LEDS);</div>
               <div className="text-slate-300 mt-2">// POST /api/device/config to sync</div>
             </div>
           </div>
