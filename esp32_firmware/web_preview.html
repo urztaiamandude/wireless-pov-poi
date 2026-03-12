@@ -1,9 +1,26 @@
 <!DOCTYPE html>
 <!--
-  POV POI Control Interface
-  WLED-inspired design | Self-contained | No external dependencies
-  Serves from ESP32-S3 LittleFS or opens directly via file://
-  All API calls use relative paths.
+    ╔══════════════════════════════════════════════════════════════════╗
+    ║  ⚠️  THIS FILE IS NOT COMPILED INTO THE ESP32-S3 FIRMWARE  ⚠️  ║
+    ║                                                                  ║
+    ║  This is a STANDALONE PREVIEW for local browser testing only.    ║
+    ║  It is NOT uploaded to SPIFFS/LittleFS, NOT served by the       ║
+    ║  ESP32 web server, and NOT part of the production firmware.      ║
+    ║                                                                  ║
+    ║  The ACTUAL shipped web UI lives in:                             ║
+    ║    esp32_firmware/webui/  (React + TypeScript + Vite)            ║
+    ║                                                                  ║
+    ║  The embedded fallback HTML lives in:                            ║
+    ║    esp32_firmware/esp32_firmware.ino  (PROGMEM rootPage)         ║
+    ║                                                                  ║
+    ║  DO NOT apply firmware bug fixes or input validation here.       ║
+    ║  Changes to this file have NO effect on the deployed device.     ║
+    ╚══════════════════════════════════════════════════════════════════╝
+
+    POV Architect — Nebula Poi Web Interface Preview
+    Standalone preview matching the React web UI (esp32_firmware/webui/).
+    Open directly in a browser to preview the UI without hardware.
+    API calls will fail; all controls are simulated locally.
 -->
 <html lang="en">
 <head>

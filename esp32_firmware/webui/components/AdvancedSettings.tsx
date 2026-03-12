@@ -277,7 +277,7 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCou
               <input
                 type="number"
                 value={dataPin}
-                onChange={(e) => setDataPin(parseInt(e.target.value))}
+                onChange={(e) => setDataPin(parseInt(e.target.value) || 11)}
                 className="bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white font-mono w-full focus:ring-1 focus:ring-cyan-500 outline-none"
               />
               <Cpu size={18} className="text-cyan-500 shrink-0" />
@@ -290,7 +290,7 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCou
               <input
                 type="number"
                 value={clkPin}
-                onChange={(e) => setClkPin(parseInt(e.target.value))}
+                onChange={(e) => setClkPin(parseInt(e.target.value) || 13)}
                 className="bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white font-mono w-full focus:ring-1 focus:ring-cyan-500 outline-none"
               />
               <Cpu size={18} className="text-purple-500 shrink-0" />
@@ -312,7 +312,7 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCou
             max="240"
             step="10"
             value={refreshRate}
-            onChange={(e) => setRefreshRate(parseInt(e.target.value))}
+            onChange={(e) => { const v = parseInt(e.target.value); if (!isNaN(v)) setRefreshRate(v); }}
             className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-400"
           />
           <div className="flex justify-between text-[10px] text-slate-500 mt-2 font-mono">
