@@ -696,7 +696,7 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
                   </div>
                   <input
                     type="range" min="0" max="255" value={localBrightness}
-                    onChange={(e) => handleBrightnessChange(parseInt(e.target.value))}
+                    onChange={(e) => { const v = parseInt(e.target.value); if (!isNaN(v)) handleBrightnessChange(Math.max(0, Math.min(255, v))); }}
                     className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-500"
                   />
                 </div>
@@ -711,7 +711,7 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
                   </div>
                   <input
                     type="range" min="10" max="120" value={localFrameRate}
-                    onChange={(e) => handleFrameRateChange(parseInt(e.target.value))}
+                    onChange={(e) => { const v = parseInt(e.target.value); if (!isNaN(v)) handleFrameRateChange(Math.max(10, Math.min(120, v))); }}
                     className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
                   />
                 </div>

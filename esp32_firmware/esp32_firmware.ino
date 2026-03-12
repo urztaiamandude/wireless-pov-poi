@@ -1059,22 +1059,26 @@ static const char rootPage[] PROGMEM = R"rawliteral(
     async function changeMode(){
         const mode=document.getElementById('mode-select').value;
         const index=document.getElementById('content-index').value;
-        currentMode=parseInt(mode);
-        await fetch('/api/mode',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:currentMode,index:parseInt(index)})});
+        var m=parseInt(mode),idx=parseInt(index);
+        if(isNaN(m))m=0;if(isNaN(idx))idx=0;
+        currentMode=m;
+        await fetch('/api/mode',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:currentMode,index:idx})});
         updateStatus();
     }
     async function changeContentIndex(){await changeMode()}
 
     function updateBrightness(value){
-        document.getElementById('brightness-value').textContent=value;
-        document.getElementById('bright-display').textContent=value;
-        brightness=parseInt(value);
-        fetch('/api/brightness',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({brightness:parseInt(value)})});
+        var v=parseInt(value);if(isNaN(v))return;v=Math.max(0,Math.min(255,v));
+        document.getElementById('brightness-value').textContent=v;
+        document.getElementById('bright-display').textContent=v;
+        brightness=v;
+        fetch('/api/brightness',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({brightness:v})});
     }
     function updateFrameRate(value){
-        document.getElementById('framerate-value').textContent=value;
-        document.getElementById('fps-display').textContent=value;
-        fetch('/api/framerate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({framerate:parseInt(value)})});
+        var v=parseInt(value);if(isNaN(v))return;v=Math.max(10,Math.min(120,v));
+        document.getElementById('framerate-value').textContent=v;
+        document.getElementById('fps-display').textContent=v;
+        fetch('/api/framerate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({framerate:v})});
     }
 
     // ===== Image Navigation =====

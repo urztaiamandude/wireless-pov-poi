@@ -300,7 +300,7 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCou
             max="240"
             step="10"
             value={refreshRate}
-            onChange={(e) => setRefreshRate(parseInt(e.target.value))}
+            onChange={(e) => { const v = parseInt(e.target.value); if (!isNaN(v)) setRefreshRate(v); }}
             className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-400"
           />
           <div className="flex justify-between text-[10px] text-slate-500 mt-2 font-mono">
