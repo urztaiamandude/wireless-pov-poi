@@ -1,879 +1,1327 @@
 <!DOCTYPE html>
 <!--
-    POV Architect — Nebula Poi Web Interface Preview
-    Standalone preview matching the React web UI (esp32_firmware/webui/).
-    Open directly in a browser to preview the UI without hardware.
-    API calls will fail; all controls are simulated locally.
+  POV POI Control Interface
+  WLED-inspired design | Self-contained | No external dependencies
+  Serves from ESP32-S3 LittleFS or opens directly via file://
+  All API calls use relative paths.
 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="theme-color" content="#0f172a">
+  <meta name="theme-color" content="#111111">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="POV Architect">
-  <title>POV Architect — Nebula POI (Preview)</title>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="POV POI">
+  <title>POV POI Control</title>
   <style>
-    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-
     :root {
-      --slate-50: #f8fafc; --slate-100: #f1f5f9; --slate-200: #e2e8f0;
-      --slate-300: #cbd5e1; --slate-400: #94a3b8; --slate-500: #64748b;
-      --slate-600: #475569; --slate-700: #334155; --slate-800: #1e293b;
-      --slate-900: #0f172a; --slate-950: #020617;
-      --cyan-400: #22d3ee; --cyan-500: #06b6d4; --cyan-600: #0891b2;
-      --purple-400: #c084fc; --purple-500: #a855f7; --purple-600: #9333ea;
-      --pink-400: #f472b6; --pink-500: #ec4899;
-      --green-400: #4ade80; --green-500: #22c55e; --green-600: #16a34a;
-      --red-400: #f87171; --red-500: #ef4444; --red-600: #dc2626;
-      --amber-400: #fbbf24; --amber-500: #f59e0b;
-      --yellow-500: #eab308; --indigo-400: #818cf8;
+      --c-1: #111;
+      --c-2: #222;
+      --c-3: #333;
+      --c-5: #555;
+      --c-6: #666;
+      --c-f: #fff;
+      --c-b: #2af;
+      --c-g: #2c1;
+      --c-r: #c32;
+      --c-y: #a90;
+      --c-p: #94f;
+      --th: 68px;
+      --bh: 60px;
     }
 
+    *, *::before, *::after { box-sizing: border-box; }
+    html { touch-action: manipulation; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: var(--slate-950); color: var(--slate-50);
-      min-height: 100vh; display: flex; line-height: 1.5;
+      font-family: Verdana, sans-serif;
+      font-size: 1rem;
+      text-align: center;
+      background: var(--c-1);
+      color: var(--c-f);
+      line-height: 180%;
+      margin: 0;
+      padding: 0;
+    }
+    a, a:hover { color: var(--c-b); text-decoration: none; }
+    hr { border: none; border-top: 1px solid var(--c-3); margin: 8px 0; }
+
+    /* === TOP BAR === */
+    #topbar {
+      position: fixed; top: 0; left: 0; right: 0;
+      height: var(--th);
+      background: var(--c-2);
+      z-index: 20;
+      display: flex; align-items: center;
+      padding: 0 12px; gap: 10px;
+      border-bottom: 1px solid var(--c-3);
+    }
+    #pwr-btn {
+      width: 42px; height: 42px; border-radius: 50%;
+      background: var(--c-3); border: 2px solid var(--c-5);
+      color: var(--c-f); font-size: 20px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; transition: all 0.3s; line-height: 1;
+    }
+    #pwr-btn.on { border-color: var(--c-b); color: var(--c-b); box-shadow: 0 0 10px rgba(34,170,255,0.3); }
+    #logo {
+      font-size: 1.05rem; font-weight: bold; color: var(--c-b);
+      white-space: nowrap; letter-spacing: 0.05em; line-height: 1.2;
+    }
+    #logo span { color: var(--c-6); font-size: 0.7rem; font-weight: normal; display: block; }
+    #bri-wrap {
+      flex: 1; display: flex; align-items: center; gap: 8px; min-width: 0;
+    }
+    #bri-lbl { font-size: 18px; color: var(--c-6); flex-shrink: 0; line-height: 1; }
+    #bri-slider { flex: 1; cursor: pointer; min-width: 40px; }
+    #bri-val { font-size: 12px; color: var(--c-b); font-family: monospace; white-space: nowrap; min-width: 34px; }
+    #status-dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: var(--c-5); flex-shrink: 0; transition: background 0.5s;
+    }
+    #status-dot.online { background: var(--c-g); box-shadow: 0 0 6px rgba(34,204,17,0.5); }
+    #info-btn {
+      width: 36px; height: 36px; border-radius: 50%;
+      background: var(--c-3); border: none; color: var(--c-6);
+      font-size: 18px; cursor: pointer; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.2s; line-height: 1;
+    }
+    #info-btn:hover { background: var(--c-5); color: var(--c-f); }
+
+    /* === MAIN === */
+    #main { padding-top: var(--th); padding-bottom: var(--bh); min-height: 100vh; }
+    .tab { display: none; padding: 6px 4px 12px; }
+    .tab.active { display: block; }
+
+    /* === BOTTOM TABS === */
+    #botbar {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      height: var(--bh);
+      background: var(--c-2);
+      z-index: 20;
+      display: flex;
+      border-top: 1px solid var(--c-3);
+    }
+    .tbtn {
+      flex: 1; background: transparent; border: none;
+      color: var(--c-6); font-size: 10px; font-family: Verdana, sans-serif;
+      cursor: pointer; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 3px;
+      transition: color 0.2s; padding: 6px 2px;
+    }
+    .tbtn svg { width: 22px; height: 22px; flex-shrink: 0; }
+    .tbtn.active { color: var(--c-b); }
+    .tbtn:hover { color: var(--c-f); }
+
+    /* === SECTIONS === */
+    .sec {
+      background: var(--c-2); border-radius: 20px;
+      padding: 12px; margin: 8px auto; max-width: 520px;
+    }
+    .sec-hd {
+      font-size: 12px; font-weight: bold; color: var(--c-6);
+      text-transform: uppercase; letter-spacing: 0.08em;
+      margin-bottom: 8px; text-align: left; padding: 0 4px;
     }
 
-    /* Sidebar */
-    .sidebar {
-      width: 256px; background: var(--slate-900);
-      border-right: 1px solid var(--slate-800);
-      padding: 16px; display: flex; flex-direction: column; gap: 4px;
-      position: fixed; height: 100vh; overflow-y: auto; z-index: 20;
+    /* === BUTTONS === */
+    button, .btn {
+      background: var(--c-3); color: var(--c-f);
+      font-family: Verdana, sans-serif;
+      border: 0.3ch solid var(--c-3); border-radius: 24px;
+      display: inline-block; font-size: 15px;
+      margin: 5px 3px; padding: 7px 13px; min-width: 40px;
+      cursor: pointer; text-decoration: none; transition: all 0.3s;
+      line-height: 1.3;
     }
-    .sidebar-brand { display: flex; align-items: center; gap: 8px; padding: 8px; margin-bottom: 16px; }
-    .sidebar-brand svg { color: var(--cyan-400); width: 32px; height: 32px; }
-    .sidebar-brand h1 {
-      font-size: 1.25rem; font-weight: 700;
-      background: linear-gradient(to right, var(--cyan-400), var(--purple-400));
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-    .sidebar-brand p { font-size: 9px; color: var(--slate-600); font-family: monospace; }
-    .nav-btn {
-      width: 100%; display: flex; align-items: center; gap: 12px;
-      padding: 12px 16px; border-radius: 8px; border: none;
-      background: transparent; color: var(--slate-400);
-      font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s;
-      text-align: left;
-    }
-    .nav-btn:hover { background: rgba(30,41,59,.5); color: var(--slate-200); }
-    .nav-btn.active {
-      background: var(--slate-800); color: white;
-      box-shadow: 0 4px 12px rgba(0,0,0,.3);
-      outline: 1px solid var(--slate-700);
-    }
-    .nav-btn svg { width: 20px; height: 20px; flex-shrink: 0; }
-    .nav-spacer { height: 16px; }
-    .sidebar-footer { margin-top: auto; padding: 32px 16px 0; }
-    .sidebar-footer a {
-      display: flex; align-items: center; gap: 8px;
-      font-size: 12px; color: var(--slate-500); text-decoration: none; transition: color .2s;
-    }
-    .sidebar-footer a:hover { color: var(--slate-300); }
+    button:hover, .btn:hover { background: var(--c-5); border-color: var(--c-5); }
+    button.sml { padding: 5px 8px; border-radius: 18px; font-size: 12px; min-width: 30px; margin: 0 0 0 5px; }
+    button.on, button.sel { background: var(--c-b); border-color: var(--c-b); color: #000; }
+    button.grn { background: var(--c-g); border-color: var(--c-g); color: #000; }
+    button.red { background: var(--c-r); border-color: var(--c-r); color: #fff; }
+    button.pur { background: var(--c-p); border-color: var(--c-p); color: #000; }
+    button:disabled { opacity: 0.4; cursor: default; }
 
-    /* Main */
-    main { flex: 1; margin-left: 256px; padding: 32px; }
-    .content { max-width: 1024px; margin: 0 auto; }
-    .view { display: none; }
-    .view.active { display: block; animation: fadeIn .3s ease; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-
-    /* Preview banner */
-    .preview-banner {
-      position: fixed; top: 0; left: 256px; right: 0; z-index: 50;
-      background: rgba(245,158,11,.15); border-bottom: 1px solid rgba(245,158,11,.3);
-      padding: 6px 16px; text-align: center;
-      font-size: 11px; font-weight: 700; color: var(--amber-400);
-      text-transform: uppercase; letter-spacing: 0.1em;
-    }
-
-    /* Cards */
-    .card {
-      background: var(--slate-900); border: 1px solid var(--slate-800);
-      border-radius: 16px; padding: 20px;
-    }
-    .card-xl { border-radius: 24px; padding: 24px 32px; }
-
-    /* Header */
-    .page-header { margin-bottom: 24px; }
-    .page-header h2 { font-size: 1.875rem; font-weight: 700; color: white; display: flex; align-items: center; gap: 12px; }
-    .page-header p { color: var(--slate-400); font-weight: 500; font-size: 14px; margin-top: 4px; }
-
-    /* Status badge */
-    .status-badge {
-      display: inline-flex; align-items: center; gap: 4px;
-      padding: 2px 8px; border-radius: 9999px;
-      font-size: 8px; font-weight: 900; text-transform: uppercase; letter-spacing: .1em;
-    }
-    .status-badge.offline { background: rgba(239,68,68,.1); color: var(--red-500); }
-    .status-badge.online { background: rgba(34,197,94,.1); color: var(--green-500); }
-
-    /* Mode toggle */
-    .mode-toggle {
-      display: flex; background: var(--slate-900);
-      border: 1px solid var(--slate-800); border-radius: 12px; padding: 4px;
-    }
-    .mode-toggle button {
-      padding: 8px 16px; border-radius: 8px; border: none;
-      font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: .1em;
-      cursor: pointer; transition: all .2s; display: flex; align-items: center; gap: 8px;
-      background: transparent; color: var(--slate-500);
-    }
-    .mode-toggle button.active-sync { background: var(--purple-600); color: white; box-shadow: 0 4px 12px rgba(0,0,0,.3); }
-    .mode-toggle button.active-solo { background: var(--slate-700); color: white; box-shadow: 0 4px 12px rgba(0,0,0,.3); }
-
-    /* Device list */
-    .device-card {
-      width: 100%; text-align: left; padding: 16px; border-radius: 12px;
-      border: 1px solid transparent; background: transparent;
-      cursor: pointer; transition: all .2s; color: white;
-      opacity: .6; filter: grayscale(1);
-    }
-    .device-card.selected { background: var(--slate-800); border-color: rgba(6,182,212,.3); opacity: 1; filter: none; }
-    .device-name { font-size: 14px; font-weight: 700; color: var(--slate-200); }
-    .device-meta { font-size: 10px; color: var(--slate-500); font-family: monospace; margin-top: 4px; }
-    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--slate-600); }
-    .status-dot.playing { background: var(--green-500); animation: pulse 2s infinite; }
-    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
-
-    /* Playback controls */
-    .play-btn, .stop-btn {
-      flex: 1; padding: 32px 0; border: none; border-radius: 16px;
-      font-size: 1.25rem; font-weight: 900; color: white; cursor: pointer;
-      transition: all .15s; text-transform: uppercase;
-    }
-    .play-btn { background: var(--green-600); }
-    .play-btn:hover { background: var(--green-500); }
-    .play-btn:active, .stop-btn:active { transform: scale(.95); }
-    .stop-btn { background: var(--red-600); }
-    .stop-btn:hover { background: var(--red-500); }
-
-    .cycle-btn {
-      width: 100%; padding: 20px; background: var(--slate-800);
-      border: 1px solid var(--slate-700); border-radius: 16px;
-      color: var(--slate-200); font-weight: 700; font-size: 14px;
-      cursor: pointer; transition: all .15s; display: flex; align-items: center;
-      justify-content: center; gap: 12px;
-    }
-    .cycle-btn:hover { background: var(--slate-700); }
-    .cycle-btn:active { transform: scale(.95); }
-
-    /* Slider */
-    .slider-group { background: rgba(2,6,23,.5); padding: 24px; border-radius: 16px; border: 1px solid var(--slate-800); }
-    .slider-label {
-      font-size: 10px; font-weight: 900; color: var(--slate-500);
-      text-transform: uppercase; letter-spacing: .1em;
-      display: flex; align-items: center; gap: 8px;
-    }
-    .slider-value { color: var(--cyan-400); font-family: monospace; font-size: 14px; }
+    /* === SLIDERS === */
     input[type="range"] {
-      width: 100%; height: 8px; -webkit-appearance: none; appearance: none;
-      background: var(--slate-800); border-radius: 4px; cursor: pointer; margin-top: 16px;
+      -webkit-appearance: none; appearance: none;
+      width: 100%; height: 8px; border-radius: 4px;
+      background: var(--c-3); cursor: pointer; outline: none;
     }
     input[type="range"]::-webkit-slider-thumb {
       -webkit-appearance: none; width: 20px; height: 20px;
-      border-radius: 50%; background: var(--cyan-500); cursor: pointer;
+      border-radius: 50%; background: var(--c-b); cursor: pointer;
     }
+    input[type="range"]::-moz-range-thumb {
+      width: 20px; height: 20px; border-radius: 50%;
+      background: var(--c-b); cursor: pointer; border: none;
+    }
+    .slider-row {
+      display: flex; align-items: center; gap: 10px; padding: 5px 4px;
+    }
+    .slider-lbl { font-size: 12px; color: var(--c-6); min-width: 86px; text-align: right; flex-shrink: 0; }
+    .slider-val { font-size: 12px; color: var(--c-b); font-family: monospace; min-width: 52px; text-align: left; flex-shrink: 0; }
 
-    /* Upload area */
-    .upload-area {
-      background: rgba(2,6,23,.5); padding: 16px; border-radius: 16px;
-      border: 1px solid var(--slate-800);
-      display: flex; align-items: center; gap: 16px;
+    /* === INPUTS === */
+    input[type="text"], input[type="number"], input[type="password"], select {
+      background: var(--c-3); color: var(--c-f);
+      font-family: Verdana, sans-serif; font-size: 14px;
+      border: 1px solid var(--c-5); border-radius: 8px;
+      padding: 6px 10px; margin: 2px; outline: none;
     }
-    .upload-btn {
-      width: 48px; height: 48px; border-radius: 12px;
-      background: var(--purple-600); border: none; color: white;
-      cursor: pointer; display: flex; align-items: center; justify-content: center;
-      transition: all .15s; flex-shrink: 0;
-    }
-    .upload-btn:hover { background: var(--purple-500); }
+    input[type="text"]:focus, input[type="number"]:focus,
+    input[type="password"]:focus, select:focus { border-color: var(--c-b); }
+    input[type="number"] { width: 4.5em; }
+    input[type="number"].w80 { width: 80px; }
+    select { min-width: 120px; cursor: pointer; }
 
-    /* Log area */
-    .log-area {
-      background: rgba(0,0,0,.8); border-radius: 16px; padding: 16px;
-      font-family: monospace; font-size: 10px; height: 128px;
-      border: 1px solid var(--slate-800); display: flex; flex-direction: column;
-    }
-    .log-header {
-      display: flex; justify-content: space-between; color: var(--slate-600);
-      border-bottom: 1px solid var(--slate-900); padding-bottom: 8px; margin-bottom: 8px;
-    }
-    .log-content { flex: 1; overflow-y: auto; }
-    .log-entry { display: flex; gap: 8px; margin-bottom: 4px; }
-    .log-time { color: var(--slate-800); flex-shrink: 0; }
+    /* === MODE BUTTONS === */
+    #mode-btns { display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; padding: 4px; }
+    .mode-btn { padding: 7px 14px; border-radius: 20px; font-size: 13px; min-width: 68px; }
 
-    /* Grid helpers */
-    .grid-12 { display: grid; grid-template-columns: repeat(12, 1fr); gap: 24px; }
-    .col-4 { grid-column: span 4; }
-    .col-8 { grid-column: span 8; }
-    .space-y > * + * { margin-top: 16px; }
-    .flex { display: flex; } .gap-3 { gap: 12px; } .gap-4 { gap: 16px; }
-    .items-center { align-items: center; } .justify-between { justify-content: space-between; }
+    /* === PATTERN GRID === */
+    .pat-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 5px; padding: 4px;
+    }
+    .pat-btn {
+      background: var(--c-3); border: none; border-radius: 12px;
+      color: var(--c-6); cursor: pointer; padding: 9px 4px;
+      font-size: 11px; font-family: Verdana, sans-serif;
+      transition: all 0.2s; line-height: 1.3;
+    }
+    .pat-btn:hover { background: var(--c-5); color: var(--c-f); }
+    .pat-btn.active { background: var(--c-b); color: #000; font-weight: bold; }
+    .pat-btn.music { border-top: 2px solid var(--c-p); }
+    .pat-icon { font-size: 18px; display: block; margin-bottom: 2px; }
 
-    /* Mirror preview */
-    .mirror-header {
-      padding: 12px; background: rgba(15,23,42,.8); border-bottom: 1px solid var(--slate-800);
+    /* === IMAGE LIST === */
+    #img-list { text-align: left; }
+    .img-item {
       display: flex; align-items: center; justify-content: space-between;
+      padding: 7px 10px; border-radius: 10px; margin: 4px 0;
+      background: var(--c-3); cursor: pointer; transition: background 0.2s;
     }
-    .mirror-label {
-      font-size: 8px; font-weight: 900; color: var(--slate-500);
-      text-transform: uppercase; letter-spacing: .1em;
-      display: flex; align-items: center; gap: 8px;
-    }
-    .dual-link-badge {
-      padding: 2px 6px; background: rgba(168,85,247,.1); color: var(--purple-400);
-      font-size: 7px; font-weight: 900; border-radius: 4px;
-      border: 1px solid rgba(168,85,247,.2); text-transform: uppercase; letter-spacing: .1em;
-    }
-    .mirror-canvas {
-      aspect-ratio: 4/1; background: black; position: relative; overflow: hidden;
-    }
-    .mirror-canvas .led-strip {
-      display: flex; width: 100%; height: 100%; gap: 1px; padding: 4px;
-      align-items: center;
-    }
-    .mirror-canvas .led-pixel {
-      flex: 1; height: 80%; border-radius: 2px; background: #111;
-      transition: background .1s;
-    }
+    .img-item:hover { background: var(--c-5); }
+    .img-item.active { background: rgba(34,170,255,0.12); border: 1px solid var(--c-b); }
+    .img-name { font-size: 13px; font-family: monospace; color: var(--c-f); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .img-actions { display: flex; gap: 4px; flex-shrink: 0; }
 
-    /* Wiring guide */
-    .wiring-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
-    .wiring-card { padding: 24px; }
-    .wiring-card h3 { font-weight: 700; color: white; display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
-    .wire-row { margin-bottom: 12px; }
-    .wire-from { font-size: 12px; color: var(--slate-500); }
-    .wire-to { display: flex; align-items: center; gap: 8px; color: var(--slate-300); font-size: 12px; font-family: monospace; }
-    .wire-line { flex: 1; height: 1px; background: var(--slate-700); }
+    /* === UPLOAD ZONE === */
+    #upload-zone {
+      border: 2px dashed var(--c-5); border-radius: 16px;
+      padding: 24px 14px; margin: 6px auto; max-width: 480px;
+      cursor: pointer; transition: border-color 0.2s;
+    }
+    #upload-zone:hover, #upload-zone.drag { border-color: var(--c-b); background: rgba(34,170,255,0.04); }
+    #upload-zone p { color: var(--c-6); font-size: 12px; margin: 5px 0 0; line-height: 1.5; }
 
-    /* Circuit diagram */
-    .circuit-box {
-      position: relative; height: 256px; border: 1px solid rgba(51,65,85,.5);
-      border-radius: 8px; background: rgba(0,0,0,.4);
-      display: flex; align-items: center; justify-content: center; gap: 128px;
+    /* === WIFI ROWS === */
+    .wifi-row { display: flex; align-items: center; justify-content: space-between; padding: 7px 4px; gap: 8px; }
+    .wifi-lbl { font-size: 13px; color: var(--c-6); text-align: left; flex: 1; }
+    .wifi-val { font-size: 13px; color: var(--c-f); font-family: monospace; }
+    .wifi-badge {
+      display: inline-block; padding: 2px 8px; border-radius: 10px;
+      font-size: 10px; font-weight: bold; flex-shrink: 0;
     }
-    .chip-box {
-      width: 160px; height: 128px; background: var(--slate-800);
-      border-radius: 8px; display: flex; flex-direction: column;
-      align-items: center; justify-content: center; padding: 16px;
-    }
-    .chip-box.esp { border: 2px solid var(--cyan-500); box-shadow: 0 0 20px rgba(6,182,212,.1); }
-    .chip-box.teensy { border: 2px solid var(--purple-500); box-shadow: 0 0 20px rgba(168,85,247,.1); }
-    .chip-label { font-weight: 700; }
-    .chip-sub { font-size: 10px; color: var(--slate-500); font-style: italic; margin-top: 8px; }
-    .uart-lines {
-      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-      display: flex; flex-direction: column; gap: 16px;
-    }
-    .uart-line { width: 160px; height: 2px; }
-    .uart-line.tx { background: linear-gradient(to right, var(--cyan-500), var(--slate-700), var(--purple-500)); }
-    .uart-line.rx { background: linear-gradient(to right, var(--purple-500), var(--slate-700), var(--cyan-500)); }
+    .wifi-badge.up { background: rgba(34,204,17,0.12); color: var(--c-g); border: 1px solid var(--c-g); }
+    .wifi-badge.dn { background: rgba(204,51,34,0.12); color: var(--c-r); border: 1px solid var(--c-r); }
 
-    /* Settings page */
-    .settings-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
-    .setting-card { padding: 24px; display: flex; flex-direction: column; height: 100%; }
-    .setting-card:hover { border-color: var(--slate-700); }
-    .setting-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
-    .setting-title { display: flex; align-items: center; gap: 12px; }
-    .setting-title h3 { font-weight: 700; color: white; text-transform: uppercase; letter-spacing: .05em; font-size: 12px; }
-    .setting-value { font-size: 1.25rem; font-weight: 900; font-family: monospace; color: white; }
-    .setting-desc { font-size: 12px; color: var(--slate-500); line-height: 1.6; flex: 1; margin-bottom: 24px; }
-    .btn-grid { display: grid; gap: 8px; }
-    .btn-grid-4 { grid-template-columns: repeat(4, 1fr); }
-    .btn-grid-3 { display: flex; gap: 16px; }
-    .option-btn {
-      padding: 8px; border-radius: 8px; border: 1px solid var(--slate-700);
-      background: var(--slate-800); color: var(--slate-500); font-size: 12px;
-      font-weight: 700; cursor: pointer; transition: all .2s; text-align: center;
+    /* === LOG === */
+    #log-box {
+      background: #000; border-radius: 12px; padding: 8px 10px;
+      height: 106px; overflow-y: auto; text-align: left;
+      font-family: monospace; font-size: 11px;
+      border: 1px solid var(--c-3); scroll-behavior: smooth;
     }
-    .option-btn.active-blue { background: rgba(6,182,212,.1); border-color: var(--cyan-500); color: var(--cyan-400); }
-    .option-btn.active-purple { background: rgba(168,85,247,.1); border-color: var(--purple-500); color: var(--purple-400); }
-    .option-btn.active-pink { background: rgba(236,72,153,.1); border-color: var(--pink-500); color: var(--pink-400); }
+    .log-ln { color: var(--c-6); line-height: 1.6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .log-ln.ok { color: var(--c-g); }
+    .log-ln.err { color: var(--c-r); }
+    .log-ln.cmd { color: var(--c-b); }
 
-    /* Firmware page */
-    .target-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
-    .target-btn {
-      padding: 16px; border-radius: 12px; border: 1px solid var(--slate-700);
-      background: rgba(30,41,59,.5); color: var(--slate-500);
-      cursor: pointer; transition: all .2s; text-align: center;
-    }
-    .target-btn.active-cyan { background: rgba(6,182,212,.1); border-color: var(--cyan-500); color: var(--cyan-400); }
-    .target-btn.active-purple { background: rgba(168,85,247,.1); border-color: var(--purple-500); color: var(--purple-400); }
-    .target-btn svg { width: 32px; height: 32px; margin: 0 auto 12px; }
-    .target-btn span { font-weight: 700; font-size: 14px; display: block; }
-    .target-btn .ext { font-size: 9px; font-family: monospace; opacity: .6; margin-top: 4px; }
+    /* === WIRING TABLE === */
+    .wire-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; }
+    .wire-table th { color: var(--c-6); font-size: 11px; text-transform: uppercase; padding: 4px 8px; border-bottom: 1px solid var(--c-3); }
+    .wire-table td { padding: 5px 8px; border-bottom: 1px solid rgba(255,255,255,0.03); }
+    .pc { color: var(--c-b); font-family: monospace; }
+    .pp { color: var(--c-p); font-family: monospace; }
+    .py { color: var(--c-y); font-family: monospace; }
+    .pg { color: var(--c-g); font-family: monospace; }
 
-    .upload-zone {
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      text-align: center; gap: 32px; padding: 48px;
+    /* === OTA / WARNING === */
+    .ota-warn {
+      background: rgba(170,153,0,0.08); border: 1px solid var(--c-y);
+      border-radius: 12px; padding: 10px 14px; margin: 8px 0;
+      text-align: left; color: var(--c-y); font-size: 13px; line-height: 1.5;
     }
-    .upload-circle {
-      width: 96px; height: 96px; border: 2px dashed var(--slate-700);
-      border-radius: 50%; display: flex; align-items: center; justify-content: center;
-      cursor: pointer; transition: border-color .2s;
+    .prog-bar-wrap {
+      background: var(--c-3); border-radius: 6px; height: 8px;
+      overflow: hidden; margin: 8px 0;
     }
-    .upload-circle:hover { border-color: var(--cyan-500); }
-    .upload-circle svg { width: 32px; height: 32px; color: var(--slate-500); }
+    .prog-bar { height: 100%; background: var(--c-b); width: 0%; transition: width 0.3s; }
 
-    .ota-warning {
-      background: rgba(245,158,11,.08); border: 2px solid rgba(245,158,11,.3);
-      border-radius: 16px; padding: 24px; display: flex; align-items: flex-start; gap: 16px;
-      margin-bottom: 32px;
+    /* === SEQUENCE === */
+    #seq-list { text-align: left; max-height: 180px; overflow-y: auto; }
+    .seq-item {
+      display: flex; align-items: center; gap: 7px;
+      padding: 5px 8px; background: var(--c-3); border-radius: 8px; margin: 3px 0;
+      font-size: 12px;
     }
-    .ota-warning svg { color: var(--amber-400); flex-shrink: 0; width: 24px; height: 24px; margin-top: 2px; }
-    .ota-warning h3 { color: rgb(252 211 77); font-weight: 700; font-size: 1.125rem; }
-    .ota-warning p { color: rgba(252,211,77,.8); font-size: 14px; line-height: 1.6; margin-top: 8px; }
-    .ota-warning code { color: rgb(254 243 199); }
+    .seq-name { flex: 1; color: var(--c-f); font-family: monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .seq-dur { width: 52px; }
 
-    .safety-box { padding: 24px; }
-    .safety-box h4 { color: var(--red-400); font-weight: 700; margin-bottom: 8px; }
-    .safety-box p { color: var(--slate-400); font-size: 14px; }
-
-    /* Responsive */
-    @media (max-width: 1024px) {
-      .sidebar { width: 100%; height: auto; position: relative; flex-direction: row; flex-wrap: wrap; gap: 4px; }
-      .sidebar-brand { width: 100%; }
-      .sidebar-footer { display: none; }
-      .nav-spacer { display: none; }
-      main { margin-left: 0; padding: 16px; }
-      .preview-banner { left: 0; }
-      .grid-12 { display: flex; flex-direction: column; }
-      .wiring-grid { grid-template-columns: 1fr; }
-      .settings-grid { grid-template-columns: 1fr; }
-      .circuit-box { gap: 48px; }
-      .target-grid { grid-template-columns: 1fr; }
+    /* === MIRROR === */
+    #mirror {
+      display: flex; height: 30px; gap: 1px;
+      background: #000; border-radius: 8px; overflow: hidden; padding: 2px;
     }
+    .ml { flex: 1; height: 100%; border-radius: 2px; background: #111; }
 
-    /* Toast */
-    .toast {
-      position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%);
-      background: var(--slate-800); color: white; padding: 12px 24px;
-      border-radius: 12px; border: 1px solid var(--slate-700);
-      font-size: 12px; font-weight: 600; z-index: 100;
-      opacity: 0; transition: opacity .3s; pointer-events: none;
+    /* === POWER MODES === */
+    #pwr-mode-btns { display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; padding: 2px; }
+    .pwr-btn { font-size: 12px; padding: 6px 11px; border-radius: 16px; min-width: 76px; }
+
+    /* === TOAST === */
+    #toast {
+      opacity: 0; position: fixed;
+      bottom: calc(var(--bh) + 10px); left: 50%; transform: translateX(-50%);
+      background: var(--c-3); color: var(--c-f);
+      border-radius: 20px; padding: 9px 18px;
+      font-size: 13px; pointer-events: none; z-index: 99;
+      transition: opacity 0.3s; white-space: nowrap; max-width: 90%;
     }
-    .toast.show { opacity: 1; }
+    #toast.show { opacity: 1; background: #264; }
+    #toast.err { opacity: 1; background: #622; }
+
+    /* === INFO OVERLAY === */
+    #info-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.72); z-index: 30;
+      align-items: center; justify-content: center;
+    }
+    #info-overlay.show { display: flex; }
+    #info-panel {
+      background: var(--c-2); border-radius: 20px;
+      padding: 20px; max-width: 340px; width: 92%;
+      text-align: left;
+    }
+    #info-panel h3 { color: var(--c-b); margin: 0 0 12px; font-size: 1rem; }
+
+    /* === HELPERS === */
+    .hide { display: none !important; }
+    .muted { color: var(--c-6); font-size: 12px; }
+    .ok-txt { color: var(--c-g); }
+    .err-txt { color: var(--c-r); }
+
+    /* === RESPONSIVE === */
+    @media (max-width: 420px) {
+      #logo span { display: none; }
+      .slider-lbl { min-width: 68px; font-size: 11px; }
+      .pat-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media screen and (max-width: 767px) {
+      input[type="text"], input[type="number"], input[type="password"] { font-size: 16px; }
+    }
   </style>
 </head>
 <body>
 
-  <!-- Preview Banner -->
-  <div class="preview-banner">Preview Mode — Self-contained firmware-compatible UI (no internet or build tools required)</div>
+<!-- ===== TOP BAR ===== -->
+<div id="topbar">
+  <button id="pwr-btn" onclick="togglePower()" title="Power on/off">&#9211;</button>
+  <div id="logo">POV POI<span>wireless-pov-poi</span></div>
+  <div id="bri-wrap">
+    <span id="bri-lbl">&#9788;</span>
+    <input type="range" id="bri-slider" min="0" max="255" value="128" oninput="setBrightness(this.value)">
+    <span id="bri-val">50%</span>
+  </div>
+  <div id="status-dot" title="Device offline"></div>
+  <button id="info-btn" onclick="toggleInfo()" title="Device info">&#x2139;</button>
+</div>
 
-  <!-- Toast -->
-  <div id="toast" class="toast"></div>
+<!-- ===== TOAST ===== -->
+<div id="toast"></div>
 
-  <!-- Sidebar -->
-  <nav class="sidebar">
-    <div class="sidebar-brand">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="4"/><circle cx="12" cy="12" r="4"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/></svg>
+<!-- ===== INFO OVERLAY ===== -->
+<div id="info-overlay" onclick="closeInfo()">
+  <div id="info-panel" onclick="event.stopPropagation()">
+    <h3>&#9675; Device Info</h3>
+    <div class="wifi-row"><span class="wifi-lbl">AP SSID</span><span class="wifi-val">POV-POI-WiFi</span></div>
+    <div class="wifi-row"><span class="wifi-lbl">IP Address</span><span class="wifi-val">192.168.4.1</span></div>
+    <div class="wifi-row"><span class="wifi-lbl">Display Mode</span><span class="wifi-val" id="inf-mode">—</span></div>
+    <div class="wifi-row"><span class="wifi-lbl">Brightness</span><span class="wifi-val" id="inf-bri">—</span></div>
+    <div class="wifi-row"><span class="wifi-lbl">Frame Rate</span><span class="wifi-val" id="inf-fps">—</span></div>
+    <div class="wifi-row"><span class="wifi-lbl">Images Stored</span><span class="wifi-val" id="inf-imgs">—</span></div>
+    <div class="wifi-row"><span class="wifi-lbl">Active Pattern</span><span class="wifi-val" id="inf-pat">—</span></div>
+    <div style="margin-top:12px;text-align:center">
+      <button onclick="closeInfo()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MAIN ===== -->
+<div id="main">
+
+  <!-- ==================== TAB 0: CONTROL ==================== -->
+  <div class="tab active" id="tab-ctrl">
+
+    <!-- Fleet Sync -->
+    <div class="sec">
+      <div class="sec-hd">Fleet Sync</div>
       <div>
-        <h1>POV Architect</h1>
-        <p>Nebula POI &bull; wireless-pov-poi</p>
+        <button id="btn-sync" class="sel" onclick="setSyncMode(true)">&#x1F517; Synchronized</button>
+        <button id="btn-solo" onclick="setSyncMode(false)">&#x1F4F1; Independent</button>
       </div>
-    </div>
-    <button class="nav-btn active" onclick="showView('dashboard')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-      UI Dashboard
-    </button>
-    <button class="nav-btn" onclick="showView('imagelab')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--pink-400)"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
-      Image Lab
-    </button>
-    <button class="nav-btn" onclick="showView('settings')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
-      Display Config
-    </button>
-    <div class="nav-spacer"></div>
-    <button class="nav-btn" onclick="showView('wiring')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-      Wiring Guide
-    </button>
-    <button class="nav-btn" onclick="showView('firmware')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 13v8l-4-4"/><path d="m12 21 4-4"/><path d="M20.16 4.93A9 9 0 0 0 4.34 8.35"/><path d="M3.84 19.07A9 9 0 0 0 19.66 15.65"/></svg>
-      Firmware (OTA)
-    </button>
-    <div class="sidebar-footer">
-      <a href="https://github.com/urztaiamandude/wireless-pov-poi" target="_blank" rel="noreferrer">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.4 5.4 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65S8.93 17.38 9 18v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></svg>
-        wireless-pov-poi on GitHub
-      </a>
-    </div>
-  </nav>
-
-  <main style="padding-top:56px">
-    <!-- ========== DASHBOARD ========== -->
-    <div class="content view active" id="view-dashboard">
-      <div class="page-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px">
-        <div>
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
-            <h2 style="font-size:1.5rem">Fleet Control</h2>
-            <span class="status-badge offline" id="status-badge">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="10" height="10"><path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36-3.18-17.64L9.54 12.54A2 2 0 0 1 7.56 14H2"/></svg>
-              Offline
-            </span>
-          </div>
-          <p class="page-header p" style="color:var(--slate-500);font-size:12px;font-weight:500">Managing 2 POV Units &bull; SSID: POV-POI-WiFi</p>
-        </div>
-        <div class="mode-toggle">
-          <button class="active-sync" id="btn-sync" onclick="setSyncMode(true)">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-            Synchronized
-          </button>
-          <button id="btn-solo" onclick="setSyncMode(false)">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18"/></svg>
-            Independent
-          </button>
-        </div>
-      </div>
-
-      <div class="grid-12">
-        <div class="col-4 space-y">
-          <!-- Device list -->
-          <div class="card" style="padding:8px">
-            <button class="device-card selected" id="dev-leader" onclick="selectDevice('leader')">
-              <div style="display:flex;align-items:center;justify-content:space-between">
-                <div style="display:flex;align-items:center;gap:12px">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" style="color:var(--yellow-500)"><path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 .932.638l5.669.091a.5.5 0 0 1 .29.882l-4.39 3.52a1 1 0 0 0-.322 1.1l1.545 5.477a.5.5 0 0 1-.752.548l-4.864-2.88a1 1 0 0 0-1.028 0l-4.864 2.88a.5.5 0 0 1-.752-.548l1.545-5.478a1 1 0 0 0-.322-1.098l-4.39-3.52a.5.5 0 0 1 .29-.883l5.669-.09a1 1 0 0 0 .932-.639z"/></svg>
-                  <span class="device-name">POV_LEADER</span>
-                </div>
-                <div class="status-dot" id="dot-leader"></div>
-              </div>
-              <div class="device-meta">192.168.4.1 &bull; <span id="leader-status">Sync Leader</span></div>
-            </button>
-            <button class="device-card" id="dev-follower" onclick="selectDevice('follower')">
-              <div style="display:flex;align-items:center;justify-content:space-between">
-                <div style="display:flex;align-items:center;gap:12px">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" style="color:var(--slate-500)"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18"/></svg>
-                  <span class="device-name">POV_FOLLOWER</span>
-                </div>
-                <div class="status-dot" id="dot-follower"></div>
-              </div>
-              <div class="device-meta">192.168.4.2 &bull; <span id="follower-status">Awaiting Sync</span></div>
-            </button>
-          </div>
-
-          <!-- Mirror output -->
-          <div class="card" style="padding:0;overflow:hidden;background:black;border-color:var(--slate-800)">
-            <div class="mirror-header">
-              <span class="mirror-label">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12" style="color:var(--pink-500)"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-                Mirror Output
-              </span>
-              <span class="dual-link-badge" id="dual-badge">Dual-Link</span>
-            </div>
-            <div class="mirror-canvas">
-              <div class="led-strip" id="mirror-leds"></div>
-            </div>
-          </div>
-        </div>
-
-        <div class="col-8 space-y">
-          <!-- Controls -->
-          <div class="card card-xl" style="background:rgba(15,23,42,.6);backdrop-filter:blur(12px)">
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
-              <div class="space-y">
-                <div style="display:flex;gap:12px">
-                  <button class="play-btn" onclick="handleAction('play')">Play</button>
-                  <button class="stop-btn" onclick="handleAction('stop')">Stop</button>
-                </div>
-                <button class="cycle-btn" onclick="handleAction('random')">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20" style="color:var(--indigo-400)"><rect x="2" y="2" width="8" height="8" rx="1"/><rect x="14" y="14" width="8" height="8" rx="1"/><path d="M14 2h2a2 2 0 0 1 2 2v2"/><path d="M2 14v2a2 2 0 0 0 2 2h2"/></svg>
-                  Synced Pattern Cycle
-                </button>
-              </div>
-              <div class="space-y" style="gap:24px">
-                <div class="slider-group">
-                  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-                    <span class="slider-label">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" style="color:var(--yellow-500)"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
-                      Global Intensity
-                    </span>
-                    <span class="slider-value" id="brightness-pct">50%</span>
-                  </div>
-                  <input type="range" min="0" max="255" value="128" id="brightness-slider" oninput="updateBrightness(this.value)">
-                </div>
-                <div class="upload-area">
-                  <div style="flex:1">
-                    <div style="font-size:8px;font-weight:900;color:var(--slate-600);text-transform:uppercase;margin-bottom:4px">Active Asset</div>
-                    <div style="font-size:12px;color:var(--slate-300);font-family:monospace" id="active-file">pattern.bmp</div>
-                  </div>
-                  <button class="upload-btn" onclick="toast('Image uploaded (preview mode)')">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17,8 12,3 7,8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Log -->
-          <div class="log-area">
-            <div class="log-header">
-              <span style="display:flex;align-items:center;gap:4px">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="10" height="10"><polyline points="4,17 10,11 4,5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
-                FLEET_SYNC_MONITOR
-              </span>
-              <span id="sync-mode-label">MULTICAST_ON &bull; /api/sync/execute</span>
-            </div>
-            <div class="log-content" id="log-content">
-              <div style="color:var(--slate-700)">Connect to POV-POI-WiFi and start issuing commands...</div>
-            </div>
-          </div>
-        </div>
+      <div style="display:flex;justify-content:center;gap:6px;margin-top:6px">
+        <button id="dev-leader" class="sml sel" onclick="selectDev('leader')">&#11088; POV_LEADER</button>
+        <button id="dev-follower" class="sml" onclick="selectDev('follower')">&#x1F4F1; POV_FOLLOWER</button>
       </div>
     </div>
 
-    <!-- ========== IMAGE LAB ========== -->
-    <div class="content view" id="view-imagelab">
-      <div class="page-header">
-        <h2>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="30" height="30" style="color:var(--pink-500)"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
-          POV Image Lab
-        </h2>
-        <p>Design and sequence hardware-ready visuals.</p>
-      </div>
-      <div class="card card-xl" style="min-height:400px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:24px">
-        <div style="width:96px;height:96px;border:2px dashed var(--slate-700);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer" onclick="toast('Image upload simulated')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="32" height="32" style="color:var(--slate-500)"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17,8 12,3 7,8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-        </div>
-        <div>
-          <h3 style="font-size:1.25rem;font-weight:700;color:white">Upload or Generate</h3>
-          <p style="color:var(--slate-400);font-size:14px;max-width:400px;margin-top:8px">
-            Import an image or use the procedural engine to create POV-optimized visuals. Build sequences and deploy to your fleet.
-          </p>
-        </div>
-        <div style="display:flex;gap:12px">
-          <button style="padding:12px 32px;background:var(--slate-800);border:1px solid var(--slate-700);border-radius:12px;color:white;font-weight:700;font-size:12px;cursor:pointer;text-transform:uppercase;letter-spacing:.05em" onclick="toast('Upload mode (preview)')">Import Image</button>
-          <button style="padding:12px 32px;background:var(--pink-600);border:none;border-radius:12px;color:white;font-weight:700;font-size:12px;cursor:pointer;text-transform:uppercase;letter-spacing:.05em" onclick="toast('Procedural mode (preview)')">Procedural Art</button>
-        </div>
+    <!-- Display Mode -->
+    <div class="sec">
+      <div class="sec-hd">Display Mode</div>
+      <div id="mode-btns">
+        <button class="mode-btn" id="mode-0" onclick="setMode(0)">&#9898; Idle</button>
+        <button class="mode-btn on" id="mode-1" onclick="setMode(1)">&#x1F5BC; Image</button>
+        <button class="mode-btn" id="mode-2" onclick="setMode(2)">&#x2728; Pattern</button>
+        <button class="mode-btn" id="mode-3" onclick="setMode(3)">&#x1F3AC; Sequence</button>
+        <button class="mode-btn" id="mode-4" onclick="setMode(4)">&#x1F58C; Live</button>
       </div>
     </div>
 
-    <!-- ========== DISPLAY CONFIG ========== -->
-    <div class="content view" id="view-settings">
-      <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:16px">
-        <div>
-          <h2>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="30" height="30" style="color:var(--cyan-400)"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
-            Display Configuration
-          </h2>
-          <p>Fine-tune hardware pins and display performance.</p>
-        </div>
-        <button style="padding:12px 32px;background:var(--cyan-600);border:none;border-radius:12px;color:white;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:8px;font-size:14px" onclick="toast('Config deployed (preview mode)')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V15.2a2 2 0 0 1-.6 1.4l-3.8 3.8a2 2 0 0 1-1.4.6H8.8a2 2 0 0 1-1.4-.6l-3.8-3.8A2 2 0 0 1 3 15.2V8.8a2 2 0 0 1 .6-1.4l3.8-3.8A2 2 0 0 1 8.8 3z"/><path d="M12 8v4m0 4h.01"/></svg>
-          Deploy Settings
-        </button>
+    <!-- Frame Rate -->
+    <div class="sec">
+      <div class="slider-row">
+        <span class="slider-lbl">Frame Rate</span>
+        <input type="range" min="10" max="120" value="60" id="fps-slider" oninput="setFramerate(this.value)" style="flex:1">
+        <span class="slider-val" id="fps-val">60 FPS</span>
       </div>
+    </div>
 
-      <div class="card" style="margin-bottom:24px;padding:24px">
-        <h3 style="color:white;font-weight:600;margin-bottom:24px;display:flex;align-items:center;gap:8px">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" style="color:var(--cyan-400)"><rect x="2" y="2" width="20" height="20" rx="4"/><circle cx="12" cy="12" r="4"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/></svg>
-          LED Hardware Interface
-        </h3>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:32px">
-          <div>
-            <label style="font-size:12px;font-weight:700;color:var(--slate-500);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:8px">Global LED Count (Height)</label>
-            <div style="display:flex;align-items:center;gap:16px">
-              <input type="number" value="32" style="background:var(--slate-950);border:1px solid var(--slate-700);border-radius:8px;padding:8px 16px;color:white;font-family:monospace;width:100%;outline:none">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" style="color:var(--yellow-500);flex-shrink:0"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-            </div>
-            <p style="font-size:10px;color:var(--slate-500);font-style:italic;margin-top:8px">Vertical resolution (32px). Sync with Teensy NUM_LEDS.</p>
-          </div>
-          <div>
-            <label style="font-size:12px;font-weight:700;color:var(--slate-500);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:8px">Data Pin (MOSI)</label>
-            <input type="number" value="11" style="background:var(--slate-950);border:1px solid var(--slate-700);border-radius:8px;padding:8px 16px;color:white;font-family:monospace;width:100%;outline:none">
-          </div>
-          <div>
-            <label style="font-size:12px;font-weight:700;color:var(--slate-500);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:8px">Clock Pin (SCK)</label>
-            <input type="number" value="13" style="background:var(--slate-950);border:1px solid var(--slate-700);border-radius:8px;padding:8px 16px;color:white;font-family:monospace;width:100%;outline:none">
-          </div>
-        </div>
+    <!-- Playback & Upload -->
+    <div class="sec">
+      <div class="sec-hd">Playback</div>
+      <div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap">
+        <button class="grn" onclick="doPlay()">&#9654; Play</button>
+        <button class="red" onclick="doStop()">&#9632; Stop</button>
+        <button onclick="doRandom()">&#x1F500; Random</button>
       </div>
+      <hr>
+      <div style="display:flex;align-items:center;gap:10px;padding:4px 4px 0">
+        <div style="flex:1;text-align:left">
+          <div class="muted">Active Asset</div>
+          <div id="active-asset" style="font-size:13px;font-family:monospace;color:var(--c-f)">—</div>
+        </div>
+        <label style="cursor:pointer;display:inline-block">
+          <input type="file" id="img-upload-ctrl" accept=".bmp,.rgb,.jpg,.jpeg,.png" style="display:none" onchange="uploadImage(this.files[0])">
+          <span class="btn sml" style="display:inline-block">&#x2191; Upload</span>
+        </label>
+      </div>
+    </div>
 
-      <div class="settings-grid">
-        <div class="card setting-card">
-          <div class="setting-header">
-            <div class="setting-title">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" style="color:#60a5fa"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
-              <h3>Refresh Rate</h3>
-            </div>
-            <span class="setting-value" id="refresh-val">60 Hz</span>
-          </div>
-          <p class="setting-desc">Frame slices per rotation. Higher values reduce flicker but increase CPU load.</p>
-          <input type="range" min="30" max="240" step="10" value="60" oninput="document.getElementById('refresh-val').textContent=this.value+' Hz'">
-          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--slate-500);font-family:monospace;margin-top:8px"><span>30Hz</span><span>120Hz</span><span>240Hz</span></div>
+    <!-- LED Mirror -->
+    <div class="sec">
+      <div class="sec-hd">LED Mirror (32 px)</div>
+      <div id="mirror"></div>
+    </div>
+
+    <!-- CPU Power Mode -->
+    <div class="sec">
+      <div class="sec-hd">CPU Power Mode</div>
+      <div id="pwr-mode-btns">
+        <button class="pwr-btn sel" id="pwrm-0" onclick="setPowerMode(0,'performance')">&#9889; Performance</button>
+        <button class="pwr-btn" id="pwrm-1" onclick="setPowerMode(1,'balanced')">&#x2696; Balanced</button>
+        <button class="pwr-btn" id="pwrm-2" onclick="setPowerMode(2,'powersave')">&#x1F50B; PowerSave</button>
+        <button class="pwr-btn" id="pwrm-3" onclick="setPowerMode(3,'ultrasave')">&#x1F4A4; UltraSave</button>
+      </div>
+    </div>
+
+    <!-- Fleet Log -->
+    <div class="sec">
+      <div class="sec-hd" style="display:flex;justify-content:space-between;align-items:center">
+        <span>&#x1F5A5; Fleet Monitor</span>
+        <button class="sml" onclick="clearLog()">Clear</button>
+      </div>
+      <div id="log-box">
+        <div class="log-ln muted">Connect to POV-POI-WiFi (192.168.4.1) and issue commands...</div>
+      </div>
+    </div>
+
+  </div><!-- /tab-ctrl -->
+
+  <!-- ==================== TAB 1: PATTERNS ==================== -->
+  <div class="tab" id="tab-pat">
+
+    <div class="sec">
+      <div class="slider-row">
+        <span class="slider-lbl">Speed</span>
+        <input type="range" min="1" max="255" value="50" id="speed-slider" oninput="setPatSpeed(this.value)" style="flex:1">
+        <span class="slider-val" id="speed-val">50</span>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-hd">Basic Patterns (0–10)</div>
+      <div id="pgrid-basic" class="pat-grid"></div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-hd" style="color:var(--c-p)">&#x1F3B5; Music-Reactive (11–15) <span class="muted">— mic required</span></div>
+      <div id="pgrid-music" class="pat-grid"></div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-hd">Advanced (16–17)</div>
+      <div id="pgrid-adv" class="pat-grid"></div>
+    </div>
+
+  </div><!-- /tab-pat -->
+
+  <!-- ==================== TAB 2: IMAGES ==================== -->
+  <div class="tab" id="tab-img">
+
+    <div class="sec">
+      <div class="sec-hd">Upload Image</div>
+      <label style="cursor:pointer">
+        <input type="file" id="img-upload" accept=".bmp,.rgb,.jpg,.jpeg,.png" style="display:none" onchange="uploadImage(this.files[0])">
+        <div id="upload-zone">
+          <div style="font-size:30px">&#x1F4E4;</div>
+          <div style="font-weight:bold;color:var(--c-b)">Click to upload image</div>
+          <p>Supported: BMP, RGB, JPG, PNG&nbsp;&nbsp;|&nbsp;&nbsp;Auto-converts to 32 px height</p>
         </div>
-        <div class="card setting-card">
-          <div class="setting-header">
-            <div class="setting-title">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" style="color:var(--purple-400)"><rect x="2" y="2" width="6.4" height="6.4" rx="1"/><rect x="8.8" y="2" width="6.4" height="6.4" rx="1"/><rect x="15.6" y="2" width="6.4" height="6.4" rx="1"/><rect x="2" y="8.8" width="6.4" height="6.4" rx="1"/><rect x="8.8" y="8.8" width="6.4" height="6.4" rx="1"/><rect x="15.6" y="8.8" width="6.4" height="6.4" rx="1"/><rect x="2" y="15.6" width="6.4" height="6.4" rx="1"/><rect x="8.8" y="15.6" width="6.4" height="6.4" rx="1"/><rect x="15.6" y="15.6" width="6.4" height="6.4" rx="1"/></svg>
-              <h3>Angular Resolution</h3>
-            </div>
-            <span class="setting-value" id="angular-val">144 PX</span>
-          </div>
-          <p class="setting-desc">Total vertical slices in a full 360&deg; rotation. Matches your encoder resolution.</p>
-          <div class="btn-grid btn-grid-4">
-            <button class="option-btn" onclick="setAngular(72,this)">72</button>
-            <button class="option-btn active-purple" onclick="setAngular(144,this)">144</button>
-            <button class="option-btn" onclick="setAngular(288,this)">288</button>
-            <button class="option-btn" onclick="setAngular(576,this)">576</button>
-          </div>
+      </label>
+      <div id="upload-progress" class="hide">
+        <div class="prog-bar-wrap"><div class="prog-bar" id="upload-bar"></div></div>
+        <div id="upload-status" class="muted"></div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-hd" style="display:flex;justify-content:space-between;align-items:center">
+        <span>Stored Images</span>
+        <button class="sml" onclick="refreshImageList()">&#x21BB; Refresh</button>
+      </div>
+      <div id="img-list"><div class="muted">Loading...</div></div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-hd">Sequence Builder</div>
+      <div id="seq-list"><div class="muted">No items. Load an image above, then tap +Seq.</div></div>
+      <div style="margin-top:8px">
+        <button class="sml" onclick="clearSeq()">&#x1F5D1; Clear</button>
+        <button class="sml on" onclick="deploySeq()">&#x1F680; Deploy</button>
+      </div>
+    </div>
+
+  </div><!-- /tab-img -->
+
+  <!-- ==================== TAB 3: SETTINGS ==================== -->
+  <div class="tab" id="tab-cfg">
+
+    <!-- WiFi -->
+    <div class="sec">
+      <div class="sec-hd">WiFi Configuration</div>
+      <div class="wifi-row">
+        <span class="wifi-lbl">Access Point (AP)</span>
+        <span class="wifi-val">POV-POI-WiFi</span>
+        <span class="wifi-badge up">UP</span>
+      </div>
+      <div class="wifi-row">
+        <span class="wifi-lbl">AP Password</span>
+        <span class="wifi-val">povpoi123</span>
+      </div>
+      <div class="wifi-row">
+        <span class="wifi-lbl">Home WiFi (STA)</span>
+        <span class="wifi-val" id="sta-ip">Not connected</span>
+        <span class="wifi-badge dn" id="sta-badge">DOWN</span>
+      </div>
+      <hr>
+      <div style="text-align:left;padding:4px">
+        <div class="muted" style="margin-bottom:6px">Connect to home network (optional):</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <input type="text" id="wifi-ssid" placeholder="SSID" style="flex:1;min-width:90px">
+          <input type="password" id="wifi-pass" placeholder="Password" style="flex:1;min-width:90px">
         </div>
-        <div class="card setting-card">
-          <div class="setting-header">
-            <div class="setting-title">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" style="color:var(--pink-400)"><circle cx="13.5" cy="6.5" r="2.5"/><circle cx="17" cy="15.5" r="2.5"/><circle cx="8.5" cy="15.5" r="2.5"/></svg>
-              <h3>Color Depth</h3>
-            </div>
-            <span class="setting-value" id="depth-val">24 BIT</span>
-          </div>
-          <p class="setting-desc">Bit-depth per color channel. Lowering can improve frame rates on high-density displays.</p>
-          <div class="btn-grid-3">
-            <button class="option-btn" style="flex:1" onclick="setDepth(8,this)">8b</button>
-            <button class="option-btn" style="flex:1" onclick="setDepth(16,this)">16b</button>
-            <button class="option-btn active-pink" style="flex:1" onclick="setDepth(24,this)">TRUE</button>
-          </div>
+        <div style="margin-top:6px">
+          <button class="sml on" onclick="connectWifi()">Connect</button>
+          <button class="sml red" onclick="disconnectWifi()">Disconnect</button>
         </div>
       </div>
     </div>
 
-    <!-- ========== WIRING GUIDE ========== -->
-    <div class="content view" id="view-wiring">
-      <div class="page-header" style="text-align:center">
-        <h2 style="justify-content:center">Inter-Board Wiring Guide</h2>
-        <p style="text-align:center">Proper electrical connections for stable serial communication.</p>
+    <!-- LED Hardware -->
+    <div class="sec">
+      <div class="sec-hd">LED Hardware Config</div>
+      <div class="wifi-row">
+        <span class="wifi-lbl">LED Count (Height)</span>
+        <input type="number" id="led-count" value="32" min="1" max="512" class="w80">
+        <span class="muted">fixed: 32</span>
       </div>
-      <div class="wiring-grid" style="margin-bottom:24px">
-        <div class="card wiring-card">
-          <h3>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" style="color:var(--cyan-400)"><path d="m8 3 4 8 5-5 5 15H2L8 3z"/></svg>
-            UART Bridge
-          </h3>
-          <div class="wire-row"><div class="wire-from">ESP32-S3 TX (GPIO 17)</div><div class="wire-to"><div class="wire-line"></div>Teensy 4.1 RX (Pin 1)</div></div>
-          <div class="wire-row"><div class="wire-from">ESP32-S3 RX (GPIO 16)</div><div class="wire-to"><div class="wire-line"></div>Teensy 4.1 TX (Pin 0)</div></div>
-        </div>
-        <div class="card wiring-card">
-          <h3>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" style="color:var(--yellow-500)"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-            Power Logic
-          </h3>
-          <div class="wire-row"><div class="wire-from">Common GND</div><div class="wire-to"><div class="wire-line"></div>Essential for Serial logic</div></div>
-          <div class="wire-row"><div class="wire-from">5V Power</div><div class="wire-to"><div class="wire-line"></div>Direct to LED Strip VCC</div></div>
-          <div class="wire-row"><div class="wire-from">Teensy VIN</div><div class="wire-to"><div class="wire-line"></div>5V (High Current)</div></div>
-        </div>
-        <div class="card wiring-card">
-          <h3>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" style="color:var(--purple-400)"><path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg>
-            LED Interface
-          </h3>
-          <div class="wire-row"><div class="wire-from">Teensy SCK (Pin 13)</div><div class="wire-to"><div class="wire-line"></div>APA102 CLK</div></div>
-          <div class="wire-row"><div class="wire-from">Teensy MOSI (Pin 11)</div><div class="wire-to"><div class="wire-line"></div>APA102 DATA</div></div>
-        </div>
+      <div class="wifi-row">
+        <span class="wifi-lbl">Data Pin (MOSI)</span>
+        <input type="number" id="led-data" value="11" min="0" max="40" class="w80">
       </div>
-      <div class="card" style="padding:32px;margin-bottom:24px">
-        <h3 style="font-size:1.25rem;font-weight:700;color:white;margin-bottom:24px">Circuit Diagram Simulation</h3>
-        <div class="circuit-box">
-          <div class="chip-box esp"><span class="chip-label" style="color:var(--cyan-400)">ESP32-S3</span><span class="chip-sub">(The Brain)</span></div>
-          <div class="uart-lines"><div class="uart-line tx"></div><div class="uart-line rx"></div></div>
-          <div class="chip-box teensy"><span class="chip-label" style="color:var(--purple-400)">Teensy 4.1</span><span class="chip-sub">(The Muscle)</span></div>
-        </div>
+      <div class="wifi-row">
+        <span class="wifi-lbl">Clock Pin (SCK)</span>
+        <input type="number" id="led-clk" value="13" min="0" max="40" class="w80">
       </div>
-      <div class="card safety-box">
-        <h4>CRITICAL SAFETY:</h4>
-        <p>High-density APA102 LED strips can pull significant amperage. <strong>Do not power the LEDs directly from the Teensy 5V pin.</strong> Use a dedicated 5V power supply and share the ground with both boards.</p>
+      <div class="slider-row" style="margin-top:6px">
+        <span class="slider-lbl">Refresh Rate</span>
+        <input type="range" min="10" max="120" value="60" id="fps-cfg" oninput="document.getElementById('fps-cfg-val').textContent=this.value+' FPS'" style="flex:1">
+        <span class="slider-val" id="fps-cfg-val">60 FPS</span>
+      </div>
+      <div class="slider-row">
+        <span class="slider-lbl">Pixel Density</span>
+        <input type="range" min="30" max="300" value="144" id="pxd-cfg" oninput="document.getElementById('pxd-cfg-val').textContent=this.value+'/rev'" style="flex:1">
+        <span class="slider-val" id="pxd-cfg-val">144/rev</span>
+      </div>
+      <div style="margin-top:8px">
+        <span class="muted">Color Depth:&nbsp;</span>
+        <button class="sml" id="depth-8" onclick="setColorDepth(8)">8-bit</button>
+        <button class="sml sel" id="depth-24" onclick="setColorDepth(24)">24-bit True</button>
+      </div>
+      <div style="margin-top:10px">
+        <button onclick="deployConfig()">&#x1F680; Deploy Config</button>
       </div>
     </div>
 
-    <!-- ========== FIRMWARE ========== -->
-    <div class="content view" id="view-firmware">
-      <div class="ota-warning">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-        <div>
-          <h3>OTA Feature Not Yet Implemented</h3>
-          <p>The firmware manager UI is ready, but the backend OTA endpoints (<code>/api/ota/esp32</code> and <code>/api/ota/teensy</code>) are not yet implemented. Use USB cable and Arduino IDE/PlatformIO to update firmware manually.</p>
-        </div>
-      </div>
-      <div class="page-header">
-        <h2>Firmware &amp; OTA</h2>
-        <p>Push wireless updates to your POV system components via <span style="font-family:monospace;color:var(--cyan-400)">POV-POI-WiFi</span>.</p>
-      </div>
-      <div class="grid-12">
-        <div class="col-4 space-y">
-          <div class="card" style="padding:24px">
-            <h3 style="color:white;font-weight:600;margin-bottom:24px">Select Target Hardware</h3>
-            <div class="target-grid">
-              <button class="target-btn active-cyan" id="tgt-esp" onclick="setTarget('esp')">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M15 2v2m-6-2v2m6 16v2m-6-2v2M2 15h2M2 9h2m16 6h2m-2-6h2"/></svg>
-                <span>ESP32-S3</span>
-                <div class="ext">.bin</div>
-              </button>
-              <button class="target-btn" id="tgt-teensy" onclick="setTarget('teensy')">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-                <span>Teensy 4.1</span>
-                <div class="ext">.hex</div>
-              </button>
-            </div>
-          </div>
-        </div>
-        <div class="col-8">
-          <div class="card" style="padding:0;height:100%;display:flex;align-items:center;justify-content:center">
-            <div class="upload-zone">
-              <div class="upload-circle" onclick="toast('Firmware upload (preview mode)')">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17,8 12,3 7,8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-              </div>
-              <div>
-                <h3 style="font-size:1.25rem;font-weight:700;color:white">Upload Firmware</h3>
-                <p style="color:var(--slate-400);font-size:14px;max-width:320px;margin-top:8px">Select the compiled binary to initiate OTA.</p>
-              </div>
-              <button style="padding:12px 32px;border-radius:12px;border:none;font-weight:700;color:white;cursor:pointer;background:var(--cyan-600)" onclick="toast('Firmware upload (preview mode)')">Select Firmware File</button>
-            </div>
-          </div>
+    <!-- Wiring Guide -->
+    <div class="sec">
+      <div class="sec-hd">Wiring Guide</div>
+      <div style="text-align:left">
+        <div class="muted" style="margin-bottom:6px">UART Bridge — ESP32-S3 &#x2194; Teensy 4.1 (115200 baud)</div>
+        <table class="wire-table">
+          <tr><th>ESP32-S3</th><th>&nbsp;</th><th>Teensy 4.1</th></tr>
+          <tr><td class="pc">TX GPIO 17</td><td>&#x2192;</td><td class="pp">RX Pin 1</td></tr>
+          <tr><td class="pc">RX GPIO 16</td><td>&#x2190;</td><td class="pp">TX Pin 0</td></tr>
+          <tr><td class="pg">GND</td><td>&#x2014;</td><td class="pg">GND (shared)</td></tr>
+        </table>
+        <div class="muted" style="margin:10px 0 6px">SPI — Teensy 4.1 &#x2192; APA102 Strip</div>
+        <table class="wire-table">
+          <tr><th>Teensy 4.1</th><th>&nbsp;</th><th>APA102 Strip</th></tr>
+          <tr><td class="pp">MOSI Pin 11</td><td>&#x2192;</td><td class="py">DATA</td></tr>
+          <tr><td class="pp">SCK Pin 13</td><td>&#x2192;</td><td class="py">CLK</td></tr>
+          <tr><td class="pg">5V (dedicated)</td><td>&#x2192;</td><td class="py">VCC (2–3 A)</td></tr>
+          <tr><td class="pg">GND</td><td>&#x2014;</td><td class="py">GND</td></tr>
+        </table>
+        <div class="ota-warn" style="margin-top:10px">
+          &#x26A0; Use common GND for all boards. Power LEDs from a dedicated 5V/2–3A supply — do NOT use Teensy 5V pin.
         </div>
       </div>
     </div>
-  </main>
 
-  <script>
-    const NUM_LEDS = 32;
-    let brightness = 128;
-    let isSyncMode = true;
-    let selectedDevice = 'leader';
-    let currentPattern = 0;
-    let hue = 0;
-    let animFrame = null;
+    <!-- OTA Firmware -->
+    <div class="sec">
+      <div class="sec-hd">Firmware OTA Update</div>
+      <div class="ota-warn">
+        &#x26A0; OTA endpoints not yet active in firmware. Use USB + Arduino IDE / PlatformIO for updates.
+      </div>
+      <div style="margin:10px 0">
+        <button class="sml sel" id="tgt-esp32" onclick="setOtaTgt('esp32')">ESP32-S3 (.bin)</button>
+        <button class="sml" id="tgt-teensy" onclick="setOtaTgt('teensy')">Teensy 4.1 (.hex)</button>
+      </div>
+      <label style="cursor:pointer;display:inline-block">
+        <input type="file" id="ota-file" accept=".bin,.hex" style="display:none" onchange="doOta(this.files[0])">
+        <span class="btn" style="font-size:14px;display:inline-block">&#x1F4E4; Select Firmware File</span>
+      </label>
+      <div id="ota-prog" class="hide" style="margin-top:8px">
+        <div class="prog-bar-wrap"><div class="prog-bar" id="ota-bar"></div></div>
+        <div id="ota-status" class="muted"></div>
+      </div>
+    </div>
 
-    function initMirror() {
-      const c = document.getElementById('mirror-leds');
-      c.innerHTML = '';
-      for (let i = 0; i < NUM_LEDS; i++) {
-        const el = document.createElement('div');
-        el.className = 'led-pixel';
-        el.id = 'ml-' + i;
-        c.appendChild(el);
+  </div><!-- /tab-cfg -->
+
+</div><!-- /main -->
+
+<!-- ===== BOTTOM TABS ===== -->
+<div id="botbar">
+  <button class="tbtn active" id="tbtn-ctrl" onclick="showTab(0)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3M4.93 4.93l2.12 2.12m9.9 9.9 2.12 2.12M4.93 19.07l2.12-2.12m9.9-9.9 2.12-2.12"/>
+    </svg>
+    Control
+  </button>
+  <button class="tbtn" id="tbtn-pat" onclick="showTab(1)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/>
+    </svg>
+    Patterns
+  </button>
+  <button class="tbtn" id="tbtn-img" onclick="showTab(2)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/>
+    </svg>
+    Images
+  </button>
+  <button class="tbtn" id="tbtn-cfg" onclick="showTab(3)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+      <circle cx="12" cy="12" r="3"/>
+    </svg>
+    Settings
+  </button>
+</div>
+
+<script>
+// ===================================================================
+// STATE
+// ===================================================================
+var NUM_LEDS = 32;
+var brightness = 128;
+var currentMode = 1;
+var currentPat = 0;
+var patSpeed = 50;
+var framerate = 60;
+var isSyncMode = true;
+var selectedDev = 'leader';
+var otaTgt = 'esp32';
+var colorDepth = 24;
+var imageList = [];
+var sequence = [];
+var isOnline = false;
+var mirrorHue = 0;
+var briTimer, fpsTimer;
+
+// ===================================================================
+// PATTERNS
+// ===================================================================
+var PATTERNS = [
+  {i:0,  n:'Rainbow',       e:'🌈', c:'basic'},
+  {i:1,  n:'Wave',          e:'🌊', c:'basic'},
+  {i:2,  n:'Gradient',      e:'🎨', c:'basic'},
+  {i:3,  n:'Sparkle',       e:'✨', c:'basic'},
+  {i:4,  n:'Fire',          e:'🔥', c:'basic'},
+  {i:5,  n:'Comet',         e:'☄️',  c:'basic'},
+  {i:6,  n:'Breathing',     e:'💫', c:'basic'},
+  {i:7,  n:'Strobe',        e:'⚡', c:'basic'},
+  {i:8,  n:'Meteor',        e:'🌠', c:'basic'},
+  {i:9,  n:'Wipe',          e:'➡️',  c:'basic'},
+  {i:10, n:'Plasma',        e:'🔮', c:'basic'},
+  {i:11, n:'VU Meter',      e:'📊', c:'music'},
+  {i:12, n:'Pulse',         e:'💓', c:'music'},
+  {i:13, n:'Audio Rainbow', e:'🎵', c:'music'},
+  {i:14, n:'Center Burst',  e:'💥', c:'music'},
+  {i:15, n:'Audio Sparkle', e:'🎶', c:'music'},
+  {i:16, n:'Split Spin',    e:'🔄', c:'adv'},
+  {i:17, n:'Theater Chase', e:'🎭', c:'adv'}
+];
+
+// ===================================================================
+// INIT
+// ===================================================================
+window.onload = function() {
+  buildMirror();
+  buildPatternGrids();
+  startMirrorAnim();
+  loadPrefs();
+  startStatusPoll();
+  refreshImageList();
+  checkWifiStatus();
+};
+
+// ===================================================================
+// TABS
+// ===================================================================
+var TAB_IDS = ['ctrl', 'pat', 'img', 'cfg'];
+function showTab(n) {
+  TAB_IDS.forEach(function(id, i) {
+    document.getElementById('tab-' + id).className = 'tab' + (i === n ? ' active' : '');
+    document.getElementById('tbtn-' + id).className = 'tbtn' + (i === n ? ' active' : '');
+  });
+}
+
+// ===================================================================
+// TOP BAR
+// ===================================================================
+function togglePower() {
+  if (currentMode === 0) {
+    setMode(2);
+    toast('POV POI on');
+  } else {
+    setMode(0);
+    toast('POV POI idle');
+  }
+}
+
+function setBrightness(val) {
+  brightness = parseInt(val);
+  document.getElementById('bri-val').textContent = Math.round(brightness / 255 * 100) + '%';
+  clearTimeout(briTimer);
+  briTimer = setTimeout(function() {
+    apiPost('/api/brightness', {brightness: brightness});
+    savePrefs();
+  }, 200);
+}
+
+// ===================================================================
+// DISPLAY MODE
+// ===================================================================
+var MODE_NAMES = ['Idle', 'Image', 'Pattern', 'Sequence', 'Live'];
+
+function setMode(m) {
+  currentMode = m;
+  for (var i = 0; i <= 4; i++) {
+    var b = document.getElementById('mode-' + i);
+    if (b) b.className = 'mode-btn' + (i === m ? ' on' : '');
+  }
+  document.getElementById('pwr-btn').className = m === 0 ? 'pwr-btn' : 'pwr-btn on';
+  apiPost('/api/mode', {mode: m, index: currentPat});
+  log('[CMD] MODE ' + MODE_NAMES[m], 'cmd');
+}
+
+// ===================================================================
+// FRAME RATE
+// ===================================================================
+function setFramerate(val) {
+  framerate = parseInt(val);
+  document.getElementById('fps-val').textContent = framerate + ' FPS';
+  clearTimeout(fpsTimer);
+  fpsTimer = setTimeout(function() {
+    apiPost('/api/framerate', {framerate: framerate});
+    savePrefs();
+  }, 300);
+}
+
+// ===================================================================
+// PATTERNS
+// ===================================================================
+function buildPatternGrids() {
+  var basic = '', music = '', adv = '';
+  PATTERNS.forEach(function(p) {
+    var cls = 'pat-btn' + (p.c === 'music' ? ' music' : '') + (p.i === currentPat ? ' active' : '');
+    var btn = '<button class="' + cls + '" id="pat-' + p.i + '" onclick="selectPat(' + p.i + ')">' +
+              '<span class="pat-icon">' + p.e + '</span>' + p.n + '</button>';
+    if (p.c === 'basic') basic += btn;
+    else if (p.c === 'music') music += btn;
+    else adv += btn;
+  });
+  document.getElementById('pgrid-basic').innerHTML = basic;
+  document.getElementById('pgrid-music').innerHTML = music;
+  document.getElementById('pgrid-adv').innerHTML = adv;
+}
+
+function selectPat(idx) {
+  currentPat = idx;
+  document.querySelectorAll('.pat-btn').forEach(function(b) { b.classList.remove('active'); });
+  var b = document.getElementById('pat-' + idx);
+  if (b) b.classList.add('active');
+  document.getElementById('active-asset').textContent = PATTERNS[idx].e + ' ' + PATTERNS[idx].n;
+  document.getElementById('inf-pat').textContent = PATTERNS[idx].n;
+  apiPost('/api/pattern', {index: idx, type: idx, speed: patSpeed});
+  if (currentMode !== 2) setMode(2);
+  log('[CMD] PATTERN ' + PATTERNS[idx].n, 'cmd');
+}
+
+function setPatSpeed(val) {
+  patSpeed = parseInt(val);
+  document.getElementById('speed-val').textContent = val;
+  apiPost('/api/pattern', {index: currentPat, type: currentPat, speed: patSpeed});
+}
+
+// ===================================================================
+// FLEET / SYNC
+// ===================================================================
+function setSyncMode(sync) {
+  isSyncMode = sync;
+  document.getElementById('btn-sync').className = sync ? 'sel' : '';
+  document.getElementById('btn-solo').className = sync ? '' : 'sel';
+  toast(sync ? 'Synchronized mode' : 'Independent mode');
+}
+
+function selectDev(dev) {
+  selectedDev = dev;
+  document.getElementById('dev-leader').className = 'sml' + (dev === 'leader' ? ' sel' : '');
+  document.getElementById('dev-follower').className = 'sml' + (dev === 'follower' ? ' sel' : '');
+}
+
+// ===================================================================
+// PLAYBACK
+// ===================================================================
+function doPlay() {
+  var target = isSyncMode ? 'ALL' : selectedDev.toUpperCase();
+  if (isSyncMode) apiPost('/api/sync/execute', {action: 'play', val: 1});
+  else apiPost('/api/mode', {mode: currentMode, index: currentPat});
+  log('[CMD] PLAY -> ' + target, 'cmd');
+  toast('Play');
+}
+
+function doStop() {
+  var target = isSyncMode ? 'ALL' : selectedDev.toUpperCase();
+  if (isSyncMode) apiPost('/api/sync/execute', {action: 'stop', val: 0});
+  else setMode(0);
+  log('[CMD] STOP -> ' + target, 'cmd');
+  toast('Stop');
+}
+
+function doRandom() {
+  var idx = Math.floor(Math.random() * 18);
+  selectPat(idx);
+  if (isSyncMode) apiPost('/api/sync/execute', {action: 'pattern', val: idx});
+  toast('Random: ' + PATTERNS[idx].n);
+}
+
+// ===================================================================
+// CPU POWER MODE
+// ===================================================================
+function setPowerMode(idx, name) {
+  for (var i = 0; i < 4; i++) {
+    var b = document.getElementById('pwrm-' + i);
+    if (b) b.className = 'pwr-btn' + (i === idx ? ' sel' : '');
+  }
+  apiPost('/api/power/mode', {mode: name});
+  log('[CMD] POWER ' + name.toUpperCase(), 'cmd');
+  toast('Power: ' + name);
+}
+
+// ===================================================================
+// IMAGE UPLOAD
+// ===================================================================
+function uploadImage(file) {
+  if (!file) return;
+  var fd = new FormData();
+  fd.append('file', file);
+  document.getElementById('upload-progress').className = '';
+  document.getElementById('upload-bar').style.width = '0%';
+  document.getElementById('upload-status').textContent = 'Uploading ' + file.name + '...';
+  var xhr = new XMLHttpRequest();
+  xhr.open('POST', '/api/image', true);
+  xhr.upload.onprogress = function(e) {
+    if (e.lengthComputable)
+      document.getElementById('upload-bar').style.width = Math.round(e.loaded / e.total * 100) + '%';
+  };
+  xhr.onload = function() {
+    if (xhr.status === 200) {
+      document.getElementById('upload-bar').style.width = '100%';
+      document.getElementById('upload-status').textContent = 'Done: ' + file.name;
+      log('[OK] Uploaded ' + file.name, 'ok');
+      toast('Uploaded: ' + file.name);
+      setTimeout(function() { document.getElementById('upload-progress').className = 'hide'; }, 3000);
+      refreshImageList();
+    } else {
+      document.getElementById('upload-status').textContent = 'Failed (' + xhr.status + ')';
+      log('[ERR] Upload failed: HTTP ' + xhr.status, 'err');
+      toastErr('Upload failed');
+    }
+  };
+  xhr.onerror = function() {
+    document.getElementById('upload-status').textContent = 'Network error';
+    log('[ERR] Upload: network error', 'err');
+    toastErr('Network error');
+  };
+  xhr.send(fd);
+}
+
+// ===================================================================
+// IMAGE LIST
+// ===================================================================
+function refreshImageList() {
+  apiGet('/api/image/list', function(data) {
+    imageList = data.images || (Array.isArray(data) ? data : []);
+    renderImageList();
+  }, function() {
+    document.getElementById('img-list').innerHTML = '<div class="muted">Could not load image list (device offline?)</div>';
+  });
+}
+
+function renderImageList() {
+  var el = document.getElementById('img-list');
+  if (!imageList.length) {
+    el.innerHTML = '<div class="muted">No images stored.</div>';
+    return;
+  }
+  el.innerHTML = '';
+  imageList.forEach(function(img) {
+    var name = typeof img === 'string' ? img : (img.name || img.filename || String(img));
+    var div = document.createElement('div');
+    div.className = 'img-item';
+    div.innerHTML =
+      '<span class="img-name">&#x1F5BC; ' + escHtml(name) + '</span>' +
+      '<span class="img-actions">' +
+        '<button class="sml on" onclick="loadImg(\'' + escAttr(name) + '\')">Load</button>' +
+        '<button class="sml" onclick="addToSeq(\'' + escAttr(name) + '\')">+Seq</button>' +
+      '</span>';
+    el.appendChild(div);
+  });
+}
+
+function loadImg(name) {
+  apiPost('/api/sd/load', {filename: name}, function() {
+    document.getElementById('active-asset').textContent = '🖼 ' + name;
+    if (currentMode !== 1) setMode(1);
+    log('[CMD] LOAD ' + name, 'cmd');
+    toast('Loaded: ' + name);
+  });
+}
+
+// ===================================================================
+// SEQUENCE BUILDER
+// ===================================================================
+function addToSeq(name) {
+  sequence.push({name: name, duration: 3000});
+  renderSeq();
+  toast(name + ' added to sequence');
+}
+
+function clearSeq() {
+  sequence = [];
+  renderSeq();
+}
+
+function renderSeq() {
+  var el = document.getElementById('seq-list');
+  if (!sequence.length) {
+    el.innerHTML = '<div class="muted">No items. Tap +Seq next to an image above.</div>';
+    return;
+  }
+  el.innerHTML = '';
+  sequence.forEach(function(item, i) {
+    var div = document.createElement('div');
+    div.className = 'seq-item';
+    div.innerHTML =
+      '<span class="seq-name">' + escHtml(item.name) + '</span>' +
+      '<input class="seq-dur" type="number" value="' + (item.duration / 1000).toFixed(1) +
+        '" min="0.5" step="0.5" title="Duration (s)" onchange="sequence[' + i + '].duration=this.value*1000"> s' +
+      '<button class="sml red" onclick="sequence.splice(' + i + ',1);renderSeq()">&#x2715;</button>';
+    el.appendChild(div);
+  });
+}
+
+function deploySeq() {
+  if (!sequence.length) { toast('Add images first'); return; }
+  sequence.forEach(function(item, i) {
+    setTimeout(function() { apiPost('/api/sd/load', {filename: item.name}); }, i * 200);
+  });
+  setMode(3);
+  log('[CMD] DEPLOY SEQUENCE (' + sequence.length + ' items)', 'cmd');
+  toast('Sequence deployed (' + sequence.length + ')');
+}
+
+// ===================================================================
+// WIFI
+// ===================================================================
+function connectWifi() {
+  var ssid = document.getElementById('wifi-ssid').value.trim();
+  var pass = document.getElementById('wifi-pass').value;
+  if (!ssid) { toastErr('Enter SSID'); return; }
+  log('[CMD] WIFI CONNECT ' + ssid, 'cmd');
+  apiPost('/api/wifi/connect', {ssid: ssid, password: pass}, function() {
+    toast('Connecting to ' + ssid + '...');
+    var tries = 0;
+    var poll = setInterval(function() {
+      if (++tries > 15) { clearInterval(poll); toastErr('WiFi timeout'); return; }
+      checkWifiStatus(function(ok) { if (ok) clearInterval(poll); });
+    }, 2000);
+  });
+}
+
+function disconnectWifi() {
+  apiPost('/api/wifi/disconnect', {}, function() {
+    document.getElementById('sta-ip').textContent = 'Not connected';
+    setStaBadge(false);
+    log('[OK] WiFi STA disconnected', 'ok');
+    toast('WiFi disconnected');
+  });
+}
+
+function checkWifiStatus(cb) {
+  apiGet('/api/wifi/status', function(data) {
+    if (data.sta_connected) {
+      document.getElementById('sta-ip').textContent = data.sta_ip || 'Connected';
+      setStaBadge(true);
+      log('[OK] WiFi STA: ' + (data.sta_ip || 'connected'), 'ok');
+      if (cb) cb(true);
+    } else {
+      setStaBadge(false);
+      if (cb) cb(false);
+    }
+  });
+}
+
+function setStaBadge(up) {
+  var b = document.getElementById('sta-badge');
+  b.className = 'wifi-badge ' + (up ? 'up' : 'dn');
+  b.textContent = up ? 'UP' : 'DOWN';
+}
+
+// ===================================================================
+// LED CONFIG
+// ===================================================================
+function setColorDepth(d) {
+  colorDepth = d;
+  document.getElementById('depth-8').className = 'sml' + (d === 8 ? ' sel' : '');
+  document.getElementById('depth-24').className = 'sml' + (d === 24 ? ' sel' : '');
+}
+
+function deployConfig() {
+  var cfg = {
+    ledCount:    parseInt(document.getElementById('led-count').value),
+    dataPin:     parseInt(document.getElementById('led-data').value),
+    clkPin:      parseInt(document.getElementById('led-clk').value),
+    refreshRate: parseInt(document.getElementById('fps-cfg').value),
+    pixelDensity:parseInt(document.getElementById('pxd-cfg').value),
+    colorDepth:  colorDepth
+  };
+  apiPost('/api/device/config', cfg, function() {
+    log('[OK] Config deployed', 'ok');
+    toast('Config deployed');
+  });
+}
+
+// ===================================================================
+// OTA FIRMWARE
+// ===================================================================
+function setOtaTgt(t) {
+  otaTgt = t;
+  document.getElementById('tgt-esp32').className = 'sml' + (t === 'esp32' ? ' sel' : '');
+  document.getElementById('tgt-teensy').className = 'sml' + (t === 'teensy' ? ' sel' : '');
+}
+
+function doOta(file) {
+  if (!file) return;
+  var ep = otaTgt === 'esp32' ? '/api/ota/esp32' : '/api/ota/teensy';
+  var fd = new FormData();
+  fd.append('firmware', file);
+  document.getElementById('ota-prog').className = '';
+  document.getElementById('ota-bar').style.width = '0%';
+  document.getElementById('ota-status').textContent = 'Uploading ' + file.name + '...';
+  var xhr = new XMLHttpRequest();
+  xhr.open('POST', ep, true);
+  xhr.upload.onprogress = function(e) {
+    if (e.lengthComputable)
+      document.getElementById('ota-bar').style.width = Math.round(e.loaded / e.total * 100) + '%';
+  };
+  xhr.onload = function() {
+    if (xhr.status === 200) {
+      document.getElementById('ota-status').textContent = 'OTA complete. Rebooting...';
+      document.getElementById('ota-bar').style.width = '100%';
+      log('[OK] OTA complete — rebooting', 'ok');
+      toast('OTA complete — rebooting');
+    } else {
+      document.getElementById('ota-status').textContent = 'Failed (' + xhr.status + ')';
+      log('[ERR] OTA failed: HTTP ' + xhr.status, 'err');
+      toastErr('OTA failed');
+    }
+  };
+  xhr.onerror = function() { toastErr('OTA network error'); };
+  xhr.send(fd);
+}
+
+// ===================================================================
+// INFO OVERLAY
+// ===================================================================
+function toggleInfo() {
+  var el = document.getElementById('info-overlay');
+  if (el.className === 'show') { closeInfo(); return; }
+  refreshInfoPanel();
+  el.className = 'show';
+}
+function closeInfo() { document.getElementById('info-overlay').className = ''; }
+function refreshInfoPanel() {
+  document.getElementById('inf-mode').textContent = MODE_NAMES[currentMode] || '—';
+  document.getElementById('inf-bri').textContent = brightness + ' (' + Math.round(brightness / 255 * 100) + '%)';
+  document.getElementById('inf-fps').textContent = framerate + ' FPS';
+  document.getElementById('inf-imgs').textContent = imageList.length;
+  document.getElementById('inf-pat').textContent = PATTERNS[currentPat] ? PATTERNS[currentPat].n : '—';
+}
+
+// ===================================================================
+// STATUS POLL
+// ===================================================================
+function startStatusPoll() {
+  pollStatus();
+  setInterval(pollStatus, 5000);
+}
+
+function pollStatus() {
+  apiGet('/api/status', function(data) {
+    if (!isOnline) {
+      isOnline = true;
+      document.getElementById('status-dot').className = 'online';
+      document.getElementById('status-dot').title = 'Device online';
+      log('[OK] Device connected', 'ok');
+    }
+    if (data.mode !== undefined && data.mode !== currentMode) {
+      currentMode = data.mode;
+      for (var i = 0; i <= 4; i++) {
+        var b = document.getElementById('mode-' + i);
+        if (b) b.className = 'mode-btn' + (i === data.mode ? ' on' : '');
       }
-      animatePattern();
     }
-
-    function setMirrorLed(i, r, g, b) {
-      const el = document.getElementById('ml-' + i);
-      if (!el) return;
-      const s = brightness / 255;
-      el.style.background = `rgb(${Math.round(r*s)},${Math.round(g*s)},${Math.round(b*s)})`;
-      el.style.boxShadow = `0 0 6px rgba(${r},${g},${b},0.4)`;
+    if (data.brightness !== undefined) {
+      brightness = data.brightness;
+      document.getElementById('bri-slider').value = brightness;
+      document.getElementById('bri-val').textContent = Math.round(brightness / 255 * 100) + '%';
     }
+    if (data.framerate !== undefined) {
+      framerate = data.framerate;
+      document.getElementById('fps-slider').value = framerate;
+      document.getElementById('fps-val').textContent = framerate + ' FPS';
+    }
+  }, function() {
+    if (isOnline) {
+      isOnline = false;
+      document.getElementById('status-dot').className = '';
+      document.getElementById('status-dot').title = 'Device offline';
+    }
+  });
+}
 
-    function hsvToRgb(h, s, v) {
-      let r, g, b;
-      const i = Math.floor(h * 6), f = h * 6 - i;
-      const p = v*(1-s), q = v*(1-f*s), t = v*(1-(1-f)*s);
-      switch (i % 6) {
-        case 0: r=v;g=t;b=p; break; case 1: r=q;g=v;b=p; break;
-        case 2: r=p;g=v;b=t; break; case 3: r=p;g=q;b=v; break;
-        case 4: r=t;g=p;b=v; break; case 5: r=v;g=p;b=q; break;
+// ===================================================================
+// LED MIRROR ANIMATION
+// ===================================================================
+function buildMirror() {
+  var m = document.getElementById('mirror');
+  m.innerHTML = '';
+  for (var i = 0; i < NUM_LEDS; i++) {
+    var d = document.createElement('div');
+    d.className = 'ml'; d.id = 'ml-' + i;
+    m.appendChild(d);
+  }
+}
+
+function startMirrorAnim() {
+  (function frame() {
+    if (currentMode === 0) {
+      for (var i = 0; i < NUM_LEDS; i++) setMLed(i, 0, 0, 0);
+    } else {
+      for (var i = 0; i < NUM_LEDS; i++) {
+        var rgb = hsvToRgb(((i * 8 + mirrorHue) % 256) / 256, 1, 1);
+        setMLed(i, rgb[0], rgb[1], rgb[2]);
       }
-      return [Math.round(r*255), Math.round(g*255), Math.round(b*255)];
+      mirrorHue = (mirrorHue + 1) % 256;
     }
+    requestAnimationFrame(frame);
+  })();
+}
 
-    function animatePattern() {
-      for (let i = 0; i < NUM_LEDS; i++) {
-        const [r, g, b] = hsvToRgb(((i * 8 + hue) % 256) / 256, 1, 1);
-        setMirrorLed(i, r, g, b);
-      }
-      hue = (hue + 1) % 256;
-      animFrame = requestAnimationFrame(animatePattern);
+function setMLed(i, r, g, b) {
+  var el = document.getElementById('ml-' + i);
+  if (!el) return;
+  var s = brightness / 255;
+  el.style.background = 'rgb(' + Math.round(r*s) + ',' + Math.round(g*s) + ',' + Math.round(b*s) + ')';
+}
+
+function hsvToRgb(h, s, v) {
+  var r, g, b, i = Math.floor(h * 6), f = h * 6 - i;
+  var p = v*(1-s), q = v*(1-f*s), t = v*(1-(1-f)*s);
+  switch (i % 6) {
+    case 0: r=v;g=t;b=p; break; case 1: r=q;g=v;b=p; break;
+    case 2: r=p;g=v;b=t; break; case 3: r=p;g=q;b=v; break;
+    case 4: r=t;g=p;b=v; break; case 5: r=v;g=p;b=q; break;
+  }
+  return [Math.round(r*255), Math.round(g*255), Math.round(b*255)];
+}
+
+// ===================================================================
+// API HELPERS
+// ===================================================================
+function apiGet(url, ok, fail) {
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', url, true);
+  xhr.timeout = 4000;
+  xhr.onload = function() {
+    if (xhr.status === 200) {
+      try { ok(JSON.parse(xhr.responseText)); } catch(e) { ok({}); }
+    } else { if (fail) fail(xhr.status); }
+  };
+  xhr.onerror = xhr.ontimeout = function() { if (fail) fail(0); };
+  xhr.send();
+}
+
+function apiPost(url, data, ok, fail) {
+  var xhr = new XMLHttpRequest();
+  xhr.open('POST', url, true);
+  xhr.setRequestHeader('Content-Type', 'application/json');
+  xhr.timeout = 4000;
+  xhr.onload = function() {
+    if (xhr.status === 200) {
+      if (ok) { try { ok(JSON.parse(xhr.responseText)); } catch(e) { ok({}); } }
+    } else {
+      if (fail) fail(xhr.status);
+      log('[ERR] POST ' + url + ' -> HTTP ' + xhr.status, 'err');
     }
+  };
+  xhr.onerror = xhr.ontimeout = function() { if (fail) fail(0); };
+  xhr.send(JSON.stringify(data));
+}
 
-    function showView(id) {
-      document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-      document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-      document.getElementById('view-' + id).classList.add('active');
-      event.currentTarget.classList.add('active');
+// ===================================================================
+// LOG
+// ===================================================================
+function log(msg, cls) {
+  var box = document.getElementById('log-box');
+  // Clear placeholder
+  if (box.firstChild && box.firstChild.className && box.firstChild.className.indexOf('muted') >= 0) box.innerHTML = '';
+  var d = new Date();
+  var ts = [d.getHours(), d.getMinutes(), d.getSeconds()].map(function(n) { return String(n).padStart(2,'0'); }).join(':');
+  var el = document.createElement('div');
+  el.className = 'log-ln' + (cls ? ' ' + cls : '');
+  el.textContent = ts + ' ' + msg;
+  box.prepend(el);
+  while (box.children.length > 80) box.removeChild(box.lastChild);
+}
+
+function clearLog() {
+  document.getElementById('log-box').innerHTML = '<div class="log-ln muted">Log cleared.</div>';
+}
+
+// ===================================================================
+// TOAST
+// ===================================================================
+function toast(msg) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show';
+  clearTimeout(t._t);
+  t._t = setTimeout(function() { t.className = ''; }, 2000);
+}
+
+function toastErr(msg) {
+  var t = document.getElementById('toast');
+  t.textContent = '\u2716 ' + msg;
+  t.className = 'err';
+  clearTimeout(t._t);
+  t._t = setTimeout(function() { t.className = ''; }, 3000);
+}
+
+// ===================================================================
+// PREFS (localStorage)
+// ===================================================================
+function loadPrefs() {
+  try {
+    var s = localStorage.getItem('povpoi');
+    if (!s) return;
+    var p = JSON.parse(s);
+    if (p.brightness !== undefined) {
+      brightness = p.brightness;
+      document.getElementById('bri-slider').value = brightness;
+      document.getElementById('bri-val').textContent = Math.round(brightness / 255 * 100) + '%';
     }
-
-    function setSyncMode(sync) {
-      isSyncMode = sync;
-      document.getElementById('btn-sync').className = sync ? 'active-sync' : '';
-      document.getElementById('btn-solo').className = sync ? '' : 'active-solo';
-      document.getElementById('dual-badge').style.display = sync ? '' : 'none';
-      document.getElementById('sync-mode-label').textContent = sync ? 'MULTICAST_ON \u2022 /api/sync/execute' : 'P2P_ONLY';
-      toast(sync ? 'Synchronized mode' : 'Independent mode');
+    if (p.framerate !== undefined) {
+      framerate = p.framerate;
+      document.getElementById('fps-slider').value = framerate;
+      document.getElementById('fps-val').textContent = framerate + ' FPS';
     }
+  } catch(e) {}
+}
 
-    function selectDevice(dev) {
-      selectedDevice = dev;
-      document.getElementById('dev-leader').className = 'device-card' + (dev === 'leader' ? ' selected' : '');
-      document.getElementById('dev-follower').className = 'device-card' + (dev === 'follower' ? ' selected' : '');
-    }
+function savePrefs() {
+  try { localStorage.setItem('povpoi', JSON.stringify({brightness: brightness, framerate: framerate})); } catch(e) {}
+}
 
-    function updateBrightness(val) {
-      brightness = parseInt(val);
-      document.getElementById('brightness-pct').textContent = Math.round((brightness / 255) * 100) + '%';
-    }
-
-    function handleAction(action) {
-      const time = new Date();
-      const ts = [time.getHours(), time.getMinutes(), time.getSeconds()].map(n => String(n).padStart(2, '0')).join(':');
-      const dev = isSyncMode ? 'POV_LEADER' : (selectedDevice === 'leader' ? 'POV_LEADER' : 'POV_FOLLOWER');
-      addLog(ts, `[CMD] ${action.toUpperCase()} -> ${dev}`, 'var(--cyan-400)');
-      addLog(ts, `[OK] ${dev} acknowledged.`, 'var(--green-400)');
-
-      if (action === 'play') {
-        document.getElementById('dot-leader').className = 'status-dot playing';
-        document.getElementById('leader-status').textContent = 'Synced Play';
-        if (isSyncMode) {
-          document.getElementById('dot-follower').className = 'status-dot playing';
-          document.getElementById('follower-status').textContent = 'Synced Play';
-        }
-      } else if (action === 'stop') {
-        document.getElementById('dot-leader').className = 'status-dot';
-        document.getElementById('leader-status').textContent = 'Synced Stop';
-        document.getElementById('dot-follower').className = 'status-dot';
-        document.getElementById('follower-status').textContent = 'Synced Stop';
-      }
-      toast(action.charAt(0).toUpperCase() + action.slice(1) + ' command sent');
-    }
-
-    function addLog(time, msg, color) {
-      const c = document.getElementById('log-content');
-      if (c.querySelector('div[style]')) c.innerHTML = '';
-      const el = document.createElement('div');
-      el.className = 'log-entry';
-      el.innerHTML = `<span class="log-time">${time}</span><span style="color:${color}">${msg}</span>`;
-      c.prepend(el);
-      while (c.children.length > 50) c.removeChild(c.lastChild);
-    }
-
-    function setAngular(val, btn) {
-      document.getElementById('angular-val').textContent = val + ' PX';
-      btn.parentElement.querySelectorAll('.option-btn').forEach(b => b.className = 'option-btn');
-      btn.className = 'option-btn active-purple';
-    }
-
-    function setDepth(val, btn) {
-      document.getElementById('depth-val').textContent = (val === 24 ? '24' : val) + ' BIT';
-      btn.parentElement.querySelectorAll('.option-btn').forEach(b => b.className = 'option-btn');
-      btn.className = 'option-btn active-pink';
-    }
-
-    function setTarget(t) {
-      document.getElementById('tgt-esp').className = 'target-btn' + (t === 'esp' ? ' active-cyan' : '');
-      document.getElementById('tgt-teensy').className = 'target-btn' + (t === 'teensy' ? ' active-purple' : '');
-    }
-
-    function toast(msg) {
-      const t = document.getElementById('toast');
-      t.textContent = msg;
-      t.classList.add('show');
-      setTimeout(() => t.classList.remove('show'), 2000);
-    }
-
-    initMirror();
-  </script>
+// ===================================================================
+// SECURITY HELPERS
+// ===================================================================
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function escAttr(s) {
+  return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+}
+</script>
 </body>
 </html>
