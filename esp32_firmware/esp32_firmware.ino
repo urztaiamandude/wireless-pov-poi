@@ -170,6 +170,7 @@ struct SystemState {
   unsigned long lastDiscovery;
   bool sdCardPresent;
   uint8_t powerMode;  // 0=performance, 1=balanced, 2=powersave, 3=ultrasave
+  uint8_t imageCount;  // Number of uploaded images (tracked locally)
 } state;
 
 void setup() {
@@ -234,6 +235,7 @@ void setup() {
   state.lastDiscovery = 0;
   state.sdCardPresent = false;
   state.powerMode = 1;  // Start in balanced mode (matches JS default)
+  state.imageCount = 0;
   
   Serial.println("ESP32 Nebula Poi Controller Ready!");
   Serial.print("IP Address: ");
@@ -1692,6 +1694,7 @@ void handleStatus() {
   doc["framerate"] = state.frameRate;
   doc["sdCardPresent"] = state.sdCardPresent;
   doc["powerMode"] = state.powerMode;
+  doc["count"] = state.imageCount > 0 ? state.imageCount : 10;  // Default: Teensy MAX_IMAGES without PSRAM
   
   String response;
   serializeJson(doc, response);
@@ -2008,6 +2011,9 @@ void handleUploadImage() {
     TEENSY_SERIAL.write(0xFE);  // End marker
     
     Serial.println("Image forwarded to Teensy");
+    
+    // Track uploaded images
+    if (state.imageCount < 255) state.imageCount++;
     
     // Set mode to image display (remove unnecessary delay)
     state.currentMode = 1;
