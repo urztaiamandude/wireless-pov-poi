@@ -133,6 +133,7 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
           if (typeof data.framerate === 'number' && now - lastFrameRateInteraction.current > 1000) setLocalFrameRate(data.framerate);
           if (typeof data.count === 'number' && data.count > 0) setMaxContentIndex(data.count - 1);
           if (typeof data.sdCardPresent === 'boolean') setSdPresent(data.sdCardPresent);
+          if (typeof data.index === 'number' && now - lastModeInteraction.current > 1000) setContentIndex(data.index);
 
           // Sync power mode from device status (supports numeric enum or string id)
           if (typeof data.powerMode === 'number') {
