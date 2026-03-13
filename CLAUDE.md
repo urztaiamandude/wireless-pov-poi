@@ -32,6 +32,17 @@ Teensy 4.1 (POV Engine + FastLED)
 APA102 LED Strip (32 LEDs)
 ```
 
+### ⚠️ Hardware Responsibility Separation — IMPORTANT
+
+The **Teensy 4.1 is the ONLY device physically connected to the APA102 LEDs**. All LED display processing (rendering patterns, applying brightness, displaying images, frame timing) must be handled exclusively by the Teensy 4.1 firmware.
+
+The **ESP32-S3 is a WiFi/BLE bridge and web UI host**. It forwards user settings (brightness, frame rate, mode, pattern selection, image uploads) to the Teensy via serial UART. The ESP32-S3 should **NOT** enforce firmware-level LED display restrictions (e.g., brightness clamping, pattern count limits, LED index validation) because it does not physically control the LEDs. Any display-related validation or processing belongs in the Teensy firmware only.
+
+**When making changes:**
+- LED rendering logic, display restrictions, brightness application → **Teensy firmware only** (`teensy_firmware/`)
+- Web UI, API endpoints, settings relay, image upload handling → **ESP32 firmware** (`esp32_firmware/`)
+- The ESP32 passes values through to the Teensy — it is not responsible for LED hardware constraints
+
 ---
 
 ## CRITICAL HARDWARE CONSTRAINTS - DO NOT MODIFY
