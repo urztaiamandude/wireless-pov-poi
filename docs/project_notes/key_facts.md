@@ -31,7 +31,7 @@ Quick-lookup for ports, pins, constants, and non-secret configuration.
 | Settings relay | **ESP32-S3** | Forwards user values to Teensy via serial UART |
 | Image upload handling | **ESP32-S3** | Receives uploads, relays to Teensy |
 
-⚠️ **The ESP32-S3 should NOT enforce firmware-level LED display restrictions** (brightness clamping, pattern bounds, LED index validation). It is a pass-through bridge — any LED hardware constraints belong in the Teensy firmware only.
+⚠️ **The ESP32-S3 should NOT enforce firmware-level LED display restrictions** (brightness clamping, pattern bounds, LED index validation). It is a pass-through bridge — any LED hardware constraints belong in the Teensy firmware only. Basic input sanitization (e.g., ensuring values are valid integers, rejecting malformed requests) is still appropriate on the ESP32-S3.
 
 ---
 

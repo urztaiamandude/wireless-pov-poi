@@ -42,6 +42,7 @@ The **ESP32-S3 is a WiFi/BLE bridge and web UI host**. It forwards user settings
 - LED rendering logic, display restrictions, brightness application → **Teensy firmware only** (`teensy_firmware/`)
 - Web UI, API endpoints, settings relay, image upload handling → **ESP32 firmware** (`esp32_firmware/`)
 - The ESP32 passes values through to the Teensy — it is not responsible for LED hardware constraints
+- Basic input sanitization (valid integers, rejecting malformed requests) is still appropriate on the ESP32
 
 ---
 
