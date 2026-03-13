@@ -632,7 +632,7 @@ static const char rootPage[] PROGMEM = R"rawliteral(
                 </div>
                 <div class="ctrl">
                     <label>Frame Rate <span id="framerate-value">50</span> FPS</label>
-                    <input type="range" id="framerate" min="10" max="120" value="50" oninput="updateFrameRate(this.value)">
+                    <input type="range" id="framerate" min="10" max="250" value="50" oninput="updateFrameRate(this.value)">
                 </div>
             </div>
 

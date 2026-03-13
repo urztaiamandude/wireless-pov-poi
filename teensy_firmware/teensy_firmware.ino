@@ -601,8 +601,21 @@ void parseCommand() {
       sendAck(cmd);
       break;
       
-    case 0x07:  // Set frame rate
-      if (dataLen >= 1) {
+    case 0x07:  // Set frame rate (uint16_t FPS, big-endian)
+      if (dataLen >= 2) {
+        // New 2-byte protocol: FPS as uint16_t big-endian
+        uint16_t fps = ((uint16_t)cmdBuffer[3] << 8) | cmdBuffer[4];
+        if (fps > 0) {
+          frameDelay = 1000 / fps;
+          if (frameDelay == 0) frameDelay = 1;  // Cap at 1ms minimum
+        }
+        Serial.print("Frame rate set to: ");
+        Serial.print(fps);
+        Serial.print(" FPS (delay=");
+        Serial.print(frameDelay);
+        Serial.println("ms)");
+      } else if (dataLen == 1) {
+        // Legacy 1-byte protocol: raw delay in ms (backward compat)
         frameDelay = cmdBuffer[3];
         Serial.print("Frame delay set to: ");
         Serial.println(frameDelay);
