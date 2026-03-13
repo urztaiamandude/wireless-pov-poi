@@ -1634,6 +1634,16 @@ void deleteSDImage() {
     Serial.println("Failed to delete image");
     sendAck(0x22);
   }
+  
+  ESP32_SERIAL.write(0xFE);
+  
+  Serial.print("SD Info: present=");
+  Serial.print(present);
+  Serial.print(" total=");
+  Serial.print((uint32_t)(totalSpace / 1048576));
+  Serial.print("MB free=");
+  Serial.print((uint32_t)(freeSpace / 1048576));
+  Serial.println("MB");
 }
 
 void sendSDInfo() {
