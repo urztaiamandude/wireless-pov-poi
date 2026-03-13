@@ -26,7 +26,7 @@ Welcome to the wireless POV Poi project - a creative venture that combines art a
 ### Hardware & Storage
 - **PSRAM Support**: Optional 16 MB expanded memory on Teensy 4.1 for up to 200 stored images
 - **SD Card Storage**: Save and load images and pattern presets to the Teensy 4.1 built-in microSD slot
-- **5 Built-in Demo Images**: Smiley face, rainbow spectrum, heart, starburst, and nebula spiral ship pre-loaded
+- **5 Built-in Demo Images**: Smiley face, rainbow spectrum, heart, starburst, and nebula spiral pre-loaded
 
 ### Multi-Poi Synchronization
 - **ESP-NOW Pairing**: Peer discovery, pairing, and heartbeat-based status tracking
