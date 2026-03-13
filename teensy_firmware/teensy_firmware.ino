@@ -645,16 +645,20 @@ void parseCommand() {
       saveImageToSD();
       break;
       
-    case 0x21:  // Load image from SD
-      loadImageFromSD();
-      break;
-      
-    case 0x22:  // List SD images
+    case 0x21:  // List SD images
       listSDImages();
       break;
       
-    case 0x23:  // Delete image from SD
+    case 0x22:  // Delete image from SD
       deleteSDImage();
+      break;
+      
+    case 0x23:  // SD card info
+      sendSDInfo();
+      break;
+      
+    case 0x24:  // Load image from SD
+      loadImageFromSD();
       break;
       
     case 0x30:  // Pattern preset commands (save/load/list/delete)
@@ -1460,13 +1464,13 @@ void saveImageToSD() {
 }
 
 void loadImageFromSD() {
-  // Protocol: 0xFF 0x21 len filename_len [filename] img_index 0xFE
+  // Protocol: 0xFF 0x24 len filename_len [filename] img_index 0xFE
   // Load image from SD card into specified image slot
   
   uint8_t filenameLen = cmdBuffer[3];
   if (filenameLen == 0 || filenameLen > MAX_FILENAME_LEN) {
     Serial.println("Invalid filename length");
-    sendAck(0x21);
+    sendAck(0x24);
     return;
   }
   
@@ -1480,7 +1484,7 @@ void loadImageFromSD() {
   
   if (imgIndex >= MAX_IMAGES) {
     Serial.println("Invalid image index");
-    sendAck(0x21);
+    sendAck(0x24);
     return;
   }
   
@@ -1495,7 +1499,7 @@ void loadImageFromSD() {
   File file = SD.open(filepath, FILE_READ);
   if (!file) {
     Serial.println("Failed to open file");
-    sendAck(0x21);
+    sendAck(0x24);
     return;
   }
   
@@ -1508,7 +1512,7 @@ void loadImageFromSD() {
   if (width > IMAGE_MAX_WIDTH || height > IMAGE_HEIGHT) {
     Serial.println("Image dimensions too large");
     file.close();
-    sendAck(0x21);
+    sendAck(0x24);
     return;
   }
   
@@ -1532,11 +1536,11 @@ void loadImageFromSD() {
   Serial.print("x");
   Serial.print(height);
   Serial.println(")");
-  sendAck(0x21);
+  sendAck(0x24);
 }
 
 void listSDImages() {
-  // Protocol: 0xFF 0x22 len 0xFE
+  // Protocol: 0xFF 0x21 len 0xFE
   // Response: 0xFF 0xCC count [name1_len name1 ...] 0xFE
   
   Serial.println("Listing SD images...");
@@ -1594,12 +1598,12 @@ void listSDImages() {
 }
 
 void deleteSDImage() {
-  // Protocol: 0xFF 0x23 len filename_len [filename] 0xFE
+  // Protocol: 0xFF 0x22 len filename_len [filename] 0xFE
   
   uint8_t filenameLen = cmdBuffer[3];
   if (filenameLen == 0 || filenameLen > MAX_FILENAME_LEN) {
     Serial.println("Invalid filename length");
-    sendAck(0x23);
+    sendAck(0x22);
     return;
   }
   
@@ -1617,11 +1621,54 @@ void deleteSDImage() {
   
   if (SD.remove(filepath)) {
     Serial.println("Image deleted successfully");
-    sendAck(0x23);
+    sendAck(0x22);
   } else {
     Serial.println("Failed to delete image");
-    sendAck(0x23);
+    sendAck(0x22);
   }
+}
+
+void sendSDInfo() {
+  // Protocol: 0xFF 0x23 0 0xFE (no data in request)
+  // Response: 0xFF 0xDD [present:1][totalSpace:8][freeSpace:8] 0xFE
+  
+  Serial.println("Sending SD card info...");
+  
+  ESP32_SERIAL.write(0xFF);
+  ESP32_SERIAL.write(0xDD);  // SD info response marker
+  
+  // Get card info using Teensy SdFat library (accessed via SD.sdfs)
+  // Note: SD.totalSize() / SD.usedSize() do NOT exist in the Arduino/Teensy SD library
+  uint64_t totalSpace = (uint64_t)SD.sdfs.card()->sectorCount() * 512ULL;
+  
+  // Free space from volume cluster info
+  // Note: freeClusterCount() may be slow on large cards (scans FAT table)
+  uint64_t freeSpace = (uint64_t)SD.sdfs.vol()->freeClusterCount() * SD.sdfs.vol()->bytesPerCluster();
+  
+  bool present = (totalSpace > 0);
+  
+  // Present flag
+  ESP32_SERIAL.write(present ? (uint8_t)1 : (uint8_t)0);
+  
+  // Total space (8 bytes, big-endian)
+  for (int i = 7; i >= 0; i--) {
+    ESP32_SERIAL.write((uint8_t)((totalSpace >> (i * 8)) & 0xFF));
+  }
+  
+  // Free space (8 bytes, big-endian)
+  for (int i = 7; i >= 0; i--) {
+    ESP32_SERIAL.write((uint8_t)((freeSpace >> (i * 8)) & 0xFF));
+  }
+  
+  ESP32_SERIAL.write(0xFE);
+  
+  Serial.print("SD Info: present=");
+  Serial.print(present);
+  Serial.print(" total=");
+  Serial.print((uint32_t)(totalSpace / 1048576));
+  Serial.print("MB free=");
+  Serial.print((uint32_t)(freeSpace / 1048576));
+  Serial.println("MB");
 }
 
 // ==================== PATTERN PRESET FUNCTIONS ====================
