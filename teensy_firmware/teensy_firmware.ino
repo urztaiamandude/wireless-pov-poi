@@ -1371,8 +1371,9 @@ void sendAck(uint8_t cmd) {
 }
 
 void sendStatus() {
-  // Response: 0xFF 0xBB mode index sd_present 0xFE (5 data bytes)
-  // Note: ESP32 checkTeensyConnection() expects this 5-byte format
+  // Response frame (6 bytes total):
+  //   0xFF 0xBB mode index sd_present 0xFE
+  // ESP32 checkTeensyConnection() must read and validate the trailing 0xFE.
   ESP32_SERIAL.write(0xFF);
   ESP32_SERIAL.write(0xBB);  // Status response
   ESP32_SERIAL.write(currentMode);
