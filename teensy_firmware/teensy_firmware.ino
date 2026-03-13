@@ -1639,13 +1639,16 @@ void sendSDInfo() {
   
   // Get card info using Teensy SdFat library (accessed via SD.sdfs)
   // Note: SD.totalSize() / SD.usedSize() do NOT exist in the Arduino/Teensy SD library
-  uint64_t totalSpace = (uint64_t)SD.sdfs.card()->sectorCount() * 512ULL;
+  auto* card = SD.sdfs.card();
+  auto* vol = SD.sdfs.vol();
+  
+  bool present = (card != nullptr && card->sectorCount() > 0);
+  uint64_t totalSpace = present ? (uint64_t)card->sectorCount() * 512ULL : 0;
   
   // Free space from volume cluster info
   // Note: freeClusterCount() may be slow on large cards (scans FAT table)
-  uint64_t freeSpace = (uint64_t)SD.sdfs.vol()->freeClusterCount() * SD.sdfs.vol()->bytesPerCluster();
-  
-  bool present = (totalSpace > 0);
+  uint64_t freeSpace = (present && vol) ?
+    (uint64_t)vol->freeClusterCount() * vol->bytesPerCluster() : 0;
   
   // Present flag
   ESP32_SERIAL.write(present ? (uint8_t)1 : (uint8_t)0);
