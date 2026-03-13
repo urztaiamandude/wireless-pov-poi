@@ -1694,7 +1694,7 @@ void handleStatus() {
   doc["framerate"] = state.frameRate;
   doc["sdCardPresent"] = state.sdCardPresent;
   doc["powerMode"] = state.powerMode;
-  doc["count"] = state.imageCount > 0 ? state.imageCount : 10;  // Default capacity if unknown
+  doc["count"] = state.imageCount > 0 ? state.imageCount : 10;  // Default: Teensy MAX_IMAGES without PSRAM
   
   String response;
   serializeJson(doc, response);

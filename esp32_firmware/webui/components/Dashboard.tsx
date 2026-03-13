@@ -56,6 +56,8 @@ const PATTERNS = [
   { id: 17, label: 'Theater Chase', group: 'advanced' },
 ];
 
+const SD_API_TIMEOUT_MS = 3000;
+
 const POWER_MODES: { id: PowerMode; label: string; sub: string; icon: React.ElementType; color: string }[] = [
   { id: 'performance', label: 'Performance', sub: '240 MHz', icon: Zap,       color: 'bg-yellow-600 hover:bg-yellow-500' },
   { id: 'balanced',    label: 'Balanced',    sub: '160 MHz', icon: Gauge,     color: 'bg-blue-600   hover:bg-blue-500'   },
@@ -161,8 +163,8 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
     setSdLoading(true);
     try {
       const [listRes, infoRes] = await Promise.all([
-        fetch(`${base}/api/sd/list`, { signal: AbortSignal.timeout(3000) }),
-        fetch(`${base}/api/sd/info`, { signal: AbortSignal.timeout(3000) }),
+        fetch(`${base}/api/sd/list`, { signal: AbortSignal.timeout(SD_API_TIMEOUT_MS) }),
+        fetch(`${base}/api/sd/info`, { signal: AbortSignal.timeout(SD_API_TIMEOUT_MS) }),
       ]);
       if (listRes.ok) {
         const listData = await listRes.json();

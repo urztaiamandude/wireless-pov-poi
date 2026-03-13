@@ -155,6 +155,11 @@ uint8_t currentSequenceItem = 0;
 uint32_t sequenceStartTime = 0;
 bool sequencePlaying = false;
 
+// SD card initialization state
+#ifdef SD_SUPPORT
+bool sdInitialized = false;
+#endif
+
 // Live mode buffer
 CRGB liveBuffer[DISPLAY_LEDS];
 
@@ -1366,13 +1371,14 @@ void sendAck(uint8_t cmd) {
 }
 
 void sendStatus() {
-  // Response: 0xFF 0xBB mode index sd_present 0xFE
+  // Response: 0xFF 0xBB mode index sd_present 0xFE (5 data bytes)
+  // Note: ESP32 checkTeensyConnection() expects this 5-byte format
   ESP32_SERIAL.write(0xFF);
   ESP32_SERIAL.write(0xBB);  // Status response
   ESP32_SERIAL.write(currentMode);
   ESP32_SERIAL.write(currentIndex);
   #ifdef SD_SUPPORT
-  ESP32_SERIAL.write((uint8_t)(SD.totalSize() > 0 ? 1 : 0));
+  ESP32_SERIAL.write(sdInitialized ? (uint8_t)1 : (uint8_t)0);
   #else
   ESP32_SERIAL.write((uint8_t)0);
   #endif
@@ -1388,10 +1394,12 @@ void initSDCard() {
   if (!SD.begin(BUILTIN_SDCARD)) {
     Serial.println("Failed!");
     Serial.println("Check that SD card is inserted");
+    sdInitialized = false;
     return;
   }
   
   Serial.println("OK");
+  sdInitialized = true;
   
   // Create image directory if it doesn't exist
   if (!SD.exists(SD_IMAGE_DIR)) {
