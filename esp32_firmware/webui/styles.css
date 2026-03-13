@@ -1,7 +1,6 @@
-/*
- * LittleFS-safe fallback stylesheet.
- * Intentionally free of Tailwind/build directives for raw deployment.
- */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 :root {
   color-scheme: dark;
