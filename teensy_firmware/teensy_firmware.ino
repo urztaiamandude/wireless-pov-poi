@@ -10,7 +10,7 @@
  * - APA102 LED Strip (32 LEDs)
  * - Hardware level shifter (3.3V -> 5V for data/clock)
  * - MAX9814 Microphone Amplifier Module (for audio-reactive patterns)
- * - ESP32 connected via Serial1 (TX=0, RX=1)
+ * - ESP32 connected via Serial1 (RX=0, TX=1)
  * - Optional: microSD card in Teensy 4.1 built-in slot (for SD_SUPPORT)
  * - Optional: 2x 8MB PSRAM chips for 16MB external RAM (for PSRAM support)
  */
