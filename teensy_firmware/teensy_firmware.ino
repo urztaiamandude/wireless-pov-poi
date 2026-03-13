@@ -645,16 +645,20 @@ void parseCommand() {
       saveImageToSD();
       break;
       
-    case 0x21:  // Load image from SD
-      loadImageFromSD();
-      break;
-      
-    case 0x22:  // List SD images
+    case 0x21:  // List SD images
       listSDImages();
       break;
       
-    case 0x23:  // Delete image from SD
+    case 0x22:  // Delete image from SD
       deleteSDImage();
+      break;
+      
+    case 0x23:  // SD card info
+      sendSDInfo();
+      break;
+      
+    case 0x24:  // Load image from SD
+      loadImageFromSD();
       break;
       
     case 0x30:  // Pattern preset commands (save/load/list/delete)
@@ -1362,13 +1366,16 @@ void sendAck(uint8_t cmd) {
 }
 
 void sendStatus() {
-  // #region agent log
-  Serial.println("[DBG][H2] sendStatus: writing FF BB mode idx FE to ESP32_SERIAL");
-  // #endregion
+  // Response: 0xFF 0xBB mode index sd_present 0xFE
   ESP32_SERIAL.write(0xFF);
   ESP32_SERIAL.write(0xBB);  // Status response
   ESP32_SERIAL.write(currentMode);
   ESP32_SERIAL.write(currentIndex);
+  #ifdef SD_SUPPORT
+  ESP32_SERIAL.write((uint8_t)(SD.totalSize() > 0 ? 1 : 0));
+  #else
+  ESP32_SERIAL.write((uint8_t)0);
+  #endif
   ESP32_SERIAL.write(0xFE);
 }
 
@@ -1460,29 +1467,24 @@ void saveImageToSD() {
 }
 
 void loadImageFromSD() {
-  // Protocol: 0xFF 0x21 len filename_len [filename] img_index 0xFE
-  // Load image from SD card into specified image slot
+  // Protocol: 0xFF 0x24 filenameLen [filename] 0xFE
+  // Load image from SD card into image slot 0
+  // cmdBuffer[2] = filenameLen, cmdBuffer[3..] = filename bytes
   
-  uint8_t filenameLen = cmdBuffer[3];
+  uint8_t filenameLen = cmdBuffer[2];
   if (filenameLen == 0 || filenameLen > MAX_FILENAME_LEN) {
     Serial.println("Invalid filename length");
-    sendAck(0x21);
+    sendAck(0x24);
     return;
   }
   
-  // Extract filename
+  // Extract filename from cmdBuffer[3] onwards
   char filename[MAX_FILENAME_LEN + 1];
-  memcpy(filename, &cmdBuffer[4], filenameLen);
+  memcpy(filename, &cmdBuffer[3], filenameLen);
   filename[filenameLen] = '\0';
   
-  // Get image index
-  uint8_t imgIndex = cmdBuffer[4 + filenameLen];
-  
-  if (imgIndex >= MAX_IMAGES) {
-    Serial.println("Invalid image index");
-    sendAck(0x21);
-    return;
-  }
+  // Always load into slot 0 (most recent load)
+  uint8_t imgIndex = 0;
   
   // Build full path
   char filepath[MAX_FILEPATH_LEN];
@@ -1495,7 +1497,7 @@ void loadImageFromSD() {
   File file = SD.open(filepath, FILE_READ);
   if (!file) {
     Serial.println("Failed to open file");
-    sendAck(0x21);
+    sendAck(0x24);
     return;
   }
   
@@ -1508,7 +1510,7 @@ void loadImageFromSD() {
   if (width > IMAGE_MAX_WIDTH || height > IMAGE_HEIGHT) {
     Serial.println("Image dimensions too large");
     file.close();
-    sendAck(0x21);
+    sendAck(0x24);
     return;
   }
   
@@ -1532,11 +1534,11 @@ void loadImageFromSD() {
   Serial.print("x");
   Serial.print(height);
   Serial.println(")");
-  sendAck(0x21);
+  sendAck(0x24);
 }
 
 void listSDImages() {
-  // Protocol: 0xFF 0x22 len 0xFE
+  // Protocol: 0xFF 0x21 0 0xFE
   // Response: 0xFF 0xCC count [name1_len name1 ...] 0xFE
   
   Serial.println("Listing SD images...");
@@ -1594,18 +1596,19 @@ void listSDImages() {
 }
 
 void deleteSDImage() {
-  // Protocol: 0xFF 0x23 len filename_len [filename] 0xFE
+  // Protocol: 0xFF 0x22 filenameLen [filename] 0xFE
+  // cmdBuffer[2] = filenameLen, cmdBuffer[3..] = filename bytes
   
-  uint8_t filenameLen = cmdBuffer[3];
+  uint8_t filenameLen = cmdBuffer[2];
   if (filenameLen == 0 || filenameLen > MAX_FILENAME_LEN) {
     Serial.println("Invalid filename length");
-    sendAck(0x23);
+    sendAck(0x22);
     return;
   }
   
-  // Extract filename
+  // Extract filename from cmdBuffer[3] onwards
   char filename[MAX_FILENAME_LEN + 1];
-  memcpy(filename, &cmdBuffer[4], filenameLen);
+  memcpy(filename, &cmdBuffer[3], filenameLen);
   filename[filenameLen] = '\0';
   
   // Build full path
@@ -1617,11 +1620,50 @@ void deleteSDImage() {
   
   if (SD.remove(filepath)) {
     Serial.println("Image deleted successfully");
-    sendAck(0x23);
+    sendAck(0x22);
   } else {
     Serial.println("Failed to delete image");
-    sendAck(0x23);
+    sendAck(0x22);
   }
+}
+
+void sendSDInfo() {
+  // Protocol: 0xFF 0x23 0 0xFE
+  // Response: 0xFF 0xDD [present:1][totalSpace:8][freeSpace:8] 0xFE
+  
+  Serial.println("Sending SD card info...");
+  
+  ESP32_SERIAL.write(0xFF);
+  ESP32_SERIAL.write(0xDD);  // SD info response marker
+  
+  // Get card info using Teensy SD library methods
+  uint64_t totalSpace = SD.totalSize();
+  uint64_t usedSpace = SD.usedSize();
+  bool present = (totalSpace > 0);
+  uint64_t freeSpace = present ? (totalSpace - usedSpace) : 0;
+  
+  // Present flag
+  ESP32_SERIAL.write(present ? (uint8_t)1 : (uint8_t)0);
+  
+  // Total space (8 bytes, big-endian)
+  for (int i = 7; i >= 0; i--) {
+    ESP32_SERIAL.write((uint8_t)((totalSpace >> (i * 8)) & 0xFF));
+  }
+  
+  // Free space (8 bytes, big-endian)
+  for (int i = 7; i >= 0; i--) {
+    ESP32_SERIAL.write((uint8_t)((freeSpace >> (i * 8)) & 0xFF));
+  }
+  
+  ESP32_SERIAL.write(0xFE);
+  
+  Serial.print("SD Info: present=");
+  Serial.print(present);
+  Serial.print(" total=");
+  Serial.print((uint32_t)(totalSpace / 1048576));
+  Serial.print("MB free=");
+  Serial.print((uint32_t)(freeSpace / 1048576));
+  Serial.println("MB");
 }
 
 // ==================== PATTERN PRESET FUNCTIONS ====================
