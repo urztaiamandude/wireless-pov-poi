@@ -4,7 +4,7 @@
 
 ### Project overview
 
-Wireless LED POV Poi System — the Teensy 4.1 (POV engine) and ESP32-S3 (WiFi/BLE co-processor) work together as one device. Both firmwares live in this repo and are buildable with PlatformIO.
+Wireless LED POV Poi System — the Teensy 4.1 (POV engine) and ESP32/ESP32-S3 (WiFi/BLE co-processor) work together as one device. Both firmwares live in this repo and are buildable with PlatformIO.
 
 | Component | Path | Command | Port |
 |---|---|---|---|
@@ -18,7 +18,7 @@ Wireless LED POV Poi System — the Teensy 4.1 (POV engine) and ESP32-S3 (WiFi/B
 
 ### ⚠️ Hardware responsibility separation
 
-The **Teensy 4.1 is the ONLY device physically connected to the APA102 LEDs**. All LED display processing (patterns, brightness, images, frame rendering) belongs in the Teensy firmware only. The **ESP32-S3** hosts the web UI and acts as a WiFi/BLE bridge — it forwards settings to the Teensy via serial and should **NOT** enforce firmware-level LED display restrictions (brightness clamping, pattern bounds, LED index validation, etc.) because it does not control the LEDs.
+The **Teensy 4.1 is the ONLY device physically connected to the APA102 LEDs**. All LED display processing (patterns, brightness, images, frame rendering) belongs in the Teensy firmware only. The **ESP32/ESP32-S3** hosts the web UI and acts as a WiFi/BLE bridge — it forwards settings to the Teensy via serial and should **NOT** enforce firmware-level LED display restrictions (brightness clamping, pattern bounds, LED index validation, etc.) because it does not control the LEDs.
 
 ### Key commands
 
