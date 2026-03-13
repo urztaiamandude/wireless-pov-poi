@@ -14,7 +14,7 @@ Quick-lookup for ports, pins, constants, and non-secret configuration.
 | Co-processor (recommended) | ESP32-S3 N16R8 (16 MB Flash, 8 MB OPI PSRAM) |
 | Co-processor (legacy supported) | ESP32 WROOM-32 (4 MB Flash, no PSRAM) |
 | LED strip | APA102, 32 physical LEDs |
-| Display LEDs | 31 (LED 1–31); LED 32 is level-shift sacrificial LED only |
+| Display LEDs | 32 (all physical LEDs are display pixels) |
 | LED interface | SPI via FastLED |
 
 ---
