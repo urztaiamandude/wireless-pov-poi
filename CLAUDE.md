@@ -56,7 +56,7 @@ The **ESP32/ESP32-S3 is a WiFi/BLE bridge and web UI host**. It forwards user se
 - Do NOT change `NUM_LEDS` to 31 under any circumstances
 
 ### Teensy 4.1 <-> ESP32-S3 Serial Communication
-- **Teensy TX:** Pin 0 / **Teensy RX:** Pin 1
+- **Teensy TX:** Pin 1 / **Teensy RX:** Pin 0
 - **ESP32-S3 TX:** Pin 17 / **ESP32-S3 RX:** Pin 16
 - This UART serial link is the **only** communication path between the two processors
 - All SD card operations (file listing, file read, file write) are routed through this link
@@ -143,8 +143,8 @@ leds[y] = pixels[current_column][y];  // y ranges 0-31
 
 **Serial Communication (Teensy ↔ ESP32):**
 - Baud rate: 115200
-- Teensy TX (Pin 0) → ESP32 RX (GPIO 16)
-- Teensy RX (Pin 1) → ESP32 TX (GPIO 17)
+- Teensy TX1 (Pin 1) → ESP32 RX (GPIO 16)
+- Teensy RX1 (Pin 0) ← ESP32 TX (GPIO 17)
 - Binary protocol for image data, text commands for control
 
 **WiFi Network:**
