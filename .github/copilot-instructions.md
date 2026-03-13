@@ -34,32 +34,31 @@ The **ESP32-S3 is a WiFi/BLE bridge and web UI host**. It forwards user settings
 
 ### ⚠️ LED Array Layout - ALWAYS FOLLOW THIS
 
-**CRITICAL**: LED 0 is NEVER used for display - it's reserved for hardware level shifting!
+The canonical Teensy firmware uses **all 32 LEDs (indices 0–31) as display pixels**. There is currently **no sacrificial/level-shift-only LED** in the production firmware.
 
 ```
 Physical LED Strip:
 ┌────┬────┬────┬────┬─────┬────┐
 │ 0  │ 1  │ 2  │... │ 30  │ 31 │
 └────┴────┴────┴────┴─────┴────┘
-  ↑    ↑─────────────────────↑
-Level   Display pixels (31 total)
-Shift
+ ↑───────────────────────────↑
+ Display pixels (32 total)
 ```
 
 **ALL display code MUST:**
-- Start loops at index 1: `for (int i = 1; i < NUM_LEDS; i++)`
-- Use `DISPLAY_LEDS` (31) for height calculations
-- Use `DISPLAY_LED_START` (1) as first display index
+- Use the firmware constants `DISPLAY_LED_START` and `DISPLAY_LEDS` for indexing logic
+- Assume `DISPLAY_LED_START = 0` and `DISPLAY_LEDS = 32` in the current production Teensy firmware
+- Iterate over display LEDs using these constants, e.g. `for (int i = DISPLAY_LED_START; i < DISPLAY_LED_START + DISPLAY_LEDS; i++)`
 
 ```cpp
-// ✅ CORRECT - Skip LED 0
-for (int i = 1; i < NUM_LEDS; i++) { 
-  leds[i] = color; 
+// ✅ CORRECT - Use all display LEDs based on constants
+for (int i = DISPLAY_LED_START; i < DISPLAY_LED_START + DISPLAY_LEDS; i++) {
+  leds[i] = color;
 }
 
-// ❌ WRONG - Includes LED 0 (level shift LED)
-for (int i = 0; i < NUM_LEDS; i++) { 
-  leds[i] = color; 
+// ❌ WRONG - Hard-codes a non-zero start index that would skip LED 0
+for (int i = 1; i < NUM_LEDS; i++) {
+  leds[i] = color;
 }
 ```
 
