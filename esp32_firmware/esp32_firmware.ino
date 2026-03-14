@@ -949,6 +949,7 @@ static const char rootPage[] PROGMEM = R"rawliteral(
     let currentSyncMode='mirror',syncPeers=[];
     let genType='organic',colorSeed=Math.random();
     const MODES=['Idle','Image','Pattern','Sequence','Live'];
+    let previewMode=0,previewIndex=0,previewStartMs=Date.now();
 
     // ===== Tab Navigation =====
     document.querySelectorAll('.nav-tab').forEach(tab=>{
@@ -974,21 +975,75 @@ static const char rootPage[] PROGMEM = R"rawliteral(
         const c=document.getElementById('led-preview');c.innerHTML='';
         for(let i=DISPLAY_LED_START;i<NUM_LEDS;i++){const d=document.createElement('div');d.className='led';d.id='led-'+i;c.appendChild(d)}
     }
+    function hsvToRgb(h,s,v){
+        let r=0,g=0,b=0;
+        const i=Math.floor(h*6);
+        const f=h*6-i;
+        const p=v*(1-s);
+        const q=v*(1-f*s);
+        const t=v*(1-(1-f)*s);
+        switch(i%6){
+            case 0:r=v;g=t;b=p;break;
+            case 1:r=q;g=v;b=p;break;
+            case 2:r=p;g=v;b=t;break;
+            case 3:r=p;g=q;b=v;break;
+            case 4:r=t;g=p;b=v;break;
+            case 5:r=v;g=p;b=q;break;
+        }
+        return {r:Math.round(r*255),g:Math.round(g*255),b:Math.round(b*255)};
+    }
     function setLEDPreview(i,r,g,b){
         const d=document.getElementById('led-'+i);
         if(d){const s=brightness/255;d.style.background='rgb('+Math.round(r*s)+','+Math.round(g*s)+','+Math.round(b*s)+')'}
     }
     function updateLEDPreviewFromStatus(mode,index){
-        for(let i=DISPLAY_LED_START;i<NUM_LEDS;i++)setLEDPreview(i,40,40,40);
-        if(mode===0)return;
-        const hue=(index*16)%256;
+        previewMode=Number(mode)||0;
+        previewIndex=Number(index)||0;
+    }
+    function animateLEDPreview(){
+        const t=(Date.now()-previewStartMs)/1000;
         for(let i=DISPLAY_LED_START;i<NUM_LEDS;i++){
-            const h=((i*8+hue)%256)/256;
-            const r=h<.333?1:(h<.666?1-(h-.333)*3:0);
-            const g=h<.333?h*3:(h<.666?1:1-(h-.666)*3);
-            const b=h<.333?0:(h<.666?(h-.333)*3:1);
-            setLEDPreview(i,r*255,g*255,b*255);
+            let r=28,g=28,b=34;
+            if(previewMode===1){
+                // Image mode: cyan scan bar moving up/down the strip.
+                const pulse=0.5+0.5*Math.sin((i*0.55)+(t*3.6));
+                r=20+30*pulse;g=110+145*pulse;b=140+110*pulse;
+            }else if(previewMode===2){
+                // Pattern mode: animate by selected pattern index.
+                const patternGroup=previewIndex%6;
+                if(patternGroup===0){
+                    const rgb=hsvToRgb((((i*7)+(t*80)+(previewIndex*11))%256)/256,1,1);
+                    r=rgb.r;g=rgb.g;b=rgb.b;
+                }else if(patternGroup===1){
+                    const wave=0.5+0.5*Math.sin((i*0.7)+(t*5.2));
+                    r=45+210*wave;g=20+60*wave;b=120+120*(1-wave);
+                }else if(patternGroup===2){
+                    const cool=0.5+0.5*Math.sin((i*0.35)+(t*2.8));
+                    r=30+40*cool;g=65+120*cool;b=115+120*cool;
+                }else if(patternGroup===3){
+                    const sparkle=Math.random()>0.94?1:0.22;
+                    r=35+220*sparkle;g=35+190*sparkle;b=55+210*sparkle;
+                }else if(patternGroup===4){
+                    const heat=0.5+0.5*Math.sin((i*1.1)+(t*7.2));
+                    r=140+110*heat;g=15+120*(heat*heat);b=8+16*heat;
+                }else{
+                    const p=(i+t*10)%NUM_LEDS;
+                    const dist=Math.abs(p-(NUM_LEDS/2));
+                    const comet=Math.max(0,1-(dist/8));
+                    r=35+220*comet;g=70+150*comet;b=130+90*comet;
+                }
+            }else if(previewMode===3){
+                // Sequence mode: chasing amber dots.
+                const chase=((i+Math.floor(t*12))%8===0)?1:0.16;
+                r=140+115*chase;g=60+140*chase;b=18+35*chase;
+            }else if(previewMode===4){
+                // Live mode: high-energy cyan/pink oscillation.
+                const osc=0.5+0.5*Math.sin((i*1.2)+(t*10));
+                r=40+180*(1-osc);g=95+130*osc;b=150+95*(1-osc);
+            }
+            setLEDPreview(i,r,g,b);
         }
+        requestAnimationFrame(animateLEDPreview);
     }
 
     // ===== Status Polling =====
@@ -1646,6 +1701,7 @@ static const char rootPage[] PROGMEM = R"rawliteral(
 
     // ===== Initialize =====
     initLEDPreview();
+    animateLEDPreview();
     updateStatus();
     setInterval(updateStatus,2000);
     updateSDStatus();refreshSDList();
@@ -1865,8 +1921,8 @@ void handleUploadPattern() {
       return;
     }
 
-    uint8_t index = doc["index"] | 0;
     uint8_t type  = doc["type"]  | 0;
+    uint8_t index = doc["index"] | 0;
     uint8_t speed = doc["speed"] | 50;
     uint8_t r1 = doc["color1"]["r"] | 255;
     uint8_t g1 = doc["color1"]["g"] | 0;
@@ -1875,9 +1931,12 @@ void handleUploadPattern() {
     uint8_t g2 = doc["color2"]["g"] | 0;
     uint8_t b2 = doc["color2"]["b"] | 255;
 
-    // Clamp the pattern index to the supported upper bound (0-17)
+    // Clamp both index and type to supported pattern range (0-17)
     if (index > kMaxPatternIndex) {
       index = kMaxPatternIndex;
+    }
+    if (type > kMaxPatternIndex) {
+      type = kMaxPatternIndex;
     }
 
     // Send pattern to Teensy (simple protocol)
@@ -2029,32 +2088,28 @@ void handleUploadImage() {
       // Reduced delay for serial processing
       delay(10);
       
-      // Generate filename based on timestamp
-      // Format: "upload_XXXXX.pov" where XXXXX is milliseconds modulo 100000
+      // Generate FAT-friendly base filename (8.3-compatible stem).
+      // Teensy adds ".pov" itself when writing to SD.
       uint32_t timestamp = millis() % 100000;
-      char filename[32];
-      snprintf(filename, sizeof(filename), "upload_%05lu.pov", timestamp);
+      char filename[16];
+      snprintf(filename, sizeof(filename), "up%05lu", timestamp);
       uint8_t filenameLen = strlen(filename);
       
-      // Calculate total data length: filename_len + filename + width + height + image_data
-      uint16_t totalDataLen = 1 + filenameLen + 2 + actualSize;
+      // Teensy save protocol (0x20):
+      // [filename_len][filename][img_index]
+      // The image has already been uploaded to slot 0 via command 0x02.
+      uint8_t totalDataLen = 1 + filenameLen + 1;
       
-      // Send SD save command (simple protocol)
-      // Format: 0xFF 0x20 dataLen [filename_len][filename][width][height][RGB_data...] 0xFE
+      // Save slot 0 to SD using provided filename stem.
       sendTeensyCommand(0x20, totalDataLen);
       TEENSY_SERIAL.write(filenameLen);
       TEENSY_SERIAL.write((const uint8_t*)filename, filenameLen);
-      TEENSY_SERIAL.write(imageWidth);
-      TEENSY_SERIAL.write(imageHeight);
-      
-      // Send pixel data
-      for (uint16_t i = 0; i < actualSize && i < bufferIndex; i++) {
-        TEENSY_SERIAL.write(imageBuffer[i]);
-      }
+      TEENSY_SERIAL.write((uint8_t)0);  // image slot index
       TEENSY_SERIAL.write(0xFE);
       
       Serial.print("Auto-saving image to SD: ");
-      Serial.println(filename);
+      Serial.print(filename);
+      Serial.println(".pov");
     } else {
       Serial.println("SD card not present - skipping auto-save");
     }
@@ -2137,8 +2192,8 @@ void handleSDList() {
     return;
   }
   
-  // Send list command
-  sendTeensyCommand(0x21, 0);
+  // Teensy protocol: 0x22 = list SD images
+  sendTeensyCommand(0x22, 0);
   TEENSY_SERIAL.write(0xFE);
   
   // readTeensyResponse has its own timeout, no need for delay
@@ -2177,39 +2232,18 @@ void handleSDList() {
 }
 
 void handleSDInfo() {
-  // Send info command
-  sendTeensyCommand(0x23, 0);
-  TEENSY_SERIAL.write(0xFE);
-  
-  // readTeensyResponse has its own timeout
-  uint8_t buffer[20];
-  size_t bytesRead = 0;
-  
-  if (readTeensyResponse(0xDD, buffer, sizeof(buffer), bytesRead, 500)) {
-    if (bytesRead >= 17) {
-      bool present = buffer[0] != 0;
-      uint64_t totalSpace = 0;
-      uint64_t freeSpace = 0;
-      
-      for (int i = 0; i < 8; i++) {
-        totalSpace = (totalSpace << 8) | buffer[1 + i];
-        freeSpace = (freeSpace << 8) | buffer[9 + i];
-      }
-      
-      // Use ArduinoJson for efficient serialization
-      JsonDocument doc;
-      doc["present"] = present;
-      doc["totalSpace"] = totalSpace;
-      doc["freeSpace"] = freeSpace;
-      
-      String response;
-      serializeJson(doc, response);
-      server.send(200, "application/json", response);
-      return;
-    }
-  }
-  
-  server.send(200, "application/json", "{\"error\":\"Failed to read response\"}");
+  // Current Teensy protocol has no dedicated SD info command.
+  // Return best-effort info from cached status polling to avoid sending
+  // an invalid opcode that could trigger an unintended operation.
+  JsonDocument doc;
+  doc["present"] = state.sdCardPresent;
+  doc["totalSpace"] = 0;
+  doc["freeSpace"] = 0;
+  doc["spaceAvailable"] = false;
+  doc["note"] = "Space metrics unavailable on this firmware";
+  String response;
+  serializeJson(doc, response);
+  server.send(200, "application/json", response);
 }
 
 void handleSDDelete() {
@@ -2224,12 +2258,21 @@ void handleSDDelete() {
     }
 
     String filename = doc["filename"].as<String>();
+    filename.trim();
+    if (filename.endsWith(".pov")) {
+      filename.remove(filename.length() - 4);
+    }
+    int slash = filename.lastIndexOf('/');
+    if (slash >= 0 && slash < (int)filename.length() - 1) {
+      filename = filename.substring(slash + 1);
+    }
     uint8_t filenameLen = filename.length();
-    if (filenameLen > 63) filenameLen = 63;
+    // Teensy MAX_FILENAME_LEN is 32; clamp to avoid validation failures
+    if (filenameLen > 32) filenameLen = 32;
 
-    // Send delete command
-    // Protocol: 0xFF 0x22 dataLen [filenameLen][filename...] 0xFE
-    sendTeensyCommand(0x22, 1 + filenameLen);
+    // Teensy protocol: 0x23 = delete SD image
+    // Payload: [filename_len][filename_bytes...]
+    sendTeensyCommand(0x23, filenameLen + 1);
     TEENSY_SERIAL.write(filenameLen);
     TEENSY_SERIAL.write((const uint8_t*)filename.c_str(), filenameLen);
     TEENSY_SERIAL.write(0xFE);
@@ -2252,12 +2295,21 @@ void handleSDLoad() {
     }
 
     String filename = doc["filename"].as<String>();
+    filename.trim();
+    if (filename.endsWith(".pov")) {
+      filename.remove(filename.length() - 4);
+    }
+    int slash = filename.lastIndexOf('/');
+    if (slash >= 0 && slash < (int)filename.length() - 1) {
+      filename = filename.substring(slash + 1);
+    }
     uint8_t filenameLen = filename.length();
-    if (filenameLen > 63) filenameLen = 63;
+    // Clamp to Teensy MAX_FILENAME_LEN (32) for SD image load as well
+    if (filenameLen > 32) filenameLen = 32;
 
-    // Send load command
-    // Protocol: 0xFF 0x24 dataLen [filenameLen][filename...][imgIndex] 0xFE
-    sendTeensyCommand(0x24, 1 + filenameLen + 1);
+    // Teensy protocol: 0x21 = load SD image into slot
+    // Payload: [filename_len][filename_bytes...][imgIndex]
+    sendTeensyCommand(0x21, filenameLen + 2);
     TEENSY_SERIAL.write(filenameLen);
     TEENSY_SERIAL.write((const uint8_t*)filename.c_str(), filenameLen);
     TEENSY_SERIAL.write((uint8_t)0);  // load into image slot 0
