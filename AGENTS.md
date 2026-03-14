@@ -4,7 +4,7 @@
 
 ### Project overview
 
-Wireless LED POV Poi System — the Teensy 4.1 (POV engine) and ESP32-S3 (WiFi/BLE co-processor) work together as one device. Both firmwares live in this repo and are buildable with PlatformIO.
+Wireless LED POV Poi System — the Teensy 4.1 (POV engine) and ESP32/ESP32-S3 (WiFi/BLE co-processor) work together as one device. Both firmwares live in this repo and are buildable with PlatformIO.
 
 | Component | Path | Command | Port |
 |---|---|---|---|
@@ -15,6 +15,10 @@ Wireless LED POV Poi System — the Teensy 4.1 (POV engine) and ESP32-S3 (WiFi/B
 | **Python image tools + tests** | `examples/` | `cd examples && python3 -m pytest test_*.py -v` | N/A |
 
 > **Firmware upload:** The firmware build commands above only compile. To also upload to connected hardware, append `-t upload` (e.g. `pio run -e teensy41 -t upload` or `cd esp32_firmware && pio run -e esp32s3 -t upload`). Firmware upload and runtime testing require physical hardware, but **compilation/build is fully supported in the cloud environment** using PlatformIO.
+
+### ⚠️ Hardware responsibility separation
+
+The **Teensy 4.1 is the ONLY device physically connected to the APA102 LEDs**. All LED display processing (patterns, brightness, images, frame rendering) belongs in the Teensy firmware only. The **ESP32/ESP32-S3** hosts the web UI and acts as a WiFi/BLE bridge — it forwards settings to the Teensy via serial and should **NOT** enforce firmware-level LED display restrictions (brightness clamping, pattern bounds, LED index validation, etc.) because it does not control the LEDs.
 
 ### Key commands
 
@@ -35,3 +39,18 @@ Wireless LED POV Poi System — the Teensy 4.1 (POV engine) and ESP32-S3 (WiFi/B
 - There is no ESLint configuration in the project; `tsc --noEmit` is the primary static analysis tool for the web UI.
 - No pre-commit hooks, lint-staged, or Husky configured in this repo.
 - See `CLAUDE.md` and `.github/copilot-instructions.md` for comprehensive project context, hardware constraints, and code style conventions.
+
+### ⚠️ Non-compiled files — DO NOT apply firmware fixes here
+
+These files are **NOT compiled into any firmware build** and changes to them have **NO effect** on the deployed device:
+
+| File | What it is | Why it's excluded |
+|------|-----------|-------------------|
+| `esp32_firmware/web_preview.html` | Standalone browser preview of the UI | Not uploaded to SPIFFS/LittleFS, not served by ESP32 |
+| `esp32_firmware/test_webui_server.js` | Mock API server for local dev | Node.js dev tool only |
+
+**The actual shipped web UI code lives in:**
+1. `esp32_firmware/webui/` — React app, built to `dist/`, uploaded via `pio run --target uploadfs`
+2. `esp32_firmware/esp32_firmware.ino` (PROGMEM `rootPage`) — Embedded fallback when SPIFFS is empty
+
+When fixing web UI bugs (input validation, API calls, display logic), **always** target `esp32_firmware/webui/` and/or the PROGMEM fallback in `esp32_firmware.ino`. Never target `web_preview.html`.

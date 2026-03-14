@@ -170,6 +170,7 @@ struct SystemState {
   unsigned long lastDiscovery;
   bool sdCardPresent;
   uint8_t powerMode;  // 0=performance, 1=balanced, 2=powersave, 3=ultrasave
+  uint8_t imageCount;  // Number of uploaded images (tracked locally)
 } state;
 
 void setup() {
@@ -234,6 +235,7 @@ void setup() {
   state.lastDiscovery = 0;
   state.sdCardPresent = false;
   state.powerMode = 1;  // Start in balanced mode (matches JS default)
+  state.imageCount = 0;
   
   Serial.println("ESP32 Nebula Poi Controller Ready!");
   Serial.print("IP Address: ");
@@ -378,14 +380,6 @@ void setupWebServer() {
   // PWA support
   server.on("/manifest.json", HTTP_GET, handleManifest);
   server.on("/sw.js", HTTP_GET, handleServiceWorker);
-  
-  // Static files
-  server.on("/style.css", HTTP_GET, []() {
-    sendFile("/style.css", "text/css");
-  });
-  server.on("/script.js", HTTP_GET, []() {
-    sendFile("/script.js", "application/javascript");
-  });
   
   server.onNotFound(handleNotFound);
   
@@ -640,7 +634,7 @@ static const char rootPage[] PROGMEM = R"rawliteral(
                 </div>
                 <div class="ctrl">
                     <label>Frame Rate <span id="framerate-value">50</span> FPS</label>
-                    <input type="range" id="framerate" min="10" max="120" value="50" oninput="updateFrameRate(this.value)">
+                    <input type="range" id="framerate" min="10" max="250" value="50" oninput="updateFrameRate(this.value)">
                 </div>
             </div>
 
@@ -1122,22 +1116,26 @@ static const char rootPage[] PROGMEM = R"rawliteral(
     async function changeMode(){
         const mode=document.getElementById('mode-select').value;
         const index=document.getElementById('content-index').value;
-        currentMode=parseInt(mode);
-        await fetch('/api/mode',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:currentMode,index:parseInt(index)})});
+        var m=parseInt(mode),idx=parseInt(index);
+        if(isNaN(m))m=0;if(isNaN(idx))idx=0;
+        currentMode=m;
+        await fetch('/api/mode',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:currentMode,index:idx})});
         updateStatus();
     }
     async function changeContentIndex(){await changeMode()}
 
     function updateBrightness(value){
-        document.getElementById('brightness-value').textContent=value;
-        document.getElementById('bright-display').textContent=value;
-        brightness=parseInt(value);
-        fetch('/api/brightness',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({brightness:parseInt(value)})});
+        var v=parseInt(value);if(isNaN(v))return;v=Math.max(0,Math.min(255,v));
+        document.getElementById('brightness-value').textContent=v;
+        document.getElementById('bright-display').textContent=v;
+        brightness=v;
+        fetch('/api/brightness',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({brightness:v})});
     }
     function updateFrameRate(value){
-        document.getElementById('framerate-value').textContent=value;
-        document.getElementById('fps-display').textContent=value;
-        fetch('/api/framerate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({framerate:parseInt(value)})});
+        var v=parseInt(value);if(isNaN(v))return;v=Math.max(10,Math.min(120,v));
+        document.getElementById('framerate-value').textContent=v;
+        document.getElementById('fps-display').textContent=v;
+        fetch('/api/framerate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({framerate:v})});
     }
 
     // ===== Image Navigation =====
@@ -1719,6 +1717,16 @@ static const char rootPage[] PROGMEM = R"rawliteral(
 )rawliteral";
 
 void handleRoot() {
+  // Prefer SPIFFS index.html (uploaded via uploadfs from webui/dist)
+  if (SPIFFS.exists("/index.html")) {
+    File file = SPIFFS.open("/index.html", "r");
+    if (file) {
+      server.streamFile(file, "text/html");
+      file.close();
+      return;
+    }
+  }
+  // Fallback to embedded root page
   size_t len = strlen_P(rootPage);
   server.setContentLength(len);
   server.send(200, "text/html", "");
@@ -1742,6 +1750,7 @@ void handleStatus() {
   doc["framerate"] = state.frameRate;
   doc["sdCardPresent"] = state.sdCardPresent;
   doc["powerMode"] = state.powerMode;
+  doc["count"] = state.imageCount > 0 ? state.imageCount : 10;  // Default: Teensy MAX_IMAGES without PSRAM
   
   String response;
   serializeJson(doc, response);
@@ -2061,6 +2070,9 @@ void handleUploadImage() {
     TEENSY_SERIAL.write(0xFE);  // End marker
     
     Serial.println("Image forwarded to Teensy");
+    
+    // Track uploaded images
+    if (state.imageCount < 255) state.imageCount++;
     
     // Set mode to image display (remove unnecessary delay)
     state.currentMode = 1;
@@ -2391,7 +2403,27 @@ self.addEventListener('activate', (event) => {
   server.send(200, "application/javascript", sw);
 }
 
+static const char* getContentType(const String& path) {
+  if (path.endsWith(".html")) return "text/html";
+  if (path.endsWith(".css"))  return "text/css";
+  if (path.endsWith(".js"))   return "application/javascript";
+  if (path.endsWith(".json")) return "application/json";
+  if (path.endsWith(".png"))  return "image/png";
+  if (path.endsWith(".svg"))  return "image/svg+xml";
+  if (path.endsWith(".ico"))  return "image/x-icon";
+  return "application/octet-stream";
+}
+
 void handleNotFound() {
+  String path = server.uri();
+  if (SPIFFS.exists(path)) {
+    File file = SPIFFS.open(path, "r");
+    if (file) {
+      server.streamFile(file, getContentType(path));
+      file.close();
+      return;
+    }
+  }
   server.send(404, "text/plain", "Not Found");
 }
 
