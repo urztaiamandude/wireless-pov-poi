@@ -2228,7 +2228,9 @@ void handleSDDelete() {
     if (filenameLen > 63) filenameLen = 63;
 
     // Send delete command
-    sendTeensyCommand(0x22, filenameLen);
+    // Protocol: 0xFF 0x22 dataLen [filenameLen][filename...] 0xFE
+    sendTeensyCommand(0x22, 1 + filenameLen);
+    TEENSY_SERIAL.write(filenameLen);
     TEENSY_SERIAL.write((const uint8_t*)filename.c_str(), filenameLen);
     TEENSY_SERIAL.write(0xFE);
 
@@ -2254,8 +2256,11 @@ void handleSDLoad() {
     if (filenameLen > 63) filenameLen = 63;
 
     // Send load command
-    sendTeensyCommand(0x24, filenameLen);
+    // Protocol: 0xFF 0x24 dataLen [filenameLen][filename...][imgIndex] 0xFE
+    sendTeensyCommand(0x24, 1 + filenameLen + 1);
+    TEENSY_SERIAL.write(filenameLen);
     TEENSY_SERIAL.write((const uint8_t*)filename.c_str(), filenameLen);
+    TEENSY_SERIAL.write((uint8_t)0);  // load into image slot 0
     TEENSY_SERIAL.write(0xFE);
 
     // Switch to image mode after loading

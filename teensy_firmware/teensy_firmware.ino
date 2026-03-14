@@ -1476,24 +1476,24 @@ void saveImageToSD() {
 }
 
 void loadImageFromSD() {
-  // Protocol: 0xFF 0x24 filenameLen [filename] 0xFE
-  // Load image from SD card into image slot 0
-  // cmdBuffer[2] = filenameLen, cmdBuffer[3..] = filename bytes
+  // Protocol: 0xFF 0x24 dataLen [filenameLen] [filename] [imgIndex] 0xFE
+  // Load image from SD card into the specified slot
+  // cmdBuffer[3] = filenameLen, cmdBuffer[4..] = filename bytes
   
-  uint8_t filenameLen = cmdBuffer[2];
+  uint8_t filenameLen = cmdBuffer[3];
   if (filenameLen == 0 || filenameLen > MAX_FILENAME_LEN) {
     Serial.println("Invalid filename length");
     sendAck(0x24);
     return;
   }
   
-  // Extract filename from cmdBuffer[3] onwards
+  // Extract filename from cmdBuffer[4] onwards
   char filename[MAX_FILENAME_LEN + 1];
-  memcpy(filename, &cmdBuffer[3], filenameLen);
+  memcpy(filename, &cmdBuffer[4], filenameLen);
   filename[filenameLen] = '\0';
   
-  // Always load into slot 0 (most recent load)
-  uint8_t imgIndex = 0;
+  // Image slot follows filename
+  uint8_t imgIndex = cmdBuffer[4 + filenameLen];
   
   // Build full path
   char filepath[MAX_FILEPATH_LEN];
@@ -1605,19 +1605,19 @@ void listSDImages() {
 }
 
 void deleteSDImage() {
-  // Protocol: 0xFF 0x22 filenameLen [filename] 0xFE
-  // cmdBuffer[2] = filenameLen, cmdBuffer[3..] = filename bytes
+  // Protocol: 0xFF 0x22 dataLen [filenameLen] [filename] 0xFE
+  // cmdBuffer[3] = filenameLen, cmdBuffer[4..] = filename bytes
   
-  uint8_t filenameLen = cmdBuffer[2];
+  uint8_t filenameLen = cmdBuffer[3];
   if (filenameLen == 0 || filenameLen > MAX_FILENAME_LEN) {
     Serial.println("Invalid filename length");
     sendAck(0x22);
     return;
   }
   
-  // Extract filename from cmdBuffer[3] onwards
+  // Extract filename from cmdBuffer[4] onwards
   char filename[MAX_FILENAME_LEN + 1];
-  memcpy(filename, &cmdBuffer[3], filenameLen);
+  memcpy(filename, &cmdBuffer[4], filenameLen);
   filename[filenameLen] = '\0';
   
   // Build full path
@@ -1634,16 +1634,6 @@ void deleteSDImage() {
     Serial.println("Failed to delete image");
     sendAck(0x22);
   }
-  
-  ESP32_SERIAL.write(0xFE);
-  
-  Serial.print("SD Info: present=");
-  Serial.print(present);
-  Serial.print(" total=");
-  Serial.print((uint32_t)(totalSpace / 1048576));
-  Serial.print("MB free=");
-  Serial.print((uint32_t)(freeSpace / 1048576));
-  Serial.println("MB");
 }
 
 void sendSDInfo() {
