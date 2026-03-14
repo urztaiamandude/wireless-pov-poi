@@ -1922,7 +1922,7 @@ void handleUploadPattern() {
     }
 
     uint8_t type  = doc["type"]  | 0;
-    uint8_t index = doc["index"] | type;
+    uint8_t index = doc["index"] | 0;
     uint8_t speed = doc["speed"] | 50;
     uint8_t r1 = doc["color1"]["r"] | 255;
     uint8_t g1 = doc["color1"]["g"] | 0;
