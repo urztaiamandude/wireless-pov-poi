@@ -13,6 +13,7 @@ interface WifiStatus {
   staConnected: boolean;
   staIp: string;
   savedSsid: string;
+  mdnsName?: string;
 }
 
 const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCount }) => {
@@ -31,6 +32,7 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCou
   const [wifiError, setWifiError] = useState<string | null>(null);
   const [wifiSsid, setWifiSsid] = useState('');
   const [wifiPassword, setWifiPassword] = useState('');
+  const [wifiActionStatus, setWifiActionStatus] = useState<string | null>(null);
 
   const baseUrl = '';
 
@@ -91,6 +93,7 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCou
     }
     setWifiConnectLoading(true);
     setWifiError(null);
+    setWifiActionStatus(null);
     try {
       const res = await fetch(`${baseUrl}/api/wifi/connect`, {
         method: 'POST',
@@ -113,6 +116,7 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCou
           if (s.staConnected) break;
         }
       }
+      setWifiActionStatus('WiFi connect request sent. Use STA IP or mDNS once connected.');
     } catch {
       setWifiError('Request failed. Try again.');
     } finally {
@@ -123,6 +127,7 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCou
   const handleWifiDisconnect = async () => {
     setWifiConnectLoading(true);
     setWifiError(null);
+    setWifiActionStatus(null);
     try {
       await fetch(`${baseUrl}/api/wifi/disconnect`, {
         method: 'POST',
@@ -131,10 +136,24 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCou
       await fetchWifiStatus();
       setWifiSsid('');
       setWifiPassword('');
+      setWifiActionStatus('Disconnected from home WiFi. AP access remains available.');
     } catch {
       setWifiError('Disconnect request failed.');
     } finally {
       setWifiConnectLoading(false);
+    }
+  };
+
+  const openUrl = (url: string) => {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  const copyText = async (text: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setWifiActionStatus(`${label} copied: ${text}`);
+    } catch {
+      setWifiActionStatus(`Could not copy ${label}.`);
     }
   };
 
@@ -204,6 +223,33 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCou
                 )}
               </div>
             </div>
+            <div className="bg-slate-950 border border-slate-700 rounded-xl p-4 mb-6">
+              <div className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Access URLs</div>
+              <div className="space-y-2 text-sm">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-slate-400">AP:</span>
+                  <span className="font-mono text-white">{`http://${wifiStatus.apIp}`}</span>
+                  <button onClick={() => openUrl(`http://${wifiStatus.apIp}`)} className="px-2 py-1 text-xs bg-slate-700 hover:bg-slate-600 rounded">Open</button>
+                  <button onClick={() => copyText(`http://${wifiStatus.apIp}`, 'AP URL')} className="px-2 py-1 text-xs bg-slate-700 hover:bg-slate-600 rounded">Copy</button>
+                </div>
+                {wifiStatus.staConnected && wifiStatus.staIp && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-slate-400">Home WiFi:</span>
+                    <span className="font-mono text-white">{`http://${wifiStatus.staIp}`}</span>
+                    <button onClick={() => openUrl(`http://${wifiStatus.staIp}`)} className="px-2 py-1 text-xs bg-slate-700 hover:bg-slate-600 rounded">Open</button>
+                    <button onClick={() => copyText(`http://${wifiStatus.staIp}`, 'STA URL')} className="px-2 py-1 text-xs bg-slate-700 hover:bg-slate-600 rounded">Copy</button>
+                  </div>
+                )}
+                {wifiStatus.staConnected && wifiStatus.mdnsName && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-slate-400">mDNS:</span>
+                    <span className="font-mono text-white">{`http://${wifiStatus.mdnsName}.local`}</span>
+                    <button onClick={() => openUrl(`http://${wifiStatus.mdnsName}.local`)} className="px-2 py-1 text-xs bg-slate-700 hover:bg-slate-600 rounded">Open</button>
+                    <button onClick={() => copyText(`http://${wifiStatus.mdnsName}.local`, 'mDNS URL')} className="px-2 py-1 text-xs bg-slate-700 hover:bg-slate-600 rounded">Copy</button>
+                  </div>
+                )}
+              </div>
+            </div>
             <div className="flex flex-wrap gap-4 items-end">
               <div className="flex-1 min-w-[140px]">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-widest block mb-1">Network name (SSID)</label>
@@ -248,6 +294,7 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCou
               </div>
             </div>
             {wifiError && <p className="text-red-400 text-sm mt-3">{wifiError}</p>}
+            {wifiActionStatus && <p className="text-cyan-400 text-sm mt-2">{wifiActionStatus}</p>}
           </>
         )}
       </div>
