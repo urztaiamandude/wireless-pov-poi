@@ -92,6 +92,12 @@ npm run build                 # Production build to dist/
 npm run preview               # Preview production build
 
 # Build size: ~325KB optimized for ESP32 SPIFFS/LittleFS
+
+# API proxy target (default http://192.168.4.1 – AP mode):
+# Override with VITE_API_PROXY_TARGET for STA/local-network IPs, e.g.:
+#   VITE_API_PROXY_TARGET=http://10.100.9.230 npm run dev
+# Or add to esp32_firmware/webui/.env:
+#   VITE_API_PROXY_TARGET=http://10.100.9.230
 ```
 
 ### Python Tests
