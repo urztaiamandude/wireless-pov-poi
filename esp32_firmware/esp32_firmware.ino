@@ -2254,10 +2254,13 @@ void handleSDDelete() {
       filename = filename.substring(slash + 1);
     }
     uint8_t filenameLen = filename.length();
-    if (filenameLen > 63) filenameLen = 63;
+    // Teensy MAX_FILENAME_LEN is 32; clamp to avoid validation failures
+    if (filenameLen > 32) filenameLen = 32;
 
     // Teensy protocol: 0x23 = delete SD image
-    sendTeensyCommand(0x23, filenameLen);
+    // Payload: [filename_len][filename_bytes...]
+    sendTeensyCommand(0x23, filenameLen + 1);
+    TEENSY_SERIAL.write(filenameLen);
     TEENSY_SERIAL.write((const uint8_t*)filename.c_str(), filenameLen);
     TEENSY_SERIAL.write(0xFE);
 
@@ -2288,7 +2291,8 @@ void handleSDLoad() {
       filename = filename.substring(slash + 1);
     }
     uint8_t filenameLen = filename.length();
-    if (filenameLen > 63) filenameLen = 63;
+    // Clamp to Teensy MAX_FILENAME_LEN (32) for SD image load as well
+    if (filenameLen > 32) filenameLen = 32;
 
     // Teensy protocol: 0x21 = load SD image into slot
     // Payload: [filename][imgIndex]
