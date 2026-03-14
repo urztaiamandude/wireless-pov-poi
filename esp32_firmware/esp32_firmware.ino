@@ -2192,8 +2192,8 @@ void handleSDList() {
     return;
   }
   
-  // Teensy protocol: 0x22 = list SD images
-  sendTeensyCommand(0x22, 0);
+  // Teensy protocol: 0x21 = list SD images
+  sendTeensyCommand(0x21, 0);
   TEENSY_SERIAL.write(0xFE);
   
   // readTeensyResponse has its own timeout, no need for delay
@@ -2270,9 +2270,9 @@ void handleSDDelete() {
     // Teensy MAX_FILENAME_LEN is 32; clamp to avoid validation failures
     if (filenameLen > 32) filenameLen = 32;
 
-    // Teensy protocol: 0x23 = delete SD image
+    // Teensy protocol: 0x22 = delete SD image
     // Payload: [filename_len][filename_bytes...]
-    sendTeensyCommand(0x23, filenameLen + 1);
+    sendTeensyCommand(0x22, filenameLen + 1);
     TEENSY_SERIAL.write(filenameLen);
     TEENSY_SERIAL.write((const uint8_t*)filename.c_str(), filenameLen);
     TEENSY_SERIAL.write(0xFE);
@@ -2307,9 +2307,9 @@ void handleSDLoad() {
     // Clamp to Teensy MAX_FILENAME_LEN (32) for SD image load as well
     if (filenameLen > 32) filenameLen = 32;
 
-    // Teensy protocol: 0x21 = load SD image into slot
+    // Teensy protocol: 0x24 = load SD image into slot
     // Payload: [filename_len][filename_bytes...][imgIndex]
-    sendTeensyCommand(0x21, filenameLen + 2);
+    sendTeensyCommand(0x24, filenameLen + 2);
     TEENSY_SERIAL.write(filenameLen);
     TEENSY_SERIAL.write((const uint8_t*)filename.c_str(), filenameLen);
     TEENSY_SERIAL.write((uint8_t)0);  // load into image slot 0
