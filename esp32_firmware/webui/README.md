@@ -31,7 +31,31 @@ Run the development server with API proxy to ESP32:
 npm run dev
 ```
 
-The dev server will start on `http://localhost:3000` and proxy API requests to `http://192.168.4.1`.
+The dev server will start on `http://localhost:3000` and proxy API requests to `http://192.168.4.1` by default.
+
+### Configuring the API proxy target
+
+The proxy destination is controlled by the `VITE_API_PROXY_TARGET` environment variable. Set it before starting the dev server when your device is on a different IP (e.g. when connected via STA mode instead of AP mode):
+
+```bash
+# Use the default AP-mode IP (no change needed):
+npm run dev
+
+# Target a device on your local network (STA mode):
+export VITE_API_PROXY_TARGET=http://10.100.9.230
+npm run dev
+
+# Or inline:
+VITE_API_PROXY_TARGET=http://10.100.9.230 npm run dev
+```
+
+You can also create a `.env` file in `esp32_firmware/webui/` to persist the setting:
+
+```dotenv
+VITE_API_PROXY_TARGET=http://10.100.9.230
+```
+
+> **When to change it:** Set `VITE_API_PROXY_TARGET` to the device's current IP whenever it is joined to your local network (STA mode) rather than acting as its own access point.
 
 ## Building for Production
 

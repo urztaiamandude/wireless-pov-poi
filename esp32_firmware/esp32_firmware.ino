@@ -2239,6 +2239,7 @@ void handleSDInfo() {
   doc["present"] = state.sdCardPresent;
   doc["totalSpace"] = 0;
   doc["freeSpace"] = 0;
+  doc["spaceAvailable"] = false;
   doc["note"] = "Space metrics unavailable on this firmware";
   String response;
   serializeJson(doc, response);
@@ -2307,8 +2308,9 @@ void handleSDLoad() {
     if (filenameLen > 32) filenameLen = 32;
 
     // Teensy protocol: 0x21 = load SD image into slot
-    // Payload: [filename][imgIndex]
-    sendTeensyCommand(0x21, filenameLen + 1);
+    // Payload: [filename_len][filename_bytes...][imgIndex]
+    sendTeensyCommand(0x21, filenameLen + 2);
+    TEENSY_SERIAL.write(filenameLen);
     TEENSY_SERIAL.write((const uint8_t*)filename.c_str(), filenameLen);
     TEENSY_SERIAL.write((uint8_t)0);  // load into image slot 0
     TEENSY_SERIAL.write(0xFE);
