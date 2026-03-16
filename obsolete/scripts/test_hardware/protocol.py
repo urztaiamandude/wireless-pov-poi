@@ -72,7 +72,13 @@ def set_brightness(value: int) -> bytes:
     return build_packet(Cmd.SET_BRIGHTNESS, bytes([value & 0xFF]))
 
 
-def set_framerate(delay_ms: int) -> bytes:
+def set_framerate(fps: int) -> bytes:
+    """Build a frame-rate command using the 2-byte (uint16_t) FPS protocol."""
+    return build_packet(Cmd.SET_FRAMERATE, bytes([(fps >> 8) & 0xFF, fps & 0xFF]))
+
+
+def set_framerate_legacy(delay_ms: int) -> bytes:
+    """Build a frame-rate command using the legacy 1-byte delay protocol."""
     return build_packet(Cmd.SET_FRAMERATE, bytes([delay_ms & 0xFF]))
 
 

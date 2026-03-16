@@ -3,8 +3,9 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Square, Sun, Smartphone,
   Wifi, Upload, Terminal, Dices, Sparkles, Monitor, Activity,
-  Crown, Users, Zap, Battery, BatteryLow,
-  Music, Layers, SkipBack, SkipForward, Gauge, Image
+  Crown, Users, Zap, Battery, BatteryLow, Shuffle,
+  Music, Layers, SkipBack, SkipForward, Gauge, Image,
+  HardDrive, Trash2, FolderOpen, RefreshCw, Download
 } from 'lucide-react';
 import { Device, PowerMode } from '../types';
 import { useDebounce } from '../hooks';
@@ -55,6 +56,8 @@ const PATTERNS = [
   { id: 17, label: 'Theater Chase', group: 'advanced' },
 ];
 
+const SD_API_TIMEOUT_MS = 3000;
+
 const POWER_MODES: { id: PowerMode; label: string; sub: string; icon: React.ElementType; color: string }[] = [
   { id: 'performance', label: 'Performance', sub: '240 MHz', icon: Zap,       color: 'bg-yellow-600 hover:bg-yellow-500' },
   { id: 'balanced',    label: 'Balanced',    sub: '160 MHz', icon: Gauge,     color: 'bg-blue-600   hover:bg-blue-500'   },
@@ -79,6 +82,13 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
   const [localFrameRate, setLocalFrameRate] = useState<number>(60);
   const [powerMode, setPowerModeState] = useState<PowerMode>('balanced');
   const [maxContentIndex, setMaxContentIndex] = useState<number>(49);
+
+  // SD Card state
+  const [sdFiles, setSdFiles] = useState<string[]>([]);
+  const [sdPresent, setSdPresent] = useState(false);
+  const [sdTotalSpace, setSdTotalSpace] = useState<number>(0);
+  const [sdFreeSpace, setSdFreeSpace] = useState<number>(0);
+  const [sdLoading, setSdLoading] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const lastBrightnessInteraction = useRef<number>(0);
@@ -124,6 +134,8 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
           if (typeof data.brightness === 'number' && now - lastBrightnessInteraction.current > 1000) setLocalBrightness(data.brightness);
           if (typeof data.framerate === 'number' && now - lastFrameRateInteraction.current > 1000) setLocalFrameRate(data.framerate);
           if (typeof data.count === 'number' && data.count > 0) setMaxContentIndex(data.count - 1);
+          if (typeof data.sdCardPresent === 'boolean') setSdPresent(data.sdCardPresent);
+          if (typeof data.index === 'number' && now - lastModeInteraction.current > 1000) setContentIndex(data.index);
 
           // Sync power mode from device status (supports numeric enum or string id)
           if (typeof data.powerMode === 'number') {
@@ -144,6 +156,75 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
     const interval = setInterval(checkConnection, 5000);
     return () => clearInterval(interval);
   }, [activeDevice.ip]);
+
+  // SD Card polling
+  const refreshSdFiles = useCallback(async () => {
+    const base = getDeviceBase(activeDevice.ip);
+    setSdLoading(true);
+    try {
+      const [listRes, infoRes] = await Promise.all([
+        fetch(`${base}/api/sd/list`, { signal: AbortSignal.timeout(SD_API_TIMEOUT_MS) }),
+        fetch(`${base}/api/sd/info`, { signal: AbortSignal.timeout(SD_API_TIMEOUT_MS) }),
+      ]);
+      if (listRes.ok) {
+        const listData = await listRes.json();
+        setSdFiles(Array.isArray(listData.files) ? listData.files : []);
+      }
+      if (infoRes.ok) {
+        const infoData = await infoRes.json();
+        setSdPresent(!!infoData.present);
+        if (typeof infoData.totalSpace === 'number') setSdTotalSpace(infoData.totalSpace);
+        if (typeof infoData.freeSpace === 'number') setSdFreeSpace(infoData.freeSpace);
+      }
+    } catch { /* offline */ }
+    setSdLoading(false);
+  }, [activeDevice.ip]);
+
+  useEffect(() => {
+    if (!isOnline) return;
+    refreshSdFiles();
+    const interval = setInterval(refreshSdFiles, 15000);
+    return () => clearInterval(interval);
+  }, [isOnline, refreshSdFiles]);
+
+  const handleSdLoad = async (file: string) => {
+    const base = getDeviceBase(activeDevice.ip);
+    try {
+      const res = await fetch(`${base}/api/sd/load`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename: file }),
+      });
+      if (res.ok) {
+        addLog(`[SD] Loaded "${file}" from SD card`, 'text-green-400');
+        setCurrentMode(1);
+        setContentIndex(0);
+      } else {
+        addLog(`[SD] Failed to load "${file}": ${res.status}`, 'text-red-400');
+      }
+    } catch {
+      addLog(`[SD] Network error loading "${file}"`, 'text-red-400');
+    }
+  };
+
+  const handleSdDelete = async (file: string) => {
+    const base = getDeviceBase(activeDevice.ip);
+    try {
+      const res = await fetch(`${base}/api/sd/delete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename: file }),
+      });
+      if (res.ok) {
+        addLog(`[SD] Deleted "${file}" from SD card`, 'text-yellow-400');
+        setSdFiles(prev => prev.filter(f => f !== file));
+      } else {
+        addLog(`[SD] Failed to delete "${file}": ${res.status}`, 'text-red-400');
+      }
+    } catch {
+      addLog(`[SD] Network error deleting "${file}"`, 'text-red-400');
+    }
+  };
 
   const addLog = (msg: string, color: string = 'text-slate-400') => {
     const now = new Date();
@@ -375,10 +456,11 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
             index = 0;
           } else if (action === 'random') {
             mode = 2;
-            index = 0;
+            index = Math.floor(Math.random() * PATTERNS.length);
           }
 
           setCurrentMode(mode);
+          if (action === 'random') setCurrentPattern(index);
           const base = getDeviceBase(dev.ip);
           const res = await fetch(`${base}/api/mode`, {
             method,
@@ -589,6 +671,57 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
             </div>
           )}
 
+          {/* SD Card File Manager */}
+          {sdPresent && (
+            <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="text-[9px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+                  <HardDrive size={12} className="text-emerald-400" /> SD Card
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[9px] text-slate-500 font-mono">
+                    {sdTotalSpace > 0 ? `${((sdTotalSpace - sdFreeSpace) / 1048576).toFixed(0)} / ${(sdTotalSpace / 1048576).toFixed(0)} MB` : '—'}
+                  </span>
+                  <button
+                    onClick={refreshSdFiles}
+                    disabled={sdLoading}
+                    className="p-1.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-30 text-slate-400 rounded-lg transition-all border border-slate-700"
+                  >
+                    <RefreshCw size={12} className={sdLoading ? 'animate-spin' : ''} />
+                  </button>
+                </div>
+              </div>
+              {sdFiles.length === 0 ? (
+                <div className="text-[10px] text-slate-600 text-center py-4">
+                  {sdLoading ? 'Scanning SD card…' : 'No .pov files found on SD card'}
+                </div>
+              ) : (
+                <div className="space-y-1 max-h-48 overflow-y-auto">
+                  {sdFiles.map(file => (
+                    <div key={file} className="flex items-center gap-2 bg-slate-800/50 rounded-lg px-3 py-2 border border-slate-700/50 group">
+                      <FolderOpen size={12} className="text-slate-500 shrink-0" />
+                      <span className="flex-1 text-[10px] text-slate-300 font-mono truncate">{file}</span>
+                      <button
+                        onClick={() => handleSdLoad(file)}
+                        className="p-1.5 bg-cyan-600/80 hover:bg-cyan-500 text-white rounded-lg transition-all opacity-70 group-hover:opacity-100"
+                        title="Load image"
+                      >
+                        <Download size={11} />
+                      </button>
+                      <button
+                        onClick={() => handleSdDelete(file)}
+                        className="p-1.5 bg-red-600/80 hover:bg-red-500 text-white rounded-lg transition-all opacity-70 group-hover:opacity-100"
+                        title="Delete file"
+                      >
+                        <Trash2 size={11} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Pattern Panel (Pattern mode) */}
           {currentMode === 2 && (
             <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4">
@@ -681,7 +814,7 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
                   onClick={() => handleGlobalAction('random')}
                   className="w-full py-5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-2xl font-bold flex items-center justify-center gap-3 active:scale-95 transition-all"
                 >
-                  <Dices size={20} className="text-indigo-400" /> SYNCED PATTERN CYCLE
+                  <Shuffle size={20} className="text-indigo-400" /> RANDOM PATTERN
                 </button>
               </div>
 
@@ -696,7 +829,7 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
                   </div>
                   <input
                     type="range" min="0" max="255" value={localBrightness}
-                    onChange={(e) => handleBrightnessChange(parseInt(e.target.value))}
+                    onChange={(e) => { const v = parseInt(e.target.value); if (!isNaN(v)) handleBrightnessChange(Math.max(0, Math.min(255, v))); }}
                     className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-500"
                   />
                 </div>
@@ -710,8 +843,8 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
                     <span className="text-cyan-400 font-mono text-sm">{localFrameRate} FPS</span>
                   </div>
                   <input
-                    type="range" min="10" max="120" value={localFrameRate}
-                    onChange={(e) => handleFrameRateChange(parseInt(e.target.value))}
+                    type="range" min="10" max="250" value={localFrameRate}
+                    onChange={(e) => { const v = parseInt(e.target.value); if (!isNaN(v)) handleFrameRateChange(Math.max(10, Math.min(250, v))); }}
                     className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
                   />
                 </div>
@@ -729,7 +862,7 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
                   >
                     {isUploading ? <Wifi size={18} className="animate-pulse" /> : <Upload size={20} />}
                   </button>
-                  <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept=".bmp" />
+                  <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept="image/*" />
                 </div>
               </div>
             </div>
