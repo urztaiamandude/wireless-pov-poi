@@ -16,8 +16,8 @@
   - With PSRAM: 50 images at 32×400px, without: 10 images at 32×200px
 - **WiFi Co-processor**: ESP32-S3 N16R8 (16MB Flash, 8MB PSRAM) *recommended*, or standard ESP32
 - **Display**: APA102 RGB LED strip (32 LEDs total)
-  - All 32 LEDs used for display (hardware level shifter)
-  - LED 0-31: Display pixels (32 pixels vertical)
+  - LED 0: Sacrificial level-shift LED (not used for display)
+  - LED 1-31: Display pixels (31 pixels vertical)
 - **Optional**: MAX9814 microphone for music-reactive patterns
 - **Optional**: microSD card (Teensy 4.1 built-in slot) for image storage
 
@@ -50,8 +50,8 @@ The **ESP32/ESP32-S3 is a WiFi/BLE bridge and web UI host**. It forwards user se
 
 ### LED Configuration
 - **Total LEDs: 32** (`leds[0]` through `leds[31]`)
-- **NO sacrificial LED** — hardware uses a MOSFET-based level shifter
-- LEDs 1-31 are display LEDs
+- **LED 0 is the sacrificial level-shift LED** — it shifts 3.3V data to 5V for the rest of the strip
+- LEDs 1-31 are display LEDs (31 display pixels)
 - `NUM_LEDS` is always 32, never 31
 - Do NOT change `NUM_LEDS` to 31 under any circumstances
 
@@ -105,14 +105,15 @@ The **ESP32/ESP32-S3 is a WiFi/BLE bridge and web UI host**. It forwards user se
 
 ### 1. LED Array Layout
 ```
-⚠️ CRITICAL: All 32 LEDs are used for display - hardware level shifter is used!
+⚠️ CRITICAL: LED 0 is a sacrificial level-shift LED — do NOT use it for display!
 
 Physical LED Strip:
 ┌────┬────┬────┬────┬─────┬────┐
 │ 0  │ 1  │ 2  │... │ 30  │ 31 │
 └────┴────┴────┴────┴─────┴────┘
-  ↑───────────────────────────↑
-      Display pixels (32 total)
+  ↑    ↑───────────────────────↑
+  │        Display pixels (31 total)
+  └── Sacrificial level-shift LED
 ```
 
 **ALL display code MUST:**
@@ -387,7 +388,7 @@ for (int y = 0; y < NUM_LEDS; y++) {
 ### No LED output
 1. Check power supply (5V, 2-3A)
 2. Verify APA102 connections (Data=Pin 11, Clock=Pin 13)
-3. Check LED 0 is connected (required for level shifting)
+3. Check LED 0 is connected (sacrificial LED required for 3.3V→5V level shifting)
 4. Test with simple pattern: `leds[1] = CRGB::Red; FastLED.show();`
 
 ### WiFi connection issues
@@ -404,7 +405,8 @@ for (int y = 0; y < NUM_LEDS; y++) {
 
 ### Image orientation incorrect
 - Images should display correctly without manual flipping
-- LED 0 = bottom of strip = bottom of image
+- LED 0 = sacrificial level-shift LED (not displayed)
+- LED 1 = bottom of strip = bottom of image
 - If upside down, check physical LED strip orientation
 - See `docs/POV_DISPLAY_ORIENTATION_GUIDE.md`
 

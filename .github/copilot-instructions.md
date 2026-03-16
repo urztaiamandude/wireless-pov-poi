@@ -34,30 +34,31 @@ The **ESP32-S3 is a WiFi/BLE bridge and web UI host**. It forwards user settings
 
 ### ⚠️ LED Array Layout - ALWAYS FOLLOW THIS
 
-The canonical Teensy firmware uses **all 32 LEDs (indices 0–31) as display pixels**. There is currently **no sacrificial/level-shift-only LED** in the production firmware.
+**LED 0 is a sacrificial level-shift LED** (shifts 3.3V data to 5V for the rest of the strip). LEDs 1–31 are display pixels (31 total).
 
 ```
 Physical LED Strip:
 ┌────┬────┬────┬────┬─────┬────┐
 │ 0  │ 1  │ 2  │... │ 30  │ 31 │
 └────┴────┴────┴────┴─────┴────┘
- ↑───────────────────────────↑
- Display pixels (32 total)
+  ↑    ↑───────────────────────↑
+  │        Display pixels (31 total)
+  └── Sacrificial level-shift LED
 ```
 
 **ALL display code MUST:**
-- Use the firmware constants `DISPLAY_LED_START` and `DISPLAY_LEDS` for indexing logic
-- Assume `DISPLAY_LED_START = 0` and `DISPLAY_LEDS = 32` in the current production Teensy firmware
-- Iterate over display LEDs using these constants, e.g. `for (int i = DISPLAY_LED_START; i < DISPLAY_LED_START + DISPLAY_LEDS; i++)`
+- Use the firmware constants `DISPLAY_LED_START` (1) and `DISPLAY_LEDS` (31) for indexing logic
+- LED 0 is reserved for level shifting — never write display content to it
+- Iterate over display LEDs using these constants, e.g. `for (int i = DISPLAY_LED_START; i < NUM_LEDS; i++)`
 
 ```cpp
-// ✅ CORRECT - Use all display LEDs based on constants
-for (int i = DISPLAY_LED_START; i < DISPLAY_LED_START + DISPLAY_LEDS; i++) {
+// ✅ CORRECT - Skip LED 0, display on LEDs 1-31
+for (int i = 1; i < NUM_LEDS; i++) {
   leds[i] = color;
 }
 
-// ❌ WRONG - Hard-codes a non-zero start index that would skip LED 0
-for (int i = 1; i < NUM_LEDS; i++) {
+// ❌ WRONG - Includes LED 0 which is the sacrificial level-shift LED
+for (int i = 0; i < NUM_LEDS; i++) {
   leds[i] = color;
 }
 ```
@@ -303,7 +304,7 @@ python image_converter.py input.jpg
 2. Verify APA102 connections:
    - Teensy Pin 11 → LED Data (DI)
    - Teensy Pin 13 → LED Clock (CI)
-3. **LED 0 must be connected** (required for level shifting)
+3. **LED 0 must be connected** (sacrificial LED required for 3.3V→5V level shifting)
 4. Test with simple code:
    ```cpp
    leds[1] = CRGB::Red;
