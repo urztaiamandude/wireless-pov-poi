@@ -139,8 +139,8 @@ export const getTeensySketch = (ledCount: number): ArduinoSketch => ({
 #define SERIAL_BAUD 115200
 #define DEFAULT_BRIGHTNESS 128
 
-// Note: In production, DISPLAY_LED_START=0 and all 32 LEDs are display pixels
-// with hardware level shifter. This example uses simplified indexing.
+// Note: In production, LED 0 is a sacrificial level-shift LED and
+// DISPLAY_LED_START=1 so LEDs 1-31 carry display pixels.
 
 constexpr uint8_t kPixelBytes = 3;
 

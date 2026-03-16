@@ -160,7 +160,7 @@ Audio config in `teensy_firmware.ino`: `AUDIO_PIN A0`, `AUDIO_SAMPLES 64`, `AUDI
 - **HEIGHT**: 31 pixels (FIXED - one pixel per display LED)
 - **WIDTH**: Variable (calculated from aspect ratio, max ~200px)
 - LED strip forms the VERTICAL axis when spinning
-- LED 1 (bottom of strip) = bottom of image
+- LED 1 (bottom display pixel) = bottom of image
 - LED 31 (top of strip) = top of image
 
 ### Image Storage Format

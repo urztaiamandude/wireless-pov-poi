@@ -101,9 +101,9 @@ static_assert(SERIAL_RX_PIN == 16, "SERIAL_RX_PIN must remain 16 for Teensy seri
 const uint8_t kMaxPatternIndex = 17;
 
 // Image dimension limits
-// Updated to match Teensy PSRAM capabilities: 400px width, 64px height (2x32 LEDs)
+// Updated to match Teensy PSRAM capabilities: 400px width, 62px height (2x31 display LEDs)
 #define MAX_IMAGE_WIDTH 400
-#define MAX_IMAGE_HEIGHT 64
+#define MAX_IMAGE_HEIGHT 62
 
 // Sync Configuration
 #define AUTO_SYNC_ENABLED false
@@ -949,8 +949,8 @@ static const char rootPage[] PROGMEM = R"rawliteral(
     
     <script>
     const NUM_LEDS=32;
-    const DISPLAY_LEDS=32;
-    const DISPLAY_LED_START=0;
+    const DISPLAY_LEDS=31;
+    const DISPLAY_LED_START=1;
     let currentMode=2,currentPattern=0,brightness=128,originalImageAspectRatio=1.0;
     let currentSyncMode='mirror',syncPeers=[];
     let genType='organic',colorSeed=Math.random();
@@ -1033,8 +1033,8 @@ static const char rootPage[] PROGMEM = R"rawliteral(
                     const heat=0.5+0.5*Math.sin((i*1.1)+(t*7.2));
                     r=140+110*heat;g=15+120*(heat*heat);b=8+16*heat;
                 }else{
-                    const p=(i+t*10)%NUM_LEDS;
-                    const dist=Math.abs(p-(NUM_LEDS/2));
+                    const p=((i-DISPLAY_LED_START)+t*10)%DISPLAY_LEDS;
+                    const dist=Math.abs(p-(DISPLAY_LEDS/2));
                     const comet=Math.max(0,1-(dist/8));
                     r=35+220*comet;g=70+150*comet;b=130+90*comet;
                 }
@@ -1303,10 +1303,10 @@ static const char rootPage[] PROGMEM = R"rawliteral(
         const cv=document.getElementById('gen-canvas');const cx=cv.getContext('2d');
         const ledCount=DISPLAY_LEDS;
         const complexity=parseInt(document.getElementById('gen-complexity').value)||8;
-        const tH=Math.min(Math.max(ledCount,1),64);
+        const tH=Math.min(Math.max(ledCount,1),62);
         let tW=Math.min(tH*4,400);
-        // Ensure payload does not exceed firmware buffer (400*64*3 = 76800 bytes)
-        while(tW>1&&tW*tH*3>76800)tW--;
+        // Ensure payload does not exceed firmware buffer (400*62*3 = 74400 bytes)
+        while(tW>1&&tW*tH*3>74400)tW--;
         cv.width=tW;cv.height=tH;cv.style.display='block';
         cx.fillStyle='#000';cx.fillRect(0,0,tW,tH);
         const hueStart=colorSeed*360;
@@ -1350,9 +1350,9 @@ static const char rootPage[] PROGMEM = R"rawliteral(
         if(!cv.width)return;
         const tW=cv.width,tH=cv.height;
         const payloadSize=tW*tH*3;
-        // Firmware max buffer: MAX_IMAGE_WIDTH(400) * MAX_IMAGE_HEIGHT(64) * 3 = 76800 bytes
-        if(tW<1||tH<1||tW>400||tH>64||payloadSize>76800){
-            showToast('Image too large to upload (max 400x64)');return;
+        // Firmware max buffer: MAX_IMAGE_WIDTH(400) * MAX_IMAGE_HEIGHT(62) * 3 = 74400 bytes
+        if(tW<1||tH<1||tW>400||tH>62||payloadSize>74400){
+            showToast('Image too large to upload (max 400x62)');return;
         }
         const cx=cv.getContext('2d');
         const iD=cx.getImageData(0,0,tW,tH);const px=iD.data;
@@ -1401,7 +1401,7 @@ static const char rootPage[] PROGMEM = R"rawliteral(
         const pixels=[];
         for(let i=DISPLAY_LED_START;i<NUM_LEDS;i++){
             const col=i-DISPLAY_LED_START;
-            const x=Math.min(cw-1,Math.floor(col*(cw/NUM_LEDS)+(cw/NUM_LEDS)/2));
+            const x=Math.min(cw-1,Math.floor(col*(cw/DISPLAY_LEDS)+(cw/DISPLAY_LEDS)/2));
             const p=ctx.getImageData(x,midY,1,1).data;
             pixels.push({r:p[0],g:p[1],b:p[2]});
             setLEDPreview(i,p[0],p[1],p[2]);
@@ -1966,8 +1966,8 @@ void handleUploadImage() {
   static uint8_t imageBuffer[MAX_IMAGE_WIDTH * MAX_IMAGE_HEIGHT * 3];  // Max image buffer
   static size_t bufferIndex = 0;
   static bool uploadRejected = false;
-  static uint16_t imageWidth = 32;
-  static uint16_t imageHeight = 32;
+  static uint16_t imageWidth = 31;
+  static uint16_t imageHeight = 31;
   static const size_t MAX_UPLOAD_BYTES = (size_t)MAX_IMAGE_WIDTH * MAX_IMAGE_HEIGHT * 3;
   
   if (upload.status == UPLOAD_FILE_START) {
@@ -2114,7 +2114,7 @@ void handleLiveFrame() {
     String body = server.arg("plain");
 
     // Parse JSON payload: {"pixels":[{"r":R,"g":G,"b":B}, ...]}
-    const int ledCount = 32;  // Display LEDs (all 32 LEDs used for display)
+    const int ledCount = 31;  // Display LEDs (LED 0 is sacrificial and omitted)
     uint8_t rgb[ledCount * 3];
     memset(rgb, 0, sizeof(rgb));
 
@@ -2132,7 +2132,7 @@ void handleLiveFrame() {
     }
 
     // Send live frame command to Teensy
-    sendTeensyCommand(0x05, ledCount * 3);  // 32 LEDs * 3 bytes
+    sendTeensyCommand(0x05, ledCount * 3);  // 31 LEDs * 3 bytes
     for (int i = 0; i < ledCount * 3; i++) {
       TEENSY_SERIAL.write(rgb[i]);
     }

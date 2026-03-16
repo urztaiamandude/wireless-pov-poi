@@ -81,3 +81,13 @@ docs/latex/
 
 # AI Agent outputs
 scripts/ai_agent/output/
+
+# Obsolete generated artifacts retained locally for reference
+obsolete/.cache/
+obsolete/.pio/
+obsolete/esp32_firmware/.cache/
+obsolete/esp32_firmware/.pio/
+obsolete/compile_commands.json
+obsolete/esp32_firmware/compile_commands.json
+obsolete/examples/__pycache__/
+obsolete/examples/.pytest_cache/

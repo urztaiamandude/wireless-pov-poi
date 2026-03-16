@@ -20,7 +20,7 @@ Four implementation steps were completed across three codebases: the ESP32 embed
 
 | Bug | Fix |
 |-----|-----|
-| `DISPLAY_LED_START` undefined in JS — LED preview `ReferenceError` | Added `const DISPLAY_LED_START=0;` to the JS constants block |
+| `DISPLAY_LED_START` undefined in JS — LED preview `ReferenceError` | Added `const DISPLAY_LED_START=1;` to the JS constants block |
 | Image upload width hard-capped at 100 px | Changed `Math.min(100,…)` → `Math.min(400,…)` — respects PSRAM 400 px max |
 | `state.powerMode` boots as 0 (performance) instead of balanced | Added `state.powerMode = 1` in `setup()` |
 | `nextImage()` had no upper bound — could request out-of-range image index | Added `Math.min(el.max, …)` clamp using the numeric input's `max` attribute |

@@ -19,18 +19,18 @@ Check this file before proposing any architectural change. Entries are numbered;
 
 ---
 
-### ADR-002: Fixed 31 display LEDs (all LEDs are display LEDs; LED 32 is for level shifting only)
+### ADR-002: Fixed 31 display LEDs (LED 0 is reserved for level shifting)
 
 **Date**: Early hardware design  
 **Status**: Active
 
 **Context**: The APA102 strip has 32 physical LEDs. One LED is used as a "sacrificial" LED to boost the 3.3 V signal to 5 V logic before it reaches the display LEDs.
 
-**Decision**: LED positions 1–31 are display LEDs (mapped directly to image pixels). LED 32 is wired for level-shifting duty only and must NOT be included in display output. Images must therefore be exactly **31 pixels tall**.
+**Decision**: LED positions 1–31 are display LEDs (mapped directly to image pixels). LED 0 is wired for level-shifting duty only and must NOT be included in display output. Images must therefore be exactly **31 pixels tall**.
 
 **Alternatives**: Use all 32 for display with an external level shifter only → chosen approach is simpler wiring.
 
-**Consequences**: All image processing, buffer sizing, and documentation must treat display height as 31, not 32. `NUM_LEDS = 32` in firmware but display height = 31.
+**Consequences**: All image processing, buffer sizing, and documentation must treat display height as 31, not 32. `NUM_LEDS = 32` in firmware, but display height = 31 and display output starts at LED 1.
 
 ---
 

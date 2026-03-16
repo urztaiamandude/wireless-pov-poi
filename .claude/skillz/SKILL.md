@@ -103,8 +103,8 @@ Move items from Backlog → Active → Completed as work progresses.
 
 These are the most-frequently-needed facts. Always verify against key_facts.md.
 
-- **Display height**: 31 pixels (fixed — one per display LED; LED 32 is level-shift only)
-- **Image width**: `round(src_width × (31 / src_height))` — never hardcode
+- **Display height**: 31 pixels (fixed — one per display LED; LED 0 is level-shift only)
+- **Image width**: `round(src_width * (31 / src_height))` — never hardcode
 - **LED library**: FastLED — do NOT introduce competing LED libraries (ADR-005)
 - **Large buffers — Teensy**: `EXTMEM` keyword (ADR-009)
 - **Large buffers — ESP32-S3**: `ps_malloc()` — never `malloc()` for large allocs (ADR-009)

@@ -42,7 +42,7 @@ Key findings:
 
 Modify `esp32_firmware/esp32_firmware.ino`:
 
-1. In the JavaScript section of `rootPage[]`, add `const DISPLAY_LED_START=0;` to the constants block alongside `NUM_LEDS` and `DISPLAY_LEDS`.
+1. In the JavaScript section of `rootPage[]`, add `const DISPLAY_LED_START=1;` to the constants block alongside `NUM_LEDS` and `DISPLAY_LEDS`.
 2. In `convertImageToPOVFormat()`, change `tW=Math.min(100,...)` to `tW=Math.min(400,...)` so image upload respects the PSRAM-capable 400px max width.
 3. In the Dashboard tab HTML, add Prev/Next image buttons beside the Content Index input.
 4. Add corresponding `prevImage()` and `nextImage()` JavaScript functions that decrement/increment the content index and call `/api/mode`.

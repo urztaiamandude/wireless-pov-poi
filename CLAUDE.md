@@ -39,7 +39,7 @@ APA102 LED Strip (32 LEDs)
 ### LED Configuration
 - **Total LEDs: 32** (`leds[0]` through `leds[31]`)
 - **NO sacrificial LED** — hardware uses a MOSFET-based level shifter
-- All 32 LEDs are display LEDs
+- LEDs 1-31 are display LEDs
 - `NUM_LEDS` is always 32, never 31
 - Do NOT change `NUM_LEDS` to 31 under any circumstances
 
@@ -104,27 +104,27 @@ Physical LED Strip:
 ```
 
 **ALL display code MUST:**
-- Use `NUM_LEDS` (32) for loops: `for (int i = 0; i < NUM_LEDS; i++)`
-- Use `DISPLAY_LEDS` (32) for height calculations
-- Use `DISPLAY_LED_START` (0) as first display index
+- Use `DISPLAY_LEDS` (31) and `DISPLAY_LED_START` (1) for display loops: `for (int i = 1; i < NUM_LEDS; i++)`
+- Use `DISPLAY_LEDS` (31) for height calculations
+- Use `DISPLAY_LED_START` (1) as first display index
 
 ### 2. Image Orientation & Dimensions
 
 **POV Display Orientation:**
-- **HEIGHT = 32 pixels** (FIXED - one pixel per display LED)
+- **HEIGHT = 31 pixels** (FIXED - one pixel per display LED)
 - **WIDTH = variable** (calculated from aspect ratio, max 400px with PSRAM)
 - LED strip forms the VERTICAL axis when spinning
-- LED 0 (bottom of strip) = bottom of image
+- LED 1 (bottom display pixel) = bottom of image
 - LED 31 (top of strip) = top of image
 - Images scroll horizontally as poi spins
 
 **Image Storage Format:**
 ```cpp
 // Storage: pixels[x][y] where y is LED index
-CRGB pixels[IMAGE_WIDTH][IMAGE_HEIGHT];  // Max 32x400
+CRGB pixels[IMAGE_WIDTH][IMAGE_HEIGHT];  // Max 31x400
 
 // Display mapping (NO flip needed):
-leds[y] = pixels[current_column][y];  // y ranges 0-31
+leds[y + DISPLAY_LED_START] = pixels[current_column][y];  // y ranges 0-30, mapped onto LEDs 1-31
 ```
 
 ### 3. Communication Protocol
@@ -314,7 +314,7 @@ See `docs/API.md` for complete reference.
 
 ### LED Index Usage
 ```cpp
-// ✅ CORRECT - All 32 LEDs are display LEDs
+// ✅ CORRECT - LEDs 1-31 are display LEDs
 for (int i = 0; i < NUM_LEDS; i++) {
   leds[i] = CRGB::Red;
 }
