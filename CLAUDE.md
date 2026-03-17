@@ -218,7 +218,7 @@ leds[y] = pixels[current_column][y];  // y ranges 0-31
 
 ### Controls
 - **Brightness**: 0-255 (adjustable via web/API)
-- **Frame Rate**: 10-120 FPS (adjustable)
+- **Frame Rate**: 10-1000 FPS (adjustable; 500+ recommended for POV spinning)
 - **Pattern Speed**: 1-255 (higher = faster)
 
 ---
@@ -319,7 +319,7 @@ python test_ble_protocol.py
 **Key Endpoints:**
 - `GET /status` - System status
 - `POST /brightness` - Set brightness (0-255)
-- `POST /framerate` - Set frame rate (10-120)
+- `POST /framerate` - Set frame rate (10-1000)
 - `POST /mode` - Change display mode
 - `POST /pattern` - Configure pattern
 - `POST /image/upload` - Upload image (auto-converts to 32px height)

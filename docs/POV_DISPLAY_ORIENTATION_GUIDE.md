@@ -68,7 +68,7 @@ Use simple patterns to confirm orientation before loading complex images:
 | Level-shift method | Hardware MOSFET level shifter (external) |
 | Image height | 32 pixels (rows 0-31) |
 | Brightness range | 0-255 |
-| Frame rate range | 10-120 FPS (firmware limit; validate on hardware) |
+| Frame rate range | 10-1000 FPS (Teensy hardware limit; validate on hardware) |
 | LED type | APA102 |
 
 Validation note: spin at the target frame rate and confirm the image remains smooth and stable with no visible flicker or tearing; reduce FPS if artifacts appear.

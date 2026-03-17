@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Pattern system with 4 built-in patterns (rainbow, wave, gradient, sparkle)
 - Live mode for real-time LED control
 - Sequence support for chaining images and patterns
-- Adjustable brightness (0-255) and frame rate (10-120 FPS)
+- Adjustable brightness (0-255) and frame rate (10-1000 FPS)
 
 #### Web Interface
 

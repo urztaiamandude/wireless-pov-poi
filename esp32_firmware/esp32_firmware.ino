@@ -86,7 +86,7 @@ void handleMultiPoiPeerCmd();
 void applyModeToTeensy(uint8_t mode, uint8_t index);
 void applyPatternToTeensy(uint8_t idx, uint8_t type, uint8_t r1, uint8_t g1, uint8_t b1, uint8_t r2, uint8_t g2, uint8_t b2, uint8_t speed);
 void applyBrightnessToTeensy(uint8_t brightness);
-void applyFrameRateToTeensy(uint8_t frameDelay);
+void applyFrameRateToTeensy(uint16_t fps);
 void applySyncTimeToTeensy(int32_t offsetMs);
 
 // WiFi Configuration
@@ -174,8 +174,8 @@ struct SystemState {
   uint8_t currentMode;
   uint8_t currentIndex;
   uint8_t brightness;
-  uint8_t frameRate;
-  uint8_t cachedFrameDelay;  // Cached value: 1000 / frameRate
+  uint16_t frameRate;
+  uint8_t cachedFrameDelay;  // Cached value: 1000 / frameRate (for legacy compat)
   bool connected;
   unsigned long lastSync;
   unsigned long lastDiscovery;
@@ -273,8 +273,7 @@ void loop() {
     checkTeensyConnection();
     // Keep sync heartbeat state up to date
     espNowSync.setLocalState(state.currentMode, state.currentIndex,
-                             state.brightness,
-                             state.frameRate > 0 ? 1000 / state.frameRate : 20);
+                             state.brightness, state.frameRate);
   }
   
   // Periodic peer discovery
@@ -647,7 +646,7 @@ static const char rootPage[] PROGMEM = R"rawliteral(
                 </div>
                 <div class="ctrl">
                     <label>Frame Rate <span id="framerate-value">50</span> FPS</label>
-                    <input type="range" id="framerate" min="10" max="250" value="50" oninput="updateFrameRate(this.value)">
+                    <input type="range" id="framerate" min="10" max="1000" value="50" oninput="updateFrameRate(this.value)">
                 </div>
             </div>
 
@@ -1145,7 +1144,7 @@ static const char rootPage[] PROGMEM = R"rawliteral(
         fetch('/api/brightness',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({brightness:v})});
     }
     function updateFrameRate(value){
-        var v=parseInt(value);if(isNaN(v))return;v=Math.max(10,Math.min(120,v));
+        var v=parseInt(value);if(isNaN(v))return;v=Math.max(10,Math.min(1000,v));
         document.getElementById('framerate-value').textContent=v;
         document.getElementById('fps-display').textContent=v;
         fetch('/api/framerate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({framerate:v})});
@@ -1166,8 +1165,8 @@ static const char rootPage[] PROGMEM = R"rawliteral(
 
     // ===== Power Mode =====
     const PM_LABELS={performance:'240 MHz — max brightness & FPS',balanced:'160 MHz — default settings',powersave:'80 MHz — reduced FPS & brightness cap',ultrasave:'80 MHz — minimum FPS & dim output (WiFi minimum)'};
-    const PM_FPS={performance:120,balanced:60,powersave:30,ultrasave:15};
-    const PM_BRIGHT={performance:255,balanced:255,powersave:150,ultrasave:80};
+    const PM_FPS={performance:1000,balanced:60,powersave:30,ultrasave:15};
+    const PM_BRIGHT={performance:255,balanced:255,powersave:180,ultrasave:80};
     let currentPowerMode='balanced';
     async function setPowerMode(mode){
         currentPowerMode=mode;
@@ -1837,17 +1836,19 @@ void handleSetFrameRate() {
       server.send(400, "application/json", "{\"error\":\"Invalid data\"}");
       return;
     }
-    state.frameRate = doc["framerate"].as<uint8_t>();
-    state.cachedFrameDelay = 1000 / max((uint8_t)1, state.frameRate);  // Update cache
+    state.frameRate = doc["framerate"].as<uint16_t>();
+    state.cachedFrameDelay = state.frameRate > 0 ? (uint8_t)(1000 / state.frameRate) : 20;
 
-    // Send command to Teensy
-    sendTeensyCommand(0x07, 1);
-    TEENSY_SERIAL.write(state.cachedFrameDelay);
+    // Send FPS to Teensy via 2-byte protocol (Teensy computes its own delay)
+    uint16_t fps = state.frameRate;
+    sendTeensyCommand(0x07, 2);
+    TEENSY_SERIAL.write((uint8_t)(fps >> 8));     // high byte
+    TEENSY_SERIAL.write((uint8_t)(fps & 0xFF));   // low byte
     TEENSY_SERIAL.write(0xFE);
 
     // Broadcast to paired peers via ESP-NOW (mirror mode)
     if (!_syncCommandInProgress) {
-      espNowSync.broadcastFrameRate(state.cachedFrameDelay);
+      espNowSync.broadcastFrameRate(state.frameRate);
     }
 
     server.send(200, "application/json", "{\"status\":\"ok\"}");
@@ -1867,18 +1868,18 @@ void handlePowerMode() {
       modeStr = modeStr.substring(0, modeStr.indexOf('"'));
 
       uint8_t cpuMhz = 160;
-      uint8_t fpsLimit = 60;
+      uint16_t fpsLimit = 60;
       uint8_t brightnessLimit = 255;
 
       if (modeStr == "performance") {
         state.powerMode = 0;
-        cpuMhz = 240; fpsLimit = 120; brightnessLimit = 255;
+        cpuMhz = 240; fpsLimit = 1000; brightnessLimit = 255;
       } else if (modeStr == "balanced") {
         state.powerMode = 1;
         cpuMhz = 160; fpsLimit = 60; brightnessLimit = 255;
       } else if (modeStr == "powersave") {
         state.powerMode = 2;
-        cpuMhz = 80; fpsLimit = 30; brightnessLimit = 150;
+        cpuMhz = 80; fpsLimit = 30; brightnessLimit = 180;
       } else if (modeStr == "ultrasave") {
         state.powerMode = 3;
         cpuMhz = 80; fpsLimit = 15; brightnessLimit = 80;  // 80 MHz is minimum with WiFi active
@@ -1890,12 +1891,15 @@ void handlePowerMode() {
       setCpuFrequencyMhz(cpuMhz);
 
       state.frameRate = fpsLimit;
-      state.cachedFrameDelay = 1000 / max((uint8_t)1, state.frameRate);
-      sendTeensyCommand(0x07, 1);
-      TEENSY_SERIAL.write(state.cachedFrameDelay);
+      state.cachedFrameDelay = state.frameRate > 0 ? (uint8_t)(1000 / state.frameRate) : 20;
+      // Send FPS to Teensy via 2-byte protocol
+      uint16_t fps = state.frameRate;
+      sendTeensyCommand(0x07, 2);
+      TEENSY_SERIAL.write((uint8_t)(fps >> 8));     // high byte
+      TEENSY_SERIAL.write((uint8_t)(fps & 0xFF));   // low byte
       TEENSY_SERIAL.write(0xFE);
       if (!_syncCommandInProgress) {
-        espNowSync.broadcastFrameRate(state.cachedFrameDelay);
+        espNowSync.broadcastFrameRate(state.frameRate);
       }
 
       if (brightnessLimit < state.brightness) {
@@ -1908,7 +1912,7 @@ void handlePowerMode() {
         }
       }
 
-      server.send(200, "application/json", "{\"status\":\"ok\",\"cpuMhz\":" + String(cpuMhz) + ",\"fpsLimit\":" + String(fpsLimit) + "}");
+      server.send(200, "application/json", "{\"status\":\"ok\",\"mode\":\"" + modeStr + "\",\"cpu_mhz\":" + String(cpuMhz) + ",\"framerate\":" + String(fpsLimit) + ",\"max_brightness\":" + String(brightnessLimit) + "}");
       return;
     }
   }
@@ -2529,8 +2533,8 @@ void setupESPNowSync() {
     applyBrightnessToTeensy(brightness);
   });
 
-  espNowSync.onFrameRate([](uint8_t frameDelay) {
-    applyFrameRateToTeensy(frameDelay);
+  espNowSync.onFrameRate([](uint16_t fps) {
+    applyFrameRateToTeensy(fps);
   });
 
   espNowSync.onSyncTime([](int32_t offsetMs) {
@@ -2600,17 +2604,19 @@ void applyBrightnessToTeensy(uint8_t brightness) {
   _syncCommandInProgress = false;
 }
 
-void applyFrameRateToTeensy(uint8_t frameDelay) {
+void applyFrameRateToTeensy(uint16_t fps) {
   _syncCommandInProgress = true;
   // Update both frameRate and cached delay
-  if (frameDelay > 0) {
-    state.frameRate = 1000 / frameDelay;
-    state.cachedFrameDelay = frameDelay;
+  if (fps > 0) {
+    state.frameRate = fps;
+    state.cachedFrameDelay = (uint8_t)(1000 / fps);
   }
-  sendTeensyCommand(0x07, 1);
-  TEENSY_SERIAL.write(frameDelay);
+  // Send FPS to Teensy via 2-byte protocol
+  sendTeensyCommand(0x07, 2);
+  TEENSY_SERIAL.write((uint8_t)(fps >> 8));     // high byte
+  TEENSY_SERIAL.write((uint8_t)(fps & 0xFF));   // low byte
   TEENSY_SERIAL.write(0xFE);
-  Serial.printf("[SYNC] Applied frameDelay=%d from peer\n", frameDelay);
+  Serial.printf("[SYNC] Applied fps=%d from peer\n", fps);
   _syncCommandInProgress = false;
 }
 
@@ -2628,9 +2634,9 @@ void applySyncTimeToTeensy(int32_t offsetMs) {
 // REST API endpoints for multi-poi control
 
 void handleMultiPoiStatus() {
-  // Update local state in sync object (use cached frameDelay)
+  // Update local state in sync object
   espNowSync.setLocalState(state.currentMode, state.currentIndex,
-                           state.brightness, state.cachedFrameDelay);
+                           state.brightness, state.frameRate);
 
   // Use ArduinoJson for efficient JSON serialization
   JsonDocument doc;
@@ -2784,9 +2790,8 @@ void handleMultiPoiPeerCmd() {
     espNowSync.sendPeerBrightness(peerIdx, brightness);
   }
   else if (cmd == "framerate") {
-    uint8_t fps = doc["framerate"] | 50;
-    uint8_t frameDelay = 1000 / max((uint8_t)1, fps);
-    espNowSync.sendPeerFrameRate(peerIdx, frameDelay);
+    uint16_t fps = doc["framerate"] | 50;
+    espNowSync.sendPeerFrameRate(peerIdx, fps);
   }
   else {
     server.send(400, "application/json", "{\"error\":\"Unknown cmd\"}");

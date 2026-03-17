@@ -78,7 +78,7 @@ Quick-lookup for ports, pins, constants, and non-secret configuration.
 | Display height | **31 px (default)** | Runtime-configurable via web UI; 1 per display LED |
 | Display width | Variable | `round(src_width × (displayLeds / src_height))` |
 | Max brightness | 255 | Adjustable 0–255 |
-| Frame rate range | 10–120 FPS | Adjustable |
+| Frame rate range | 10–1000 FPS | Adjustable; 500+ for POV |
 | Recommended spin rate | 2–3 RPS | For good POV persistence |
 | BMP format | 24-bit uncompressed | Required for BMPImageReader |
 

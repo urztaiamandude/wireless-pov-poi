@@ -413,7 +413,7 @@
     <div class="sec">
       <div class="slider-row">
         <span class="slider-lbl">Frame Rate</span>
-        <input type="range" min="10" max="120" value="60" id="fps-slider" oninput="setFramerate(this.value)" style="flex:1">
+        <input type="range" min="10" max="1000" value="60" id="fps-slider" oninput="setFramerate(this.value)" style="flex:1">
         <span class="slider-val" id="fps-val">60 FPS</span>
       </div>
     </div>
@@ -587,7 +587,7 @@
       </div>
       <div class="slider-row" style="margin-top:6px">
         <span class="slider-lbl">Refresh Rate</span>
-        <input type="range" min="10" max="120" value="60" id="fps-cfg" oninput="document.getElementById('fps-cfg-val').textContent=this.value+' FPS'" style="flex:1">
+        <input type="range" min="10" max="1000" value="60" id="fps-cfg" oninput="document.getElementById('fps-cfg-val').textContent=this.value+' FPS'" style="flex:1">
         <span class="slider-val" id="fps-cfg-val">60 FPS</span>
       </div>
       <div class="slider-row">
