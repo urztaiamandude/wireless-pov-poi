@@ -35,7 +35,7 @@ Welcome to the wireless POV Poi project - a creative venture that combines art a
 
 ### Controls & Configuration
 - **Brightness Control**: Adjustable 0–255 via slider or API
-- **Frame Rate Control**: Adjustable 10–250 FPS
+- **Frame Rate Control**: Adjustable 10–1000 FPS (500+ for POV spinning)
 - **Power Modes**: Four profiles (Performance, Balanced, Power Save, Ultra Save) that scale CPU frequency, max FPS, and brightness caps
 - **Device Configuration**: Customizable device name, sync group, and auto-sync settings persisted across reboots
 - **WiFi Network Manager**: Scan, connect, and disconnect from external WiFi networks with saved credentials

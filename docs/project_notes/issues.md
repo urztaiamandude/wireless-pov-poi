@@ -34,7 +34,7 @@ Chronological log of completed work, active items, and known remaining tasks.
 - ✅ Sequence mode — chain images and patterns
 - ✅ Live mode — real-time web-based drawing
 - ✅ Brightness control (0–255)
-- ✅ Frame rate control (10–120 FPS)
+- ✅ Frame rate control (10–1000 FPS)
 
 ### ESP32 / ESP32-S3 Firmware
 

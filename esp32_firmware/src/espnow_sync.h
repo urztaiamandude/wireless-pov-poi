@@ -66,7 +66,7 @@ struct __attribute__((packed)) HeartbeatPayload {
   uint8_t mode;
   uint8_t index;
   uint8_t brightness;
-  uint8_t frameDelay;
+  uint16_t fps;
   uint32_t uptimeMs;
   uint8_t syncMode;  // Current SyncMode
   char name[24];
@@ -94,7 +94,7 @@ struct __attribute__((packed)) BrightnessPayload {
 
 // Frame rate payload
 struct __attribute__((packed)) FrameRatePayload {
-  uint8_t frameDelay;
+  uint16_t fps;
 };
 
 // Sync time payload (for pattern phase alignment)
@@ -120,7 +120,7 @@ struct __attribute__((packed)) PeerCmdPayload {
 typedef void (*SyncModeChangeCallback)(uint8_t mode, uint8_t index);
 typedef void (*SyncPatternCallback)(uint8_t index, uint8_t type, uint8_t r1, uint8_t g1, uint8_t b1, uint8_t r2, uint8_t g2, uint8_t b2, uint8_t speed);
 typedef void (*SyncBrightnessCallback)(uint8_t brightness);
-typedef void (*SyncFrameRateCallback)(uint8_t frameDelay);
+typedef void (*SyncFrameRateCallback)(uint16_t fps);
 typedef void (*SyncTimeCallback)(int32_t offsetMs);
 typedef void (*SyncPeerUpdateCallback)(const SyncPeer* peer);
 
@@ -278,9 +278,9 @@ public:
     broadcastToPeers(MSG_SET_BRIGHTNESS, (uint8_t*)&payload, sizeof(payload));
   }
 
-  void broadcastFrameRate(uint8_t frameDelay) {
+  void broadcastFrameRate(uint16_t fps) {
     if (_syncMode != SYNC_MIRROR || !hasPairedPeer()) return;
-    FrameRatePayload payload = { frameDelay };
+    FrameRatePayload payload = { fps };
     broadcastToPeers(MSG_SET_FRAMERATE, (uint8_t*)&payload, sizeof(payload));
   }
 
@@ -309,10 +309,10 @@ public:
     sendMessage(_peers[peerIndex].mac, MSG_SET_BRIGHTNESS, (uint8_t*)&payload, sizeof(payload));
   }
 
-  void sendPeerFrameRate(int peerIndex, uint8_t frameDelay) {
+  void sendPeerFrameRate(int peerIndex, uint16_t fps) {
     if (peerIndex < 0 || peerIndex >= _peerCount) return;
     if (_peers[peerIndex].state != PEER_PAIRED) return;
-    FrameRatePayload payload = { frameDelay };
+    FrameRatePayload payload = { fps };
     sendMessage(_peers[peerIndex].mac, MSG_SET_FRAMERATE, (uint8_t*)&payload, sizeof(payload));
   }
 
@@ -352,11 +352,11 @@ public:
   }
 
   // Set local state for heartbeat reporting
-  void setLocalState(uint8_t mode, uint8_t index, uint8_t brightness, uint8_t frameDelay) {
+  void setLocalState(uint8_t mode, uint8_t index, uint8_t brightness, uint16_t fps) {
     _localMode = mode;
     _localIndex = index;
     _localBrightness = brightness;
-    _localFrameDelay = frameDelay;
+    _localFps = fps;
   }
 
 private:
@@ -377,7 +377,7 @@ private:
   uint8_t _localMode = 0;
   uint8_t _localIndex = 0;
   uint8_t _localBrightness = 128;
-  uint8_t _localFrameDelay = 20;
+  uint16_t _localFps = 50;
 
   // Callbacks
   SyncModeChangeCallback _onModeChange;
@@ -419,7 +419,7 @@ private:
     payload.mode = _localMode;
     payload.index = _localIndex;
     payload.brightness = _localBrightness;
-    payload.frameDelay = _localFrameDelay;
+    payload.fps = _localFps;
     payload.uptimeMs = millis();
     payload.syncMode = (uint8_t)_syncMode;
     strncpy(payload.name, _localName, sizeof(payload.name) - 1);
@@ -662,9 +662,9 @@ private:
     if (len < (int)sizeof(FrameRatePayload)) return;
 
     FrameRatePayload* p = (FrameRatePayload*)payload;
-    Serial.printf("[SYNC] FrameRate from '%s': %d\n", _peers[idx].name, p->frameDelay);
+    Serial.printf("[SYNC] FrameRate from '%s': %d FPS\n", _peers[idx].name, p->fps);
 
-    if (_onFrameRate) _onFrameRate(p->frameDelay);
+    if (_onFrameRate) _onFrameRate(p->fps);
   }
 
   void handleHeartbeat(const uint8_t* mac, const uint8_t* payload, int len) {

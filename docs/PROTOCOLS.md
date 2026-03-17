@@ -88,7 +88,7 @@ FPS:<value>
 ```
 
 **Parameters:**
-- `value`: 10-120 (frames per second)
+- `value`: 10-1000 (frames per second)
 - Lower = smoother POV but slower spin required
 - Higher = faster refresh but may flicker
 

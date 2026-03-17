@@ -10,7 +10,7 @@ This is the **recommended firmware** for the Nebula Poi. It provides a complete,
 - Sequence playback with timing and looping
 - Live drawing mode
 - Brightness control (0-255)
-- Frame rate adjustment (10-120 FPS)
+- Frame rate adjustment (10-1000 FPS)
 - SD card support with pattern presets (optional, v2.0+)
 
 ✅ **Easy to Use**
@@ -89,7 +89,7 @@ The firmware communicates with ESP32 using a binary protocol:
 | Upload Sequence | 0x04 | Define sequence of items |
 | Live Frame | 0x05 | Real-time frame data |
 | Set Brightness | 0x06 | Adjust LED brightness (0-255) |
-| Set Frame Rate | 0x07 | Adjust display speed (10-120 FPS) |
+| Set Frame Rate | 0x07 | Adjust display speed (10-1000 FPS) |
 | Status Request | 0x10 | Query current state |
 
 ### SD Card Commands (when SD_SUPPORT enabled)

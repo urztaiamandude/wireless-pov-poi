@@ -40,7 +40,7 @@ Complete integration testing for the PlatformIO Teensy 4.1 firmware. The core co
 ## Acceptance Criteria
 
 - [ ] All 4 patterns render correctly
-- [ ] Frame rate adjustable 10-120 FPS
+- [ ] Frame rate adjustable 10-1000 FPS
 - [ ] Brightness control works (0-255)
 - [ ] No compilation warnings
 - [ ] Serial protocol functional

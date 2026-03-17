@@ -139,7 +139,7 @@ Base URL: `http://192.168.4.1` (or `http://povpoi.local` via mDNS)
 | `/api/status` | GET | Returns `{mode, index, brightness, framerate, connected}` |
 | `/api/mode` | POST | Set mode & index: `{"mode": 2, "index": 0}` |
 | `/api/brightness` | POST | `{"brightness": 128}` (0-255) |
-| `/api/framerate` | POST | `{"framerate": 60}` (10-120) |
+| `/api/framerate` | POST | `{"framerate": 60}` (10-1000) |
 | `/api/image` | POST | Multipart upload, auto-converts to 32px tall |
 | `/api/pattern` | POST | `{"type": 0, "color1": "#FF0000", "speed": 50}` |
 | `/api/live` | POST | Raw RGB frame for live mode |
@@ -360,7 +360,7 @@ node --version
 ## Key Constraints
 
 - **Display modes**: 0=Idle, 1=Image, 2=Pattern, 3=Sequence, 4=Live
-- **Ranges**: brightness 0-255, FPS 10-120, image dimensions W×32 (width variable, height fixed at 32px)
+- **Ranges**: brightness 0-255, FPS 10-1000, image dimensions W×32 (width variable, height fixed at 32px)
 - **WiFi**: SSID `POV-POI-WiFi`, password `povpoi123`, IP `192.168.4.1`
 - **Performance**: Teensy loop is time-critical - no blocking calls
 - **Power**: Full brightness LEDs draw 2-3A at 5V
