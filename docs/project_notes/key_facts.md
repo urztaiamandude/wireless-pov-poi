@@ -8,7 +8,7 @@ Quick-lookup for ports, pins, constants, and non-secret configuration.
 ## Hardware Identity
 
 | Item | Value |
-|------|-------|
+| ------ | ------- |
 | Project name | Nebula POV Poi (wireless-pov-poi) |
 | Main controller | Teensy 4.1 @ 600 MHz |
 | Co-processor (recommended) | ESP32-S3 N16R8 (16 MB Flash, 8 MB OPI PSRAM) |
@@ -22,7 +22,7 @@ Quick-lookup for ports, pins, constants, and non-secret configuration.
 ## Hardware Responsibility Separation
 
 | Responsibility | Device | Notes |
-|---------------|--------|-------|
+| --------------- | -------- | ------- |
 | LED display rendering | **Teensy 4.1 only** | Only device physically connected to APA102 LEDs via SPI |
 | Pattern processing | **Teensy 4.1 only** | All display logic runs on Teensy |
 | Brightness application | **Teensy 4.1 only** | FastLED brightness applied on Teensy |
@@ -38,7 +38,7 @@ Quick-lookup for ports, pins, constants, and non-secret configuration.
 ## Pin Assignments — Teensy 4.1
 
 | Pin | Function |
-|-----|----------|
+| ----- | ---------- |
 | 11 | APA102 DATA (DI) |
 | 13 | APA102 CLOCK (CI) |
 | 0 (RX1) | UART RX ← ESP32 TX |
@@ -49,7 +49,7 @@ Quick-lookup for ports, pins, constants, and non-secret configuration.
 ## Pin Assignments — ESP32 / ESP32-S3
 
 | Pin | Function |
-|-----|----------|
+| ----- | ---------- |
 | GPIO 16 (RX2) | UART RX ← Teensy TX1 |
 | GPIO 17 (TX2) | UART TX → Teensy RX1 |
 
@@ -70,7 +70,7 @@ Quick-lookup for ports, pins, constants, and non-secret configuration.
 ## Image / Display Constraints
 
 | Parameter | Value | Notes |
-|-----------|-------|-------|
+| ----------- | ------- | ------- |
 | Display height | **31 pixels** | Fixed — one per display LED |
 | Display width | Variable | `round(src_width × (31 / src_height))` |
 | Max brightness | 255 | Adjustable 0–255 |
@@ -83,7 +83,7 @@ Quick-lookup for ports, pins, constants, and non-secret configuration.
 ## WiFi Access Point
 
 | Setting | Value |
-|---------|-------|
+| --------- | ------- |
 | SSID | `POV-POI-WiFi` |
 | Default IP | `192.168.4.1` |
 | mDNS hostname | `http://povpoi.local` (unreliable on Windows — use IP) |
@@ -96,7 +96,7 @@ Quick-lookup for ports, pins, constants, and non-secret configuration.
 ## BLE Configuration
 
 | Setting | Value |
-|---------|-------|
+| --------- | ------- |
 | Device name | `Wireless POV Poi` |
 | Profile | Nordic UART Service (NUS) |
 | Service UUID | `6E400001-B5A3-F393-E0A9-E50E24DCCA9E` |
@@ -109,7 +109,7 @@ Quick-lookup for ports, pins, constants, and non-secret configuration.
 ## Serial / UART (Inter-processor)
 
 | Setting | Value |
-|---------|-------|
+| --------- | ------- |
 | Baud rate | 115200 |
 | Teensy port | Serial1 (TX1 pin 1, RX1 pin 0) |
 | ESP32 port | Serial2 (GPIO 16/17) |
@@ -119,7 +119,7 @@ Quick-lookup for ports, pins, constants, and non-secret configuration.
 ## Power Requirements
 
 | Item | Spec |
-|------|------|
+| ------ | ------ |
 | Supply voltage | 5 V |
 | Minimum current | 2 A |
 | Recommended current | 3 A |
@@ -130,7 +130,7 @@ Quick-lookup for ports, pins, constants, and non-secret configuration.
 ## Firmware Locations
 
 | Firmware | Path | Status |
-|----------|------|--------|
+| ---------- | ------ | -------- |
 | Teensy — Arduino IDE (**canonical**) | `teensy_firmware/teensy_firmware.ino` | ✅ Production-ready |
 | Teensy — PlatformIO | `firmware/teensy41/` | ⚠️ Command processing incomplete |
 | ESP32 / ESP32-S3 | `esp32_firmware/esp32_firmware.ino` | ✅ Production-ready |
@@ -141,7 +141,7 @@ Quick-lookup for ports, pins, constants, and non-secret configuration.
 ## Key Source Directories
 
 | Directory | Purpose |
-|-----------|---------|
+| ----------- | --------- |
 | `teensy_firmware/` | Arduino IDE Teensy firmware (canonical) |
 | `firmware/teensy41/` | PlatformIO Teensy firmware (advanced) |
 | `esp32_firmware/` | ESP32/ESP32-S3 Arduino IDE firmware |
@@ -158,7 +158,7 @@ Quick-lookup for ports, pins, constants, and non-secret configuration.
 ## Image Converter Tools
 
 | Tool | Command | Notes |
-|------|---------|-------|
+| ------ | --------- | ------- |
 | GUI converter | `cd examples && python image_converter_gui.py` | Recommended |
 | CLI converter | `cd examples && python image_converter.py <image>` | Batch-friendly |
 | Web upload | `http://192.168.4.1` → Upload | Auto-converts on device |
@@ -176,7 +176,7 @@ Quick-lookup for ports, pins, constants, and non-secret configuration.
 ## Memory Allocation Rules
 
 | Processor | Small buffers | Large buffers |
-|-----------|--------------|---------------|
+| ----------- | -------------- | --------------- |
 | Teensy 4.1 | Normal declaration | `EXTMEM` keyword required |
 | ESP32-S3 | `malloc()` / `new` | `ps_malloc()` required |
 

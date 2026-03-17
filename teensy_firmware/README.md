@@ -5,6 +5,7 @@ This is the **recommended firmware** for the Nebula Poi. It provides a complete,
 ## Features
 
 ✅ **Complete Implementation**
+
 - Image display (31x64 pixels max)
 - Pattern generation (rainbow, wave, gradient, sparkle, fire, comet, breathing, strobe, meteor, wipe, plasma, music reactive)
 - Sequence playback with timing and looping
@@ -14,6 +15,7 @@ This is the **recommended firmware** for the Nebula Poi. It provides a complete,
 - SD card support with pattern presets (optional, v2.0+)
 
 ✅ **Easy to Use**
+
 - Single `.ino` file (~530 lines)
 - Standard Arduino IDE workflow
 - No complex build system
@@ -30,20 +32,24 @@ This is the **recommended firmware** for the Nebula Poi. It provides a complete,
 ## Quick Start
 
 ### 1. Install Prerequisites
+
 - Arduino IDE 1.8.x or 2.x
 - [Teensyduino](https://www.pjrc.com/teensy/td_download.html)
 - FastLED library (Install via Library Manager)
 
 ### 2. Open Firmware
+
 1. Launch Arduino IDE
 2. Open `teensy_firmware.ino`
 
 ### 3. Configure Board
+
 - **Board**: Teensy 4.1
 - **USB Type**: Serial
 - **CPU Speed**: 600 MHz (default)
 
 ### 4. Upload
+
 Click the Upload button (→) and wait for completion.
 
 ## Configuration Options
@@ -82,7 +88,7 @@ The firmware communicates with ESP32 using a binary protocol:
 ### Standard Commands
 
 | Command | Code | Description |
-|---------|------|-------------|
+| --------- | ------ | ------------- |
 | Set Mode | 0x01 | Change display mode (idle/image/pattern/sequence/live) |
 | Upload Image | 0x02 | Transfer image data (31x64 max) |
 | Upload Pattern | 0x03 | Configure pattern parameters |
@@ -95,7 +101,7 @@ The firmware communicates with ESP32 using a binary protocol:
 ### SD Card Commands (when SD_SUPPORT enabled)
 
 | Command | Code | Description |
-|---------|------|-------------|
+| --------- | ------ | ------------- |
 | Save to SD | 0x20 | Save image to SD card |
 | Load from SD | 0x21 | Load image from SD card |
 | List Images | 0x22 | List all stored images |
@@ -126,6 +132,7 @@ struct Sequence {
 ```
 
 The `displaySequence()` function handles:
+
 - Timing each item's display duration
 - Advancing to the next item automatically
 - Looping back to start (if enabled)
@@ -134,7 +141,7 @@ The `displaySequence()` function handles:
 ## Built-in Patterns
 
 | Type | Name | Description |
-|------|------|-------------|
+| ------ | ------ | ------------- |
 | 0 | Rainbow | Rotating rainbow colors along strip |
 | 1 | Wave | Single color with sine-wave brightness |
 | 2 | Gradient | Blend between color1 and color2 |
@@ -150,7 +157,7 @@ The `displaySequence()` function handles:
 ### Audio Reactive Patterns (require microphone on A0)
 
 | Type | Name | Description |
-|------|------|-------------|
+| ------ | ------ | ------------- |
 | 11 | Music VU | Classic VU meter with peak indicator and beat color shift |
 | 12 | Music Pulse | Whole strip pulses with bass beats |
 | 13 | Music Rainbow | Rainbow speed controlled by audio intensity |
@@ -158,11 +165,13 @@ The `displaySequence()` function handles:
 | 15 | Music Sparkle | Sparkle intensity follows audio |
 
 **Music Pattern Requirements:**
+
 - Connect electret microphone module to pin A0
 - Recommended: MAX9814 or similar amplified mic module
 - All audio patterns respond to sound levels with various effects
 
 **Pattern Structure:**
+
 ```cpp
 struct Pattern {
   uint8_t type;     // Pattern type (0-10)
@@ -179,7 +188,7 @@ struct Pattern {
 
 Connect to USB Serial at 115200 baud to see debug output:
 
-```
+```text
 Teensy 4.1 Nebula Poi Initializing...
 Teensy 4.1 Nebula Poi Ready!
 Commands: IMAGE, PATTERN, SEQUENCE, LIVE, STATUS
@@ -207,29 +216,33 @@ void displayPattern() {
 ## Troubleshooting
 
 ### LEDs Don't Light
+
 - Verify power connections (5V, GND)
 - Check DATA_PIN and CLOCK_PIN connections
 - Test with lower brightness first
 
 ### No Serial Communication
+
 - Verify ESP32 RX/TX connections
 - Check baud rate (115200)
 - Ensure common ground
 
 ### SD Card Issues
+
 - Verify SD_SUPPORT is defined
 - Check SD card is formatted (FAT32)
 - Ensure card is inserted properly
 - Try a different card (Class 10+ recommended)
 
 ### Patterns Don't Change
+
 - Check ESP32 communication
 - Monitor serial output for errors
 - Verify mode is set correctly
 
 ## File Structure
 
-```
+```text
 teensy_firmware.ino
 ├── Setup & Initialization
 │   ├── LED initialization (FastLED)
@@ -268,7 +281,7 @@ teensy_firmware.ino
 ## Comparison with PlatformIO Version
 
 | Feature | Arduino IDE (this) | PlatformIO |
-|---------|-------------------|------------|
+| --------- | ------------------- | ------------ |
 | Setup Complexity | ⭐ Easy | ⭐⭐⭐ Advanced |
 | Code Organization | Single file | Modular |
 | Feature Complete | ✅ Yes | ⚠️ Partial |
