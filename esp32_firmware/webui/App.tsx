@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { ViewMode } from './types';
 import { getESP32Sketch, getTeensySketch } from './constants';
 import Dashboard from './components/Dashboard';
+import PatternPreview from './components/PatternPreview';
 import CodeViewer from './components/CodeViewer';
 import WiringGuide from './components/WiringGuide';
 import FirmwareManager from './components/FirmwareManager';
@@ -16,7 +17,8 @@ import {
   Github,
   CloudUpload,
   Settings2,
-  ImageIcon
+  ImageIcon,
+  Sparkles
 } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -28,6 +30,8 @@ const App: React.FC = () => {
     switch (view) {
       case ViewMode.DASHBOARD:
         return <Dashboard previewUrl={globalPreviewUrl} />;
+      case ViewMode.PATTERN_PREVIEW:
+        return <PatternPreview />;
       case ViewMode.IMAGE_LAB:
         return <ImageLab onPreviewUpdate={setGlobalPreviewUrl} initialPreview={globalPreviewUrl} ledCount={ledCount} setLedCount={setLedCount} />;
       case ViewMode.ADVANCED_SETTINGS:
@@ -64,6 +68,12 @@ const App: React.FC = () => {
           onClick={() => setView(ViewMode.DASHBOARD)}
           icon={<LayoutDashboard size={20} />}
           label="UI Dashboard"
+        />
+        <NavItem
+          active={view === ViewMode.PATTERN_PREVIEW}
+          onClick={() => setView(ViewMode.PATTERN_PREVIEW)}
+          icon={<Sparkles size={20} className="text-cyan-400" />}
+          label="Pattern Preview"
         />
         <NavItem
           active={view === ViewMode.IMAGE_LAB}
