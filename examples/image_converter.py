@@ -4,13 +4,13 @@ POV Image Converter
 Converts regular images to POV-compatible format.
 
 IMPORTANT: The LED strip forms the VERTICAL axis of the display.
-- HEIGHT is FIXED at 32 pixels (matching 32 display LEDs)
+- HEIGHT is FIXED at 31 pixels (matching 31 display LEDs: LED 1-31)
 - WIDTH is scaled proportionally using the same scale factor as height
-- LED 0 (bottom of strip) = bottom of image
+- LED 1 (bottom of strip) = bottom of image
 - LED 31 (top of strip) = top of image
 - LEDs display vertical columns from left to right
 - No vertical flip is needed - the LED arrangement maps directly to image pixels
-- Hardware level shifter is used (all 32 LEDs are display LEDs)
+- LED 0 is a sacrificial LED used for level shifting (not a display pixel)
 """
 
 try:
@@ -30,28 +30,28 @@ POV_VERSION = 1
 SD_MAX_DIMENSION = 1024  # Max width/height allowed by SD storage validation
 
 # The number of display LEDs determines the fixed HEIGHT of POV images
-POV_HEIGHT = 32  # All 32 LEDs are used for display (hardware level shifter)
+POV_HEIGHT = 31  # LED 0 is sacrificial; LEDs 1-31 are the 31 display pixels
 
-def convert_image_for_pov(input_path, output_path=None, height=32, max_width=200, 
+def convert_image_for_pov(input_path, output_path=None, height=31, max_width=200, 
                          enhance_contrast=True, flip_horizontal=False):
     """
     Convert an image to POV-compatible format
     
     The LED strip forms the VERTICAL axis, so:
-    - HEIGHT is FIXED at 32 pixels (one pixel per display LED)
+    - HEIGHT is FIXED at 31 pixels (one pixel per display LED, LEDs 1-31)
     - WIDTH is scaled proportionally using the same scale factor as height
     - LEDs display vertical columns from left to right
     
     Args:
         input_path: Path to input image
         output_path: Path to save converted image (optional)
-        height: Target height in pixels (default 32, matching display LEDs)
+        height: Target height in pixels (default 31, matching display LEDs)
         max_width: Maximum width in pixels (default 200)
         enhance_contrast: Whether to enhance contrast (default True)
         flip_horizontal: Flip image horizontally (default False)
     
     Note: No vertical flip is applied because the LED arrangement already
-    maps correctly: LED 0 (bottom) displays bottom of image, LED 31 (top)
+    maps correctly: LED 1 (bottom) displays bottom of image, LED 31 (top)
     displays top of image.
     """
     
@@ -94,8 +94,8 @@ def convert_image_for_pov(input_path, output_path=None, height=32, max_width=200
             print("Flipping image horizontally")
             img = img.transpose(Image.FLIP_LEFT_RIGHT)
         
-        # No vertical flip needed - LED 0 is bottom, LED 31 is top
-        # This maps directly to image coordinates (y=0 is top, but LED 0 shows row 0)
+        # No vertical flip needed - LED 1 is bottom, LED 31 is top
+        # This maps directly to image coordinates (y=0 is top, but LED 1 shows row 0)
         
         # Enhance contrast if requested
         if enhance_contrast:
@@ -121,7 +121,7 @@ def convert_image_for_pov(input_path, output_path=None, height=32, max_width=200
         return False
 
 
-def convert_image_to_pov_data(input_path, height=32, max_width=400, enhance_contrast=True,
+def convert_image_to_pov_data(input_path, height=31, max_width=400, enhance_contrast=True,
                               flip_horizontal=False, flip_vertical=False):
     """
     Convert an image to POV-compatible RGB data (width, height, bytes).
@@ -152,7 +152,7 @@ def convert_image_to_pov_data(input_path, height=32, max_width=400, enhance_cont
         return None
 
 
-def save_as_pov(input_path, output_path=None, height=32, max_width=400,
+def save_as_pov(input_path, output_path=None, height=31, max_width=400,
                 enhance_contrast=True, flip_horizontal=False, flip_vertical=False):
     """
     Convert an image to .pov format for direct SD card upload.
@@ -224,7 +224,7 @@ def main():
         if opt in args:
             args.remove(opt)
 
-    height = 32
+    height = 31
     max_width = 400
     i = 0
     while i < len(args):

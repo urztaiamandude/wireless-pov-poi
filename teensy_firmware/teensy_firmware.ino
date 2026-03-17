@@ -2,13 +2,13 @@
  * Nebula Poi - Teensy 4.1 Firmware
  * 
  * This firmware controls a 32 LED APA102 strip for POV (Persistence of Vision) display.
- * All 32 LEDs are used for display (hardware level shifter is used).
+ * LED 0 is a sacrificial LED used for 3.3V -> 5V level shifting; it is not a display pixel.
+ * LEDs 1-31 are the 31 display pixels.
  * Communicates with ESP32 via Serial1 to receive images, patterns, and sequences.
  * 
  * Hardware:
  * - Teensy 4.1
- * - APA102 LED Strip (32 LEDs)
- * - Hardware level shifter (3.3V -> 5V for data/clock)
+ * - APA102 LED Strip (32 LEDs: LED 0 sacrificial for level shifting, LED 1-31 display)
  * - MAX9814 Microphone Amplifier Module (for audio-reactive patterns)
  * - ESP32 connected via Serial1 (RX=0, TX=1)
  * - Optional: microSD card in Teensy 4.1 built-in slot (for SD_SUPPORT)
@@ -33,17 +33,17 @@
 #endif
 
 // LED Configuration
-// All 32 LEDs are used for display (hardware level shifter handles 3.3V -> 5V)
-// All display loops start from index 0.
-// Example: for (int i = 0; i < NUM_LEDS; i++) { leds[i] = color; }
-#define NUM_LEDS 32  // DO NOT CHANGE: MOSFET level shifter used, all 32 LEDs are display LEDs
-static_assert(NUM_LEDS == 32, "NUM_LEDS must be 32 - hardware uses MOSFET level shifter, no sacrificial LED needed");
+// LED 0 is a sacrificial LED used for 3.3V -> 5V level shifting (not a display pixel).
+// LEDs 1-31 are the 31 display pixels; all display loops start from index 1.
+// Example: for (int i = DISPLAY_LED_START; i < NUM_LEDS; i++) { leds[i] = color; }
+#define NUM_LEDS 32  // Total physical LEDs on strip (including sacrificial LED 0)
+static_assert(NUM_LEDS == 32, "NUM_LEDS must be 32 - includes sacrificial LED 0 for level shifting");
 #define DATA_PIN 11
 #define CLOCK_PIN 13
 #define LED_TYPE APA102
 #define COLOR_ORDER BGR
-#define DISPLAY_LEDS 32       // All 32 LEDs used for display (hardware level shifter)
-#define DISPLAY_LED_START 0   // First LED index used for display content
+#define DISPLAY_LEDS 31       // LEDs used for display (LED 1-31; LED 0 is sacrificial)
+#define DISPLAY_LED_START 1   // First LED index used for display content (LED 0 is sacrificial)
 
 // Audio Input Configuration (MAX9814 Microphone Amplifier Module)
 // MAX9814 output connects through level shifter to Teensy analog input.
@@ -62,20 +62,21 @@ static_assert(SERIAL_RX_PIN == 1, "SERIAL_RX_PIN must remain 1 for ESP32-S3 seri
 #define ESP32_SERIAL Serial1
 
 // Display Configuration
-// NOTE: IMAGE_HEIGHT = DISPLAY_LEDS = 32 (fixed, matches physical LEDs)
+// NOTE: IMAGE_HEIGHT = DISPLAY_LEDS = 31 (fixed, one pixel per display LED)
+//       DISPLAY_LED_START = 1 (LED 0 is sacrificial)
 //       IMAGE_MAX_WIDTH = variable (calculated from aspect ratio)
 // PSRAM: 2x 8MB chips installed = 16MB PSRAM on Teensy 4.1
 #ifdef ARDUINO_TEENSY41
-  // With 16MB PSRAM: 200 images at 32x400 (~7.3MB, ~46% of PSRAM)
-  // Without PSRAM: 10 images at 32x200 (~60KB internal RAM)
+  // With 16MB PSRAM: 200 images at 31x400 (~7.1MB, ~44% of PSRAM)
+  // Without PSRAM: 10 images at 31x200 (~58KB internal RAM)
   #define MAX_IMAGES 200
   #define IMAGE_MAX_WIDTH 400     // Maximum width for stored images (with PSRAM)
 #else
   #define MAX_IMAGES 10
   #define IMAGE_MAX_WIDTH 200     // Conservative limit without PSRAM
 #endif
-#define IMAGE_WIDTH 32          // Fixed width for POV display (matches DISPLAY_LEDS)
-#define IMAGE_HEIGHT 32         // Fixed: matches DISPLAY_LEDS (one pixel per LED)
+#define IMAGE_WIDTH 31          // Fixed width for POV display (matches DISPLAY_LEDS)
+#define IMAGE_HEIGHT 31         // Fixed: matches DISPLAY_LEDS (one pixel per display LED)
 #define MAX_PATTERNS 18  // Total pattern slots (indexed 0-17)
 #define MAX_SEQUENCES 5
 const uint8_t kPatternSpeedDivisor = 20;  // Used for split-spin/theater chase speed scaling.
@@ -165,7 +166,7 @@ CRGB liveBuffer[DISPLAY_LEDS];
 
 // Serial command buffer
 // Buffer size calculation for larger images:
-//   Max image: IMAGE_MAX_WIDTH (400) × IMAGE_HEIGHT*2 (64, max accepted) × 3 (RGB) = 76,800 bytes
+//   Max image: IMAGE_MAX_WIDTH (400) × IMAGE_HEIGHT*2 (62, max accepted) × 3 (RGB) = 74,400 bytes
 //   Plus protocol overhead (~100 bytes): 0xFF start, cmd, len, 0xFE end markers
 //   Rounded up to 80,000 for safety margin
 // With PSRAM (16MB installed): buffer placed in EXTMEM; without PSRAM: reduced buffer
@@ -316,7 +317,7 @@ void initStorage() {
 }
 
 // Create default POV images
-// These are real display-ready images sized for the 32-LED strip.
+// These are real display-ready images sized for the 31 display LEDs (LED 1-31).
 // Each image is wider than tall (typical for POV), so when the poi
 // spins it traces a detailed ring of light.
 void createDemoImages() {
@@ -325,7 +326,7 @@ void createDemoImages() {
   const int W2 = 64;   // heart width
   const int W3 = 80;   // starburst width
   const int W4 = 100;  // nebula spiral width
-  const int H  = IMAGE_HEIGHT;  // 32
+  const int H  = IMAGE_HEIGHT;  // 31
 
   // ── Image 0: Smiley Face (64×32) ──────────────────────────
   images[0].active = true;
@@ -375,7 +376,7 @@ void createDemoImages() {
         images[0].pixels[x][y + dy] = CRGB(60, 40, 0);
     }
   }
-  Serial.println("Default image 0: Smiley Face (64x32)");
+  Serial.println("Default image 0: Smiley Face (64x31)");
 
   // ── Image 1: Full Rainbow Spectrum (100×32) ──────────────
   images[1].active = true;
@@ -390,7 +391,7 @@ void createDemoImages() {
       images[1].pixels[x][y] = CHSV(hue, 240, val);
     }
   }
-  Serial.println("Default image 1: Rainbow Spectrum (100x32)");
+  Serial.println("Default image 1: Rainbow Spectrum (100x31)");
 
   // ── Image 2: Heart (64×32) ───────────────────────────────
   images[2].active = true;
@@ -419,7 +420,7 @@ void createDemoImages() {
       }
     }
   }
-  Serial.println("Default image 2: Heart (64x32)");
+  Serial.println("Default image 2: Heart (64x31)");
 
   // ── Image 3: Starburst (80×32) ──────────────────────────
   images[3].active = true;
@@ -441,7 +442,7 @@ void createDemoImages() {
       images[3].pixels[x][y] = CHSV(hue, 200, val);
     }
   }
-  Serial.println("Default image 3: Starburst (80x32)");
+  Serial.println("Default image 3: Starburst (80x31)");
 
   // ── Image 4: Nebula Spiral (100×32) ─────────────────────
   images[4].active = true;
@@ -465,7 +466,7 @@ void createDemoImages() {
       images[4].pixels[x][y] = CHSV(hue, sat, val);
     }
   }
-  Serial.println("Default image 4: Nebula Spiral (100x32)");
+  Serial.println("Default image 4: Nebula Spiral (100x31)");
 }
 
 // Create demo sequence
@@ -507,7 +508,7 @@ void createDemoSequence() {
 }
 
 void startupAnimation() {
-  // Rainbow sweep animation (all 32 display LEDs)
+  // Rainbow sweep animation (display LEDs 1-31)
   for (int hue = 0; hue < 256; hue += 4) {
     for (int i = DISPLAY_LED_START; i < NUM_LEDS; i++) {
       leds[i] = CHSV(hue + (i * 8), 255, 255);
@@ -815,7 +816,7 @@ void receiveSequence() {
 }
 
 void receiveLiveFrame() {
-  // Receive live frame data for immediate display (32 LEDs * 3 bytes RGB = 96 bytes)
+  // Receive live frame data for immediate display (31 LEDs * 3 bytes RGB = 93 bytes)
   for (int i = 0; i < DISPLAY_LEDS && (3 + (i + 1) * 3 - 1) < CMD_BUFFER_SIZE; i++) {
     liveBuffer[i] = CRGB(cmdBuffer[3 + i * 3], cmdBuffer[4 + i * 3], cmdBuffer[5 + i * 3]);
   }
@@ -856,7 +857,7 @@ void displayImage() {
   
   POVImage& img = images[currentIndex];
   
-  // Display current column of the image (all 32 LEDs are display LEDs)
+  // Display current column of the image (LEDs 1-31 are display LEDs)
   for (int i = 0; i < DISPLAY_LEDS && i < img.height; i++) {
     leds[i + DISPLAY_LED_START] = img.pixels[currentColumn][i];
   }
@@ -1072,7 +1073,7 @@ void displayPattern() {
         // Map audio level to number of LEDs to light
         uint8_t ledsToLight = map(audioLevel, 0, 255, 0, DISPLAY_LEDS);
         
-        // Draw VU meter with color gradient (all 32 display LEDs)
+        // Draw VU meter with color gradient (display LEDs 1-31)
         for (int i = DISPLAY_LED_START; i < NUM_LEDS; i++) {
           uint8_t ledIndex = i - DISPLAY_LED_START;
           if (ledIndex < ledsToLight) {
@@ -1129,7 +1130,7 @@ void displayPattern() {
         }
         lastLevel = audioLevel;
         
-        // Apply pulse to all display LEDs
+        // Apply pulse to display LEDs 1-31
         for (int i = DISPLAY_LED_START; i < NUM_LEDS; i++) {
           leds[i] = pat.color1;
           leds[i].nscale8(pulseVal);
@@ -1164,7 +1165,7 @@ void displayPattern() {
         // Audio level controls rainbow speed
         rainbowOffset += map(audioLevel, 0, 255, 1, 20);
         
-        // Draw rainbow with audio-controlled speed (all 32 display LEDs)
+        // Draw rainbow with audio-controlled speed (display LEDs 1-31)
         for (int i = DISPLAY_LED_START; i < NUM_LEDS; i++) {
           uint8_t hue = (rainbowOffset / 4 + i * 255 / DISPLAY_LEDS) % 256;
           uint8_t brightness = constrain(audioLevel + 50, 50, 255);
@@ -1200,7 +1201,7 @@ void displayPattern() {
         // Fade all first
         fadeToBlackBy(leds, NUM_LEDS, 80);
         
-        // Draw expanding from center (all 32 display LEDs)
+        // Draw expanding from center (display LEDs 1-31)
         for (int i = 0; i <= expansion; i++) {
           uint8_t hue = patternTime * pat.speed / 20 + i * 10;
           if (center + i < NUM_LEDS) leds[center + i] = CHSV(hue, 255, 255);
@@ -1232,7 +1233,7 @@ void displayPattern() {
         // Fade existing
         fadeToBlackBy(leds, NUM_LEDS, 40);
         
-        // Add sparkles based on audio - more audio = more sparkles (all 32 display LEDs)
+        // Add sparkles based on audio - more audio = more sparkles (display LEDs 1-31)
         uint8_t numSparkles = map(audioLevel, 0, 255, 0, 8);
         for (int s = 0; s < numSparkles; s++) {
           uint8_t pos = random8(DISPLAY_LED_START, NUM_LEDS);
@@ -1357,7 +1358,7 @@ void displaySequence() {
 }
 
 void displayLive() {
-  // Display the live buffer (all 32 LEDs)
+  // Display the live buffer (31 display LEDs, indices 1-31)
   for (int i = 0; i < DISPLAY_LEDS; i++) {
     leds[i + DISPLAY_LED_START] = liveBuffer[i];
   }
