@@ -18,55 +18,7 @@
 #ifndef BATTERY_MONITOR_H
 #define BATTERY_MONITOR_H
 
-#if defined(__INTELLISENSE__) || defined(__clangd__)
-  // Shims for editor/indexer environments (IntelliSense, clangd).
-  // Checked first so that editors defining ARDUINO still get stubs instead of
-  // trying to resolve unavailable Arduino core headers.
-  #include <cstdint>
-
-  struct BatteryMonitorSerialShim {
-    template <typename T>
-    void println(const T&) {}
-  };
-
-  struct BatteryMonitorWireShim {
-    void begin() {}
-    void setClock(uint32_t) {}
-    void beginTransmission(uint8_t) {}
-    uint8_t endTransmission() { return 0; }
-    void write(uint8_t) {}
-    void requestFrom(uint8_t, uint8_t) {}
-    int available() { return 0; }
-    int read() { return 0; }
-  };
-
-  static BatteryMonitorSerialShim Serial;
-  static BatteryMonitorWireShim Wire;
-
-  inline void delay(unsigned long) {}
-
-  template <typename T>
-  inline T constrain(T value, T low, T high) {
-    return (value < low) ? low : ((value > high) ? high : value);
-  }
-
-  template <typename T>
-  inline T max(T a, T b) {
-    return (a > b) ? a : b;
-  }
-#elif __has_include(<Arduino.h>)
-  #include <Arduino.h>
-  #include <Wire.h>
-#elif __has_include(<WProgram.h>)
-  // Fallback for older Arduino cores that ship WProgram.h instead of Arduino.h.
-  #include <WProgram.h>
-  #include <Wire.h>
-#else
-  // Reached only when neither Arduino.h nor WProgram.h is available and we are
-  // not inside an editor/indexer session.  This produces a clear compile-time
-  // error instead of a cryptic "file not found" message.
-  #error "Wire.h not found. Ensure the Wire library is installed and your board is correctly configured."
-#endif
+#include <Wire.h>
 
 // INA219 I2C Address
 #define INA219_ADDRESS 0x40  // Default address (A0/A1 pins not connected)
@@ -214,7 +166,7 @@ inline float BatteryMonitor::getPercentage() {
   if (voltage <= minVoltage) return 0.0;
 
   float percentage = ((voltage - minVoltage) / (maxVoltage - minVoltage)) * 100.0;
-  return constrain(percentage, 0.0f, 100.0f);
+  return constrain(percentage, 0.0, 100.0);
 }
 
 inline int BatteryMonitor::getRuntimeMinutes() {

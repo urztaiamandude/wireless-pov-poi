@@ -31,35 +31,11 @@ Run the development server with API proxy to ESP32:
 npm run dev
 ```
 
-The dev server will start on `http://localhost:3000` and proxy API requests to `http://192.168.4.1` by default.
-
-### Configuring the API proxy target
-
-The proxy destination is controlled by the `VITE_API_PROXY_TARGET` environment variable. Set it before starting the dev server when your device is on a different IP (e.g. when connected via STA mode instead of AP mode):
-
-```bash
-# Use the default AP-mode IP (no change needed):
-npm run dev
-
-# Target a device on your local network (STA mode):
-export VITE_API_PROXY_TARGET=http://10.100.9.230
-npm run dev
-
-# Or inline:
-VITE_API_PROXY_TARGET=http://10.100.9.230 npm run dev
-```
-
-You can also create a `.env` file in `esp32_firmware/webui/` to persist the setting:
-
-```dotenv
-VITE_API_PROXY_TARGET=http://10.100.9.230
-```
-
-> **When to change it:** Set `VITE_API_PROXY_TARGET` to the device's current IP whenever it is joined to your local network (STA mode) rather than acting as its own access point.
+The dev server will start on `http://localhost:3000` and proxy API requests to `http://192.168.4.1`.
 
 ## Building for Production
 
-Build the optimized production bundle (run `npm install` first if you haven't already):
+Build the optimized production bundle:
 
 ```bash
 npm run build
@@ -74,11 +50,10 @@ The output will be in the `dist/` directory, optimized for ESP32's SPIFFS/Little
 
 ### Option 1: Manual SPIFFS Upload (Recommended for Development)
 
-1. Install dependencies (if not done already): `npm install`
-2. Build the production bundle: `npm run build`
-3. Install the ESP32 filesystem uploader plugin for Arduino IDE or PlatformIO
-4. Copy contents of `dist/` to the ESP32's `data/` directory
-5. Upload to SPIFFS/LittleFS using the uploader tool
+1. Build the production bundle: `npm run build`
+2. Install the ESP32 filesystem uploader plugin for Arduino IDE or PlatformIO
+3. Copy contents of `dist/` to the ESP32's `data/` directory
+4. Upload to SPIFFS/LittleFS using the uploader tool
 
 **Arduino IDE:**
 ```bash
@@ -95,46 +70,6 @@ pio run --target uploadfs
 ### Option 2: Automated Build Script (Coming Soon)
 
 A deployment script will be added to automate the build and filesystem upload process.
-
-## Native Mobile App Shell (Capacitor)
-
-The Web UI now includes a native app shell for Android and iOS using Capacitor.
-This keeps the same React UI while allowing mobile-native packaging and permissions.
-
-### First-time setup
-
-```bash
-cd esp32_firmware/webui
-npm install
-```
-
-Capacitor platforms are already added in this repository:
-- `android/`
-- `ios/`
-
-### Build and sync native projects
-
-```bash
-# Android
-npm run native:android
-
-# iOS
-npm run native:ios
-```
-
-### Open native IDE projects
-
-```bash
-npm run cap:open:android
-npm run cap:open:ios
-```
-
-### Networking notes
-
-- The app talks to the device over local HTTP (`http://192.168.4.1` by default).
-- Android cleartext traffic is enabled in `AndroidManifest.xml`.
-- iOS local-network usage + ATS settings are configured in `ios/App/App/Info.plist`.
-- ESP32 firmware enables CORS (`server.enableCORS(true)`), so the native shell can call REST endpoints directly.
 
 ## Configuration
 

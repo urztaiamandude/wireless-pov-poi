@@ -504,19 +504,7 @@ const ImageLab: React.FC<ImageLabProps> = ({ onPreviewUpdate, initialPreview, le
                 <Clock size={14} className="text-pink-400" />
                 <input
                   type="number" step="100" min="100" value={frameDuration}
-                  onChange={(e) => {
-                    const raw = e.target.value;
-                    if (raw === '') {
-                      setFrameDuration(100);
-                      return;
-                    }
-                    const v = parseInt(raw, 10);
-                    if (isNaN(v)) {
-                      setFrameDuration(100);
-                    } else {
-                      setFrameDuration(Math.max(100, v));
-                    }
-                  }}
+                  onChange={(e) => setFrameDuration(parseInt(e.target.value))}
                   className="bg-transparent text-[10px] font-mono text-cyan-400 outline-none w-12 text-center"
                 />
                 <span className="text-[8px] font-black text-slate-500 uppercase">ms/frame</span>

@@ -2,23 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  color-scheme: dark;
-}
-
-* {
-  box-sizing: border-box;
-  scrollbar-width: thin;
-  scrollbar-color: #334155 #0f172a;
-}
-
-body {
-  margin: 0;
-  background: #020617;
-  color: #e2e8f0;
-  font-family: "Segoe UI", Tahoma, sans-serif;
-}
-
+/* Custom scrollbar styling for dark theme */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -35,4 +19,10 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: #475569;
+}
+
+/* Firefox scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #334155 #0f172a;
 }

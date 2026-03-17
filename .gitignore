@@ -43,7 +43,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 *.egg-info/
-/dist/
+dist/
 build/
 
 # Logs
@@ -63,12 +63,10 @@ esp32_firmware/*.bin
 
 # Web development
 web_portal/node_modules/
-node_modules/
 web_portal/dist/
 
 # Testing
 test_results/
-test_results.json
 *.test
 
 # Documentation generated files

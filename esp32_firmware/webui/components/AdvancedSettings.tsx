@@ -1,7 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Settings2, RefreshCw, Grid3X3, Palette, Info, RotateCw, Zap, CircuitBoard, Wifi, Lock, Trash2, Check } from 'lucide-react';
-import { useDebounce } from '../hooks';
+import { Settings2, RefreshCw, Grid3X3, Palette, Info, Save, RotateCw, Cpu, Zap, CircuitBoard, Wifi, Lock, Trash2 } from 'lucide-react';
 
 interface AdvancedSettingsProps {
   ledCount: number;
@@ -14,14 +13,16 @@ interface WifiStatus {
   staConnected: boolean;
   staIp: string;
   savedSsid: string;
-  mdnsName?: string;
 }
 
 const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCount }) => {
   const [refreshRate, setRefreshRate] = useState(60);
-  const [refreshRateStatus, setRefreshRateStatus] = useState<string | null>(null);
   const [pixelDensity, setPixelDensity] = useState(144);
   const [colorDepth, setColorDepth] = useState(24);
+  const [dataPin, setDataPin] = useState(11);
+  const [clkPin, setClkPin] = useState(13);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<string | null>(null);
 
   // WiFi network (connect to existing network to access web UI over that network)
   const [wifiStatus, setWifiStatus] = useState<WifiStatus | null>(null);
@@ -30,7 +31,6 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCou
   const [wifiError, setWifiError] = useState<string | null>(null);
   const [wifiSsid, setWifiSsid] = useState('');
   const [wifiPassword, setWifiPassword] = useState('');
-  const [wifiActionStatus, setWifiActionStatus] = useState<string | null>(null);
 
   const baseUrl = '';
 
@@ -56,32 +56,32 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCou
     return () => clearInterval(t);
   }, [fetchWifiStatus]);
 
-  // Send refresh rate to Teensy via ESP32's /api/framerate endpoint (command 0x07)
-  const debouncedFrameRateUpdate = useDebounce(
-    useCallback(async (fps: number) => {
-      try {
-        const res = await fetch(`${baseUrl}/api/framerate`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ framerate: fps }),
-          signal: AbortSignal.timeout(3000)
-        });
-        if (res.ok) {
-          setRefreshRateStatus(`Applied ${fps} FPS to Teensy.`);
-        } else {
-          setRefreshRateStatus(`Failed to set frame rate (HTTP ${res.status}).`);
-        }
-      } catch {
-        setRefreshRateStatus('Could not reach device.');
+  // Deploy config to the firmware via POST /api/device/config
+  // NOTE: Current firmware implementation only accepts deviceName, syncGroup, and autoSync.
+  // Hardware parameters (ledCount, pins, etc.) are not yet supported by the backend.
+  // This is a UI-ready implementation pending firmware support.
+  const handleSave = async () => {
+    setIsSaving(true);
+    setSaveStatus(null);
+    const payload = { ledCount, dataPin, clkPin, refreshRate, pixelDensity, colorDepth };
+    try {
+      const res = await fetch(`${baseUrl}/api/device/config`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(3000)
+      });
+      if (res.ok) {
+        setSaveStatus('Config deployed successfully.');
+      } else {
+        const text = await res.text();
+        setSaveStatus(`Warning: Endpoint exists but may not support all parameters. Response: ${text.substring(0, 50)}`);
       }
-    }, [baseUrl]),
-    300
-  );
-
-  const handleRefreshRateChange = (value: number) => {
-    setRefreshRate(value);
-    setRefreshRateStatus(null);
-    debouncedFrameRateUpdate(value);
+    } catch {
+      setSaveStatus('Could not reach device. Verify POV-POI-WiFi connection.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleWifiConnect = async () => {
@@ -91,7 +91,6 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCou
     }
     setWifiConnectLoading(true);
     setWifiError(null);
-    setWifiActionStatus(null);
     try {
       const res = await fetch(`${baseUrl}/api/wifi/connect`, {
         method: 'POST',
@@ -114,7 +113,6 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCou
           if (s.staConnected) break;
         }
       }
-      setWifiActionStatus('WiFi connect request sent. Use STA IP or mDNS once connected.');
     } catch {
       setWifiError('Request failed. Try again.');
     } finally {
@@ -125,7 +123,6 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCou
   const handleWifiDisconnect = async () => {
     setWifiConnectLoading(true);
     setWifiError(null);
-    setWifiActionStatus(null);
     try {
       await fetch(`${baseUrl}/api/wifi/disconnect`, {
         method: 'POST',
@@ -134,7 +131,6 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCou
       await fetchWifiStatus();
       setWifiSsid('');
       setWifiPassword('');
-      setWifiActionStatus('Disconnected from home WiFi. AP access remains available.');
     } catch {
       setWifiError('Disconnect request failed.');
     } finally {
@@ -142,27 +138,29 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCou
     }
   };
 
-  const openUrl = (url: string) => {
-    window.open(url, '_blank', 'noopener,noreferrer');
-  };
-
-  const copyText = async (text: string, label: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setWifiActionStatus(`${label} copied: ${text}`);
-    } catch {
-      setWifiActionStatus(`Could not copy ${label}.`);
-    }
-  };
-
   return (
     <div className="space-y-8 animate-fadeIn">
-      <header>
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-3xl font-bold text-white mb-2 flex items-center gap-3">
             <Settings2 className="text-cyan-400" /> Display Configuration
           </h2>
-          <p className="text-slate-400">Reference settings for the Teensy 4.1 POV engine. Hardware pins and LED count are configured in Teensy firmware.</p>
+          <p className="text-slate-400">Fine-tune hardware pins and display performance. Deploys to <span className="font-mono text-cyan-400">/api/device/config</span>.</p>
+        </div>
+        <div className="flex flex-col items-end gap-2">
+          <button
+            onClick={handleSave}
+            disabled={isSaving}
+            className="flex items-center gap-2 px-8 py-3 bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-800 text-white rounded-xl font-bold shadow-lg shadow-cyan-900/20 transition-all active:scale-95"
+          >
+            {isSaving ? <RefreshCw className="animate-spin" size={20} /> : <Save size={20} />}
+            {isSaving ? 'Syncing...' : 'Deploy Settings'}
+          </button>
+          {saveStatus && (
+            <span className={`text-[10px] font-mono ${saveStatus.startsWith('Error') || saveStatus.startsWith('Could') ? 'text-red-400' : 'text-green-400'}`}>
+              {saveStatus}
+            </span>
+          )}
         </div>
       </header>
 
@@ -203,33 +201,6 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCou
                       <div className="text-sm text-slate-400">Connect below to access over your WiFi</div>
                     )}
                   </>
-                )}
-              </div>
-            </div>
-            <div className="bg-slate-950 border border-slate-700 rounded-xl p-4 mb-6">
-              <div className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Access URLs</div>
-              <div className="space-y-2 text-sm">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-slate-400">AP:</span>
-                  <span className="font-mono text-white">{`http://${wifiStatus.apIp}`}</span>
-                  <button onClick={() => openUrl(`http://${wifiStatus.apIp}`)} className="px-2 py-1 text-xs bg-slate-700 hover:bg-slate-600 rounded">Open</button>
-                  <button onClick={() => copyText(`http://${wifiStatus.apIp}`, 'AP URL')} className="px-2 py-1 text-xs bg-slate-700 hover:bg-slate-600 rounded">Copy</button>
-                </div>
-                {wifiStatus.staConnected && wifiStatus.staIp && (
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-slate-400">Home WiFi:</span>
-                    <span className="font-mono text-white">{`http://${wifiStatus.staIp}`}</span>
-                    <button onClick={() => openUrl(`http://${wifiStatus.staIp}`)} className="px-2 py-1 text-xs bg-slate-700 hover:bg-slate-600 rounded">Open</button>
-                    <button onClick={() => copyText(`http://${wifiStatus.staIp}`, 'STA URL')} className="px-2 py-1 text-xs bg-slate-700 hover:bg-slate-600 rounded">Copy</button>
-                  </div>
-                )}
-                {wifiStatus.staConnected && wifiStatus.mdnsName && (
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-slate-400">mDNS:</span>
-                    <span className="font-mono text-white">{`http://${wifiStatus.mdnsName}.local`}</span>
-                    <button onClick={() => openUrl(`http://${wifiStatus.mdnsName}.local`)} className="px-2 py-1 text-xs bg-slate-700 hover:bg-slate-600 rounded">Open</button>
-                    <button onClick={() => copyText(`http://${wifiStatus.mdnsName}.local`, 'mDNS URL')} className="px-2 py-1 text-xs bg-slate-700 hover:bg-slate-600 rounded">Copy</button>
-                  </div>
                 )}
               </div>
             </div>
@@ -277,7 +248,6 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCou
               </div>
             </div>
             {wifiError && <p className="text-red-400 text-sm mt-3">{wifiError}</p>}
-            {wifiActionStatus && <p className="text-cyan-400 text-sm mt-2">{wifiActionStatus}</p>}
           </>
         )}
       </div>
@@ -303,18 +273,28 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCou
 
           <div className="space-y-2">
             <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Data Pin (MOSI)</label>
-            <div className="bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-slate-400 font-mono">
-              Pin 11
+            <div className="flex items-center gap-4">
+              <input
+                type="number"
+                value={dataPin}
+                onChange={(e) => setDataPin(parseInt(e.target.value))}
+                className="bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white font-mono w-full focus:ring-1 focus:ring-cyan-500 outline-none"
+              />
+              <Cpu size={18} className="text-cyan-500 shrink-0" />
             </div>
-            <p className="text-[10px] text-slate-500 italic">Hardwired on Teensy 4.1 (not configurable from ESP32).</p>
           </div>
 
           <div className="space-y-2">
             <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Clock Pin (SCK)</label>
-            <div className="bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-slate-400 font-mono">
-              Pin 13
+            <div className="flex items-center gap-4">
+              <input
+                type="number"
+                value={clkPin}
+                onChange={(e) => setClkPin(parseInt(e.target.value))}
+                className="bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white font-mono w-full focus:ring-1 focus:ring-cyan-500 outline-none"
+              />
+              <Cpu size={18} className="text-purple-500 shrink-0" />
             </div>
-            <p className="text-[10px] text-slate-500 italic">Hardwired on Teensy 4.1 (not configurable from ESP32).</p>
           </div>
         </div>
       </div>
@@ -323,29 +303,23 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCou
         <ConfigCard
           icon={<RotateCw className="text-blue-400" />}
           title="Refresh Rate"
-          value={`${refreshRate} FPS`}
-          description="Frame rate sent to Teensy 4.1 via /api/framerate. The Teensy controls actual LED timing — the ESP32 only relays this value."
+          value={`${refreshRate} Hz`}
+          description="Number of frame slices rendered per rotation. Higher values reduce flicker but increase CPU load."
         >
           <input
             type="range"
-            min="10"
-            max="250"
-            step="5"
+            min="30"
+            max="240"
+            step="10"
             value={refreshRate}
-            onChange={(e) => { const v = parseInt(e.target.value); if (!isNaN(v)) handleRefreshRateChange(v); }}
+            onChange={(e) => setRefreshRate(parseInt(e.target.value))}
             className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-400"
           />
           <div className="flex justify-between text-[10px] text-slate-500 mt-2 font-mono">
-            <span>10 FPS</span>
-            <span>120 FPS</span>
-            <span>250 FPS</span>
+            <span>30Hz</span>
+            <span>120Hz</span>
+            <span>240Hz</span>
           </div>
-          {refreshRateStatus && (
-            <div className={`flex items-center gap-1 mt-2 text-[10px] font-mono ${refreshRateStatus.startsWith('Applied') ? 'text-green-400' : 'text-red-400'}`}>
-              {refreshRateStatus.startsWith('Applied') && <Check size={10} />}
-              {refreshRateStatus}
-            </div>
-          )}
         </ConfigCard>
 
         <ConfigCard
@@ -421,8 +395,8 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCou
               <div className="text-slate-500 mb-2">// Hardware Allocation (Teensy 4.1)</div>
               <div className="text-cyan-400">#define NUM_LEDS {ledCount}</div>
               <div className="text-cyan-400">CRGB leds[NUM_LEDS];</div>
-              <div className="text-purple-400">FastLED.addLeds&lt;APA102, 11, 13&gt;(leds, NUM_LEDS);</div>
-              <div className="text-slate-300 mt-2">// Configured in Teensy firmware (not via ESP32)</div>
+              <div className="text-purple-400">FastLED.addLeds&lt;APA102, {dataPin}, {clkPin}&gt;(leds, NUM_LEDS);</div>
+              <div className="text-slate-300 mt-2">// POST /api/device/config to sync</div>
             </div>
           </div>
         </div>

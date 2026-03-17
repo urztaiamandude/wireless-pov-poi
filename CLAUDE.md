@@ -32,73 +32,6 @@ Teensy 4.1 (POV Engine + FastLED)
 APA102 LED Strip (32 LEDs)
 ```
 
-### ⚠️ Hardware Responsibility Separation — IMPORTANT
-
-The **Teensy 4.1 is the ONLY device physically connected to the APA102 LEDs**. All LED display processing (rendering patterns, applying brightness, displaying images, frame timing) must be handled exclusively by the Teensy 4.1 firmware.
-
-The **ESP32/ESP32-S3 is a WiFi/BLE bridge and web UI host**. It forwards user settings (brightness, frame rate, mode, pattern selection, image uploads) to the Teensy via serial UART. The ESP32/ESP32-S3 should **NOT** enforce firmware-level LED display restrictions (e.g., brightness clamping, pattern count limits, LED index validation) because it does not physically control the LEDs. Any display-related validation or processing belongs in the Teensy firmware only.
-
-**When making changes:**
-- LED rendering logic, display restrictions, brightness application → **Teensy firmware only** (`teensy_firmware/`)
-- Web UI, API endpoints, settings relay, image upload handling → **ESP32 firmware** (`esp32_firmware/`)
-- The ESP32 passes values through to the Teensy — it is not responsible for LED hardware constraints
-- Basic input sanitization (valid integers, rejecting malformed requests) is still appropriate on the ESP32
-
----
-
-## CRITICAL HARDWARE CONSTRAINTS - DO NOT MODIFY
-
-### LED Configuration
-- **Total LEDs: 32** (`leds[0]` through `leds[31]`)
-- **NO sacrificial LED** — hardware uses a MOSFET-based level shifter
-- All 32 LEDs are display LEDs
-- `NUM_LEDS` is always 32, never 31
-- Do NOT change `NUM_LEDS` to 31 under any circumstances
-
-### Teensy 4.1 <-> ESP32-S3 Serial Communication
-- **Teensy TX:** Pin 1 / **Teensy RX:** Pin 0
-- **ESP32-S3 TX:** Pin 17 / **ESP32-S3 RX:** Pin 16
-- This UART serial link is the **only** communication path between the two processors
-- All SD card operations (file listing, file read, file write) are routed through this link
-- Do NOT attempt to access the SD card from the ESP32-S3 via SPI or any other protocol
-- Do NOT change these pin assignments without updating both Teensy and ESP32-S3 firmware
-
-### SD Card File System - Teensy 4.1
-- SD card is mounted on the **Teensy 4.1**, not the ESP32-S3
-- ESP32-S3 accesses SD card contents via serial communication with Teensy, not directly
-- Web UI SD card explorer fetches file listings and data through the ESP32-S3 REST API, which in turn requests it from Teensy
-- `/images/` — POV image frames
-- `/palettes/` — color palette files
-- `/config/` — device configuration files
-- Root `/` — reserved, do not write arbitrary files here
-- Filenames must be 8.3 format compatible (FAT32 limitation on Teensy SD library)
-- No spaces in filenames — use underscores
-- Do NOT hardcode file paths in the UI
-- All SD operations are asynchronous — UI must handle loading states and timeouts gracefully
-
-## Web UI Constraints - Firmware Deployment
-
-### Absolutely Prohibited
-- No external CDN dependencies (no unpkg, cdnjs, jsdelivr, etc.)
-- No ES modules or import statements
-- No `fetch()` calls to external URLs
-- No assumptions about a development server existing
-- No relative paths that assume a filesystem hierarchy
-- No build step dependencies (no npm, no webpack, no React, no transpilation)
-
-### Required
-- All JS and CSS must be self-contained or inlined
-- All API calls must use relative paths (for example, `/api/status` not `http://192.168.x.x/api/status`)
-- Must function when served from LittleFS on ESP32-S3
-- UI must degrade gracefully when WebSocket/REST calls fail
-- Must function when opened directly via `file://` with no server running
-
-### Web UI Pre-Commit Checklist
-- [ ] No external resource loads in browser network tab
-- [ ] All API endpoints use relative paths
-- [ ] Works with no internet connection
-- [ ] Opens and renders correctly via `file://` with no development server
-
 ---
 
 ## Critical Design Constraints
@@ -143,8 +76,8 @@ leds[y] = pixels[current_column][y];  // y ranges 0-31
 
 **Serial Communication (Teensy ↔ ESP32):**
 - Baud rate: 115200
-- Teensy TX1 (Pin 1) → ESP32 RX (GPIO 16)
-- Teensy RX1 (Pin 0) ← ESP32 TX (GPIO 17)
+- Teensy TX1 (Pin 1) → ESP32 RX2 (GPIO 16)
+- Teensy RX1 (Pin 0) → ESP32 TX2 (GPIO 17)
 - Binary protocol for image data, text commands for control
 
 **WiFi Network:**
@@ -233,7 +166,7 @@ wireless-pov-poi/
 ├── esp32_firmware/            # ESP32/S3 firmware
 │   ├── esp32_firmware.ino    # WiFi + web server + BLE
 │   ├── webui/                # React web UI (deployed to ESP32 filesystem)
-│   └── web_preview.html      # ⚠️ Standalone preview ONLY — NOT compiled into firmware
+│   └── web_preview.html      # Standalone UI preview (no hardware needed)
 ├── firmware/teensy41/         # PlatformIO version (advanced)
 ├── docs/                      # Complete documentation
 │   ├── WIRING.md             # Hardware connections
@@ -246,19 +179,6 @@ wireless-pov-poi/
 │   └── image_converter_gui.py # GUI image converter
 └── scripts/                   # Build and utility scripts
 ```
-
-### ⚠️ Non-Compiled Files — DO NOT apply firmware fixes here
-
-The following files are **NOT compiled into any firmware build**. Do not apply bug fixes, input validation, or security patches to these files expecting them to ship on hardware:
-
-| File | Purpose | Why it's excluded |
-|------|---------|-------------------|
-| `esp32_firmware/web_preview.html` | Standalone browser preview of the web UI | Not uploaded to SPIFFS/LittleFS, not served by ESP32 |
-| `esp32_firmware/test_webui_server.js` | Mock API server for local development | Node.js dev tool only |
-
-**The actual shipped web UI code lives in:**
-1. **`esp32_firmware/webui/`** — React app built to `dist/`, uploaded to SPIFFS/LittleFS via `pio run --target uploadfs`
-2. **`esp32_firmware/esp32_firmware.ino`** (PROGMEM `rootPage`) — Embedded fallback HTML served when SPIFFS is empty
 
 ---
 
@@ -448,7 +368,7 @@ for (int y = 0; y < NUM_LEDS; y++) {
 
 1. **"How do I change WiFi credentials?"** → Edit `esp32_firmware.ino`, lines with `ssid` and `password`
 2. **"Images are upside down"** → Check `docs/POV_DISPLAY_ORIENTATION_GUIDE.md`
-3. **"Can I use more LEDs?"** → No for this hardware profile. Keep `NUM_LEDS` fixed at 32.
+3. **"Can I use more LEDs?"** → Yes, change `NUM_LEDS`, but keep LED 0 as level shift
 4. **"Battery power?"** → Requires 5V battery with 2-3A capacity, add power management
 5. **"Multiple poi sync?"** → See `docs/POI_PAIRING.md`
 

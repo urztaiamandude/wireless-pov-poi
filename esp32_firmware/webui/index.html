@@ -7,10 +7,21 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Nebula Poi">
-  <title>Nebula Poi — POV Control</title>
+  <meta name="apple-mobile-web-app-title" content="POV Architect">
+  <title>POV Architect — Nebula POI</title>
+  <link rel="stylesheet" href="/styles.css">
+  <style>
+    /* Custom scrollbar for dark theme - enhanced */
+    .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 2px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+    /* Pixelated canvas rendering for BMP preview */
+    .image-pixelated { image-rendering: pixelated; }
+  </style>
 </head>
-<body>
+<body class="bg-slate-950 text-slate-50 min-h-screen">
   <div id="root"></div>
   <script type="module" src="/index.tsx"></script>
 </body>
