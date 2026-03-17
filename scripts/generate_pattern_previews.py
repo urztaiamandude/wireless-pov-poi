@@ -31,7 +31,9 @@ except ImportError:
     sys.exit(1)
 
 # ── Configuration ────────────────────────────────────────────────────
-NUM_LEDS = 31            # Default display LEDs (g_displayLeds)
+# Matches default g_displayLeds (runtime-configurable via web UI Advanced Settings).
+# Adjust if your device uses a different display LED count.
+NUM_LEDS = 31
 FRAMES_PER_PREVIEW = 120 # Number of animation frames to capture
 LED_PIXEL_W = 2          # Width of each LED in pixels per frame column
 LED_PIXEL_H = 6          # Height of each LED in pixels
@@ -445,7 +447,8 @@ def generate_preview(
     n = NUM_LEDS
     num_frames = FRAMES_PER_PREVIEW
 
-    # Use a fixed random seed per pattern so previews are deterministic
+    # Fixed seed per pattern ensures deterministic output across runs.
+    # This prevents spurious Git diffs when regenerating committed PNGs.
     random.seed(42 + pattern_id)
 
     state = PatternState(n)
