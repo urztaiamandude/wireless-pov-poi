@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Settings2, RefreshCw, Grid3X3, Palette, Info, RotateCw, Zap, CircuitBoard, Wifi, Lock, Trash2, Check } from 'lucide-react';
 import { useDebounce } from '../hooks';
 
@@ -16,6 +16,173 @@ interface WifiStatus {
   savedSsid: string;
   mdnsName?: string;
 }
+
+interface LEDHardwareConfigProps {
+  setLedCount: (n: number) => void;
+}
+
+const LEDHardwareConfig: React.FC<LEDHardwareConfigProps> = ({ setLedCount }) => {
+  const [numLeds, setNumLeds] = useState(32);
+  const [sacrificialLeds, setSacrificialLeds] = useState(1);
+  const [status, setStatus] = useState<'idle' | 'loading' | 'saving' | 'saved' | 'error'>('loading');
+  const [errorMsg, setErrorMsg] = useState('');
+  const savedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const displayLeds = Math.max(0, numLeds - sacrificialLeds);
+  const displayLedStart = sacrificialLeds;
+
+  // Clear any pending "reset to idle" timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (savedTimeoutRef.current !== null) clearTimeout(savedTimeoutRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    fetch('/api/hardware/leds', { signal: AbortSignal.timeout(3000) })
+      .then(r => r.ok ? r.json() : Promise.reject(r.status))
+      .then(data => {
+        setNumLeds(data.numLeds ?? 32);
+        setSacrificialLeds(data.sacrificialLeds ?? 1);
+        setLedCount(data.displayLeds ?? 31);
+        setStatus('idle');
+      })
+      .catch(() => setStatus('idle'));
+  }, [setLedCount]);
+
+  const handleSave = async () => {
+    if (sacrificialLeds >= numLeds || numLeds < 2) {
+      setErrorMsg('numLeds must be ≥ 2 and sacrificialLeds must be less than numLeds');
+      setStatus('error');
+      return;
+    }
+    // Cancel any pending reset from a previous save
+    if (savedTimeoutRef.current !== null) {
+      clearTimeout(savedTimeoutRef.current);
+      savedTimeoutRef.current = null;
+    }
+    setStatus('saving');
+    setErrorMsg('');
+    try {
+      const res = await fetch('/api/hardware/leds', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ numLeds, sacrificialLeds }),
+        signal: AbortSignal.timeout(5000),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+        throw new Error(err.error ?? `HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      setLedCount(data.displayLeds ?? displayLeds);
+      setStatus('saved');
+      savedTimeoutRef.current = setTimeout(() => {
+        savedTimeoutRef.current = null;
+        setStatus('idle');
+      }, 2500);
+    } catch (e: unknown) {
+      setErrorMsg(e instanceof Error ? e.message : 'Could not reach device');
+      setStatus('error');
+    }
+  };
+
+  const isValid = numLeds >= 2 && numLeds <= 32 && sacrificialLeds >= 0 && sacrificialLeds < numLeds;
+
+  return (
+    <div className="space-y-6">
+      {status === 'loading' && (
+        <p className="text-slate-400 text-sm">Fetching hardware config from device…</p>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        {/* Inputs */}
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+              Total Physical LEDs
+            </label>
+            <input
+              type="number"
+              min={2} max={32}
+              value={numLeds}
+              onChange={e => setNumLeds(Math.max(2, Math.min(32, parseInt(e.target.value) || 2)))}
+              className="bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white font-mono w-full focus:ring-1 focus:ring-cyan-500 outline-none transition-all"
+            />
+            <p className="text-[10px] text-slate-500">Number of APA102 LEDs on the physical strip (2–32, Teensy firmware maximum).</p>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+              Sacrificial LEDs (for Level Shifting)
+            </label>
+            <input
+              type="number"
+              min={0} max={numLeds - 1}
+              value={sacrificialLeds}
+              onChange={e => setSacrificialLeds(Math.max(0, Math.min(numLeds - 1, parseInt(e.target.value) || 0)))}
+              className="bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white font-mono w-full focus:ring-1 focus:ring-cyan-500 outline-none transition-all"
+            />
+            <p className="text-[10px] text-slate-500">LEDs at the start of the strip used only for 3.3 V → 5 V level shifting. Set to 0 if using an external level shifter IC.</p>
+          </div>
+        </div>
+
+        {/* Derived / read-only info */}
+        <div className="space-y-4">
+          <div className="bg-black/40 border border-slate-700 rounded-xl p-4 font-mono text-sm space-y-2">
+            <div className="text-slate-500 text-xs uppercase tracking-widest mb-3">Computed Display Range</div>
+            <div className="flex justify-between">
+              <span className="text-slate-400">Display LEDs</span>
+              <span className="text-cyan-400 font-bold">{displayLeds}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-400">First display LED</span>
+              <span className="text-cyan-400">LED {displayLedStart}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-400">Last display LED</span>
+              <span className="text-cyan-400">LED {displayLedStart + displayLeds - 1}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-400">Image height</span>
+              <span className="text-cyan-400">{displayLeds} px</span>
+            </div>
+          </div>
+
+          <div className="bg-black/40 border border-slate-700 rounded-xl p-4 font-mono text-[11px] text-slate-400 space-y-1">
+            <div className="text-slate-500 mb-2">// Teensy firmware (applied at runtime)</div>
+            <div className="text-cyan-400">g_displayLeds = {displayLeds};</div>
+            <div className="text-cyan-400">g_displayLedStart = {displayLedStart};</div>
+            <div className="text-slate-500 mt-2">// Stored in EEPROM — survives power cycle</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Save button + status */}
+      <div className="flex items-center gap-4">
+        <button
+          onClick={handleSave}
+          disabled={!isValid || status === 'saving'}
+          className="flex items-center gap-2 bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-700 disabled:text-slate-500 text-white px-5 py-2 rounded-lg font-semibold transition-all text-sm"
+        >
+          {status === 'saving' ? (
+            <><RefreshCw size={14} className="animate-spin" /> Applying…</>
+          ) : status === 'saved' ? (
+            <><Check size={14} className="text-green-400" /> Saved &amp; applied to Teensy</>
+          ) : (
+            'Apply to Teensy'
+          )}
+        </button>
+        {status === 'error' && (
+          <span className="text-red-400 text-sm">{errorMsg || 'Failed to apply config.'}</span>
+        )}
+        {status === 'saved' && (
+          <span className="text-slate-400 text-xs">Re-upload images to match new height ({displayLeds} px).</span>
+        )}
+      </div>
+    </div>
+  );
+};
 
 const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCount }) => {
   const [refreshRate, setRefreshRate] = useState(60);
@@ -284,39 +451,9 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCou
 
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
         <h3 className="text-white font-semibold mb-6 flex items-center gap-2">
-          <CircuitBoard size={18} className="text-cyan-400" /> LED Hardware Interface
+          <CircuitBoard size={18} className="text-cyan-400" /> LED Hardware Configuration
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Global LED Count (Height)</label>
-            <div className="flex items-center gap-4">
-              <input
-                type="number"
-                value={ledCount}
-                onChange={(e) => setLedCount(parseInt(e.target.value) || 1)}
-                className="bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white font-mono w-full focus:ring-1 focus:ring-cyan-500 outline-none transition-all"
-              />
-              <Zap size={18} className="text-yellow-500 shrink-0" />
-            </div>
-            <p className="text-[10px] text-slate-500 italic">Vertical resolution ({ledCount}px). Sync with Teensy NUM_LEDS.</p>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Data Pin (MOSI)</label>
-            <div className="bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-slate-400 font-mono">
-              Pin 11
-            </div>
-            <p className="text-[10px] text-slate-500 italic">Hardwired on Teensy 4.1 (not configurable from ESP32).</p>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Clock Pin (SCK)</label>
-            <div className="bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-slate-400 font-mono">
-              Pin 13
-            </div>
-            <p className="text-[10px] text-slate-500 italic">Hardwired on Teensy 4.1 (not configurable from ESP32).</p>
-          </div>
-        </div>
+        <LEDHardwareConfig setLedCount={setLedCount} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

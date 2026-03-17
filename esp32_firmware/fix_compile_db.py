@@ -7,6 +7,13 @@ path = "compile_commands.json"
 with open(path, encoding="utf-8") as f:
     db = json.load(f)
 
+# If esp32_firmware.ino is already present, do nothing to keep the DB stable.
+for entry in db:
+    if entry.get("file") == "esp32_firmware.ino":
+        print("esp32_firmware.ino already present in compile_commands.json")
+        sys.exit(0)
+
+# Otherwise, look for the corresponding .ino.cpp entry and add a .ino entry.
 for entry in db:
     if entry.get("file") == "esp32_firmware.ino.cpp":
         new_entry = dict(entry)
