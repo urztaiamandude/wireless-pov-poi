@@ -1,6 +1,37 @@
 #ifndef _BMPIMAGEREADER_H
 #define _BMPIMAGEREADER_H
-#include <Arduino.h>
+
+#if defined(__INTELLISENSE__) || defined(__clangd__)
+  // Shims for editor/indexer environments (IntelliSense, clangd).
+  // Checked first so that editors defining ARDUINO still get stubs instead of
+  // trying to resolve unavailable Arduino core headers.
+  #include <cstddef>
+  #include <cstdint>
+
+  #ifndef F
+    #define F(x) x
+  #endif
+
+  struct BMPImageReaderSerialShim {
+    template <typename T>
+    void print(const T&) {}
+
+    template <typename T>
+    void println(const T&) {}
+  };
+
+  static BMPImageReaderSerialShim Serial;
+#elif __has_include(<Arduino.h>)
+  #include <Arduino.h>
+#elif __has_include(<WProgram.h>)
+  // Fallback for older Arduino cores that ship WProgram.h instead of Arduino.h.
+  #include <WProgram.h>
+#else
+  // Reached only when neither Arduino.h nor WProgram.h is available and we are
+  // not inside an editor/indexer session.  This produces a clear compile-time
+  // error instead of a cryptic "file not found" message.
+  #error "Arduino.h not found. Ensure the Arduino core is installed and your board is correctly configured."
+#endif
 
 /*
  * Generic BMP Image Reader class

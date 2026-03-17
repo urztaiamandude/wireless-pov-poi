@@ -11,168 +11,253 @@ name: AI Agent Automation
   issue_comment:
     types: [created]
 
+# ---------------------------------------------------------------------------
+# Dedicated PlatformIO firmware build — gates the CI on build success
+# ---------------------------------------------------------------------------
 jobs:
+  platformio_build:
+    name: PlatformIO Firmware Build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    if: |
+      github.event_name == 'push' ||
+      github.event_name == 'pull_request' ||
+      github.event_name == 'workflow_dispatch'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Cache PlatformIO packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.platformio
+            .pio
+            esp32_firmware/.pio
+          key: pio-${{ runner.os }}-${{ hashFiles('platformio.ini', 'esp32_firmware/platformio.ini') }}
+          restore-keys: |
+            pio-${{ runner.os }}-
+
+      - name: Install PlatformIO
+        run: pip install platformio
+
+      - name: Build Teensy 4.1 firmware
+        run: pio run -e teensy41
+
+      - name: Build ESP32-S3 firmware
+        run: cd esp32_firmware && pio run -e esp32s3
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: firmware-build-artifacts
+          path: |
+            .pio/build/teensy41/
+            esp32_firmware/.pio/build/esp32s3/
+          if-no-files-found: ignore
+
+  # ---------------------------------------------------------------------------
+  # AI Agent Dispatcher — full analysis on pushes to main + scheduled runs
+  # ---------------------------------------------------------------------------
   ai_agent_dispatcher:
     name: AI Agent Dispatcher
     runs-on: ubuntu-latest
     permissions:
       contents: read
     if: |
-      github.event_name == 'workflow_dispatch' || 
+      github.event_name == 'workflow_dispatch' ||
       github.event_name == 'schedule' ||
       (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'))
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-      
+
+      - name: Cache PlatformIO packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.platformio
+            .pio
+            esp32_firmware/.pio
+          key: pio-${{ runner.os }}-${{ hashFiles('platformio.ini', 'esp32_firmware/platformio.ini') }}
+          restore-keys: |
+            pio-${{ runner.os }}-
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
+          pip install platformio
           pip install -r scripts/ai_agent/requirements.txt
-        env:
-          SKIP_PIO: '1'  # Skip PlatformIO in CI by default
-      
+
       - name: Run AI Agent Dispatcher
         run: |
           python scripts/ai_agent/agent_dispatcher.py
-        env:
-          SKIP_PIO: '1'
-      
+
       - name: Upload dispatcher output
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: dispatcher-output
           path: scripts/ai_agent/output/
 
+  # ---------------------------------------------------------------------------
+  # Static code analysis — runs on every push and PR
+  # ---------------------------------------------------------------------------
   analyze_code:
     name: AI Code Analysis
     runs-on: ubuntu-latest
     permissions:
       contents: read
     if: github.event_name == 'pull_request' || github.event_name == 'push'
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-      
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r scripts/ai_agent/requirements.txt
-        env:
-          SKIP_PIO: '1'
-      
+
       - name: Run AI Code Analysis
         id: analysis
         run: |
           python scripts/ai_agent/analyze_code.py '{"name":"github_actions_analysis"}'
         continue-on-error: true
-        env:
-          SKIP_PIO: '1'
-      
+
       - name: Upload analysis results
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: code-analysis-results
           path: scripts/ai_agent/output/
 
+  # ---------------------------------------------------------------------------
+  # Build-based error detection (PlatformIO + TypeScript + Python)
+  # ---------------------------------------------------------------------------
   detect_errors:
     name: Error Detection
     runs-on: ubuntu-latest
     permissions:
       contents: read
     if: github.event_name == 'pull_request' || github.event_name == 'push'
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-      
+
+      - name: Cache PlatformIO packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.platformio
+            .pio
+            esp32_firmware/.pio
+          key: pio-${{ runner.os }}-${{ hashFiles('platformio.ini', 'esp32_firmware/platformio.ini') }}
+          restore-keys: |
+            pio-${{ runner.os }}-
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
+          pip install platformio
           pip install -r scripts/ai_agent/requirements.txt
-      
+
       - name: Run Error Detection
         run: |
           python scripts/ai_agent/detect_errors.py '{"name":"github_actions_error_detection"}'
         continue-on-error: true
-      
+
       - name: Upload error detection results
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: error-detection-results
           path: scripts/ai_agent/output/
 
+  # ---------------------------------------------------------------------------
+  # Pattern generation — scheduled / manual only
+  # ---------------------------------------------------------------------------
   generate_patterns:
     name: Pattern Generation
     runs-on: ubuntu-latest
     permissions:
       contents: read
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-      
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r scripts/ai_agent/requirements.txt
-      
+
       - name: Generate new LED patterns
         run: |
           python scripts/ai_agent/generate_patterns.py '{"name":"github_actions_patterns","num_patterns":4}'
-      
+
       - name: Upload generated patterns
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: generated-patterns
-          path: scripts/ai_agent/output/generated_patterns/
+          path: scripts/ai_agent/output/
 
+  # ---------------------------------------------------------------------------
+  # On-demand task via issue comment (/ai-agent analyze|pattern|test)
+  # ---------------------------------------------------------------------------
   on_demand_task:
     name: On-Demand Task
     runs-on: ubuntu-latest
     permissions:
       contents: read
     if: github.event_name == 'issue_comment' && contains(github.event.comment.body, '/ai-agent')
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-      
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r scripts/ai_agent/requirements.txt
-        env:
-          SKIP_PIO: '1'
-      
+
       - name: Parse command
         id: parse
         env:
@@ -186,7 +271,7 @@ jobs:
           elif echo "$COMMENT" | grep -q "test"; then
             echo "task=test" >> $GITHUB_OUTPUT
           fi
-      
+
       - name: Run requested task
         run: |
           TASK="${{ steps.parse.outputs.task }}"
@@ -201,11 +286,10 @@ jobs:
               python scripts/ai_agent/detect_errors.py '{"name":"comment_triggered"}'
               ;;
           esac
-        env:
-          SKIP_PIO: '1'
-      
+
       - name: Upload task results
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: on-demand-task-results
           path: scripts/ai_agent/output/

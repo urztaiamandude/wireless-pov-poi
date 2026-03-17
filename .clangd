@@ -1,0 +1,7 @@
+If:
+  PathMatch: ^teensy_firmware/.*\.(ino|h|hpp|c|cc|cpp)$
+CompileFlags:
+  Add:
+    - -x
+    - c++
+    - --query-driver=C:/Users/urzam/.platformio/packages/toolchain-gccarmnoneeabi-teensy/bin/arm-none-eabi-g*

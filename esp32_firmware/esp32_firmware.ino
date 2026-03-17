@@ -40,6 +40,7 @@ void handleStatus();
 void handleSetMode();
 void handleSetBrightness();
 void handleSetFrameRate();
+void handlePowerMode();
 void handleUploadPattern();
 void handleUploadImage();
 void handleLiveFrame();
@@ -93,6 +94,10 @@ const char* password = "povpoi123";
 // Serial Configuration
 #define TEENSY_SERIAL Serial2
 #define SERIAL_BAUD 115200
+#define SERIAL_TX_PIN 17  // DO NOT CHANGE: Teensy serial link
+#define SERIAL_RX_PIN 16  // DO NOT CHANGE: Teensy serial link
+static_assert(SERIAL_TX_PIN == 17, "SERIAL_TX_PIN must remain 17 for Teensy serial link");
+static_assert(SERIAL_RX_PIN == 16, "SERIAL_RX_PIN must remain 16 for Teensy serial link");
 const uint8_t kMaxPatternIndex = 17;
 
 // Image dimension limits
@@ -164,6 +169,8 @@ struct SystemState {
   unsigned long lastSync;
   unsigned long lastDiscovery;
   bool sdCardPresent;
+  uint8_t powerMode;  // 0=performance, 1=balanced, 2=powersave, 3=ultrasave
+  uint8_t imageCount;  // Number of uploaded images (tracked locally)
 } state;
 
 void setup() {
@@ -173,7 +180,7 @@ void setup() {
   Serial.println("\n\nESP32 Nebula Poi Controller Starting...");
   
   // Initialize Teensy Serial
-  TEENSY_SERIAL.begin(SERIAL_BAUD, SERIAL_8N1, 44, 43);  // RX=GPIO44 (U0RXD), TX=GPIO43 (U0TXD)
+  TEENSY_SERIAL.begin(SERIAL_BAUD, SERIAL_8N1, SERIAL_RX_PIN, SERIAL_TX_PIN);
   
   // Initialize SPIFFS for web files
   if (!SPIFFS.begin(true)) {
@@ -227,6 +234,8 @@ void setup() {
   state.lastSync = 0;
   state.lastDiscovery = 0;
   state.sdCardPresent = false;
+  state.powerMode = 1;  // Start in balanced mode (matches JS default)
+  state.imageCount = 0;
   
   Serial.println("ESP32 Nebula Poi Controller Ready!");
   Serial.print("IP Address: ");
@@ -329,6 +338,7 @@ void setupWebServer() {
   server.on("/api/mode", HTTP_POST, handleSetMode);
   server.on("/api/brightness", HTTP_POST, handleSetBrightness);
   server.on("/api/framerate", HTTP_POST, handleSetFrameRate);
+  server.on("/api/power/mode", HTTP_POST, handlePowerMode);
   server.on("/api/pattern", HTTP_POST, handleUploadPattern);
   server.on("/api/image", HTTP_POST, 
     []() { 
@@ -370,14 +380,6 @@ void setupWebServer() {
   // PWA support
   server.on("/manifest.json", HTTP_GET, handleManifest);
   server.on("/sw.js", HTTP_GET, handleServiceWorker);
-  
-  // Static files
-  server.on("/style.css", HTTP_GET, []() {
-    sendFile("/style.css", "text/css");
-  });
-  server.on("/script.js", HTTP_GET, []() {
-    sendFile("/script.js", "application/javascript");
-  });
   
   server.onNotFound(handleNotFound);
   
@@ -612,7 +614,11 @@ static const char rootPage[] PROGMEM = R"rawliteral(
                 </div>
                 <div class="ctrl">
                     <label>Content Index <span id="idx-display">0</span></label>
-                    <input type="number" id="content-index" min="0" max="17" value="0" onchange="changeContentIndex()">
+                    <div style="display:flex;gap:6px;align-items:center">
+                        <button class="btn btn-slate" style="padding:6px 12px;flex-shrink:0" onclick="prevImage()">&#9664;</button>
+                        <input type="number" id="content-index" min="0" max="17" value="0" onchange="changeContentIndex()" style="flex:1">
+                        <button class="btn btn-slate" style="padding:6px 12px;flex-shrink:0" onclick="nextImage()">&#9654;</button>
+                    </div>
                 </div>
                 <div style="padding:10px;background:#1e293b;border-radius:8px;font-size:12px;color:#64748b;margin-top:4px">
                     Images: 0=Smiley, 1=Rainbow, 2=Heart | Patterns: 0-17 | Sequences: 0=Demo Mix
@@ -628,8 +634,21 @@ static const char rootPage[] PROGMEM = R"rawliteral(
                 </div>
                 <div class="ctrl">
                     <label>Frame Rate <span id="framerate-value">50</span> FPS</label>
-                    <input type="range" id="framerate" min="10" max="120" value="50" oninput="updateFrameRate(this.value)">
+                    <input type="range" id="framerate" min="10" max="250" value="50" oninput="updateFrameRate(this.value)">
                 </div>
+            </div>
+
+            <!-- Power Mode -->
+            <div class="card">
+                <div class="card-title"><span class="dot" style="background:#22c55e"></span> Power Mode</div>
+                <div style="font-size:11px;color:#64748b;margin-bottom:10px">Balance performance vs. battery life</div>
+                <div class="grid2">
+                    <button id="pm-performance" class="btn btn-slate" onclick="setPowerMode('performance')">&#9889; Performance</button>
+                    <button id="pm-balanced" class="btn btn-slate" onclick="setPowerMode('balanced')">&#9876; Balanced</button>
+                    <button id="pm-powersave" class="btn btn-slate" onclick="setPowerMode('powersave')">&#127807; Power Save</button>
+                    <button id="pm-ultrasave" class="btn btn-slate" onclick="setPowerMode('ultrasave')">&#128337; Ultra Save</button>
+                </div>
+                <div id="pm-desc" style="padding:8px 10px;background:#1e293b;border-radius:8px;font-size:11px;color:#64748b;margin-top:8px">Select a power mode above</div>
             </div>
         </div>
 
@@ -899,7 +918,7 @@ static const char rootPage[] PROGMEM = R"rawliteral(
                     <div>IP Address: <span style="color:#06b6d4">192.168.4.1</span></div>
                     <div>Serial Baud: <span style="color:#06b6d4">115200</span></div>
                     <div>LEDs: <span style="color:#06b6d4">32x APA102 (SPI)</span></div>
-                    <div>UART TX: <span style="color:#06b6d4">GPIO43</span> | RX: <span style="color:#06b6d4">GPIO44</span></div>
+                    <div>UART TX: <span style="color:#06b6d4">GPIO17</span> | RX: <span style="color:#06b6d4">GPIO16</span></div>
                     <div id="cfg-device-id" style="color:#64748b">Device ID: --</div>
                 </div>
             </div>
@@ -925,10 +944,12 @@ static const char rootPage[] PROGMEM = R"rawliteral(
     <script>
     const NUM_LEDS=32;
     const DISPLAY_LEDS=32;
+    const DISPLAY_LED_START=0;
     let currentMode=2,currentPattern=0,brightness=128,originalImageAspectRatio=1.0;
     let currentSyncMode='mirror',syncPeers=[];
     let genType='organic',colorSeed=Math.random();
     const MODES=['Idle','Image','Pattern','Sequence','Live'];
+    let previewMode=0,previewIndex=0,previewStartMs=Date.now();
 
     // ===== Tab Navigation =====
     document.querySelectorAll('.nav-tab').forEach(tab=>{
@@ -954,21 +975,75 @@ static const char rootPage[] PROGMEM = R"rawliteral(
         const c=document.getElementById('led-preview');c.innerHTML='';
         for(let i=DISPLAY_LED_START;i<NUM_LEDS;i++){const d=document.createElement('div');d.className='led';d.id='led-'+i;c.appendChild(d)}
     }
+    function hsvToRgb(h,s,v){
+        let r=0,g=0,b=0;
+        const i=Math.floor(h*6);
+        const f=h*6-i;
+        const p=v*(1-s);
+        const q=v*(1-f*s);
+        const t=v*(1-(1-f)*s);
+        switch(i%6){
+            case 0:r=v;g=t;b=p;break;
+            case 1:r=q;g=v;b=p;break;
+            case 2:r=p;g=v;b=t;break;
+            case 3:r=p;g=q;b=v;break;
+            case 4:r=t;g=p;b=v;break;
+            case 5:r=v;g=p;b=q;break;
+        }
+        return {r:Math.round(r*255),g:Math.round(g*255),b:Math.round(b*255)};
+    }
     function setLEDPreview(i,r,g,b){
         const d=document.getElementById('led-'+i);
         if(d){const s=brightness/255;d.style.background='rgb('+Math.round(r*s)+','+Math.round(g*s)+','+Math.round(b*s)+')'}
     }
     function updateLEDPreviewFromStatus(mode,index){
-        for(let i=DISPLAY_LED_START;i<NUM_LEDS;i++)setLEDPreview(i,40,40,40);
-        if(mode===0)return;
-        const hue=(index*16)%256;
+        previewMode=Number(mode)||0;
+        previewIndex=Number(index)||0;
+    }
+    function animateLEDPreview(){
+        const t=(Date.now()-previewStartMs)/1000;
         for(let i=DISPLAY_LED_START;i<NUM_LEDS;i++){
-            const h=((i*8+hue)%256)/256;
-            const r=h<.333?1:(h<.666?1-(h-.333)*3:0);
-            const g=h<.333?h*3:(h<.666?1:1-(h-.666)*3);
-            const b=h<.333?0:(h<.666?(h-.333)*3:1);
-            setLEDPreview(i,r*255,g*255,b*255);
+            let r=28,g=28,b=34;
+            if(previewMode===1){
+                // Image mode: cyan scan bar moving up/down the strip.
+                const pulse=0.5+0.5*Math.sin((i*0.55)+(t*3.6));
+                r=20+30*pulse;g=110+145*pulse;b=140+110*pulse;
+            }else if(previewMode===2){
+                // Pattern mode: animate by selected pattern index.
+                const patternGroup=previewIndex%6;
+                if(patternGroup===0){
+                    const rgb=hsvToRgb((((i*7)+(t*80)+(previewIndex*11))%256)/256,1,1);
+                    r=rgb.r;g=rgb.g;b=rgb.b;
+                }else if(patternGroup===1){
+                    const wave=0.5+0.5*Math.sin((i*0.7)+(t*5.2));
+                    r=45+210*wave;g=20+60*wave;b=120+120*(1-wave);
+                }else if(patternGroup===2){
+                    const cool=0.5+0.5*Math.sin((i*0.35)+(t*2.8));
+                    r=30+40*cool;g=65+120*cool;b=115+120*cool;
+                }else if(patternGroup===3){
+                    const sparkle=Math.random()>0.94?1:0.22;
+                    r=35+220*sparkle;g=35+190*sparkle;b=55+210*sparkle;
+                }else if(patternGroup===4){
+                    const heat=0.5+0.5*Math.sin((i*1.1)+(t*7.2));
+                    r=140+110*heat;g=15+120*(heat*heat);b=8+16*heat;
+                }else{
+                    const p=(i+t*10)%NUM_LEDS;
+                    const dist=Math.abs(p-(NUM_LEDS/2));
+                    const comet=Math.max(0,1-(dist/8));
+                    r=35+220*comet;g=70+150*comet;b=130+90*comet;
+                }
+            }else if(previewMode===3){
+                // Sequence mode: chasing amber dots.
+                const chase=((i+Math.floor(t*12))%8===0)?1:0.16;
+                r=140+115*chase;g=60+140*chase;b=18+35*chase;
+            }else if(previewMode===4){
+                // Live mode: high-energy cyan/pink oscillation.
+                const osc=0.5+0.5*Math.sin((i*1.2)+(t*10));
+                r=40+180*(1-osc);g=95+130*osc;b=150+95*(1-osc);
+            }
+            setLEDPreview(i,r,g,b);
         }
+        requestAnimationFrame(animateLEDPreview);
     }
 
     // ===== Status Polling =====
@@ -994,6 +1069,19 @@ static const char rootPage[] PROGMEM = R"rawliteral(
             document.getElementById('framerate-value').textContent=d.framerate;
             if(d.mode===2){currentPattern=d.index;updatePatternActiveState()}
             updateLEDPreviewFromStatus(d.mode,d.index);
+            if(d.powerMode!==undefined){
+                const pmNames=['performance','balanced','powersave','ultrasave'];
+                const pmName=pmNames[d.powerMode]||'balanced';
+                if(pmName!==currentPowerMode){
+                    currentPowerMode=pmName;
+                    ['performance','balanced','powersave','ultrasave'].forEach(m=>{
+                        const btn=document.getElementById('pm-'+m);
+                        if(btn)btn.style.border=m===pmName?'2px solid #22c55e':'';
+                    });
+                    const desc=document.getElementById('pm-desc');
+                    if(desc)desc.textContent=PM_LABELS[pmName]||pmName;
+                }
+            }
             if(d.sdCardPresent!==undefined){
                 const st=document.getElementById('sd-status-text');
                 st.textContent=d.sdCardPresent?'Present':'Not Present';
@@ -1028,22 +1116,62 @@ static const char rootPage[] PROGMEM = R"rawliteral(
     async function changeMode(){
         const mode=document.getElementById('mode-select').value;
         const index=document.getElementById('content-index').value;
-        currentMode=parseInt(mode);
-        await fetch('/api/mode',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:currentMode,index:parseInt(index)})});
+        var m=parseInt(mode),idx=parseInt(index);
+        if(isNaN(m))m=0;if(isNaN(idx))idx=0;
+        currentMode=m;
+        await fetch('/api/mode',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:currentMode,index:idx})});
         updateStatus();
     }
     async function changeContentIndex(){await changeMode()}
 
     function updateBrightness(value){
-        document.getElementById('brightness-value').textContent=value;
-        document.getElementById('bright-display').textContent=value;
-        brightness=parseInt(value);
-        fetch('/api/brightness',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({brightness:parseInt(value)})});
+        var v=parseInt(value);if(isNaN(v))return;v=Math.max(0,Math.min(255,v));
+        document.getElementById('brightness-value').textContent=v;
+        document.getElementById('bright-display').textContent=v;
+        brightness=v;
+        fetch('/api/brightness',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({brightness:v})});
     }
     function updateFrameRate(value){
-        document.getElementById('framerate-value').textContent=value;
-        document.getElementById('fps-display').textContent=value;
-        fetch('/api/framerate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({framerate:parseInt(value)})});
+        var v=parseInt(value);if(isNaN(v))return;v=Math.max(10,Math.min(120,v));
+        document.getElementById('framerate-value').textContent=v;
+        document.getElementById('fps-display').textContent=v;
+        fetch('/api/framerate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({framerate:v})});
+    }
+
+    // ===== Image Navigation =====
+    async function prevImage(){
+        const el=document.getElementById('content-index');
+        el.value=Math.max(0,parseInt(el.value||'0')-1);
+        await changeContentIndex();
+    }
+    async function nextImage(){
+        const el=document.getElementById('content-index');
+        const maxVal=parseInt(el.max)||17;
+        el.value=Math.min(maxVal,parseInt(el.value||'0')+1);
+        await changeContentIndex();
+    }
+
+    // ===== Power Mode =====
+    const PM_LABELS={performance:'240 MHz — max brightness & FPS',balanced:'160 MHz — default settings',powersave:'80 MHz — reduced FPS & brightness cap',ultrasave:'80 MHz — minimum FPS & dim output (WiFi minimum)'};
+    const PM_FPS={performance:120,balanced:60,powersave:30,ultrasave:15};
+    const PM_BRIGHT={performance:255,balanced:255,powersave:150,ultrasave:80};
+    let currentPowerMode='balanced';
+    async function setPowerMode(mode){
+        currentPowerMode=mode;
+        ['performance','balanced','powersave','ultrasave'].forEach(m=>{
+            const btn=document.getElementById('pm-'+m);
+            if(btn)btn.style.border=m===mode?'2px solid #22c55e':'';
+        });
+        const desc=document.getElementById('pm-desc');
+        if(desc)desc.textContent=PM_LABELS[mode]||mode;
+        try{
+            await fetch('/api/power/mode',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode})});
+            showToast('Power mode: '+mode);
+            const frEl=document.getElementById('framerate');
+            if(frEl){frEl.value=PM_FPS[mode];updateFrameRate(PM_FPS[mode]);}
+            const bEl=document.getElementById('brightness');
+            if(bEl&&parseInt(bEl.value)>PM_BRIGHT[mode]){bEl.value=PM_BRIGHT[mode];updateBrightness(PM_BRIGHT[mode]);}
+        }catch(e){showToast('Power mode failed')}
     }
 
     // ===== Patterns =====
@@ -1080,7 +1208,7 @@ static const char rootPage[] PROGMEM = R"rawliteral(
                     const tH=DISPLAY_LEDS;
                     hI.value=tH;
                     if(document.getElementById('aspect-ratio-lock').checked){
-                        wI.value=Math.min(100,Math.max(1,Math.round(tH/originalImageAspectRatio)));
+                        wI.value=Math.min(400,Math.max(1,Math.round(tH/originalImageAspectRatio)));
                     }
                     // Show preview
                     const box=document.getElementById('img-preview-box');
@@ -1099,7 +1227,7 @@ static const char rootPage[] PROGMEM = R"rawliteral(
         const hI=document.getElementById('image-height');
         if(lock){
             const h=DISPLAY_LEDS;hI.value=h;
-            wI.value=Math.min(100,Math.max(1,Math.round(h/originalImageAspectRatio)));
+            wI.value=Math.min(400,Math.max(1,Math.round(h/originalImageAspectRatio)));
         }
     }
 
@@ -1134,10 +1262,10 @@ static const char rootPage[] PROGMEM = R"rawliteral(
                             const ar = (typeof originalImageAspectRatio === 'number' && originalImageAspectRatio > 0) ? originalImageAspectRatio : 1.0; // width/height
                             tW = Math.round(tH * ar);
                         }
-                        tW=Math.min(100,Math.max(1,tW));
+                        tW=Math.min(400,Math.max(1,tW));
                         const fV=document.getElementById('flip-vertical').checked;
                         const fH=document.getElementById('flip-horizontal').checked;
-                        if(tW<1||tW>100){reject(new Error('Invalid dimensions'));return}
+                        if(tW<1||tW>400){reject(new Error('Invalid dimensions'));return}
                         cv.width=tW;cv.height=tH;cx.save();
                         if(fH){cx.translate(tW,0);cx.scale(-1,1)}
                         cx.imageSmoothingEnabled=false;cx.drawImage(img,0,0,tW,tH);cx.restore();
@@ -1508,7 +1636,7 @@ static const char rootPage[] PROGMEM = R"rawliteral(
         msg.textContent='Connecting...';
         msg.style.color='#f59e0b';
         try{
-            await fetch(window.location.origin + '/api/wifi/connect',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ssid,password:pass})});
+            await fetch('/api/wifi/connect',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ssid,password:pass})});
             let attempts=0;
             if(_wifiPollTimer)clearInterval(_wifiPollTimer);
             _wifiPollTimer=setInterval(async()=>{
@@ -1573,6 +1701,7 @@ static const char rootPage[] PROGMEM = R"rawliteral(
 
     // ===== Initialize =====
     initLEDPreview();
+    animateLEDPreview();
     updateStatus();
     setInterval(updateStatus,2000);
     updateSDStatus();refreshSDList();
@@ -1588,6 +1717,16 @@ static const char rootPage[] PROGMEM = R"rawliteral(
 )rawliteral";
 
 void handleRoot() {
+  // Prefer SPIFFS index.html (uploaded via uploadfs from webui/dist)
+  if (SPIFFS.exists("/index.html")) {
+    File file = SPIFFS.open("/index.html", "r");
+    if (file) {
+      server.streamFile(file, "text/html");
+      file.close();
+      return;
+    }
+  }
+  // Fallback to embedded root page
   size_t len = strlen_P(rootPage);
   server.setContentLength(len);
   server.send(200, "text/html", "");
@@ -1610,6 +1749,8 @@ void handleStatus() {
   doc["brightness"] = state.brightness;
   doc["framerate"] = state.frameRate;
   doc["sdCardPresent"] = state.sdCardPresent;
+  doc["powerMode"] = state.powerMode;
+  doc["count"] = state.imageCount > 0 ? state.imageCount : 10;  // Default: Teensy MAX_IMAGES without PSRAM
   
   String response;
   serializeJson(doc, response);
@@ -1619,16 +1760,17 @@ void handleStatus() {
 void handleSetMode() {
   if (server.hasArg("plain")) {
     String body = server.arg("plain");
-    
-    // Simple JSON parsing
-    int modeIdx = body.indexOf("\"mode\":");
-    int indexIdx = body.indexOf("\"index\":");
-    
-    if (modeIdx != -1) {
-      state.currentMode = body.substring(modeIdx + 7, body.indexOf(",", modeIdx)).toInt();
+
+    JsonDocument doc;
+    if (deserializeJson(doc, body)) {
+      server.send(400, "application/json", "{\"error\":\"Invalid JSON\"}");
+      return;
     }
-    if (indexIdx != -1) {
-      state.currentIndex = body.substring(indexIdx + 8, body.indexOf("}", indexIdx)).toInt();
+    if (doc["mode"].is<int>()) {
+      state.currentMode = doc["mode"].as<uint8_t>();
+    }
+    if (doc["index"].is<int>()) {
+      state.currentIndex = doc["index"].as<uint8_t>();
     }
     
     // Send command to Teensy
@@ -1651,24 +1793,25 @@ void handleSetMode() {
 void handleSetBrightness() {
   if (server.hasArg("plain")) {
     String body = server.arg("plain");
-    int idx = body.indexOf("\"brightness\":");
-    
-    if (idx != -1) {
-      state.brightness = body.substring(idx + 13, body.indexOf("}", idx)).toInt();
-      
-      // Send command to Teensy
-      sendTeensyCommand(0x06, 1);
-      TEENSY_SERIAL.write(state.brightness);
-      TEENSY_SERIAL.write(0xFE);
-
-      // Broadcast to paired peers via ESP-NOW (mirror mode)
-      if (!_syncCommandInProgress) {
-        espNowSync.broadcastBrightness(state.brightness);
-      }
-
-      server.send(200, "application/json", "{\"status\":\"ok\"}");
+    JsonDocument doc;
+    if (deserializeJson(doc, body) || !doc["brightness"].is<int>()) {
+      server.send(400, "application/json", "{\"error\":\"Invalid data\"}");
       return;
     }
+    state.brightness = doc["brightness"].as<uint8_t>();
+
+    // Send command to Teensy
+    sendTeensyCommand(0x06, 1);
+    TEENSY_SERIAL.write(state.brightness);
+    TEENSY_SERIAL.write(0xFE);
+
+    // Broadcast to paired peers via ESP-NOW (mirror mode)
+    if (!_syncCommandInProgress) {
+      espNowSync.broadcastBrightness(state.brightness);
+    }
+
+    server.send(200, "application/json", "{\"status\":\"ok\"}");
+    return;
   }
   server.send(400, "application/json", "{\"error\":\"Invalid data\"}");
 }
@@ -1676,34 +1819,94 @@ void handleSetBrightness() {
 void handleSetFrameRate() {
   if (server.hasArg("plain")) {
     String body = server.arg("plain");
-    int idx = body.indexOf("\"framerate\":");
-    
-    if (idx != -1) {
-      state.frameRate = body.substring(idx + 12, body.indexOf("}", idx)).toInt();
-      state.cachedFrameDelay = 1000 / max((uint8_t)1, state.frameRate);  // Update cache
+    JsonDocument doc;
+    if (deserializeJson(doc, body) || !doc["framerate"].is<int>()) {
+      server.send(400, "application/json", "{\"error\":\"Invalid data\"}");
+      return;
+    }
+    state.frameRate = doc["framerate"].as<uint8_t>();
+    state.cachedFrameDelay = 1000 / max((uint8_t)1, state.frameRate);  // Update cache
 
-      // Send command to Teensy
+    // Send command to Teensy
+    sendTeensyCommand(0x07, 1);
+    TEENSY_SERIAL.write(state.cachedFrameDelay);
+    TEENSY_SERIAL.write(0xFE);
+
+    // Broadcast to paired peers via ESP-NOW (mirror mode)
+    if (!_syncCommandInProgress) {
+      espNowSync.broadcastFrameRate(state.cachedFrameDelay);
+    }
+
+    server.send(200, "application/json", "{\"status\":\"ok\"}");
+    return;
+  }
+  server.send(400, "application/json", "{\"error\":\"Invalid data\"}");
+}
+
+void handlePowerMode() {
+  if (server.hasArg("plain")) {
+    String body = server.arg("plain");
+    int idx = body.indexOf("\"mode\":");
+    if (idx != -1) {
+      int start = idx + 7;
+      while (start < (int)body.length() && (body[start] == ' ' || body[start] == '"')) start++;
+      String modeStr = body.substring(start);
+      modeStr = modeStr.substring(0, modeStr.indexOf('"'));
+
+      uint8_t cpuMhz = 160;
+      uint8_t fpsLimit = 60;
+      uint8_t brightnessLimit = 255;
+
+      if (modeStr == "performance") {
+        state.powerMode = 0;
+        cpuMhz = 240; fpsLimit = 120; brightnessLimit = 255;
+      } else if (modeStr == "balanced") {
+        state.powerMode = 1;
+        cpuMhz = 160; fpsLimit = 60; brightnessLimit = 255;
+      } else if (modeStr == "powersave") {
+        state.powerMode = 2;
+        cpuMhz = 80; fpsLimit = 30; brightnessLimit = 150;
+      } else if (modeStr == "ultrasave") {
+        state.powerMode = 3;
+        cpuMhz = 80; fpsLimit = 15; brightnessLimit = 80;  // 80 MHz is minimum with WiFi active
+      } else {
+        server.send(400, "application/json", "{\"error\":\"Unknown mode\"}");
+        return;
+      }
+
+      setCpuFrequencyMhz(cpuMhz);
+
+      state.frameRate = fpsLimit;
+      state.cachedFrameDelay = 1000 / max((uint8_t)1, state.frameRate);
       sendTeensyCommand(0x07, 1);
       TEENSY_SERIAL.write(state.cachedFrameDelay);
       TEENSY_SERIAL.write(0xFE);
-
-      // Broadcast to paired peers via ESP-NOW (mirror mode)
       if (!_syncCommandInProgress) {
         espNowSync.broadcastFrameRate(state.cachedFrameDelay);
       }
 
-      server.send(200, "application/json", "{\"status\":\"ok\"}");
+      if (brightnessLimit < state.brightness) {
+        state.brightness = brightnessLimit;
+        sendTeensyCommand(0x06, 1);
+        TEENSY_SERIAL.write(state.brightness);
+        TEENSY_SERIAL.write(0xFE);
+        if (!_syncCommandInProgress) {
+          espNowSync.broadcastBrightness(state.brightness);
+        }
+      }
+
+      server.send(200, "application/json", "{\"status\":\"ok\",\"cpuMhz\":" + String(cpuMhz) + ",\"fpsLimit\":" + String(fpsLimit) + "}");
       return;
     }
   }
-  server.send(400, "application/json", "{\"error\":\"Invalid data\"}");
+  server.send(400, "application/json", "{\"error\":\"No data\"}");
 }
 
 void handleUploadPattern() {
   if (server.hasArg("plain")) {
     String body = server.arg("plain");
-    
-    // Parse JSON manually (simple parsing, no external libs)
+
+    // Parse JSON using ArduinoJson
     // Expected format:
     // {
     //   "index": N,
@@ -1712,83 +1915,30 @@ void handleUploadPattern() {
     //   "color2": {"r":R,"g":G,"b":B},
     //   "speed": N
     // }
-    uint8_t index = 0;
-    uint8_t type = 0;
-    uint8_t r1 = 255, g1 = 0, b1 = 0;
-    uint8_t r2 = 0, g2 = 0, b2 = 255;
-    uint8_t speed = 50;
-
-    auto parseUintField = [&](const char* key, uint8_t& outValue, uint8_t defaultValue) {
-      int k = body.indexOf(key);
-      if (k == -1) {
-        outValue = defaultValue;
-        return;
-      }
-      int start = body.indexOf(":", k);
-      if (start == -1) {
-        outValue = defaultValue;
-        return;
-      }
-      // Read until comma or closing brace
-      int end = body.indexOf(",", start);
-      int endBrace = body.indexOf("}", start);
-      if (end == -1 || (endBrace != -1 && endBrace < end)) {
-        end = endBrace;
-      }
-      if (end == -1) {
-        end = body.length();
-      }
-      String num = body.substring(start + 1, end);
-      num.trim();
-      long v = num.toInt();
-      if (v < 0) v = 0;
-      if (v > 255) v = 255;
-      outValue = (uint8_t)v;
-    };
-
-    // Top-level scalar fields
-    parseUintField("\"index\"", index, 0);
-    parseUintField("\"type\"", type, 0);
-    parseUintField("\"speed\"", speed, 50);
-
-    auto parseUintFieldIn = [&](const String& src, const char* key, uint8_t& outValue, uint8_t defaultValue) {
-      int k = src.indexOf(key);
-      if (k == -1) { outValue = defaultValue; return; }
-      int start = src.indexOf(":", k);
-      if (start == -1) { outValue = defaultValue; return; }
-      int end = src.indexOf(",", start);
-      int endBrace = src.indexOf("}", start);
-      if (end == -1 || (endBrace != -1 && endBrace < end)) end = endBrace;
-      if (end == -1) end = src.length();
-      String num = src.substring(start + 1, end);
-      num.trim();
-      long v = num.toInt();
-      if (v < 0) v = 0;
-      if (v > 255) v = 255;
-      outValue = (uint8_t)v;
-    };
-
-    int c1 = body.indexOf("\"color1\"");
-    if (c1 != -1) {
-      String c1Sub = body.substring(c1);
-      parseUintFieldIn(c1Sub, "\"r\"", r1, r1);
-      parseUintFieldIn(c1Sub, "\"g\"", g1, g1);
-      parseUintFieldIn(c1Sub, "\"b\"", b1, b1);
+    JsonDocument doc;
+    if (deserializeJson(doc, body)) {
+      server.send(400, "application/json", "{\"error\":\"No data\"}");
+      return;
     }
 
-    int c2 = body.indexOf("\"color2\"");
-    if (c2 != -1) {
-      String c2Sub = body.substring(c2);
-      parseUintFieldIn(c2Sub, "\"r\"", r2, r2);
-      parseUintFieldIn(c2Sub, "\"g\"", g2, g2);
-      parseUintFieldIn(c2Sub, "\"b\"", b2, b2);
-    }
-    
-    // Clamp the pattern index to the supported upper bound (0-17)
+    uint8_t type  = doc["type"]  | 0;
+    uint8_t index = doc["index"] | 0;
+    uint8_t speed = doc["speed"] | 50;
+    uint8_t r1 = doc["color1"]["r"] | 255;
+    uint8_t g1 = doc["color1"]["g"] | 0;
+    uint8_t b1 = doc["color1"]["b"] | 0;
+    uint8_t r2 = doc["color2"]["r"] | 0;
+    uint8_t g2 = doc["color2"]["g"] | 0;
+    uint8_t b2 = doc["color2"]["b"] | 255;
+
+    // Clamp both index and type to supported pattern range (0-17)
     if (index > kMaxPatternIndex) {
       index = kMaxPatternIndex;
     }
-    
+    if (type > kMaxPatternIndex) {
+      type = kMaxPatternIndex;
+    }
+
     // Send pattern to Teensy (simple protocol)
     // Data format expected by Teensy:
     // [index][type][r1][g1][b1][r2][g2][b2][speed]  (9 bytes)
@@ -1921,6 +2071,9 @@ void handleUploadImage() {
     
     Serial.println("Image forwarded to Teensy");
     
+    // Track uploaded images
+    if (state.imageCount < 255) state.imageCount++;
+    
     // Set mode to image display (remove unnecessary delay)
     state.currentMode = 1;
     state.currentIndex = 0;
@@ -1935,32 +2088,28 @@ void handleUploadImage() {
       // Reduced delay for serial processing
       delay(10);
       
-      // Generate filename based on timestamp
-      // Format: "upload_XXXXX.pov" where XXXXX is milliseconds modulo 100000
+      // Generate FAT-friendly base filename (8.3-compatible stem).
+      // Teensy adds ".pov" itself when writing to SD.
       uint32_t timestamp = millis() % 100000;
-      char filename[32];
-      snprintf(filename, sizeof(filename), "upload_%05lu.pov", timestamp);
+      char filename[16];
+      snprintf(filename, sizeof(filename), "up%05lu", timestamp);
       uint8_t filenameLen = strlen(filename);
       
-      // Calculate total data length: filename_len + filename + width + height + image_data
-      uint16_t totalDataLen = 1 + filenameLen + 2 + actualSize;
+      // Teensy save protocol (0x20):
+      // [filename_len][filename][img_index]
+      // The image has already been uploaded to slot 0 via command 0x02.
+      uint8_t totalDataLen = 1 + filenameLen + 1;
       
-      // Send SD save command (simple protocol)
-      // Format: 0xFF 0x20 dataLen [filename_len][filename][width][height][RGB_data...] 0xFE
+      // Save slot 0 to SD using provided filename stem.
       sendTeensyCommand(0x20, totalDataLen);
       TEENSY_SERIAL.write(filenameLen);
       TEENSY_SERIAL.write((const uint8_t*)filename, filenameLen);
-      TEENSY_SERIAL.write(imageWidth);
-      TEENSY_SERIAL.write(imageHeight);
-      
-      // Send pixel data
-      for (uint16_t i = 0; i < actualSize && i < bufferIndex; i++) {
-        TEENSY_SERIAL.write(imageBuffer[i]);
-      }
+      TEENSY_SERIAL.write((uint8_t)0);  // image slot index
       TEENSY_SERIAL.write(0xFE);
       
       Serial.print("Auto-saving image to SD: ");
-      Serial.println(filename);
+      Serial.print(filename);
+      Serial.println(".pov");
     } else {
       Serial.println("SD card not present - skipping auto-save");
     }
@@ -1975,62 +2124,22 @@ void handleUploadImage() {
 void handleLiveFrame() {
   if (server.hasArg("plain")) {
     String body = server.arg("plain");
-    
+
     // Parse JSON payload: {"pixels":[{"r":R,"g":G,"b":B}, ...]}
     const int ledCount = 32;  // Display LEDs (all 32 LEDs used for display)
     uint8_t rgb[ledCount * 3];
-    for (int i = 0; i < ledCount * 3; i++) {
-      rgb[i] = 0;
-    }
+    memset(rgb, 0, sizeof(rgb));
 
-    int pixelsIdx = body.indexOf("\"pixels\"");
-    if (pixelsIdx != -1) {
-      int pos = body.indexOf("[", pixelsIdx);
-      int end = body.indexOf("]", pos);
-      if (pos != -1 && end != -1) {
-        String arr = body.substring(pos, end);
-        int led = 0;
-        int cursor = 0;
-        while (led < ledCount) {
-          int objStart = arr.indexOf("{", cursor);
-          if (objStart == -1) break;
-          int objEnd = arr.indexOf("}", objStart);
-          if (objEnd == -1) break;
-          String obj = arr.substring(objStart, objEnd + 1);
-
-          auto parseComp = [&](const char* key, uint8_t& outValue) {
-            int k = obj.indexOf(key);
-            if (k == -1) return;
-            int s = obj.indexOf(":", k);
-            if (s == -1) return;
-            int e = obj.indexOf(",", s);
-            int eBrace = obj.indexOf("}", s);
-            if (e == -1 || (eBrace != -1 && eBrace < e)) {
-              e = eBrace;
-            }
-            if (e == -1) {
-              e = obj.length();
-            }
-            String num = obj.substring(s + 1, e);
-            num.trim();
-            long v = num.toInt();
-            if (v < 0) v = 0;
-            if (v > 255) v = 255;
-            outValue = (uint8_t)v;
-          };
-
-          uint8_t r = 0, g = 0, b = 0;
-          parseComp("\"r\"", r);
-          parseComp("\"g\"", g);
-          parseComp("\"b\"", b);
-
-          rgb[led * 3 + 0] = r;
-          rgb[led * 3 + 1] = g;
-          rgb[led * 3 + 2] = b;
-
-          led++;
-          cursor = objEnd + 1;
-        }
+    JsonDocument doc;
+    if (deserializeJson(doc, body) == DeserializationError::Ok) {
+      JsonArray pixels = doc["pixels"].as<JsonArray>();
+      int led = 0;
+      for (JsonObject pixel : pixels) {
+        if (led >= ledCount) break;
+        rgb[led * 3 + 0] = pixel["r"] | 0;
+        rgb[led * 3 + 1] = pixel["g"] | 0;
+        rgb[led * 3 + 2] = pixel["b"] | 0;
+        led++;
       }
     }
 
@@ -2083,7 +2192,7 @@ void handleSDList() {
     return;
   }
   
-  // Send list command
+  // Teensy protocol: 0x21 = list SD images
   sendTeensyCommand(0x21, 0);
   TEENSY_SERIAL.write(0xFE);
   
@@ -2123,68 +2232,51 @@ void handleSDList() {
 }
 
 void handleSDInfo() {
-  // Send info command
-  sendTeensyCommand(0x23, 0);
-  TEENSY_SERIAL.write(0xFE);
-  
-  // readTeensyResponse has its own timeout
-  uint8_t buffer[20];
-  size_t bytesRead = 0;
-  
-  if (readTeensyResponse(0xDD, buffer, sizeof(buffer), bytesRead, 500)) {
-    if (bytesRead >= 17) {
-      bool present = buffer[0] != 0;
-      uint64_t totalSpace = 0;
-      uint64_t freeSpace = 0;
-      
-      for (int i = 0; i < 8; i++) {
-        totalSpace = (totalSpace << 8) | buffer[1 + i];
-        freeSpace = (freeSpace << 8) | buffer[9 + i];
-      }
-      
-      // Use ArduinoJson for efficient serialization
-      JsonDocument doc;
-      doc["present"] = present;
-      doc["totalSpace"] = totalSpace;
-      doc["freeSpace"] = freeSpace;
-      
-      String response;
-      serializeJson(doc, response);
-      server.send(200, "application/json", response);
-      return;
-    }
-  }
-  
-  server.send(200, "application/json", "{\"error\":\"Failed to read response\"}");
+  // Current Teensy protocol has no dedicated SD info command.
+  // Return best-effort info from cached status polling to avoid sending
+  // an invalid opcode that could trigger an unintended operation.
+  JsonDocument doc;
+  doc["present"] = state.sdCardPresent;
+  doc["totalSpace"] = 0;
+  doc["freeSpace"] = 0;
+  doc["spaceAvailable"] = false;
+  doc["note"] = "Space metrics unavailable on this firmware";
+  String response;
+  serializeJson(doc, response);
+  server.send(200, "application/json", response);
 }
 
 void handleSDDelete() {
   if (server.hasArg("plain")) {
     String body = server.arg("plain");
-    
+
     // Parse JSON: {"filename":"name.pov"}
-    int filenameIdx = body.indexOf("\"filename\":");
-    if (filenameIdx == -1) {
+    JsonDocument doc;
+    if (deserializeJson(doc, body) || !doc["filename"].is<const char*>()) {
       server.send(400, "application/json", "{\"error\":\"Missing filename\"}");
       return;
     }
-    
-    int start = body.indexOf("\"", filenameIdx + 11);
-    int end = body.indexOf("\"", start + 1);
-    if (start == -1 || end == -1) {
-      server.send(400, "application/json", "{\"error\":\"Invalid filename format\"}");
-      return;
+
+    String filename = doc["filename"].as<String>();
+    filename.trim();
+    if (filename.endsWith(".pov")) {
+      filename.remove(filename.length() - 4);
     }
-    
-    String filename = body.substring(start + 1, end);
+    int slash = filename.lastIndexOf('/');
+    if (slash >= 0 && slash < (int)filename.length() - 1) {
+      filename = filename.substring(slash + 1);
+    }
     uint8_t filenameLen = filename.length();
-    if (filenameLen > 63) filenameLen = 63;
-    
-    // Send delete command
-    sendTeensyCommand(0x22, filenameLen);
+    // Teensy MAX_FILENAME_LEN is 32; clamp to avoid validation failures
+    if (filenameLen > 32) filenameLen = 32;
+
+    // Teensy protocol: 0x22 = delete SD image
+    // Payload: [filename_len][filename_bytes...]
+    sendTeensyCommand(0x22, filenameLen + 1);
+    TEENSY_SERIAL.write(filenameLen);
     TEENSY_SERIAL.write((const uint8_t*)filename.c_str(), filenameLen);
     TEENSY_SERIAL.write(0xFE);
-    
+
     server.send(200, "application/json", "{\"status\":\"ok\"}");
   } else {
     server.send(400, "application/json", "{\"error\":\"No data\"}");
@@ -2194,30 +2286,35 @@ void handleSDDelete() {
 void handleSDLoad() {
   if (server.hasArg("plain")) {
     String body = server.arg("plain");
-    
+
     // Parse JSON: {"filename":"name.pov"}
-    int filenameIdx = body.indexOf("\"filename\":");
-    if (filenameIdx == -1) {
+    JsonDocument doc;
+    if (deserializeJson(doc, body) || !doc["filename"].is<const char*>()) {
       server.send(400, "application/json", "{\"error\":\"Missing filename\"}");
       return;
     }
-    
-    int start = body.indexOf("\"", filenameIdx + 11);
-    int end = body.indexOf("\"", start + 1);
-    if (start == -1 || end == -1) {
-      server.send(400, "application/json", "{\"error\":\"Invalid filename format\"}");
-      return;
+
+    String filename = doc["filename"].as<String>();
+    filename.trim();
+    if (filename.endsWith(".pov")) {
+      filename.remove(filename.length() - 4);
     }
-    
-    String filename = body.substring(start + 1, end);
+    int slash = filename.lastIndexOf('/');
+    if (slash >= 0 && slash < (int)filename.length() - 1) {
+      filename = filename.substring(slash + 1);
+    }
     uint8_t filenameLen = filename.length();
-    if (filenameLen > 63) filenameLen = 63;
-    
-    // Send load command
-    sendTeensyCommand(0x24, filenameLen);
+    // Clamp to Teensy MAX_FILENAME_LEN (32) for SD image load as well
+    if (filenameLen > 32) filenameLen = 32;
+
+    // Teensy protocol: 0x24 = load SD image into slot
+    // Payload: [filename_len][filename_bytes...][imgIndex]
+    sendTeensyCommand(0x24, filenameLen + 2);
+    TEENSY_SERIAL.write(filenameLen);
     TEENSY_SERIAL.write((const uint8_t*)filename.c_str(), filenameLen);
+    TEENSY_SERIAL.write((uint8_t)0);  // load into image slot 0
     TEENSY_SERIAL.write(0xFE);
-    
+
     // Switch to image mode after loading
     delay(100);
     state.currentMode = 1;
@@ -2226,7 +2323,7 @@ void handleSDLoad() {
     TEENSY_SERIAL.write(state.currentMode);
     TEENSY_SERIAL.write(state.currentIndex);
     TEENSY_SERIAL.write(0xFE);
-    
+
     server.send(200, "application/json", "{\"status\":\"ok\"}");
   } else {
     server.send(400, "application/json", "{\"error\":\"No data\"}");
@@ -2308,7 +2405,27 @@ self.addEventListener('activate', (event) => {
   server.send(200, "application/javascript", sw);
 }
 
+static const char* getContentType(const String& path) {
+  if (path.endsWith(".html")) return "text/html";
+  if (path.endsWith(".css"))  return "text/css";
+  if (path.endsWith(".js"))   return "application/javascript";
+  if (path.endsWith(".json")) return "application/json";
+  if (path.endsWith(".png"))  return "image/png";
+  if (path.endsWith(".svg"))  return "image/svg+xml";
+  if (path.endsWith(".ico"))  return "image/x-icon";
+  return "application/octet-stream";
+}
+
 void handleNotFound() {
+  String path = server.uri();
+  if (SPIFFS.exists(path)) {
+    File file = SPIFFS.open(path, "r");
+    if (file) {
+      server.streamFile(file, getContentType(path));
+      file.close();
+      return;
+    }
+  }
   server.send(404, "text/plain", "Not Found");
 }
 
@@ -2329,10 +2446,10 @@ void sendTeensyCommand(uint8_t cmd, uint8_t dataLen) {
 }
 
 void checkTeensyConnection() {
+  static bool lastConnected = false;
+  static unsigned long lastDisconnectLog = 0;
+
   // Request status from Teensy
-  // #region agent log
-  Serial.println("[DBG][H2] checkTeensyConnection: sending 0x10 status request to Teensy");
-  // #endregion
   sendTeensyCommand(0x10, 0);
   TEENSY_SERIAL.write(0xFE);
   
@@ -2344,30 +2461,29 @@ void checkTeensyConnection() {
     if (av >= 5) {
       uint8_t b0 = TEENSY_SERIAL.read();
       uint8_t b1 = TEENSY_SERIAL.read();
-      // #region agent log
-      Serial.printf("[DBG][H2] checkTeensyConnection: got %d bytes, header=0x%02X 0x%02X (expect FF BB)\n", av, b0, b1);
-      // #endregion
       if (b0 == 0xFF && b1 == 0xBB) {
         state.currentMode = TEENSY_SERIAL.read();
         state.currentIndex = TEENSY_SERIAL.read();
         state.sdCardPresent = (TEENSY_SERIAL.read() != 0);
         state.connected = true;
-        // #region agent log
-        Serial.println("[DBG][H2] checkTeensyConnection: SUCCESS connected=true");
-        // #endregion
+        if (!lastConnected) {
+          Serial.println("[LINK] Teensy connection established");
+        }
+        lastConnected = true;
         return;
       }
     }
   }
   state.connected = false;
   state.sdCardPresent = false;
-  // #region agent log
-  static unsigned long _lastFailLog = 0;
-  if (millis() - _lastFailLog > 5000) {
-    Serial.println("[DBG][H2] checkTeensyConnection: FAILED no valid response (H1/H4: wiring or timeout)");
-    _lastFailLog = millis();
+  if (lastConnected) {
+    Serial.println("[LINK] Teensy connection lost");
+    lastConnected = false;
+    lastDisconnectLog = millis();
+  } else if (millis() - lastDisconnectLog > 15000) {
+    Serial.println("[LINK] Waiting for Teensy response...");
+    lastDisconnectLog = millis();
   }
-  // #endregion
 }
 
 // ============================================================================
@@ -2549,9 +2665,9 @@ void handleMultiPoiPair() {
 void handleMultiPoiUnpair() {
   if (server.hasArg("plain")) {
     String body = server.arg("plain");
-    int indexIdx = body.indexOf("\"index\":");
-    if (indexIdx != -1) {
-      int peerIdx = body.substring(indexIdx + 8).toInt();
+    JsonDocument doc;
+    if (deserializeJson(doc, body) == DeserializationError::Ok && doc["index"].is<int>()) {
+      int peerIdx = doc["index"].as<int>();
       espNowSync.unpairPeer(peerIdx);
       server.send(200, "application/json", "{\"status\":\"ok\"}");
       return;
@@ -2569,18 +2685,28 @@ void handleMultiPoiSyncMode() {
   }
 
   String body = server.arg("plain");
-  int modeIdx = body.indexOf("\"mode\":");
-  if (modeIdx == -1) {
+  JsonDocument doc;
+  if (deserializeJson(doc, body) || doc["mode"].isNull()) {
     server.send(400, "application/json", "{\"error\":\"Missing mode\"}");
     return;
   }
 
-  String modeStr = body.substring(modeIdx + 7);
-  modeStr.trim();
+  // Accept both string ("mirror"/"independent") and numeric (0/1) mode values
+  JsonVariant modeVar = doc["mode"];
+  bool isMirror = false, isIndependent = false;
+  if (modeVar.is<const char*>()) {
+    String modeStr = modeVar.as<String>();
+    isMirror = (modeStr == "mirror");
+    isIndependent = (modeStr == "independent");
+  } else {
+    int modeNum = modeVar.as<int>();
+    isMirror = (modeNum == 0);
+    isIndependent = (modeNum == 1);
+  }
 
-  if (modeStr.startsWith("\"mirror\"") || modeStr.startsWith("0")) {
+  if (isMirror) {
     espNowSync.setSyncMode(SYNC_MIRROR);
-  } else if (modeStr.startsWith("\"independent\"") || modeStr.startsWith("1")) {
+  } else if (isIndependent) {
     espNowSync.setSyncMode(SYNC_INDEPENDENT);
   } else {
     server.send(400, "application/json", "{\"error\":\"Invalid mode (use mirror or independent)\"}");
@@ -2604,71 +2730,47 @@ void handleMultiPoiPeerCmd() {
   }
 
   String body = server.arg("plain");
+  JsonDocument doc;
+  if (deserializeJson(doc, body)) {
+    server.send(400, "application/json", "{\"error\":\"Invalid JSON\"}");
+    return;
+  }
 
-  // Parse peer index
-  int peerFieldIdx = body.indexOf("\"peer\":");
-  if (peerFieldIdx == -1) {
+  int peerIdx = doc["peer"] | -1;
+  if (peerIdx == -1) {
     server.send(400, "application/json", "{\"error\":\"Missing peer index\"}");
     return;
   }
-  int peerIdx = body.substring(peerFieldIdx + 7).toInt();
 
-  // Parse command type
-  int cmdFieldIdx = body.indexOf("\"cmd\":");
-  if (cmdFieldIdx == -1) {
+  if (!doc["cmd"].is<const char*>()) {
     server.send(400, "application/json", "{\"error\":\"Missing cmd\"}");
     return;
   }
-  int cmdStart = body.indexOf("\"", cmdFieldIdx + 6) + 1;
-  int cmdEnd = body.indexOf("\"", cmdStart);
-  String cmd = body.substring(cmdStart, cmdEnd);
+  String cmd = doc["cmd"].as<String>();
 
   if (cmd == "mode") {
-    int mIdx = body.indexOf("\"mode\":", cmdEnd);
-    int iIdx = body.indexOf("\"index\":");
-    uint8_t mode = (mIdx != -1) ? body.substring(mIdx + 7).toInt() : 0;
-    uint8_t index = (iIdx != -1) ? body.substring(iIdx + 8).toInt() : 0;
+    uint8_t mode  = doc["mode"]  | 0;
+    uint8_t index = doc["index"] | 0;
     espNowSync.sendPeerModeChange(peerIdx, mode, index);
   }
   else if (cmd == "pattern") {
-    uint8_t type = 0, r1 = 255, g1 = 0, b1 = 0, r2 = 0, g2 = 0, b2 = 255, speed = 50, idx = 0;
-    int tIdx = body.indexOf("\"type\":");
-    if (tIdx != -1) type = body.substring(tIdx + 7).toInt();
-    int sIdx = body.indexOf("\"speed\":");
-    if (sIdx != -1) speed = body.substring(sIdx + 8).toInt();
-    int iIdx = body.indexOf("\"index\":");
-    if (iIdx != -1) idx = body.substring(iIdx + 8).toInt();
-
-    int c1 = body.indexOf("\"color1\"");
-    if (c1 != -1) {
-      String c1s = body.substring(c1, body.indexOf("}", c1) + 1);
-      int ri = c1s.indexOf("\"r\":");
-      int gi = c1s.indexOf("\"g\":");
-      int bi = c1s.indexOf("\"b\":");
-      if (ri != -1) r1 = c1s.substring(ri + 4).toInt();
-      if (gi != -1) g1 = c1s.substring(gi + 4).toInt();
-      if (bi != -1) b1 = c1s.substring(bi + 4).toInt();
-    }
-    int c2 = body.indexOf("\"color2\"");
-    if (c2 != -1) {
-      String c2s = body.substring(c2, body.indexOf("}", c2) + 1);
-      int ri = c2s.indexOf("\"r\":");
-      int gi = c2s.indexOf("\"g\":");
-      int bi = c2s.indexOf("\"b\":");
-      if (ri != -1) r2 = c2s.substring(ri + 4).toInt();
-      if (gi != -1) g2 = c2s.substring(gi + 4).toInt();
-      if (bi != -1) b2 = c2s.substring(bi + 4).toInt();
-    }
+    uint8_t type  = doc["type"]          | 0;
+    uint8_t speed = doc["speed"]         | 50;
+    uint8_t idx   = doc["index"]         | 0;
+    uint8_t r1    = doc["color1"]["r"]   | 255;
+    uint8_t g1    = doc["color1"]["g"]   | 0;
+    uint8_t b1    = doc["color1"]["b"]   | 0;
+    uint8_t r2    = doc["color2"]["r"]   | 0;
+    uint8_t g2    = doc["color2"]["g"]   | 0;
+    uint8_t b2    = doc["color2"]["b"]   | 255;
     espNowSync.sendPeerPattern(peerIdx, idx, type, r1, g1, b1, r2, g2, b2, speed);
   }
   else if (cmd == "brightness") {
-    int bIdx = body.indexOf("\"brightness\":");
-    uint8_t brightness = (bIdx != -1) ? body.substring(bIdx + 13).toInt() : 128;
+    uint8_t brightness = doc["brightness"] | 128;
     espNowSync.sendPeerBrightness(peerIdx, brightness);
   }
   else if (cmd == "framerate") {
-    int fIdx = body.indexOf("\"framerate\":");
-    uint8_t fps = (fIdx != -1) ? body.substring(fIdx + 12).toInt() : 50;
+    uint8_t fps = doc["framerate"] | 50;
     uint8_t frameDelay = 1000 / max((uint8_t)1, fps);
     espNowSync.sendPeerFrameRate(peerIdx, frameDelay);
   }
@@ -2899,20 +3001,17 @@ void handleSyncExecute() {
     server.send(400, "application/json", "{\"error\":\"No data\"}");
     return;
   }
-  
+
   String body = server.arg("plain");
-  
-  // Parse peer ID (simplified - should use proper JSON parser)
-  int peerIdIdx = body.indexOf("\"peerId\":");
-  if (peerIdIdx == -1) {
+
+  // Parse peer ID using ArduinoJson
+  JsonDocument doc;
+  if (deserializeJson(doc, body) || !doc["peerId"].is<const char*>()) {
     server.send(400, "application/json", "{\"error\":\"Missing peerId\"}");
     return;
   }
-  
-  // Extract peer ID (simplified parsing)
-  int startIdx = body.indexOf("\"", peerIdIdx + 9) + 1;
-  int endIdx = body.indexOf("\"", startIdx);
-  String peerId = body.substring(startIdx, endIdx);
+
+  String peerId = doc["peerId"].as<String>();
   
   // Perform sync
   performSync(peerId);
@@ -3015,39 +3114,34 @@ void handleDeviceConfigUpdate() {
     server.send(400, "application/json", "{\"error\":\"No data\"}");
     return;
   }
-  
+
   String body = server.arg("plain");
-  
-  // Parse and update configuration (simplified)
-  // In full implementation, would use proper JSON parser
-  
-  int nameIdx = body.indexOf("\"deviceName\":");
-  if (nameIdx != -1) {
-    int startIdx = body.indexOf("\"", nameIdx + 13) + 1;
-    int endIdx = body.indexOf("\"", startIdx);
-    deviceConfig.deviceName = body.substring(startIdx, endIdx);
+
+  // Parse and update configuration using ArduinoJson
+  JsonDocument doc;
+  if (deserializeJson(doc, body)) {
+    server.send(400, "application/json", "{\"error\":\"Invalid JSON\"}");
+    return;
   }
-  
-  int groupIdx = body.indexOf("\"syncGroup\":");
-  if (groupIdx != -1) {
-    int startIdx = body.indexOf("\"", groupIdx + 12) + 1;
-    int endIdx = body.indexOf("\"", startIdx);
-    deviceConfig.syncGroup = body.substring(startIdx, endIdx);
+
+  if (doc["deviceName"].is<const char*>()) {
+    deviceConfig.deviceName = doc["deviceName"].as<String>();
   }
-  
-  int autoSyncIdx = body.indexOf("\"autoSync\":");
-  if (autoSyncIdx != -1) {
-    deviceConfig.autoSync = body.indexOf("true", autoSyncIdx) != -1;
+  if (doc["syncGroup"].is<const char*>()) {
+    deviceConfig.syncGroup = doc["syncGroup"].as<String>();
   }
-  
+  if (doc["autoSync"].is<bool>()) {
+    deviceConfig.autoSync = doc["autoSync"].as<bool>();
+  }
+
   // Save configuration
   saveDeviceConfig();
-  
+
   String json = "{";
   json += "\"status\":\"ok\",";
   json += "\"message\":\"Configuration updated\"";
   json += "}";
-  
+
   server.send(200, "application/json", json);
 }
 
@@ -3129,40 +3223,32 @@ void handleWifiConnect() {
     server.send(400, "application/json", "{\"error\":\"No data\"}");
     return;
   }
-  
+
   String body = server.arg("plain");
-  int ssidIdx = body.indexOf("\"ssid\":");
-  if (ssidIdx == -1) {
+  JsonDocument doc;
+  if (deserializeJson(doc, body) || !doc["ssid"].is<const char*>()) {
     server.send(400, "application/json", "{\"error\":\"Missing ssid\"}");
     return;
   }
-  
-  int ssidStart = body.indexOf("\"", ssidIdx + 7) + 1;
-  int ssidEnd = body.indexOf("\"", ssidStart);
-  String newSsid = body.substring(ssidStart, ssidEnd);
+
+  String newSsid = doc["ssid"].as<String>();
   newSsid.trim();
-  
+
   if (newSsid.length() == 0) {
     server.send(400, "application/json", "{\"error\":\"SSID cannot be empty\"}");
     return;
   }
-  
-  String newPass = "";
-  int passIdx = body.indexOf("\"password\":");
-  if (passIdx != -1) {
-    int passStart = body.indexOf("\"", passIdx + 11) + 1;
-    int passEnd = body.indexOf("\"", passStart);
-    newPass = body.substring(passStart, passEnd);
-  }
-  
+
+  String newPass = doc["password"] | "";
+
   saveWifiStaConfig(newSsid, newPass);
   WiFi.begin(newSsid.c_str(), newPass.c_str());
-  
+
   String json = "{";
   json += "\"status\":\"ok\",";
   json += "\"message\":\"Connecting to network. Check /api/wifi/status for result.\"";
   json += "}";
-  
+
   server.send(200, "application/json", json);
 }
 

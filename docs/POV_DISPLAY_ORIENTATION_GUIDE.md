@@ -83,5 +83,5 @@ pytest examples/test_vertical_flip.py -v
 
 # Build firmware
 pio run -e teensy41
-pio run -e esp32
+pio run -e esp32s3
 ```

@@ -1,0 +1,6 @@
+# AI Agent scripts use Python stdlib only — no external packages required.
+# PlatformIO is installed separately in CI via: pip install platformio
+# Node.js / npm are expected to be available on the system for TypeScript checks.
+
+# Optional: uncomment to enable ruff linting in analyze_code.py
+# ruff>=0.1.0

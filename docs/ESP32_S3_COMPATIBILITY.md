@@ -198,9 +198,6 @@ Add the `[env:esp32s3]` section shown above to your `platformio.ini`.
 ```bash
 # For ESP32-S3
 pio run -e esp32s3 -t upload
-
-# Original ESP32 still works
-pio run -e esp32 -t upload
 ```
 
 ### 4. Test Serial Communication

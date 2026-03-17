@@ -1,0 +1,13 @@
+{
+  "name": "wireless-pov-poi",
+  "private": true,
+  "workspaces": [
+    "esp32_firmware/webui"
+  ],
+  "scripts": {
+    "webui:dev": "npm run dev --workspace esp32_firmware/webui",
+    "webui:build": "npm run build --workspace esp32_firmware/webui",
+    "webui:native:android": "npm run native:android --workspace esp32_firmware/webui",
+    "webui:native:ios": "npm run native:ios --workspace esp32_firmware/webui"
+  }
+}

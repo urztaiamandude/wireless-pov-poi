@@ -4,6 +4,7 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
+  const proxyTarget = env.VITE_API_PROXY_TARGET || 'http://192.168.4.1';
   return {
     server: {
       port: 3000,
@@ -11,7 +12,7 @@ export default defineConfig(({ mode }) => {
       // Proxy ESP32 API calls during local development
       proxy: {
         '/api': {
-          target: 'http://10.100.9.230',
+          target: proxyTarget,
           changeOrigin: true,
         }
       }
