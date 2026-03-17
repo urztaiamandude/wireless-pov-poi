@@ -94,8 +94,10 @@ def convert_image_for_pov(input_path, output_path=None, height=31, max_width=200
             print("Flipping image horizontally")
             img = img.transpose(Image.FLIP_LEFT_RIGHT)
         
-        # No vertical flip needed - LED 1 is bottom, LED 31 is top
-        # This maps directly to image coordinates (y=0 is top, but LED 1 shows row 0)
+        # No vertical flip needed: the strip runs bottom→top.
+        # LED g_displayLedStart (physical bottom) → image row 0 (top of pixel array at y=0)
+        # means the image is stored top-to-bottom and displayed bottom-to-top on the strip.
+        # Upload the image without flipping; the firmware maps row 0 → bottom LED.
         
         # Enhance contrast if requested
         if enhance_contrast:

@@ -214,9 +214,9 @@ void loadLEDConfig() {
 }
 
 void saveLEDConfig(uint8_t numLeds, uint8_t sacrificial) {
-  EEPROM.write(LED_CFG_EEPROM_ADDR,     LED_CFG_MAGIC);
-  EEPROM.write(LED_CFG_EEPROM_ADDR + 1, numLeds);
-  EEPROM.write(LED_CFG_EEPROM_ADDR + 2, sacrificial);
+  EEPROM.update(LED_CFG_EEPROM_ADDR,     LED_CFG_MAGIC);
+  EEPROM.update(LED_CFG_EEPROM_ADDR + 1, numLeds);
+  EEPROM.update(LED_CFG_EEPROM_ADDR + 2, sacrificial);
   Serial.printf("LED config saved: %u physical, %u sacrificial\n", numLeds, sacrificial);
 }
 
@@ -550,10 +550,10 @@ void createDemoSequence() {
 }
 
 void startupAnimation() {
-  // Rainbow sweep startup animation (display LEDs g_displayLedStart to g_displayLedStart+g_displayLeds-1)
+  // Rainbow sweep startup animation (only active display LEDs)
   for (int hue = 0; hue < 256; hue += 4) {
-    for (int i = g_displayLedStart; i < NUM_LEDS; i++) {
-      leds[i] = CHSV(hue + (i * 8), 255, 255);
+    for (int i = g_displayLedStart; i < g_displayLedStart + g_displayLeds; i++) {
+      leds[i] = CHSV(hue + ((i - g_displayLedStart) * 8), 255, 255);
     }
     FastLED.show();
     delay(10);
@@ -931,10 +931,16 @@ void displayImage() {
   }
   
   POVImage& img = images[currentIndex];
-  
-  // Display current column of the image across display LEDs (g_displayLedStart to g_displayLedStart+g_displayLeds-1)
-  for (int i = 0; i < g_displayLeds && i < img.height; i++) {
-    leds[i + g_displayLedStart] = img.pixels[currentColumn][i];
+
+  // Ensure sacrificial LEDs (indices 0..g_displayLedStart-1) stay black
+  if (g_displayLedStart > 0) {
+    for (int i = 0; i < g_displayLedStart; i++) {
+      leds[i] = CRGB::Black;
+    }
+  }
+  // Clear rows beyond the image height within the display range
+  for (int i = 0; i < g_displayLeds; i++) {
+    leds[i + g_displayLedStart] = (i < img.height) ? img.pixels[currentColumn][i] : CRGB::Black;
   }
   
   currentColumn = (currentColumn + 1) % img.width;
@@ -954,15 +960,15 @@ void displayPattern() {
   
   switch (pat.type) {
     case 0:  // Rainbow
-      for (int i = g_displayLedStart; i < NUM_LEDS; i++) {
-        uint8_t hue = (patternTime * pat.speed / 10 + i * 255 / g_displayLeds) % 256;
+      for (int i = g_displayLedStart; i < g_displayLedStart + g_displayLeds; i++) {
+        uint8_t hue = (patternTime * pat.speed / 10 + (i - g_displayLedStart) * 255 / g_displayLeds) % 256;
         leds[i] = CHSV(hue, 255, 255);
       }
       break;
       
     case 1:  // Wave
-      for (int i = g_displayLedStart; i < NUM_LEDS; i++) {
-        uint8_t brightness = (sin8(patternTime * pat.speed / 10 + i * 255 / g_displayLeds));
+      for (int i = g_displayLedStart; i < g_displayLedStart + g_displayLeds; i++) {
+        uint8_t brightness = (sin8(patternTime * pat.speed / 10 + (i - g_displayLedStart) * 255 / g_displayLeds));
         leds[i] = pat.color1;
         leds[i].nscale8(brightness);
       }
@@ -973,7 +979,7 @@ void displayPattern() {
         uint32_t gradMillis = (uint32_t)((int32_t)millis() + syncTimeOffset);
         // Use 8-bit math so the phase wraps naturally and avoids 32-bit overflow
         uint8_t timeOffset = (uint8_t)((uint8_t)(gradMillis / 500u) * pat.speed);
-        for (int i = g_displayLedStart; i < NUM_LEDS; i++) {
+        for (int i = g_displayLedStart; i < g_displayLedStart + g_displayLeds; i++) {
           // sin8 gives a smooth 0-255 wave that wraps naturally (no hard snap)
           uint8_t phase = (uint8_t)((i - g_displayLedStart) * 255 / g_displayLeds) + timeOffset;
           leds[i] = blend(pat.color1, pat.color2, sin8(phase));
@@ -983,29 +989,30 @@ void displayPattern() {
       
     case 3:  // Sparkle
       if (random8() < pat.speed) {
-        leds[random8(g_displayLedStart, NUM_LEDS)] = pat.color1;
+        leds[random8(g_displayLedStart, g_displayLedStart + g_displayLeds)] = pat.color1;
       }
-      fadeToBlackBy(leds, NUM_LEDS, 20);
+      fadeToBlackBy(leds + g_displayLedStart, g_displayLeds, 20);
       break;
       
     case 4:  // Fire - heat rises from bottom upward
       {
         static uint8_t heat[NUM_LEDS];
-        // Cool down every cell
-        for (int i = g_displayLedStart; i < NUM_LEDS; i++) {
+        const int displayEnd = g_displayLedStart + g_displayLeds;
+        // Cool down every cell in display range
+        for (int i = g_displayLedStart; i < displayEnd; i++) {
           heat[i] = qsub8(heat[i], random8(0, ((55 * 10) / g_displayLeds) + 2));
         }
-        // Heat rises - drift heat upward
-        for (int i = NUM_LEDS - 1; i >= 2; i--) {
+        // Heat rises - drift heat upward within display range
+        for (int i = displayEnd - 1; i >= g_displayLedStart + 2; i--) {
           heat[i] = (heat[i - 1] + heat[i - 2] + heat[i - 2]) / 3;
         }
-        // Random ignition at the bottom
+        // Random ignition at the bottom (clamped to display range)
         if (random8() < pat.speed) {
-          int y = random8(g_displayLedStart, g_displayLedStart + 3);
+          int y = random8(g_displayLedStart, min(g_displayLedStart + 3, displayEnd));
           heat[y] = qadd8(heat[y], random8(160, 255));
         }
-        // Map heat to colors
-        for (int i = g_displayLedStart; i < NUM_LEDS; i++) {
+        // Map heat to colors for display range only
+        for (int i = g_displayLedStart; i < displayEnd; i++) {
           leds[i] = HeatColor(heat[i]);
         }
       }
@@ -1013,15 +1020,16 @@ void displayPattern() {
       
     case 5:  // Comet - single bright head with fading tail
       {
+        const int displayEnd = g_displayLedStart + g_displayLeds;
         static int8_t direction = 1;
-        fadeToBlackBy(leds, NUM_LEDS, 60);  // Fade creates tail
+        fadeToBlackBy(leds + g_displayLedStart, g_displayLeds, 60);  // Fade creates tail
         g_cometPos += direction;
-        if (g_cometPos >= NUM_LEDS - 1 || g_cometPos <= g_displayLedStart) {
+        if (g_cometPos >= displayEnd - 1 || g_cometPos <= g_displayLedStart) {
           direction = -direction;
         }
         leds[g_cometPos] = pat.color1;
         int8_t tailPos = g_cometPos - direction;
-        if (tailPos >= g_displayLedStart && tailPos < NUM_LEDS) {
+        if (tailPos >= g_displayLedStart && tailPos < displayEnd) {
           leds[tailPos] = pat.color1;
           leds[tailPos].nscale8(128);
         }
@@ -1031,7 +1039,7 @@ void displayPattern() {
     case 6:  // Breathing - smooth pulse on/off
       {
         uint8_t breath = beatsin8(pat.speed / 4, 20, 255);
-        for (int i = g_displayLedStart; i < NUM_LEDS; i++) {
+        for (int i = g_displayLedStart; i < g_displayLedStart + g_displayLeds; i++) {
           leds[i] = pat.color1;
           leds[i].nscale8(breath);
         }
@@ -1048,7 +1056,7 @@ void displayPattern() {
           strobeOn = !strobeOn;
           lastStrobeMs = nowMs;
         }
-        for (int i = g_displayLedStart; i < NUM_LEDS; i++) {
+        for (int i = g_displayLedStart; i < g_displayLedStart + g_displayLeds; i++) {
           leds[i] = strobeOn ? pat.color1 : CRGB::Black;
         }
       }
@@ -1056,9 +1064,14 @@ void displayPattern() {
       
     case 8:  // Meteor - falling with random decay
       {
-        static uint8_t meteorPos = NUM_LEDS - 1;
-        // Fade all LEDs randomly for sparkly tail
-        for (int i = g_displayLedStart; i < NUM_LEDS; i++) {
+        const int displayEnd = g_displayLedStart + g_displayLeds;
+        // 255 is used as a sentinel for "not initialized yet"
+        static uint8_t meteorPos = 255;
+        if (meteorPos == 255 || meteorPos < g_displayLedStart || meteorPos >= displayEnd) {
+          meteorPos = (uint8_t)(displayEnd - 1);
+        }
+        // Fade all display LEDs randomly for sparkly tail
+        for (int i = g_displayLedStart; i < displayEnd; i++) {
           if (random8() < 80) {
             leds[i].fadeToBlackBy(64);
           }
@@ -1066,13 +1079,13 @@ void displayPattern() {
         // Draw meteor head
         for (int i = 0; i < 4; i++) {
           int16_t pos = (int16_t)meteorPos - i;
-          if (pos >= g_displayLedStart && pos < NUM_LEDS) {
+          if (pos >= g_displayLedStart && pos < displayEnd) {
             leds[pos] = pat.color1;
             leds[pos].nscale8(255 - (i * 60));
           }
         }
         if (meteorPos <= g_displayLedStart) {
-          meteorPos = NUM_LEDS - 1;
+          meteorPos = (uint8_t)(displayEnd - 1);
         } else {
           meteorPos--;
         }
@@ -1081,10 +1094,15 @@ void displayPattern() {
       
     case 9:  // Color Wipe - progressive fill then clear
       {
+        const int displayEnd = g_displayLedStart + g_displayLeds;
         static bool filling = true;
+        // Clamp g_wipePos in case the display range changed at runtime (via cmd 0x09)
+        if (g_wipePos < g_displayLedStart || g_wipePos >= displayEnd) {
+          g_wipePos = g_displayLedStart;
+        }
         leds[g_wipePos] = filling ? pat.color1 : CRGB::Black;
         g_wipePos++;
-        if (g_wipePos >= NUM_LEDS) {
+        if (g_wipePos >= displayEnd) {
           g_wipePos = g_displayLedStart;
           filling = !filling;
         }
@@ -1092,9 +1110,10 @@ void displayPattern() {
       break;
       
     case 10:  // Plasma - organic color mixing
-      for (int i = g_displayLedStart; i < NUM_LEDS; i++) {
-        uint8_t hue = sin8(i * 10 + patternTime * pat.speed / 20) + 
-                      sin8(i * 15 - patternTime * pat.speed / 15) +
+      for (int i = g_displayLedStart; i < g_displayLedStart + g_displayLeds; i++) {
+        uint8_t idx = i - g_displayLedStart;
+        uint8_t hue = sin8(idx * 10 + patternTime * pat.speed / 20) + 
+                      sin8(idx * 15 - patternTime * pat.speed / 15) +
                       sin8(patternTime * pat.speed / 10);
         leds[i] = CHSV(hue, 255, 255);
       }
@@ -1147,7 +1166,7 @@ void displayPattern() {
         uint8_t ledsToLight = map(audioLevel, 0, 255, 0, g_displayLeds);
         
         // Draw VU meter with color gradient (display LEDs)
-        for (int i = g_displayLedStart; i < NUM_LEDS; i++) {
+        for (int i = g_displayLedStart; i < g_displayLedStart + g_displayLeds; i++) {
           uint8_t ledIndex = i - g_displayLedStart;
           if (ledIndex < ledsToLight) {
             // Gradient from green to yellow to red based on position
@@ -1168,8 +1187,8 @@ void displayPattern() {
         }
         
         // Draw peak indicator
-        uint8_t peakPos = map(peakLevel, 0, 255, g_displayLedStart, NUM_LEDS - 1);
-        if (peakPos >= g_displayLedStart && peakPos < NUM_LEDS) {
+        uint8_t peakPos = map(peakLevel, 0, 255, g_displayLedStart, g_displayLedStart + g_displayLeds - 1);
+        if (peakPos >= g_displayLedStart && peakPos < g_displayLedStart + g_displayLeds) {
           leds[peakPos] = CRGB::White;
         }
       }
@@ -1204,7 +1223,7 @@ void displayPattern() {
         lastLevel = audioLevel;
         
         // Apply pulse to display LEDs
-        for (int i = g_displayLedStart; i < NUM_LEDS; i++) {
+        for (int i = g_displayLedStart; i < g_displayLedStart + g_displayLeds; i++) {
           leds[i] = pat.color1;
           leds[i].nscale8(pulseVal);
         }
@@ -1239,8 +1258,8 @@ void displayPattern() {
         rainbowOffset += map(audioLevel, 0, 255, 1, 20);
         
         // Draw rainbow with audio-controlled speed (display LEDs)
-        for (int i = g_displayLedStart; i < NUM_LEDS; i++) {
-          uint8_t hue = (rainbowOffset / 4 + i * 255 / g_displayLeds) % 256;
+        for (int i = g_displayLedStart; i < g_displayLedStart + g_displayLeds; i++) {
+          uint8_t hue = (rainbowOffset / 4 + (i - g_displayLedStart) * 255 / g_displayLeds) % 256;
           uint8_t brightness = constrain(audioLevel + 50, 50, 255);
           leds[i] = CHSV(hue, 255, brightness);
         }
@@ -1271,13 +1290,13 @@ void displayPattern() {
         uint8_t expansion = map(audioLevel, 0, 255, 0, g_displayLeds / 2);
         uint8_t center = g_displayLedStart + g_displayLeds / 2;
         
-        // Fade all first
-        fadeToBlackBy(leds, NUM_LEDS, 80);
+        // Fade all display LEDs first
+        fadeToBlackBy(leds + g_displayLedStart, g_displayLeds, 80);
         
         // Draw expanding from center (display LEDs)
         for (int i = 0; i <= expansion; i++) {
           uint8_t hue = patternTime * pat.speed / 20 + i * 10;
-          if (center + i < NUM_LEDS) leds[center + i] = CHSV(hue, 255, 255);
+          if (center + i < g_displayLedStart + g_displayLeds) leds[center + i] = CHSV(hue, 255, 255);
           if ((int16_t)center - i >= g_displayLedStart) leds[center - i] = CHSV(hue, 255, 255);
         }
       }
@@ -1303,13 +1322,13 @@ void displayPattern() {
         level = constrain(level - AUDIO_NOISE_FLOOR, 0, 512);
         uint8_t audioLevel = map(level, 0, 512, 0, 255);
         
-        // Fade existing
-        fadeToBlackBy(leds, NUM_LEDS, 40);
+        // Fade existing display LEDs
+        fadeToBlackBy(leds + g_displayLedStart, g_displayLeds, 40);
         
         // Add sparkles based on audio level (display LEDs)
         uint8_t numSparkles = map(audioLevel, 0, 255, 0, 8);
         for (int s = 0; s < numSparkles; s++) {
-          uint8_t pos = random8(g_displayLedStart, NUM_LEDS);
+          uint8_t pos = random8(g_displayLedStart, g_displayLedStart + g_displayLeds);
           uint8_t hue = patternTime * 2 + random8(64);  // Shifting colors
           leds[pos] = CHSV(hue, 255, 255);
         }
@@ -1320,8 +1339,8 @@ void displayPattern() {
       {
         uint8_t offset = (patternTime * pat.speed / kPatternSpeedDivisor) % g_displayLeds;
         uint8_t splitPoint = g_displayLeds / 2;
-        for (int i = g_displayLedStart; i < NUM_LEDS; i++) {
-          uint8_t pos = (i - 1 + offset) % g_displayLeds;
+        for (int i = g_displayLedStart; i < g_displayLedStart + g_displayLeds; i++) {
+          uint8_t pos = ((i - g_displayLedStart) + offset) % g_displayLeds;
           leds[i] = (pos < splitPoint) ? pat.color1 : pat.color2;
         }
       }
@@ -1330,8 +1349,8 @@ void displayPattern() {
     case 17:  // Theater Chase - dotted chase with background
       {
         uint8_t chaseOffset = (patternTime * pat.speed / kPatternSpeedDivisor) % 3;
-        for (int i = g_displayLedStart; i < NUM_LEDS; i++) {
-          uint8_t phase = (i - 1 + chaseOffset) % 3;
+        for (int i = g_displayLedStart; i < g_displayLedStart + g_displayLeds; i++) {
+          uint8_t phase = ((i - g_displayLedStart) + chaseOffset) % 3;
           leds[i] = (phase == 0) ? pat.color1 : pat.color2;
         }
       }

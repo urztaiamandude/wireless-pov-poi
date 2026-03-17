@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Settings2, RefreshCw, Grid3X3, Palette, Info, RotateCw, Zap, CircuitBoard, Wifi, Lock, Trash2, Check } from 'lucide-react';
 import { useDebounce } from '../hooks';
 
@@ -26,9 +26,17 @@ const LEDHardwareConfig: React.FC<LEDHardwareConfigProps> = ({ setLedCount }) =>
   const [sacrificialLeds, setSacrificialLeds] = useState(1);
   const [status, setStatus] = useState<'idle' | 'loading' | 'saving' | 'saved' | 'error'>('loading');
   const [errorMsg, setErrorMsg] = useState('');
+  const savedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const displayLeds = Math.max(0, numLeds - sacrificialLeds);
   const displayLedStart = sacrificialLeds;
+
+  // Clear any pending "reset to idle" timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (savedTimeoutRef.current !== null) clearTimeout(savedTimeoutRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     fetch('/api/hardware/leds', { signal: AbortSignal.timeout(3000) })
@@ -48,6 +56,11 @@ const LEDHardwareConfig: React.FC<LEDHardwareConfigProps> = ({ setLedCount }) =>
       setStatus('error');
       return;
     }
+    // Cancel any pending reset from a previous save
+    if (savedTimeoutRef.current !== null) {
+      clearTimeout(savedTimeoutRef.current);
+      savedTimeoutRef.current = null;
+    }
     setStatus('saving');
     setErrorMsg('');
     try {
@@ -64,14 +77,17 @@ const LEDHardwareConfig: React.FC<LEDHardwareConfigProps> = ({ setLedCount }) =>
       const data = await res.json();
       setLedCount(data.displayLeds ?? displayLeds);
       setStatus('saved');
-      setTimeout(() => setStatus('idle'), 2500);
+      savedTimeoutRef.current = setTimeout(() => {
+        savedTimeoutRef.current = null;
+        setStatus('idle');
+      }, 2500);
     } catch (e: unknown) {
       setErrorMsg(e instanceof Error ? e.message : 'Could not reach device');
       setStatus('error');
     }
   };
 
-  const isValid = numLeds >= 2 && numLeds <= 64 && sacrificialLeds >= 0 && sacrificialLeds < numLeds;
+  const isValid = numLeds >= 2 && numLeds <= 32 && sacrificialLeds >= 0 && sacrificialLeds < numLeds;
 
   return (
     <div className="space-y-6">
@@ -88,12 +104,12 @@ const LEDHardwareConfig: React.FC<LEDHardwareConfigProps> = ({ setLedCount }) =>
             </label>
             <input
               type="number"
-              min={2} max={64}
+              min={2} max={32}
               value={numLeds}
-              onChange={e => setNumLeds(Math.max(2, Math.min(64, parseInt(e.target.value) || 2)))}
+              onChange={e => setNumLeds(Math.max(2, Math.min(32, parseInt(e.target.value) || 2)))}
               className="bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white font-mono w-full focus:ring-1 focus:ring-cyan-500 outline-none transition-all"
             />
-            <p className="text-[10px] text-slate-500">Number of APA102 LEDs on the physical strip (2–64).</p>
+            <p className="text-[10px] text-slate-500">Number of APA102 LEDs on the physical strip (2–32, Teensy firmware maximum).</p>
           </div>
 
           <div className="space-y-2">

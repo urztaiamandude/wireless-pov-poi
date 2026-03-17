@@ -2138,9 +2138,10 @@ void handleLiveFrame() {
   if (server.hasArg("plain")) {
     String body = server.arg("plain");
 
-    // Parse JSON payload: {"pixels":[{"r":R,"g":G,"b":B}, ...]}
+    // Use fixed-size buffer (max 32 display LEDs * 3 bytes each) to avoid VLA
     const int ledCount = hwLEDConfig.displayLeds();  // Runtime display LED count
-    uint8_t rgb[ledCount * 3];
+    const int kMaxLEDs = 32;  // Matches Teensy NUM_LEDS
+    uint8_t rgb[kMaxLEDs * 3];
     memset(rgb, 0, sizeof(rgb));
 
     JsonDocument doc;
@@ -2831,7 +2832,7 @@ void loadDeviceConfig() {
   hwLEDConfig.numLeds        = (uint8_t)preferences.getUInt("hw_numLeds",  32);
   hwLEDConfig.sacrificialLeds = (uint8_t)preferences.getUInt("hw_sacLeds",   1);
   // Clamp to valid range
-  if (hwLEDConfig.numLeds < 2 || hwLEDConfig.numLeds > 64) hwLEDConfig.numLeds = 32;
+  if (hwLEDConfig.numLeds < 2 || hwLEDConfig.numLeds > 32) hwLEDConfig.numLeds = 32;
   if (hwLEDConfig.sacrificialLeds >= hwLEDConfig.numLeds) hwLEDConfig.sacrificialLeds = 1;
 
   preferences.end();
@@ -3317,9 +3318,9 @@ void handleSetLEDConfig() {
   uint8_t newNum = doc["numLeds"].is<uint8_t>()         ? doc["numLeds"].as<uint8_t>()         : hwLEDConfig.numLeds;
   uint8_t newSac = doc["sacrificialLeds"].is<uint8_t>() ? doc["sacrificialLeds"].as<uint8_t>() : hwLEDConfig.sacrificialLeds;
 
-  // Validate
-  if (newNum < 2 || newNum > 64 || newSac >= newNum) {
-    server.send(400, "application/json", "{\"error\":\"numLeds must be 2-64 and sacrificialLeds must be less than numLeds\"}");
+  // Validate — clamp to what the Teensy firmware supports (NUM_LEDS = 32)
+  if (newNum < 2 || newNum > 32 || newSac >= newNum) {
+    server.send(400, "application/json", "{\"error\":\"numLeds must be 2-32 and sacrificialLeds must be less than numLeds\"}");
     return;
   }
 
