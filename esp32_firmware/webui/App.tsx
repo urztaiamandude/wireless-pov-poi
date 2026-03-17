@@ -31,7 +31,7 @@ const App: React.FC = () => {
       case ViewMode.DASHBOARD:
         return <Dashboard previewUrl={globalPreviewUrl} />;
       case ViewMode.PATTERN_PREVIEW:
-        return <PatternPreview />;
+        return <PatternPreview ledCount={ledCount} />;
       case ViewMode.IMAGE_LAB:
         return <ImageLab onPreviewUpdate={setGlobalPreviewUrl} initialPreview={globalPreviewUrl} ledCount={ledCount} setLedCount={setLedCount} />;
       case ViewMode.ADVANCED_SETTINGS:
