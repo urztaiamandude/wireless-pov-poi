@@ -2,13 +2,13 @@
  * Nebula Poi - Teensy 4.1 Firmware
  * 
  * This firmware controls a 32 LED APA102 strip for POV (Persistence of Vision) display.
- * LED 0 is a sacrificial LED used for 3.3V -> 5V level shifting; it is not a display pixel.
- * LEDs 1-31 are the 31 display pixels.
+ * By default, LED 0 is sacrificial (3.3V→5V level shifting) and LEDs 1-31 are the 31 display pixels.
+ * The display range is runtime-configurable via the web UI without recompiling.
  * Communicates with ESP32 via Serial1 to receive images, patterns, and sequences.
  * 
  * Hardware:
  * - Teensy 4.1
- * - APA102 LED Strip (32 LEDs: LED 0 sacrificial for level shifting, LED 1-31 display)
+ * - APA102 LED Strip (32 physical LEDs; default: LED 0 sacrificial, LEDs 1-31 display)
  * - MAX9814 Microphone Amplifier Module (for audio-reactive patterns)
  * - ESP32 connected via Serial1 (RX=0, TX=1)
  * - Optional: microSD card in Teensy 4.1 built-in slot (for SD_SUPPORT)
@@ -34,10 +34,9 @@
 #endif
 
 // LED Configuration
-// LED 0 is a sacrificial LED used for 3.3V -> 5V level shifting (not a display pixel).
-// LEDs 1-31 are the default 31 display pixels.
-// Display range is runtime-configurable via serial command 0x09 (Set LED Config)
-// and persisted in EEPROM — no recompile needed.
+// By default, LED 0 is sacrificial (3.3V→5V level shifting); LEDs 1-31 are the 31 display pixels.
+// The display range (g_displayLeds, g_displayLedStart) is runtime-configurable via the web UI
+// (POST /api/hardware/leds on ESP32 → serial command 0x09 → EEPROM) without recompiling.
 #define NUM_LEDS 32  // Total physical LEDs (compile-time max for array sizing)
 static_assert(NUM_LEDS == 32, "NUM_LEDS must be 32 — includes sacrificial LED(s) for level shifting");
 #define DATA_PIN 11
@@ -45,9 +44,9 @@ static_assert(NUM_LEDS == 32, "NUM_LEDS must be 32 — includes sacrificial LED(
 #define LED_TYPE APA102
 #define COLOR_ORDER BGR
 // Default LED display range — stored in EEPROM and loaded at runtime.
-// Change via web UI (/api/hardware/leds) without recompiling.
+// Change via web UI (Advanced Settings → LED Hardware Configuration) without recompiling.
 #define DEFAULT_NUM_LEDS 32         // Physical LEDs total
-#define DEFAULT_SACRIFICIAL_LEDS 1  // LEDs 0..N-1 used only for level shifting
+#define DEFAULT_SACRIFICIAL_LEDS 1  // LEDs 0..N-1 used only for level shifting (default: LED 0)
 // g_displayLeds and g_displayLedStart are runtime variables initialized in setup().
 
 // Audio Input Configuration (MAX9814 Microphone Amplifier Module)
@@ -175,7 +174,7 @@ CRGB liveBuffer[NUM_LEDS];  // Sized at NUM_LEDS (max); g_displayLeds entries ar
 
 // Serial command buffer
 // Buffer size calculation for larger images:
-//   Max image: IMAGE_MAX_WIDTH (400) × IMAGE_HEIGHT*2 (62, max accepted) × 3 (RGB) = 74,400 bytes
+//   Max image: IMAGE_MAX_WIDTH (400) × IMAGE_HEIGHT*2 (64, max accepted) × 3 (RGB) = 76,800 bytes
 //   Plus protocol overhead (~100 bytes): 0xFF start, cmd, len, 0xFE end markers
 //   Rounded up to 80,000 for safety margin
 // With PSRAM (16MB installed): buffer placed in EXTMEM; without PSRAM: reduced buffer
@@ -360,7 +359,7 @@ void initStorage() {
 }
 
 // Create default POV images
-// These are real display-ready images sized for the 31 display LEDs (LED 1-31).
+// These are real display-ready images sized for g_displayLeds LEDs.
 // Each image is wider than tall (typical for POV), so when the poi
 // spins it traces a detailed ring of light.
 void createDemoImages() {
@@ -551,7 +550,7 @@ void createDemoSequence() {
 }
 
 void startupAnimation() {
-  // Rainbow sweep animation (display LEDs 1-31)
+  // Rainbow sweep startup animation (display LEDs g_displayLedStart to g_displayLedStart+g_displayLeds-1)
   for (int hue = 0; hue < 256; hue += 4) {
     for (int i = g_displayLedStart; i < NUM_LEDS; i++) {
       leds[i] = CHSV(hue + (i * 8), 255, 255);
@@ -892,7 +891,7 @@ void receiveSequence() {
 }
 
 void receiveLiveFrame() {
-  // Receive live frame data for immediate display (31 LEDs * 3 bytes RGB = 93 bytes)
+  // Receive live frame data for immediate display (g_displayLeds * 3 bytes RGB)
   for (int i = 0; i < g_displayLeds && (3 + (i + 1) * 3 - 1) < CMD_BUFFER_SIZE; i++) {
     liveBuffer[i] = CRGB(cmdBuffer[3 + i * 3], cmdBuffer[4 + i * 3], cmdBuffer[5 + i * 3]);
   }
@@ -933,7 +932,7 @@ void displayImage() {
   
   POVImage& img = images[currentIndex];
   
-  // Display current column of the image (LEDs 1-31 are display LEDs)
+  // Display current column of the image across display LEDs (g_displayLedStart to g_displayLedStart+g_displayLeds-1)
   for (int i = 0; i < g_displayLeds && i < img.height; i++) {
     leds[i + g_displayLedStart] = img.pixels[currentColumn][i];
   }
@@ -1147,7 +1146,7 @@ void displayPattern() {
         // Map audio level to number of LEDs to light
         uint8_t ledsToLight = map(audioLevel, 0, 255, 0, g_displayLeds);
         
-        // Draw VU meter with color gradient (display LEDs 1-31)
+        // Draw VU meter with color gradient (display LEDs)
         for (int i = g_displayLedStart; i < NUM_LEDS; i++) {
           uint8_t ledIndex = i - g_displayLedStart;
           if (ledIndex < ledsToLight) {
@@ -1204,7 +1203,7 @@ void displayPattern() {
         }
         lastLevel = audioLevel;
         
-        // Apply pulse to display LEDs 1-31
+        // Apply pulse to display LEDs
         for (int i = g_displayLedStart; i < NUM_LEDS; i++) {
           leds[i] = pat.color1;
           leds[i].nscale8(pulseVal);
@@ -1239,7 +1238,7 @@ void displayPattern() {
         // Audio level controls rainbow speed
         rainbowOffset += map(audioLevel, 0, 255, 1, 20);
         
-        // Draw rainbow with audio-controlled speed (display LEDs 1-31)
+        // Draw rainbow with audio-controlled speed (display LEDs)
         for (int i = g_displayLedStart; i < NUM_LEDS; i++) {
           uint8_t hue = (rainbowOffset / 4 + i * 255 / g_displayLeds) % 256;
           uint8_t brightness = constrain(audioLevel + 50, 50, 255);
@@ -1275,7 +1274,7 @@ void displayPattern() {
         // Fade all first
         fadeToBlackBy(leds, NUM_LEDS, 80);
         
-        // Draw expanding from center (display LEDs 1-31)
+        // Draw expanding from center (display LEDs)
         for (int i = 0; i <= expansion; i++) {
           uint8_t hue = patternTime * pat.speed / 20 + i * 10;
           if (center + i < NUM_LEDS) leds[center + i] = CHSV(hue, 255, 255);
@@ -1307,7 +1306,7 @@ void displayPattern() {
         // Fade existing
         fadeToBlackBy(leds, NUM_LEDS, 40);
         
-        // Add sparkles based on audio - more audio = more sparkles (display LEDs 1-31)
+        // Add sparkles based on audio level (display LEDs)
         uint8_t numSparkles = map(audioLevel, 0, 255, 0, 8);
         for (int s = 0; s < numSparkles; s++) {
           uint8_t pos = random8(g_displayLedStart, NUM_LEDS);
@@ -1432,7 +1431,7 @@ void displaySequence() {
 }
 
 void displayLive() {
-  // Display the live buffer (31 display LEDs, indices 1-31)
+  // Display the live buffer (g_displayLeds LEDs starting at g_displayLedStart)
   for (int i = 0; i < g_displayLeds; i++) {
     leds[i + g_displayLedStart] = liveBuffer[i];
   }
