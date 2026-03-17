@@ -34,30 +34,30 @@ The **ESP32-S3 is a WiFi/BLE bridge and web UI host**. It forwards user settings
 
 ### ⚠️ LED Array Layout - ALWAYS FOLLOW THIS
 
-The canonical Teensy firmware uses **all 32 LEDs (indices 0–31) as display pixels**. There is currently **no sacrificial/level-shift-only LED** in the production firmware.
+The Teensy firmware uses a **sacrificial LED (LED 0)** for 3.3 V→5 V level shifting because the MOSFET-based level shifters are incompatible with the hardware. **31 LEDs (indices 1–31) are display pixels by default.**  The display range is now **runtime-configurable** via the web UI (Advanced Settings → LED Hardware Configuration) without recompiling — stored in EEPROM as `g_displayLeds` / `g_displayLedStart`.
 
 ```
 Physical LED Strip:
-┌────┬────┬────┬────┬─────┬────┐
-│ 0  │ 1  │ 2  │... │ 30  │ 31 │
-└────┴────┴────┴────┴─────┴────┘
- ↑───────────────────────────↑
- Display pixels (32 total)
+┌──────┬────┬────┬────┬─────┬────┐
+│  0   │ 1  │ 2  │... │ 30  │ 31 │
+└──────┴────┴────┴────┴─────┴────┘
+ Level    ↑────────────────────↑
+ shift    Display pixels (default 31)
 ```
 
 **ALL display code MUST:**
-- Use the firmware constants `DISPLAY_LED_START` and `DISPLAY_LEDS` for indexing logic
-- Assume `DISPLAY_LED_START = 0` and `DISPLAY_LEDS = 32` in the current production Teensy firmware
-- Iterate over display LEDs using these constants, e.g. `for (int i = DISPLAY_LED_START; i < DISPLAY_LED_START + DISPLAY_LEDS; i++)`
+- Use runtime variables `g_displayLedStart` and `g_displayLeds` for indexing (NOT compile-time `#define` constants)
+- Default values: `g_displayLedStart = 1`, `g_displayLeds = 31`
+- Iterate with: `for (int i = g_displayLedStart; i < g_displayLedStart + g_displayLeds; i++)`
 
 ```cpp
-// ✅ CORRECT - Use all display LEDs based on constants
-for (int i = DISPLAY_LED_START; i < DISPLAY_LED_START + DISPLAY_LEDS; i++) {
+// ✅ CORRECT - Use runtime display range variables
+for (int i = g_displayLedStart; i < g_displayLedStart + g_displayLeds; i++) {
   leds[i] = color;
 }
 
-// ❌ WRONG - Hard-codes a non-zero start index that would skip LED 0
-for (int i = 1; i < NUM_LEDS; i++) {
+// ❌ WRONG - Hard-codes assumptions about the display range
+for (int i = 0; i < 32; i++) {
   leds[i] = color;
 }
 ```
@@ -185,26 +185,26 @@ Audio config in `teensy_firmware.ino`: `AUDIO_PIN A0`, `AUDIO_SAMPLES 64`, `AUDI
 ## Image Conversion & Orientation
 
 ### Image Dimensions
-- **HEIGHT**: 32 pixels (FIXED - one pixel per display LED)
+- **HEIGHT**: `g_displayLeds` pixels (default **31** — one pixel per display LED, runtime-configurable via web UI)
 - **WIDTH**: Variable (calculated from aspect ratio, max ~200px)
 - LED strip forms the VERTICAL axis when spinning
-- LED 0 (bottom of strip) = bottom of image
-- LED 31 (top of strip) = top of image
+- LED `g_displayLedStart` (bottom of strip) = bottom of image
+- LED `g_displayLedStart + g_displayLeds - 1` (top of strip) = top of image
 
 ### Image Storage Format
 ```cpp
-// Storage: pixels[x][y] where y is LED index
-CRGB pixels[IMAGE_WIDTH][IMAGE_HEIGHT];  // Max 32x200
+// Storage: pixels[x][y] where y is display LED index (0 = first display LED)
+CRGB pixels[IMAGE_MAX_WIDTH][IMAGE_HEIGHT];  // IMAGE_HEIGHT=32 (compile-time max)
 
-// Display mapping (NO flip needed in latest code):
-leds[y] = pixels[current_column][y];  // y ranges 0-31
+// Display mapping (g_displayLedStart to g_displayLedStart + g_displayLeds - 1):
+leds[y + g_displayLedStart] = pixels[current_column][y];  // y ranges 0..g_displayLeds-1
 ```
 
 ### Python Converters
-All converters must produce 32px tall images:
+Converters use the default display height (31px). Match to the device's current `displayLeds` setting:
 ```python
 # Resize maintaining aspect ratio
-target_height = 32  # FIXED for 32 display LEDs
+target_height = 31  # Default for 1 sacrificial LED; change to match device displayLeds
 aspect_ratio = img.width / img.height
 target_width = int(target_height * aspect_ratio)
 img = img.resize((target_width, target_height), Image.LANCZOS)
@@ -492,9 +492,9 @@ String response = "{\"brightness\":" + String(brightness) + "}";
 
 ### C++ Firmware
 - **Functions**: `camelCase` (e.g., `displayPattern()`)
-- **Constants**: `UPPER_CASE` (e.g., `NUM_LEDS`, `DISPLAY_LEDS`)
-- **Variables**: `camelCase` (e.g., `currentPatternIndex`)
-- **LED loops**: ALWAYS start from index 0
+- **Constants**: `UPPER_CASE` (e.g., `NUM_LEDS`, `DEFAULT_SACRIFICIAL_LEDS`)
+- **Variables**: `camelCase` (e.g., `currentPatternIndex`, `g_displayLeds`)
+- **LED loops**: ALWAYS use `g_displayLedStart` as the first index (not 0)
 - **Comments**: Use for complex logic, match existing style
 - **No blocking calls** in Teensy loop - it's time-critical
 

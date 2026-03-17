@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { ArduinoSketch } from '../types';
 import { Copy, Check } from 'lucide-react';
 
@@ -9,6 +9,15 @@ interface CodeViewerProps {
 
 const CodeViewer: React.FC<CodeViewerProps> = ({ sketch }) => {
   const [copied, setCopied] = useState(false);
+  const copiedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (copiedTimeoutRef.current !== null) {
+        clearTimeout(copiedTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleCopy = async () => {
     try {
@@ -29,7 +38,10 @@ const CodeViewer: React.FC<CodeViewerProps> = ({ sketch }) => {
         if (!success) throw new Error('execCommand copy failed');
       }
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      if (copiedTimeoutRef.current !== null) {
+        clearTimeout(copiedTimeoutRef.current);
+      }
+      copiedTimeoutRef.current = setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error('Failed to copy code to clipboard:', err);
     }

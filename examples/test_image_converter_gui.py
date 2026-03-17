@@ -4,7 +4,7 @@ Test script for GUI image converter
 Tests the core functionality without requiring tkinter display
 
 NOTE: The POV display uses LEDs as the VERTICAL axis:
-- HEIGHT is FIXED at 32 pixels (matching 32 display LEDs)
+- HEIGHT is FIXED at 31 pixels (matching 31 display LEDs: LED 1-31; LED 0 is sacrificial)
 - WIDTH is calculated to maintain aspect ratio
 """
 
@@ -45,7 +45,7 @@ def test_gui_conversion_logic():
         success = convert_image_for_pov(
             test_img, 
             output_img, 
-            height=32, 
+            height=31, 
             max_width=200, 
             enhance_contrast=True
         )
@@ -56,8 +56,8 @@ def test_gui_conversion_logic():
         
         # Verify output - HEIGHT should be 31 (fixed)
         result = Image.open(output_img)
-        if result.height != 32:
-            print(f"❌ FAILED: Expected height 32, got {result.height}")
+        if result.height != 31:
+            print(f"❌ FAILED: Expected height 31, got {result.height}")
             return False
         
         print(f"✓ PASSED: GUI conversion logic works correctly ({result.width}x{result.height})")
