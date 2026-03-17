@@ -1167,7 +1167,7 @@ static const char rootPage[] PROGMEM = R"rawliteral(
     // ===== Power Mode =====
     const PM_LABELS={performance:'240 MHz — max brightness & FPS',balanced:'160 MHz — default settings',powersave:'80 MHz — reduced FPS & brightness cap',ultrasave:'80 MHz — minimum FPS & dim output (WiFi minimum)'};
     const PM_FPS={performance:120,balanced:60,powersave:30,ultrasave:15};
-    const PM_BRIGHT={performance:255,balanced:255,powersave:150,ultrasave:80};
+    const PM_BRIGHT={performance:255,balanced:255,powersave:180,ultrasave:80};
     let currentPowerMode='balanced';
     async function setPowerMode(mode){
         currentPowerMode=mode;
@@ -1878,7 +1878,7 @@ void handlePowerMode() {
         cpuMhz = 160; fpsLimit = 60; brightnessLimit = 255;
       } else if (modeStr == "powersave") {
         state.powerMode = 2;
-        cpuMhz = 80; fpsLimit = 30; brightnessLimit = 150;
+        cpuMhz = 80; fpsLimit = 30; brightnessLimit = 180;
       } else if (modeStr == "ultrasave") {
         state.powerMode = 3;
         cpuMhz = 80; fpsLimit = 15; brightnessLimit = 80;  // 80 MHz is minimum with WiFi active
@@ -1908,7 +1908,7 @@ void handlePowerMode() {
         }
       }
 
-      server.send(200, "application/json", "{\"status\":\"ok\",\"cpuMhz\":" + String(cpuMhz) + ",\"fpsLimit\":" + String(fpsLimit) + "}");
+      server.send(200, "application/json", "{\"status\":\"ok\",\"mode\":\"" + modeStr + "\",\"cpu_mhz\":" + String(cpuMhz) + ",\"framerate\":" + String(fpsLimit) + ",\"max_brightness\":" + String(brightnessLimit) + "}");
       return;
     }
   }
