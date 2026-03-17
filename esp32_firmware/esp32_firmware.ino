@@ -63,6 +63,8 @@ void handleSyncData();
 void handleSyncPush();
 void handleDeviceConfig();
 void handleDeviceConfigUpdate();
+void handleGetLEDConfig();
+void handleSetLEDConfig();
 void handleWifiStatus();
 void handleWifiScan();
 void handleWifiConnect();
@@ -130,6 +132,15 @@ struct DeviceConfig {
   bool autoSync;
   unsigned long syncInterval;
 } deviceConfig;
+
+// Hardware LED configuration (persisted in Preferences under namespace "povpoi")
+struct LEDHardwareConfig {
+  uint8_t numLeds;         // Total physical LEDs on strip (default: 32)
+  uint8_t sacrificialLeds; // LEDs used only for level shifting, not display (default: 1)
+  // Derived:
+  uint8_t displayLeds()    const { return numLeds - sacrificialLeds; }
+  uint8_t displayLedStart() const { return sacrificialLeds; }
+} hwLEDConfig = { 32, 1 };
 
 // WiFi STA (client) credentials - saved to Preferences, used to connect to existing network
 String staSsid = "";
@@ -357,6 +368,8 @@ void setupWebServer() {
   // Device configuration endpoints
   server.on("/api/device/config", HTTP_GET, handleDeviceConfig);
   server.on("/api/device/config", HTTP_POST, handleDeviceConfigUpdate);
+  server.on("/api/hardware/leds", HTTP_GET,  handleGetLEDConfig);
+  server.on("/api/hardware/leds", HTTP_POST, handleSetLEDConfig);
   
   // WiFi network (STA) configuration - connect to existing network for web UI access
   server.on("/api/wifi/status", HTTP_GET, handleWifiStatus);
@@ -2126,7 +2139,7 @@ void handleLiveFrame() {
     String body = server.arg("plain");
 
     // Parse JSON payload: {"pixels":[{"r":R,"g":G,"b":B}, ...]}
-    const int ledCount = 32;  // Display LEDs (all 32 LEDs used for display)
+    const int ledCount = hwLEDConfig.displayLeds();  // Runtime display LED count
     uint8_t rgb[ledCount * 3];
     memset(rgb, 0, sizeof(rgb));
 
@@ -2144,7 +2157,7 @@ void handleLiveFrame() {
     }
 
     // Send live frame command to Teensy
-    sendTeensyCommand(0x05, ledCount * 3);  // 32 LEDs * 3 bytes
+    sendTeensyCommand(0x05, ledCount * 3);  // display LEDs * 3 bytes
     for (int i = 0; i < ledCount * 3; i++) {
       TEENSY_SERIAL.write(rgb[i]);
     }
@@ -2813,7 +2826,14 @@ void loadDeviceConfig() {
   // Default to "Office" network so phone can stay on its home WiFi with internet
   staSsid = preferences.getString("sta_ssid", "Office");
   staPassword = preferences.getString("sta_password", "6195717200");
-  
+
+  // Load LED hardware config
+  hwLEDConfig.numLeds        = (uint8_t)preferences.getUInt("hw_numLeds",  32);
+  hwLEDConfig.sacrificialLeds = (uint8_t)preferences.getUInt("hw_sacLeds",   1);
+  // Clamp to valid range
+  if (hwLEDConfig.numLeds < 2 || hwLEDConfig.numLeds > 64) hwLEDConfig.numLeds = 32;
+  if (hwLEDConfig.sacrificialLeds >= hwLEDConfig.numLeds) hwLEDConfig.sacrificialLeds = 1;
+
   preferences.end();
 }
 
@@ -3267,5 +3287,65 @@ void handleWifiDisconnect() {
   json += "\"message\":\"Disconnected and credentials cleared\"";
   json += "}";
   
+  server.send(200, "application/json", json);
+}
+
+// GET /api/hardware/leds — return current LED hardware config
+void handleGetLEDConfig() {
+  JsonDocument doc;
+  doc["numLeds"]         = hwLEDConfig.numLeds;
+  doc["sacrificialLeds"] = hwLEDConfig.sacrificialLeds;
+  doc["displayLeds"]     = hwLEDConfig.displayLeds();
+  doc["displayLedStart"] = hwLEDConfig.displayLedStart();
+  String json;
+  serializeJson(doc, json);
+  server.send(200, "application/json", json);
+}
+
+// POST /api/hardware/leds — update LED hardware config and notify Teensy
+void handleSetLEDConfig() {
+  if (!server.hasArg("plain")) {
+    server.send(400, "application/json", "{\"error\":\"No data\"}");
+    return;
+  }
+  JsonDocument doc;
+  if (deserializeJson(doc, server.arg("plain"))) {
+    server.send(400, "application/json", "{\"error\":\"Invalid JSON\"}");
+    return;
+  }
+
+  uint8_t newNum = doc["numLeds"].is<uint8_t>()         ? doc["numLeds"].as<uint8_t>()         : hwLEDConfig.numLeds;
+  uint8_t newSac = doc["sacrificialLeds"].is<uint8_t>() ? doc["sacrificialLeds"].as<uint8_t>() : hwLEDConfig.sacrificialLeds;
+
+  // Validate
+  if (newNum < 2 || newNum > 64 || newSac >= newNum) {
+    server.send(400, "application/json", "{\"error\":\"numLeds must be 2-64 and sacrificialLeds must be less than numLeds\"}");
+    return;
+  }
+
+  hwLEDConfig.numLeds         = newNum;
+  hwLEDConfig.sacrificialLeds = newSac;
+
+  // Persist
+  preferences.begin("povpoi", false);
+  preferences.putUInt("hw_numLeds",  newNum);
+  preferences.putUInt("hw_sacLeds",  newSac);
+  preferences.end();
+
+  // Forward to Teensy (command 0x09): [numLeds:1][sacrificialLeds:1]
+  uint8_t cfg[2] = { newNum, newSac };
+  sendTeensyCommand(0x09, 2);
+  TEENSY_SERIAL.write(cfg[0]);
+  TEENSY_SERIAL.write(cfg[1]);
+  TEENSY_SERIAL.write(0xFE);
+
+  JsonDocument resp;
+  resp["status"]         = "ok";
+  resp["numLeds"]        = hwLEDConfig.numLeds;
+  resp["sacrificialLeds"]= hwLEDConfig.sacrificialLeds;
+  resp["displayLeds"]    = hwLEDConfig.displayLeds();
+  resp["displayLedStart"]= hwLEDConfig.displayLedStart();
+  String json;
+  serializeJson(resp, json);
   server.send(200, "application/json", json);
 }

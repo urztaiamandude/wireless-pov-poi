@@ -22,7 +22,7 @@ import {
 const App: React.FC = () => {
   const [view, setView] = useState<ViewMode>(ViewMode.DASHBOARD);
   const [globalPreviewUrl, setGlobalPreviewUrl] = useState<string | null>(null);
-  const [ledCount, setLedCount] = useState<number>(32);
+  const [ledCount, setLedCount] = useState<number>(31);
 
   const renderContent = () => {
     switch (view) {
