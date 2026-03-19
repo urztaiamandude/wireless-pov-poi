@@ -207,7 +207,11 @@ def gen_diamonds(colors: list[tuple[int, int, int]], height: int,
         for y in range(height):
             # Manhattan distance to the nearest diamond centre
             cx = (x % period) - cell
-            cy = (y % period) - cell if period <= height else y % period - period // 2
+            # Centre the diamond vertically: if the tile period fits inside
+            # the image height we tile normally, otherwise offset to the
+            # vertical midpoint of each period so the pattern stays centred.
+            y_in_period = y % period
+            cy = y_in_period - cell if period <= height else y_in_period - period // 2
             d = (abs(cx) + abs(cy)) / cell  # normalised 0→~2
             ci = int(d) % len(colors)
             img.putpixel((x, y), colors[ci])

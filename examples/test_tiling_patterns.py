@@ -147,11 +147,9 @@ def test_generate_pattern_api():
 
 
 def test_generate_pattern_unknown_raises():
-    try:
+    import pytest
+    with pytest.raises(ValueError):
         generate_pattern("nonexistent_pattern", complementary(0))
-        assert False, "Should have raised ValueError"
-    except ValueError:
-        pass
 
 
 def test_custom_height():
@@ -163,6 +161,13 @@ def test_custom_height():
 
 
 # ── Seamless tiling validation ───────────────────────────────────────
+
+# Maximum per-channel colour difference allowed at the horizontal seam
+# between the last and first columns.  A value of 25 (~10 % of 255)
+# accommodates the one-pixel step in smooth sinusoidal / gradient
+# patterns while still catching visually jarring discontinuities.
+MAX_SEAMLESS_COLOR_DIFF = 25
+
 
 def _column(img: Image.Image, x: int):
     """Extract a column of pixels from an image."""
@@ -195,7 +200,7 @@ def test_gradient_tiles_smoothly():
     right = _column(img, img.width - 1)
     for y in range(img.height):
         diff = _max_channel_diff(left[y], right[y])
-        assert diff < 25, (
+        assert diff < MAX_SEAMLESS_COLOR_DIFF, (
             f"Gradient seam diff too large at y={y}: "
             f"{left[y]} vs {right[y]} (diff={diff})"
         )
@@ -207,7 +212,9 @@ def test_wave_tiles_smoothly():
     right = _column(img, img.width - 1)
     for y in range(img.height):
         diff = _max_channel_diff(left[y], right[y])
-        assert diff < 25, f"Wave seam diff too large at y={y}: diff={diff}"
+        assert diff < MAX_SEAMLESS_COLOR_DIFF, (
+            f"Wave seam diff too large at y={y}: diff={diff}"
+        )
 
 
 # ── Batch generation test ────────────────────────────────────────────
