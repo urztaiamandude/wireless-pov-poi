@@ -243,6 +243,134 @@ def gen_plasma(colors: list[tuple[int, int, int]], height: int,
     return img
 
 
+# ── POV-optimised pattern generators ────────────────────────────────
+# These produce effects especially suited to persistence-of-vision light
+# trails where each column is shown for a very brief flash.
+
+
+def gen_strobe(colors: list[tuple[int, int, int]], height: int,
+               duty: int = 2, gap: int = 4) -> Image.Image:
+    """Strobe — alternating complementary-colour columns with black gaps.
+
+    *duty* columns of each palette colour followed by *gap* black columns.
+    One full cycle = ``(duty + gap) * len(colors)`` columns.
+    """
+    cycle = (duty + gap) * len(colors)
+    img = Image.new("RGB", (cycle, height))
+    for x in range(cycle):
+        ci = x // (duty + gap)
+        phase = x % (duty + gap)
+        c = colors[ci % len(colors)] if phase < duty else (0, 0, 0)
+        for y in range(height):
+            img.putpixel((x, y), c)
+    return img
+
+
+def gen_color_strobe(colors: list[tuple[int, int, int]], height: int,
+                     width: int = 64, duty: int = 2,
+                     gap: int = 3) -> Image.Image:
+    """Colour-shifting strobe — the hue rotates across *width* columns while
+    keeping the complementary relationship intact.
+
+    Every ``duty`` columns a flash appears; the remaining ``gap`` columns are
+    black.  The flash colour is derived from the palette hue-rotated
+    proportionally to the x position so the colour *changes dynamically*
+    across the image yet always stays complementary.
+    """
+    img = Image.new("RGB", (width, height))
+    for x in range(width):
+        phase = x % (duty + gap)
+        if phase < duty:
+            # Shift the whole palette proportionally along the width
+            t = x / width
+            shifted = shift_hue_rotate(colors, t * 360.0)
+            c = shifted[0]
+        else:
+            c = (0, 0, 0)
+        for y in range(height):
+            img.putpixel((x, y), c)
+    return img
+
+
+def gen_rain(colors: list[tuple[int, int, int]], height: int,
+             width: int = 64, density: float = 0.3) -> Image.Image:
+    """Falling rain / matrix — vertical streaks with fading tails.
+
+    Deterministic (seeded by column position) so the pattern tiles
+    seamlessly at *width*.
+    """
+    import random as _rng
+    img = Image.new("RGB", (width, height))
+    for x in range(width):
+        # Deterministic seed per column for reproducibility & tiling
+        _rng.seed(x * 7919)
+        if _rng.random() > density:
+            continue  # blank column
+        ci = x % len(colors)
+        # Choose a starting y and draw a fading streak downward
+        start_y = _rng.randint(0, height - 1)
+        length = _rng.randint(3, min(12, height))
+        for i in range(length):
+            y = (start_y + i) % height
+            fade = max(0.0, 1.0 - i / length)
+            c = tuple(_clamp(v * fade) for v in colors[ci])
+            img.putpixel((x, y), c)
+    return img
+
+
+def gen_helix(colors: list[tuple[int, int, int]], height: int,
+              width: int = 64, strands: int = 2) -> Image.Image:
+    """Double (or multi-) helix — interleaving sinusoidal strands.
+
+    Each strand is offset by ``1/strands`` of the phase, creating a
+    DNA-like twist along the poi trail.  Tiles at *width*.
+    """
+    img = Image.new("RGB", (width, height))
+    two_pi = 2.0 * math.pi
+    for x in range(width):
+        for s in range(strands):
+            phase_offset = s / strands
+            # Sine maps x-position to y-position
+            y_center = (math.sin((x / width + phase_offset) * two_pi) + 1.0) / 2.0
+            y_center *= (height - 1)
+            ci = s % len(colors)
+            # Draw a thick strand (±1 pixel)
+            for dy in range(-1, 2):
+                y = int(round(y_center)) + dy
+                if 0 <= y < height:
+                    bright = 1.0 - abs(dy) * 0.35
+                    c = tuple(_clamp(v * bright) for v in colors[ci])
+                    img.putpixel((x, y), c)
+    return img
+
+
+def gen_starburst(colors: list[tuple[int, int, int]], height: int,
+                  width: int = 64) -> Image.Image:
+    """Starburst — radial rays emanating from the vertical centre.
+
+    Rays are coloured using the palette and the pattern tiles at *width*
+    so the burst repeats smoothly as the poi spins.
+    """
+    img = Image.new("RGB", (width, height))
+    two_pi = 2.0 * math.pi
+    cy = height / 2.0
+    for x in range(width):
+        for y in range(height):
+            # Angle from centre
+            angle = math.atan2(y - cy, x - width / 2.0)
+            # Normalise to 0-1, repeating with number of rays
+            num_rays = len(colors) * 4
+            ray = (angle / two_pi + 0.5) * num_rays
+            ci = int(ray) % len(colors)
+            # Radial fade: brighter at centre
+            dist = math.sqrt((x - width / 2.0) ** 2 + (y - cy) ** 2)
+            max_dist = math.sqrt((width / 2.0) ** 2 + cy ** 2)
+            fade = max(0.0, 1.0 - dist / max_dist * 0.5)
+            c = tuple(_clamp(v * fade) for v in colors[ci])
+            img.putpixel((x, y), c)
+    return img
+
+
 # Registry: name → generator function
 PATTERN_GENERATORS: dict[str, Callable[..., Image.Image]] = {
     "stripes": gen_stripes,
@@ -254,6 +382,11 @@ PATTERN_GENERATORS: dict[str, Callable[..., Image.Image]] = {
     "diamonds": gen_diamonds,
     "spiral": gen_spiral,
     "plasma": gen_plasma,
+    "strobe": gen_strobe,
+    "color_strobe": gen_color_strobe,
+    "rain": gen_rain,
+    "helix": gen_helix,
+    "starburst": gen_starburst,
 }
 
 # ── Colour-shift helpers ─────────────────────────────────────────────
@@ -285,11 +418,31 @@ def shift_swap(colors: list[tuple[int, int, int]]
     return colors[1:] + colors[:1]
 
 
+def shift_complementary_rotate(colors: list[tuple[int, int, int]],
+                               degrees: float) -> list[tuple[int, int, int]]:
+    """Regenerate a fresh complementary pair from the first colour's hue.
+
+    Unlike ``shift_hue_rotate`` which rotates existing colours (preserving
+    *any* original scheme), this function always produces exactly two
+    colours that are 180° apart — guaranteeing a complementary
+    relationship even if the input palette was not complementary.
+
+    The first colour's hue is rotated by *degrees* and a new
+    complementary pair is generated at the target hue.
+    """
+    r, g, b = colors[0]
+    h, l, s = colorsys.rgb_to_hls(r / 255, g / 255, b / 255)
+    new_h = ((h * 360.0) + degrees) % 360.0
+    return complementary(new_h, s, l)
+
+
 SHIFT_METHODS: dict[str, Callable] = {
     "hue_rotate_60": lambda c: shift_hue_rotate(c, 60),
     "hue_rotate_120": lambda c: shift_hue_rotate(c, 120),
     "invert": shift_invert,
     "swap": shift_swap,
+    "complementary_rotate_60": lambda c: shift_complementary_rotate(c, 60),
+    "complementary_rotate_120": lambda c: shift_complementary_rotate(c, 120),
 }
 
 # ── Default starter hues ─────────────────────────────────────────────

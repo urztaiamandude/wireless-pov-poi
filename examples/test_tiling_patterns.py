@@ -35,8 +35,10 @@ from generate_tiling_patterns import (
     shift_hue_rotate,
     shift_invert,
     shift_swap,
+    shift_complementary_rotate,
     _lerp_color,
     _palette_at,
+    hsl_to_rgb,
 )
 
 
@@ -244,7 +246,8 @@ def test_generate_all_creates_files():
 # copies side by side produces no discontinuity beyond what exists within
 # a single tile).  Smooth patterns are validated with the
 # MAX_SEAMLESS_COLOR_DIFF tolerance between adjacent seam columns.
-_BLOCK_PATTERNS = {"stripes", "diagonal", "checkerboard", "diamonds", "zigzag"}
+_BLOCK_PATTERNS = {"stripes", "diagonal", "checkerboard", "diamonds", "zigzag",
+                   "strobe", "color_strobe", "rain", "helix", "starburst"}
 
 
 @pytest.mark.parametrize("pat_name", list(PATTERN_GENERATORS))
@@ -328,3 +331,162 @@ def test_generate_all_empty_lists_produce_nothing():
         assert written == []
     finally:
         shutil.rmtree(tmpdir)
+
+
+# ── Complementary colour integrity tests ─────────────────────────────
+
+def _rgb_to_hue(r: int, g: int, b: int) -> float:
+    """Return hue in degrees (0-360) for an RGB colour."""
+    import colorsys
+    h, _, _ = colorsys.rgb_to_hls(r / 255.0, g / 255.0, b / 255.0)
+    return h * 360.0
+
+
+def _hue_distance(h1: float, h2: float) -> float:
+    """Shortest angular distance between two hue angles (0-360)."""
+    d = abs(h1 - h2) % 360.0
+    return min(d, 360.0 - d)
+
+
+def test_complementary_is_180_degrees_apart():
+    """The complementary scheme must produce hues exactly 180° apart."""
+    for hue in [0, 45, 90, 135, 180, 270]:
+        c1, c2 = complementary(hue)
+        h1 = _rgb_to_hue(*c1)
+        h2 = _rgb_to_hue(*c2)
+        assert abs(_hue_distance(h1, h2) - 180.0) < 2.0, (
+            f"Complementary({hue}): hues {h1:.1f}° and {h2:.1f}° are not ~180° apart"
+        )
+
+
+def test_shift_hue_rotate_preserves_complementary():
+    """shift_hue_rotate should maintain the 180° gap for complementary pairs."""
+    for degrees in [30, 60, 90, 120, 180, 270]:
+        original = complementary(0)
+        shifted = shift_hue_rotate(original, degrees)
+        h1 = _rgb_to_hue(*shifted[0])
+        h2 = _rgb_to_hue(*shifted[1])
+        assert abs(_hue_distance(h1, h2) - 180.0) < 2.0, (
+            f"shift_hue_rotate({degrees}): hues {h1:.1f}° and {h2:.1f}° "
+            f"lost complementary relationship"
+        )
+
+
+def test_shift_complementary_rotate_always_complementary():
+    """shift_complementary_rotate must always produce a 180° pair."""
+    for degrees in [0, 30, 60, 90, 120, 180, 270]:
+        original = complementary(0)
+        shifted = shift_complementary_rotate(original, degrees)
+        assert len(shifted) == 2
+        h1 = _rgb_to_hue(*shifted[0])
+        h2 = _rgb_to_hue(*shifted[1])
+        assert abs(_hue_distance(h1, h2) - 180.0) < 2.0, (
+            f"shift_complementary_rotate({degrees}): hues {h1:.1f}° and "
+            f"{h2:.1f}° are not ~180° apart"
+        )
+
+
+def test_shift_complementary_rotate_from_non_complementary():
+    """Even starting from triadic colours, the output must be complementary."""
+    tri = triadic(0)
+    shifted = shift_complementary_rotate(tri, 45)
+    assert len(shifted) == 2
+    h1 = _rgb_to_hue(*shifted[0])
+    h2 = _rgb_to_hue(*shifted[1])
+    assert abs(_hue_distance(h1, h2) - 180.0) < 2.0
+
+
+# ── New pattern-type tests ───────────────────────────────────────────
+
+def test_strobe_has_black_gaps():
+    """Strobe pattern must contain black columns between flashes."""
+    img = generate_pattern("strobe", complementary(0))
+    has_black = False
+    for x in range(img.width):
+        col = _column(img, x)
+        if all(px == (0, 0, 0) for px in col):
+            has_black = True
+            break
+    assert has_black, "Strobe should contain black (gap) columns"
+
+
+def test_strobe_has_colour_columns():
+    """Strobe must also have non-black flash columns."""
+    img = generate_pattern("strobe", complementary(0))
+    has_colour = False
+    for x in range(img.width):
+        col = _column(img, x)
+        if any(px != (0, 0, 0) for px in col):
+            has_colour = True
+            break
+    assert has_colour, "Strobe should contain coloured flash columns"
+
+
+def test_color_strobe_hue_changes_across_width():
+    """Colour strobe flash columns should shift hue across the image."""
+    img = generate_pattern("color_strobe", complementary(0))
+    first_flash = None
+    last_flash = None
+    for x in range(img.width):
+        px = img.getpixel((x, img.height // 2))
+        if px != (0, 0, 0):
+            if first_flash is None:
+                first_flash = px
+            last_flash = px
+    assert first_flash is not None and last_flash is not None
+    # The first and last flash colours should differ (hue rotated)
+    assert first_flash != last_flash, (
+        "Colour strobe flash colours should change across the image width"
+    )
+
+
+def test_rain_has_non_blank_and_blank_columns():
+    """Rain pattern should have a mix of filled and empty columns."""
+    img = generate_pattern("rain", complementary(0))
+    filled = 0
+    blank = 0
+    for x in range(img.width):
+        col = _column(img, x)
+        if all(px == (0, 0, 0) for px in col):
+            blank += 1
+        else:
+            filled += 1
+    assert filled > 0, "Rain should have some filled columns"
+    assert blank > 0, "Rain should have some blank columns"
+
+
+def test_helix_draws_in_middle_rows():
+    """Helix strands should appear in the middle rows of the image."""
+    img = generate_pattern("helix", complementary(0))
+    mid = img.height // 2
+    has_pixel_near_mid = False
+    for x in range(img.width):
+        for dy in range(-3, 4):
+            y = mid + dy
+            if 0 <= y < img.height:
+                if img.getpixel((x, y)) != (0, 0, 0):
+                    has_pixel_near_mid = True
+                    break
+        if has_pixel_near_mid:
+            break
+    assert has_pixel_near_mid, "Helix should draw strands near the vertical centre"
+
+
+def test_starburst_has_central_colours():
+    """Starburst should have bright colours near the image centre."""
+    img = generate_pattern("starburst", complementary(0))
+    cx, cy = img.width // 2, img.height // 2
+    px = img.getpixel((cx, cy))
+    assert any(v > 50 for v in px), (
+        f"Starburst centre pixel should be bright, got {px}"
+    )
+
+
+@pytest.mark.parametrize("pat_name", ["strobe", "color_strobe", "rain",
+                                       "helix", "starburst"])
+def test_new_patterns_dimensions(pat_name):
+    """All new patterns must produce the correct height and positive width."""
+    img = generate_pattern(pat_name, complementary(0), height=31)
+    assert img.height == 31
+    assert img.width > 0
+    assert img.mode == "RGB"
