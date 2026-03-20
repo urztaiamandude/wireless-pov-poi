@@ -15,6 +15,8 @@ import sys
 import tempfile
 import shutil
 
+import pytest
+
 # Allow importing from sibling scripts/ directory
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
 
@@ -147,7 +149,6 @@ def test_generate_pattern_api():
 
 
 def test_generate_pattern_unknown_raises():
-    import pytest
     with pytest.raises(ValueError):
         generate_pattern("nonexistent_pattern", complementary(0))
 
@@ -179,15 +180,12 @@ def _max_channel_diff(c1, c2):
 
 
 def test_stripes_tile_seamlessly():
-    """Stripes are block-aligned so column -1 → column 0 must be exact."""
+    """Stripe columns at the seam should each be a single solid colour."""
     img = generate_pattern("stripes", complementary(0))
-    # Tile: paste two copies side by side, check the junction
+    # Tile: paste two copies side by side, check the junction.
     left_last = _column(img, img.width - 1)
     right_first = _column(img, 0)
-    # For stripes, consecutive columns at the seam should match the pattern
-    # period, meaning column 0 follows column width-1 in the same cycle.
-    # They won't be identical (different stripe), but they should both be
-    # solid colours from the palette.
+    # Each column within a stripe block is a single solid colour.
     assert len(set(left_last)) == 1, "Stripe column should be a single colour"
     assert len(set(right_first)) == 1, "Stripe column should be a single colour"
 
@@ -234,5 +232,99 @@ def test_generate_all_creates_files():
             assert os.path.isfile(path)
             img = Image.open(path)
             assert img.height == 31
+    finally:
+        shutil.rmtree(tmpdir)
+
+
+# ── Parameterized seam test for ALL patterns ─────────────────────────
+
+# Patterns that produce discrete blocks (no smooth gradient at the seam)
+# are seamless by construction because their width equals the tile period.
+# They are validated by verifying the image is tileable (i.e., placing two
+# copies side by side produces no discontinuity beyond what exists within
+# a single tile).  Smooth patterns are validated with the
+# MAX_SEAMLESS_COLOR_DIFF tolerance between adjacent seam columns.
+_BLOCK_PATTERNS = {"stripes", "diagonal", "checkerboard", "diamonds", "zigzag"}
+
+
+@pytest.mark.parametrize("pat_name", list(PATTERN_GENERATORS))
+def test_all_patterns_tile_at_seam(pat_name):
+    """Every pattern must tile seamlessly at the horizontal wrap point."""
+    colours = complementary(0)
+    img = generate_pattern(pat_name, colours)
+    left = _column(img, img.width - 1)
+    right = _column(img, 0)
+
+    if pat_name in _BLOCK_PATTERNS:
+        # Block-based patterns tile by period: verify that the colour
+        # difference between the last and first column never exceeds
+        # the max difference found between any two adjacent columns
+        # within the image itself.
+        max_internal = 0
+        for x in range(img.width - 1):
+            col_a = _column(img, x)
+            col_b = _column(img, x + 1)
+            for y in range(img.height):
+                d = _max_channel_diff(col_a[y], col_b[y])
+                if d > max_internal:
+                    max_internal = d
+        for y in range(img.height):
+            seam_diff = _max_channel_diff(left[y], right[y])
+            assert seam_diff <= max_internal, (
+                f"{pat_name} seam diff ({seam_diff}) exceeds max internal "
+                f"diff ({max_internal}) at y={y}"
+            )
+    else:
+        for y in range(img.height):
+            diff = _max_channel_diff(left[y], right[y])
+            assert diff < MAX_SEAMLESS_COLOR_DIFF, (
+                f"{pat_name} seam diff too large at y={y}: "
+                f"{left[y]} vs {right[y]} (diff={diff})"
+            )
+
+
+# ── Validation tests ─────────────────────────────────────────────────
+
+def test_generate_pattern_empty_colors_raises():
+    """Passing an empty colour list should raise ValueError."""
+    with pytest.raises(ValueError, match="at least 2"):
+        generate_pattern("stripes", [])
+
+
+def test_generate_pattern_single_color_raises():
+    """Passing a single-colour list should raise ValueError."""
+    with pytest.raises(ValueError, match="at least 2"):
+        generate_pattern("stripes", [(255, 0, 0)])
+
+
+def test_generate_all_unknown_scheme_raises():
+    """Passing an unknown scheme name should raise ValueError."""
+    tmpdir = tempfile.mkdtemp()
+    try:
+        with pytest.raises(ValueError, match="Unknown colour scheme"):
+            generate_all(output_dir=tmpdir, hues=[0],
+                         schemes=["nonexistent"], patterns=["stripes"])
+    finally:
+        shutil.rmtree(tmpdir)
+
+
+def test_generate_all_unknown_pattern_raises():
+    """Passing an unknown pattern name should raise ValueError."""
+    tmpdir = tempfile.mkdtemp()
+    try:
+        with pytest.raises(ValueError, match="Unknown pattern"):
+            generate_all(output_dir=tmpdir, hues=[0],
+                         schemes=["complementary"], patterns=["fake_pattern"])
+    finally:
+        shutil.rmtree(tmpdir)
+
+
+def test_generate_all_empty_lists_produce_nothing():
+    """Explicitly passing empty lists should produce no output."""
+    tmpdir = tempfile.mkdtemp()
+    try:
+        written = generate_all(output_dir=tmpdir, hues=[], schemes=[],
+                               patterns=[])
+        assert written == []
     finally:
         shutil.rmtree(tmpdir)

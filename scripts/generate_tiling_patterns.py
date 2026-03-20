@@ -189,10 +189,10 @@ def gen_zigzag(colors: list[tuple[int, int, int]], height: int,
     """Chevron / zigzag bands running vertically, tiling at *period*."""
     img = Image.new("RGB", (period, height))
     for x in range(period):
+        # triangle wave on x to create zigzag
+        tri = abs((2 * (x % period) / period) - 1.0)  # 0→1→0
+        offset = tri * height
         for y in range(height):
-            # triangle wave on x to create zigzag
-            tri = abs((2 * (x % period) / period) - 1.0)  # 0→1→0
-            offset = tri * height
             t = ((y + offset) % height) / height
             img.putpixel((x, y), _palette_at(colors, t))
     return img
@@ -320,6 +320,11 @@ def generate_pattern(
             f"Unknown pattern '{pattern_name}'. "
             f"Available: {', '.join(PATTERN_GENERATORS)}"
         )
+    if colors is None or len(colors) < 2:
+        count = 0 if colors is None else len(colors)
+        raise ValueError(
+            f"'colors' must contain at least 2 RGB tuples; got {count}"
+        )
     return gen(colors, height)
 
 
@@ -336,11 +341,27 @@ def generate_all(
     """
     os.makedirs(output_dir, exist_ok=True)
 
-    hues = hues or STARTER_HUES
-    schemes = schemes or list(COLOR_SCHEMES)
-    patterns = patterns or list(PATTERN_GENERATORS)
+    if hues is None:
+        hues = STARTER_HUES
+    if schemes is None:
+        schemes = list(COLOR_SCHEMES)
+    if patterns is None:
+        patterns = list(PATTERN_GENERATORS)
 
     written: list[str] = []
+
+    unknown_schemes = set(schemes) - set(COLOR_SCHEMES)
+    if unknown_schemes:
+        raise ValueError(
+            f"Unknown colour scheme(s): {', '.join(sorted(unknown_schemes))}. "
+            f"Available: {', '.join(COLOR_SCHEMES)}"
+        )
+    unknown_pats = set(patterns) - set(PATTERN_GENERATORS)
+    if unknown_pats:
+        raise ValueError(
+            f"Unknown pattern(s): {', '.join(sorted(unknown_pats))}. "
+            f"Available: {', '.join(PATTERN_GENERATORS)}"
+        )
 
     for hue in hues:
         for scheme_name in schemes:
