@@ -27,6 +27,7 @@ import argparse
 import colorsys
 import math
 import os
+import random as _rng
 import sys
 from typing import Callable
 
@@ -250,7 +251,7 @@ def gen_plasma(colors: list[tuple[int, int, int]], height: int,
 
 def gen_strobe(colors: list[tuple[int, int, int]], height: int,
                duty: int = 2, gap: int = 4) -> Image.Image:
-    """Strobe — alternating complementary-colour columns with black gaps.
+    """Strobe — alternating palette-colour columns with black gaps.
 
     *duty* columns of each palette colour followed by *gap* black columns.
     One full cycle = ``(duty + gap) * len(colors)`` columns.
@@ -299,7 +300,6 @@ def gen_rain(colors: list[tuple[int, int, int]], height: int,
     Deterministic (seeded by column position) so the pattern tiles
     seamlessly at *width*.
     """
-    import random as _rng
     img = Image.new("RGB", (width, height))
     for x in range(width):
         # Deterministic seed per column for reproducibility & tiling
@@ -431,8 +431,10 @@ def shift_complementary_rotate(colors: list[tuple[int, int, int]],
     complementary pair is generated at the target hue.
     """
     r, g, b = colors[0]
+    # rgb_to_hls returns (hue, lightness, saturation)
     h, l, s = colorsys.rgb_to_hls(r / 255, g / 255, b / 255)
     new_h = ((h * 360.0) + degrees) % 360.0
+    # complementary() signature is (h, s, l) — pass s and l explicitly
     return complementary(new_h, s, l)
 
 
