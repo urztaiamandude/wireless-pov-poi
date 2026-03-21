@@ -9,7 +9,7 @@ can also be executed locally without any hardware.
 ## Scripts
 
 | Script | Purpose |
-|--------|---------|
+| -------- | --------- |
 | `agent_dispatcher.py` | Orchestrator — runs all sub-agents and produces a merged report |
 | `analyze_code.py` | Static analysis: C++ firmware heuristics + Python `compileall` + optional ruff |
 | `detect_errors.py` | Build checks: PlatformIO firmware builds + TypeScript `tsc --noEmit` + Python syntax |
@@ -22,7 +22,7 @@ can also be executed locally without any hardware.
 All scripts write their results to `scripts/ai_agent/output/` (git-ignored):
 
 | File | Description |
-|------|-------------|
+| ------ | ------------- |
 | `output/findings.json` | Machine-readable list of findings with severity, file, line, and suggested fix |
 | `output/report.md` | Human-readable Markdown summary of all findings |
 | `output/generated_patterns/` | Pattern `.cpp` snippets (only from `generate_patterns.py`) |
@@ -86,9 +86,9 @@ python3 -m json.tool scripts/ai_agent/output/findings.json
 
 ## Environment Variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `SKIP_PIO` | `0` | Set to `1` to skip PlatformIO firmware builds |
+| Variable   | Default | Description                                     |
+| ---------- | ------- | ----------------------------------------------- |
+| `SKIP_PIO` | `0`     | Set to `1` to skip PlatformIO firmware builds   |
 
 ---
 
@@ -97,7 +97,7 @@ python3 -m json.tool scripts/ai_agent/output/findings.json
 The scripts are wired to `.github/workflows/ai-agent-automation.yml`:
 
 | Job | Trigger | Script |
-|-----|---------|--------|
+| ----- | --------- | -------- |
 | `platformio_build` | push / PR | `pio run -e teensy41` + `pio run -e esp32s3` (dedicated build gate) |
 | `AI Agent Dispatcher` | push to main / schedule | `agent_dispatcher.py` |
 | `AI Code Analysis` | push / PR | `analyze_code.py` |
@@ -141,6 +141,7 @@ To add a new heuristic check:
 
 1. Open `analyze_code.py` (for static checks) or `detect_errors.py` (for build checks).
 2. Add a new function following the existing pattern:
+
    ```python
    def _check_my_thing(path: Path) -> List[Dict]:
        findings = []
@@ -155,4 +156,5 @@ To add a new heuristic check:
        })
        return findings
    ```
+
 3. Call your function from `_run_cpp_checks()` (or equivalent) and extend the list.
