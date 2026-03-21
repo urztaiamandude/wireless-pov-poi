@@ -14,6 +14,7 @@ Add this at the top of `teensy_firmware.ino` (after the includes, around line 45
 Then modify `processSerialCommands()` function (around line 372):
 
 **Find:**
+
 ```cpp
 void processSerialCommands() {
   while (ESP32_SERIAL.available()) {
@@ -21,6 +22,7 @@ void processSerialCommands() {
 ```
 
 **Replace with:**
+
 ```cpp
 void processSerialCommands() {
   #ifdef TEST_MODE_USB_SERIAL
@@ -36,6 +38,7 @@ void processSerialCommands() {
 Also update `sendAck()` function (around line 1162):
 
 **Find:**
+
 ```cpp
 void sendAck(uint8_t cmd) {
   ESP32_SERIAL.write(0xFF);
@@ -46,6 +49,7 @@ void sendAck(uint8_t cmd) {
 ```
 
 **Replace with:**
+
 ```cpp
 void sendAck(uint8_t cmd) {
   #ifdef TEST_MODE_USB_SERIAL
@@ -64,6 +68,7 @@ void sendAck(uint8_t cmd) {
 And update `sendStatus()` function (around line 1169):
 
 **Find:**
+
 ```cpp
 void sendStatus() {
   ESP32_SERIAL.write(0xFF);
@@ -75,6 +80,7 @@ void sendStatus() {
 ```
 
 **Replace with:**
+
 ```cpp
 void sendStatus() {
   #ifdef TEST_MODE_USB_SERIAL

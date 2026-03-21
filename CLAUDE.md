@@ -10,6 +10,7 @@
 **Wireless LED POV Poi System** - A persistence of vision LED display using rotating poi, featuring wireless control and real-time pattern generation.
 
 ### Core Hardware
+
 - **Main Controller**: Teensy 4.1 @ 600MHz (ARM Cortex-M7)
   - 1MB Internal RAM
   - **Optional**: 16MB PSRAM (2× 8MB chips) for expanded storage
@@ -22,7 +23,8 @@
 - **Optional**: microSD card (Teensy 4.1 built-in slot) for image storage
 
 ### System Architecture
-```
+
+```text
 User (Phone/Browser) 
     ↓ WiFi (192.168.4.1)
 ESP32/S3 (Web Server + WiFi AP)
@@ -39,6 +41,7 @@ The **Teensy 4.1 is the ONLY device physically connected to the APA102 LEDs**. A
 The **ESP32/ESP32-S3 is a WiFi/BLE bridge and web UI host**. It forwards user settings (brightness, frame rate, mode, pattern selection, image uploads) to the Teensy via serial UART. The ESP32/ESP32-S3 should **NOT** enforce firmware-level LED display restrictions (e.g., brightness clamping, pattern count limits, LED index validation) because it does not physically control the LEDs. Any display-related validation or processing belongs in the Teensy firmware only.
 
 **When making changes:**
+
 - LED rendering logic, display restrictions, brightness application → **Teensy firmware only** (`teensy_firmware/`)
 - Web UI, API endpoints, settings relay, image upload handling → **ESP32 firmware** (`esp32_firmware/`)
 - The ESP32 passes values through to the Teensy — it is not responsible for LED hardware constraints
@@ -49,6 +52,7 @@ The **ESP32/ESP32-S3 is a WiFi/BLE bridge and web UI host**. It forwards user se
 ## CRITICAL HARDWARE CONSTRAINTS - DO NOT MODIFY
 
 ### LED Configuration
+
 - **Total LEDs: 32** (`leds[0]` through `leds[31]`)
 - **LED 0 is the sacrificial level-shift LED** — it shifts 3.3V data to 5V for the rest of the strip
 - LEDs 1-31 are display LEDs (31 display pixels)
@@ -56,6 +60,7 @@ The **ESP32/ESP32-S3 is a WiFi/BLE bridge and web UI host**. It forwards user se
 - Do NOT change `NUM_LEDS` to 31 under any circumstances
 
 ### Teensy 4.1 <-> ESP32-S3 Serial Communication
+
 - **Teensy TX:** Pin 1 / **Teensy RX:** Pin 0
 - **ESP32-S3 TX:** Pin 17 / **ESP32-S3 RX:** Pin 16
 - This UART serial link is the **only** communication path between the two processors
@@ -64,6 +69,7 @@ The **ESP32/ESP32-S3 is a WiFi/BLE bridge and web UI host**. It forwards user se
 - Do NOT change these pin assignments without updating both Teensy and ESP32-S3 firmware
 
 ### SD Card File System - Teensy 4.1
+
 - SD card is mounted on the **Teensy 4.1**, not the ESP32-S3
 - ESP32-S3 accesses SD card contents via serial communication with Teensy, not directly
 - Web UI SD card explorer fetches file listings and data through the ESP32-S3 REST API, which in turn requests it from Teensy
@@ -79,6 +85,7 @@ The **ESP32/ESP32-S3 is a WiFi/BLE bridge and web UI host**. It forwards user se
 ## Web UI Constraints - Firmware Deployment
 
 ### Absolutely Prohibited
+
 - No external CDN dependencies (no unpkg, cdnjs, jsdelivr, etc.)
 - No ES modules or import statements
 - No `fetch()` calls to external URLs
@@ -87,6 +94,7 @@ The **ESP32/ESP32-S3 is a WiFi/BLE bridge and web UI host**. It forwards user se
 - No build step dependencies (no npm, no webpack, no React, no transpilation)
 
 ### Required
+
 - All JS and CSS must be self-contained or inlined
 - All API calls must use relative paths (for example, `/api/status` not `http://192.168.x.x/api/status`)
 - Must function when served from LittleFS on ESP32-S3
@@ -94,6 +102,7 @@ The **ESP32/ESP32-S3 is a WiFi/BLE bridge and web UI host**. It forwards user se
 - Must function when opened directly via `file://` with no server running
 
 ### Web UI Pre-Commit Checklist
+
 - [ ] No external resource loads in browser network tab
 - [ ] All API endpoints use relative paths
 - [ ] Works with no internet connection
@@ -104,7 +113,8 @@ The **ESP32/ESP32-S3 is a WiFi/BLE bridge and web UI host**. It forwards user se
 ## Critical Design Constraints
 
 ### 1. LED Array Layout
-```
+
+```text
 ⚠️ CRITICAL: LED 0 is a sacrificial level-shift LED — do NOT use it for display!
 
 Physical LED Strip:
@@ -117,6 +127,7 @@ Physical LED Strip:
 ```
 
 **ALL display code MUST:**
+
 - Use `DISPLAY_LEDS` (31) and `DISPLAY_LED_START` (1) for display loops: `for (int i = 1; i < NUM_LEDS; i++)`
 - Use `DISPLAY_LEDS` (31) for height calculations
 - Use `DISPLAY_LED_START` (1) as first display index
@@ -124,6 +135,7 @@ Physical LED Strip:
 ### 2. Image Orientation & Dimensions
 
 **POV Display Orientation:**
+
 - **HEIGHT = 31 pixels** (FIXED - one pixel per display LED)
 - **WIDTH = variable** (calculated from aspect ratio, max 400px with PSRAM)
 - LED strip forms the VERTICAL axis when spinning
@@ -132,6 +144,7 @@ Physical LED Strip:
 - Images scroll horizontally as poi spins
 
 **Image Storage Format:**
+
 ```cpp
 // Storage: pixels[x][y] where y is LED index
 CRGB pixels[IMAGE_WIDTH][IMAGE_HEIGHT];  // Max 31x400
@@ -143,18 +156,21 @@ leds[y + DISPLAY_LED_START] = pixels[current_column][y];  // y ranges 0-30, mapp
 ### 3. Communication Protocol
 
 **Serial Communication (Teensy ↔ ESP32):**
+
 - Baud rate: 115200
 - Teensy TX1 (Pin 1) → ESP32 RX (GPIO 16)
 - Teensy RX1 (Pin 0) ← ESP32 TX (GPIO 17)
 - Binary protocol for image data, text commands for control
 
 **WiFi Network:**
+
 - SSID: `POV-POI-WiFi`
 - Password: `povpoi123`
 - IP: `192.168.4.1`
 - Access: `http://povpoi.local` or `http://192.168.4.1`
 
 ### 4. Power Requirements
+
 - **Voltage**: 5V DC
 - **Current**: 2-3A (full brightness, all LEDs white)
 - **Distribution**: Common 5V rail for Teensy, ESP32, and LED strip
@@ -167,12 +183,14 @@ leds[y + DISPLAY_LED_START] = pixels[current_column][y];  // y ranges 0-30, mapp
 ### Two Implementations Available
 
 **1. Arduino IDE Firmware** (`teensy_firmware/`) - **RECOMMENDED**
+
 - Single file: `teensy_firmware.ino` (1681 lines)
 - Complete features: images, patterns, sequences, SD card support
 - Quick setup, easier to modify
 - Best for: Most users, rapid development
 
 **2. PlatformIO Firmware** (`firmware/teensy41/`) - Advanced
+
 - Modular architecture with separate components
 - Professional build system
 - Best for: Large-scale customization, team development
@@ -181,6 +199,7 @@ leds[y + DISPLAY_LED_START] = pixels[current_column][y];  // y ranges 0-30, mapp
 ### Current Feature Status
 
 ✅ **Fully Implemented:**
+
 - Image display (upload, store, display)
 - 16 animated patterns (basic + music-reactive)
 - Sequences (chain images/patterns with durations)
@@ -191,6 +210,7 @@ leds[y + DISPLAY_LED_START] = pixels[current_column][y];  // y ranges 0-30, mapp
 - Live drawing mode
 
 🚧 **PlatformIO Firmware Only (Partial):**
+
 - Advanced SD card integration
 - Some command processing features
 
@@ -199,6 +219,7 @@ leds[y + DISPLAY_LED_START] = pixels[current_column][y];  // y ranges 0-30, mapp
 ## Display Modes & Features
 
 ### Display Modes
+
 1. **Idle** - Off/standby
 2. **Image** - Display stored POV image
 3. **Pattern** - Animated pattern (18 types)
@@ -206,17 +227,22 @@ leds[y + DISPLAY_LED_START] = pixels[current_column][y];  // y ranges 0-30, mapp
 5. **Live** - Real-time drawing from web interface
 
 ### Pattern Types (0-17)
+
 **Basic Patterns (0-10):**
+
 - 0: Rainbow, 1: Wave, 2: Gradient, 3: Sparkle, 4: Fire
 - 5: Comet, 6: Breathing, 7: Strobe, 8: Meteor, 9: Wipe, 10: Plasma
 
 **Music-Reactive (11-15)** (requires microphone):
+
 - 11: VU Meter, 12: Pulse, 13: Audio Rainbow, 14: Center Burst, 15: Audio Sparkle
 
 **Advanced (16-17):**
+
 - 16: Split Spin, 17: Theater Chase
 
 ### Controls
+
 - **Brightness**: 0-255 (adjustable via web/API)
 - **Frame Rate**: 10-120 FPS (adjustable)
 - **Pattern Speed**: 1-255 (higher = faster)
@@ -225,7 +251,7 @@ leds[y + DISPLAY_LED_START] = pixels[current_column][y];  // y ranges 0-30, mapp
 
 ## File Structure
 
-```
+```text
 wireless-pov-poi/
 ├── teensy_firmware/           # Teensy 4.1 firmware (Arduino IDE) ⭐
 │   ├── teensy_firmware.ino   # Main firmware (1681 lines)
@@ -252,12 +278,13 @@ wireless-pov-poi/
 
 The following files are **NOT compiled into any firmware build**. Do not apply bug fixes, input validation, or security patches to these files expecting them to ship on hardware:
 
-| File | Purpose | Why it's excluded |
-|------|---------|-------------------|
-| `esp32_firmware/web_preview.html` | Standalone browser preview of the web UI | Not uploaded to SPIFFS/LittleFS, not served by ESP32 |
-| `esp32_firmware/test_webui_server.js` | Mock API server for local development | Node.js dev tool only |
+| File                                  | Purpose                                  | Why it's excluded                                    |
+|---------------------------------------|------------------------------------------|------------------------------------------------------|
+| `esp32_firmware/web_preview.html`     | Standalone browser preview of the web UI | Not uploaded to SPIFFS/LittleFS, not served by ESP32 |
+| `esp32_firmware/test_webui_server.js` | Mock API server for local development    | Node.js dev tool only                                |
 
 **The actual shipped web UI code lives in:**
+
 1. **`esp32_firmware/webui/`** — React app built to `dist/`, uploaded to SPIFFS/LittleFS via `pio run --target uploadfs`
 2. **`esp32_firmware/esp32_firmware.ino`** (PROGMEM `rootPage`) — Embedded fallback HTML served when SPIFFS is empty
 
@@ -268,6 +295,7 @@ The following files are **NOT compiled into any firmware build**. Do not apply b
 ### Building Firmware
 
 **Arduino IDE (Recommended):**
+
 ```bash
 # 1. Open teensy_firmware/teensy_firmware.ino
 # 2. Select Board: Teensy 4.1
@@ -276,6 +304,7 @@ The following files are **NOT compiled into any firmware build**. Do not apply b
 ```
 
 **PlatformIO:**
+
 ```bash
 # Teensy
 pio run -e teensy41 -t upload
@@ -285,6 +314,7 @@ pio run -e esp32s3 -t upload
 ```
 
 ### Image Conversion
+
 ```bash
 # GUI converter (recommended)
 cd examples
@@ -298,6 +328,7 @@ python image_converter.py input_image.jpg
 ```
 
 ### Testing
+
 ```bash
 # Serial debugging
 python scripts/capture_serial_debug.py
@@ -317,6 +348,7 @@ python test_ble_protocol.py
 **Base URL:** `http://192.168.4.1/api/`
 
 **Key Endpoints:**
+
 - `GET /status` - System status
 - `POST /brightness` - Set brightness (0-255)
 - `POST /framerate` - Set frame rate (10-120)
@@ -333,12 +365,14 @@ See `docs/API.md` for complete reference.
 ## Code Style & Conventions
 
 ### Variable Naming
+
 - `camelCase` for local variables
 - `PascalCase` for structs/classes
 - `UPPER_CASE` for constants/defines
 - Descriptive names: `currentPatternIndex` not `idx`
 
 ### LED Index Usage
+
 ```cpp
 // ✅ CORRECT - LEDs 1-31 are display LEDs
 for (int i = 0; i < NUM_LEDS; i++) {
@@ -347,6 +381,7 @@ for (int i = 0; i < NUM_LEDS; i++) {
 ```
 
 ### Image Pixel Access
+
 ```cpp
 // ✅ CORRECT - Direct mapping (no flip)
 for (int y = 0; y < NUM_LEDS; y++) {
@@ -357,6 +392,7 @@ for (int y = 0; y < NUM_LEDS; y++) {
 ```
 
 ### Pattern Speed Guidelines
+
 - Slow: 20-40
 - Medium: 50-80
 - Fast: 100-150
@@ -367,6 +403,7 @@ for (int y = 0; y < NUM_LEDS; y++) {
 ## Memory Considerations
 
 ### Teensy 4.1
+
 - **Internal RAM**: 1MB total
 - **Flash**: 8MB total
 - **PSRAM (Optional)**: 16MB (2× 8MB chips soldered to board)
@@ -377,6 +414,7 @@ for (int y = 0; y < NUM_LEDS; y++) {
 - **Performance**: PSRAM is 2-3x slower than internal RAM but sufficient for image storage
 
 ### ESP32-S3 N16R8
+
 - **Flash**: 16MB (recommended for future expansion)
 - **PSRAM**: 8MB (external RAM for web server buffering)
 - **Web server**: Handles image upload/storage temporarily
@@ -386,24 +424,28 @@ for (int y = 0; y < NUM_LEDS; y++) {
 ## Troubleshooting Quick Reference
 
 ### No LED output
+
 1. Check power supply (5V, 2-3A)
 2. Verify APA102 connections (Data=Pin 11, Clock=Pin 13)
 3. Check LED 0 is connected (sacrificial LED required for 3.3V→5V level shifting)
 4. Test with simple pattern: `leds[1] = CRGB::Red; FastLED.show();`
 
 ### WiFi connection issues
+
 1. Verify ESP32 is powered and programmed
 2. Check SSID/password in `esp32_firmware.ino`
 3. Try direct IP: `192.168.4.1`
 4. Check serial monitor for ESP32 boot messages
 
 ### Serial communication problems
+
 1. Verify baud rate: 115200 on both devices
 2. Check TX/RX connections (TX→RX, RX→TX)
 3. Monitor Serial1 on Teensy for incoming commands
 4. Check ESP32 serial output for command echo
 
 ### Image orientation incorrect
+
 - Images should display correctly without manual flipping
 - LED 0 = sacrificial level-shift LED (not displayed)
 - LED 1 = bottom of strip = bottom of image
@@ -435,11 +477,13 @@ for (int y = 0; y < NUM_LEDS; y++) {
 ## Recent Changes & Active Development
 
 **Last Major Update:** Peer-to-peer synchronization feature
+
 - Multiple poi can discover and sync with each other
 - Bidirectional sharing of images, patterns, settings
 - See `docs/POI_PAIRING.md` for details
 
 **Current Focus:**
+
 - PlatformIO firmware feature parity
 - Advanced SD card integration
 - OTA firmware updates (planned)
