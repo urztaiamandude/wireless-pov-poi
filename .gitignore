@@ -5,6 +5,7 @@
 *.bin
 *.map
 *.lst
+compile_commands.json
 
 # Build output directory (but allow committed HEX files in docs)
 build_output/

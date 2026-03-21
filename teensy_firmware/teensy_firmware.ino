@@ -178,6 +178,37 @@ CRGB liveBuffer[DISPLAY_LEDS];
 #endif
 uint32_t cmdBufferIndex = 0;
 
+// Forward declarations (Arduino auto-generates these, but clangd needs them explicit)
+void initStorage();
+void createDemoImages();
+void createDemoSequence();
+void startupAnimation();
+void processSerialCommands();
+void parseCommand();
+void receiveImage();
+void receivePattern();
+void receiveSequence();
+void receiveLiveFrame();
+void updateDisplay();
+void displayImage();
+void displayPattern();
+void displaySequence();
+void displayLive();
+void sendAck(uint8_t cmd);
+void sendStatus();
+#ifdef SD_SUPPORT
+void initSDCard();
+void saveImageToSD();
+void loadImageFromSD();
+void listSDImages();
+void deleteSDImage();
+void sendSDInfo();
+void savePatternPreset(const char* presetName);
+bool loadPatternPreset(const char* presetName);
+void listPatternPresets();
+void handlePatternSDCommand();
+#endif
+
 void setup() {
   // Initialize Serial for debugging
   Serial.begin(115200);
@@ -682,7 +713,7 @@ void receiveImage() {
   // Parse image header from command buffer
   // Protocol: 0xFF 0x02 dataLen_high dataLen_low width_low width_high height_low height_high [RGB data...] 0xFE
   // Updated to support 16-bit width/height values
-  uint16_t dataLen = (cmdBuffer[2] << 8) | cmdBuffer[3];
+  // Bytes 2-3: dataLen (parsed but validated via dimensions below)
   uint16_t srcWidth = cmdBuffer[4] | (cmdBuffer[5] << 8);   // 16-bit width
   uint16_t srcHeight = cmdBuffer[6] | (cmdBuffer[7] << 8);  // 16-bit height
   
