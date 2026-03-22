@@ -15,6 +15,7 @@ Comprehensive power supply design guide for the Nebula Poi with Teensy 4.1, ESP3
 9. [Troubleshooting Power Issues](#troubleshooting-power-issues)
 10. [Safety Considerations](#safety-considerations)
 11. [Component BOMs](#component-boms)
+12. [Converter Module Evaluation: XL6019](#converter-module-evaluation-xl6019)
 
 ---
 
@@ -1101,6 +1102,143 @@ ESP32             85°C            Reduce WiFi TX power
 | TB1-TB6 | Screw Terminal 2-pos | 6 | $1 | $6 | DigiKey |
 | TVS1 | P6KE6.8CA TVS Diode | 1 | $1 | $1 | DigiKey |
 | | **TOTAL** | | | **$52.90** | |
+
+---
+
+## Converter Module Evaluation: XL6019
+
+### What Is the XL6019?
+
+The XL6019 (by XLSEMI) is a DC-DC converter IC commonly sold on Amazon, AliExpress, and eBay as an **"XL6019 5A DC-DC Step-Up Buck Converter."** Despite the confusing product name, the pre-built modules are almost always configured as **boost (step-up) converters** — they raise the input voltage to a higher output voltage. The IC itself supports boost, buck-boost, SEPIC, and inverting topologies, but the cheap breakout modules only implement the boost configuration.
+
+**XL6019 Module Specifications (typical breakout board):**
+
+| Parameter | Value |
+|-----------|-------|
+| IC | XL6019E1 (TO263-5L package) |
+| Topology | Boost (step-up) as sold |
+| Input Voltage | 5–32V DC (some modules accept 3V min) |
+| Output Voltage | Adjustable, ~5–35V (must be ≥ input) |
+| Max Switch Current | 5A |
+| Switching Frequency | 180kHz |
+| Efficiency | Up to 94% (depends on Vin/Vout ratio) |
+| Output Ripple | Typically 50–150mV (no additional LC filter) |
+| Module Cost | ~$2–5 each |
+
+> **Key constraint:** A boost converter can only produce an output voltage **equal to or higher** than its input. It cannot step voltage down. If your battery voltage is already above 5V, a boost module cannot convert it to 5V — you need a buck (step-down) converter instead.
+
+### Nebula Poi Power Requirements Recap
+
+| Component | Required Voltage | Typical Current | Max Current |
+|-----------|-----------------|-----------------|-------------|
+| APA102 LED strip (32 LEDs) | 5V | 960mA (50% brightness) | 1.92A |
+| Teensy 4.1 | 5V (via VIN) | 100–150mA | 250mA |
+| ESP32/ESP32-S3 | 5V (via VIN/internal regulator) | 80–150mA | 240mA |
+| MAX9814 Microphone | 3.3V | ~5mA | ~10mA |
+| **System Total** | **5V** | **~1.2A (50%)** | **~2.4A** |
+
+### Suitability Analysis by Input Voltage Source
+
+#### ❌ Scenario 1: 3S LiPo Battery (11.1V nominal) — NOT suitable
+
+This is the **recommended battery configuration** for the Nebula Poi (see [Design Option 3](#design-option-3-portable-battery-system)). A 3S LiPo provides 9.0–12.6V, which is **above** the 5V target. You need a **step-down (buck)** converter here, not a step-up.
+
+**The XL6019 boost module cannot convert 11.1V down to 5V.** Using it in this scenario would either output 11.1V+ (damaging your components) or simply not function.
+
+**Use instead:** LM2596 (3A buck), XL4015 (5A buck), or MP1584 (3A buck) — see [Design Option 2](#design-option-2-three-independent-regulators) and [Design Option 3](#design-option-3-portable-battery-system).
+
+#### ❌ Scenario 2: 2S LiPo Battery (7.4V nominal) — NOT suitable
+
+Same issue as 3S — the input voltage (6.0–8.4V) is still above 5V. A buck converter is needed.
+
+#### ⚠️ Scenario 3: 1S LiPo Battery (3.7V nominal) — Technically possible, with caveats
+
+A single LiPo cell (2.5–4.2V) is below 5V, so a boost converter is the correct topology. However, there are significant concerns:
+
+```
+1S LiPo → XL6019 boost → 5V output
+
+Input: 3.0–4.2V (1S LiPo range)
+Output: 5V
+Boost ratio: 1.2× to 1.7×
+
+Current calculation at worst case (3.0V input, 5V output, 2.4A load):
+  Input current = (Vout × Iout) / (Vin × efficiency)
+               = (5 × 2.4) / (3.0 × 0.85)
+               = 4.7A ← close to / exceeds the 5A switch limit
+
+  Note: 85% efficiency is used here as a realistic worst-case estimate
+  for high boost ratios. The "up to 94%" datasheet figure applies to
+  optimal conditions (low boost ratio, moderate load).
+```
+
+**Problems with 1S + XL6019:**
+- Input current approaches or exceeds the 5A rating at full load
+- High input current causes significant voltage sag on a single LiPo cell
+- Battery C-rating must be very high (5C+ continuous discharge rate, i.e., ≥5× the battery's Ah capacity in amps)
+- Module runs very hot at high currents, efficiency drops
+- Output ripple is higher at large boost ratios — may cause LED flickering
+- Very short battery runtime due to the high boost ratio losses
+
+**Verdict:** Possible for low-brightness operation only (~10–25%). Not practical for full-brightness POV use.
+
+#### ⚠️ Scenario 4: USB Power Bank (5V input) — Limited usefulness
+
+If you connect a 5V USB power bank to a boost module set to 5V output, you get minimal benefit (and some loss due to converter inefficiency). A direct connection is better. If you need higher voltage for some reason, the XL6019 could boost it, but the Nebula Poi components all need 5V or 3.3V.
+
+**Verdict:** No reason to use a boost converter with a 5V source.
+
+### Do You Need Separate Converters for Each Component?
+
+The user's question mentions that "the Teensy, ESP32, the APA102 LED strip and the microphone module all need their own power source." While isolated power can reduce noise coupling, **it is not required** for the Nebula Poi system. All four components work well from a common 5V rail:
+
+```
+Single 5V Source (3A capacity)
+     │
+     ├── [1000µF cap] ── APA102 LED Strip (5V, up to 1.92A)
+     │
+     ├── [100µF cap]  ── Teensy 4.1 VIN (5V, ~150mA)
+     │
+     ├── [100µF cap]  ── ESP32 VIN (5V, ~150mA)
+     │                    └── Internal 3.3V regulator
+     │
+     └── Teensy 3.3V pin ── MAX9814 Microphone (3.3V, ~5mA)
+         (Teensy 4.1's onboard 250mA 3.3V regulator easily handles this)
+```
+
+**The microphone (MAX9814) runs on 3.3V**, which is supplied by the Teensy 4.1's onboard 3.3V regulator — it does not need its own converter. The ESP32 also has an onboard 3.3V regulator and accepts 5V on its VIN pin.
+
+Using four separate XL6019 modules would add **unnecessary weight, complexity, cost, and failure points** — particularly problematic for spinning poi where every gram matters.
+
+### Recommendation Summary
+
+| Battery / Source | XL6019 Suitable? | Recommended Converter |
+|-----------------|-------------------|-----------------------|
+| 3S LiPo (11.1V) | ❌ No (needs buck) | LM2596, XL4015, MP1584 |
+| 2S LiPo (7.4V) | ❌ No (needs buck) | LM2596, MP1584 |
+| 1S LiPo (3.7V) | ⚠️ Marginal (current limit) | MT3608 (smaller), or use 2S/3S + buck |
+| 5V USB / Wall | ⚠️ Unnecessary | Direct connection |
+| 12V wall adapter | ❌ No (needs buck) | LM2596, XL4015 |
+
+### Recommended Alternatives
+
+For the Nebula Poi's most common power configurations, use **buck (step-down) converters** instead:
+
+| Module | Type | Output | Max Current | Efficiency | Cost | Notes |
+|--------|------|--------|-------------|------------|------|-------|
+| **LM2596 module** | Buck | Adjustable (set to 5V) | 3A | ~85% | $2–3 | Most popular, widely available |
+| **XL4015 module** | Buck | Adjustable (set to 5V) | 5A | ~90% | $3–5 | Best for full-brightness operation |
+| **MP1584 module** | Buck | Adjustable (set to 5V) | 3A | ~90% | $1–2 | Very compact, good for poi |
+| **Pololu D24V25F5** | Buck | Fixed 5V | 2.5A | ~92% | $15–25 | Highest quality, best regulation |
+
+**Best choice for spinning poi:** One **XL4015** or **LM2596** buck module converting 3S LiPo (11.1V) to 5V, feeding a common 5V rail with capacitors at each component. This is simpler, lighter, and more reliable than multiple boost modules.
+
+### If You Already Purchased XL6019 Modules
+
+If you have XL6019 modules on hand:
+- **Do not use them** between a >5V battery and the 5V components
+- They **can** be repurposed for other projects that need voltage boost (e.g., powering a 12V fan from a 5V source)
+- Consider purchasing an LM2596 or MP1584 buck module ($1–3) for the poi instead
 
 ---
 
