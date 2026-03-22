@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Settings2, RefreshCw, Grid3X3, Palette, Info, RotateCw, Zap, CircuitBoard, Wifi, Lock, Trash2, Check } from 'lucide-react';
 import { useDebounce } from '../hooks';
+import { fetchWithTimeout } from '../fetchWithTimeout';
 
 interface AdvancedSettingsProps {
   ledCount: number;
@@ -39,7 +40,7 @@ const LEDHardwareConfig: React.FC<LEDHardwareConfigProps> = ({ setLedCount }) =>
   }, []);
 
   useEffect(() => {
-    fetch('/api/hardware/leds', { signal: AbortSignal.timeout(3000) })
+    fetchWithTimeout('/api/hardware/leds', {}, 3000)
       .then(r => r.ok ? r.json() : Promise.reject(r.status))
       .then(data => {
         setNumLeds(data.numLeds ?? 32);
@@ -64,12 +65,11 @@ const LEDHardwareConfig: React.FC<LEDHardwareConfigProps> = ({ setLedCount }) =>
     setStatus('saving');
     setErrorMsg('');
     try {
-      const res = await fetch('/api/hardware/leds', {
+      const res = await fetchWithTimeout('/api/hardware/leds', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ numLeds, sacrificialLeds }),
-        signal: AbortSignal.timeout(5000),
-      });
+      }, 5000);
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
         throw new Error(err.error ?? `HTTP ${res.status}`);
@@ -203,7 +203,7 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCou
 
   const fetchWifiStatus = useCallback(async () => {
     try {
-      const res = await fetch(`${baseUrl}/api/wifi/status`, { signal: AbortSignal.timeout(3000) });
+      const res = await fetchWithTimeout(`${baseUrl}/api/wifi/status`, {}, 3000);
       if (res.ok) {
         const data = await res.json();
         setWifiStatus(data);
@@ -227,12 +227,11 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCou
   const debouncedFrameRateUpdate = useDebounce(
     useCallback(async (fps: number) => {
       try {
-        const res = await fetch(`${baseUrl}/api/framerate`, {
+        const res = await fetchWithTimeout(`${baseUrl}/api/framerate`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ framerate: fps }),
-          signal: AbortSignal.timeout(3000)
-        });
+        }, 3000);
         if (res.ok) {
           setRefreshRateStatus(`Applied ${fps} FPS to Teensy.`);
         } else {
@@ -260,12 +259,11 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCou
     setWifiError(null);
     setWifiActionStatus(null);
     try {
-      const res = await fetch(`${baseUrl}/api/wifi/connect`, {
+      const res = await fetchWithTimeout(`${baseUrl}/api/wifi/connect`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ssid: wifiSsid.trim(), password: wifiPassword }),
-        signal: AbortSignal.timeout(5000)
-      });
+      }, 5000);
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setWifiError(data.error || 'Connect failed.');
@@ -274,7 +272,7 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCou
       setWifiError(null);
       for (let i = 0; i < 15; i++) {
         await new Promise((r) => setTimeout(r, 2000));
-        const r2 = await fetch(`${baseUrl}/api/wifi/status`, { signal: AbortSignal.timeout(3000) });
+        const r2 = await fetchWithTimeout(`${baseUrl}/api/wifi/status`, {}, 3000);
         if (r2.ok) {
           const s = await r2.json();
           setWifiStatus(s);
@@ -294,10 +292,9 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCou
     setWifiError(null);
     setWifiActionStatus(null);
     try {
-      await fetch(`${baseUrl}/api/wifi/disconnect`, {
+      await fetchWithTimeout(`${baseUrl}/api/wifi/disconnect`, {
         method: 'POST',
-        signal: AbortSignal.timeout(3000)
-      });
+      }, 3000);
       await fetchWifiStatus();
       setWifiSsid('');
       setWifiPassword('');
