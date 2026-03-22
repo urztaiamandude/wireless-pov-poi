@@ -372,7 +372,7 @@ node --version
 - **Flash**: 8MB total
 - **PSRAM (Optional)**: 16MB (2× 8MB chips soldered to board)
   - **With PSRAM**: ~7.3MB for 200 images (32×400 pixels each)
-  - **Without PSRAM**: ~60KB for 10 images (32×200 pixels each)
+  - **Without PSRAM**: ~192KB for 10 images (32×200 pixels each, stored as `CRGB pixels[200][32]`)
   - PSRAM is 2-3x slower than internal RAM but sufficient for image storage
 - **Pattern storage**: Minimal (~100 bytes per pattern)
 

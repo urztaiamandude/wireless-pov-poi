@@ -6,7 +6,7 @@ This guide covers installing external PSRAM chips on your Teensy 4.1 to dramatic
 
 The Teensy 4.1 has two footprints on the bottom for optional PSRAM chips. With PSRAM installed, the firmware can store:
 
-- **Without PSRAM**: 10 images at 32×200 pixels (~60KB total)
+- **Without PSRAM**: 10 images at 32×200 pixels (~192KB total in internal RAM for image data)
 - **With 16MB PSRAM** (2× 8MB chips): 200 images at 32×400 pixels (~7.3MB total, ≈46% of PSRAM)
 
 This allows storing many more images and larger POV images for better visual quality.
@@ -137,9 +137,8 @@ With PSRAM installed, the memory layout is:
 | Region | Size | Usage |
 |--------|------|-------|
 | Internal RAM | 1 MB | Code, stack, small buffers |
-| PSRAM Chip 1 | 8 MB | Image storage (slots 0–127) |
-| PSRAM Chip 2 | 8 MB | Image storage (slots 128–199) + command buffer |
-| **Total PSRAM** | **16 MB** | **~7.3 MB used (200 images × ~38 KB + 80 KB cmd buffer ≈ 46%)** |
+| External PSRAM (2× 8MB) | 16 MB | Image storage and large buffers (e.g. command buffer) |
+| **Typical PSRAM usage** | **~7.3 MB** | **200 images × ~38 KB + 80 KB cmd buffer (≈46% of total PSRAM)** |
 
 The firmware uses the `EXTMEM` keyword to place large arrays in PSRAM:
 - Image pixel arrays

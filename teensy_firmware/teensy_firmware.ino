@@ -248,7 +248,7 @@ void setup() {
       Serial.print("x");
       Serial.print(IMAGE_HEIGHT);
       Serial.println(" max");
-      uint32_t extmem_used = (uint32_t)sizeof(images) + CMD_BUFFER_SIZE;
+      uint32_t extmem_used = (uint32_t)sizeof(images) + sizeof(cmdBuffer);
       Serial.print("EXTMEM usage: ~");
       Serial.print(extmem_used / (1024 * 1024));
       Serial.print(" MB of ");
@@ -261,7 +261,9 @@ void setup() {
       Serial.println("Accessing them without PSRAM installed will cause a hard fault.");
       Serial.println("See docs/PSRAM_INSTALLATION.md for installation instructions.");
       Serial.println("Halting.");
-      while (true) { ; }  // Halt — firmware cannot run safely without PSRAM
+      while (true) {
+        delay(1000);  // Halt in low-power manner — firmware cannot run safely without PSRAM
+      }
     }
   #endif
   
