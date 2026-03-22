@@ -1,6 +1,7 @@
 
 export enum ViewMode {
   DASHBOARD = 'DASHBOARD',
+  PATTERN_PREVIEW = 'PATTERN_PREVIEW',
   CODE_ESP32 = 'CODE_ESP32',
   CODE_TEENSY = 'CODE_TEENSY',
   WIRING = 'WIRING',
@@ -40,4 +41,7 @@ export interface SequenceItem {
   dataUrl: string;
   blob?: Blob;
   duration: number; // ms
+  kind?: 'image' | 'pattern'; // default 'image'
+  patternId?: number;          // pattern type (0-17) when kind='pattern'
+  slot?: number;               // assigned Teensy image slot (set after upload)
 }

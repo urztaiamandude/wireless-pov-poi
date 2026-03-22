@@ -14,8 +14,25 @@ Quick-lookup for ports, pins, constants, and non-secret configuration.
 | Co-processor (recommended) | ESP32-S3 N16R8 (16 MB Flash, 8 MB OPI PSRAM) |
 | Co-processor (legacy supported) | ESP32 WROOM-32 (4 MB Flash, no PSRAM) |
 | LED strip | APA102, 32 physical LEDs |
-| Display LEDs | 32 (LED 0–31); all LEDs used for display (hardware MOSFET level shifter) |
+| Display LEDs | **31** (default) — runtime-configurable via web UI |
+| Sacrificial LEDs | **1** (default: LED 0 for 3.3 V→5 V level shifting) |
 | LED interface | SPI via FastLED |
+
+---
+
+## Hardware Responsibility Separation
+
+| Responsibility | Device | Notes |
+|---------------|--------|-------|
+| LED display rendering | **Teensy 4.1 only** | Only device physically connected to APA102 LEDs via SPI |
+| Pattern processing | **Teensy 4.1 only** | All display logic runs on Teensy |
+| Brightness application | **Teensy 4.1 only** | FastLED brightness applied on Teensy |
+| Frame timing | **Teensy 4.1 only** | POV engine timing is Teensy-side |
+| Web UI hosting | **ESP32 / ESP32-S3** | WiFi AP + web server |
+| Settings relay | **ESP32 / ESP32-S3** | Forwards user values to Teensy via serial UART |
+| Image upload handling | **ESP32 / ESP32-S3** | Receives uploads, relays to Teensy |
+
+⚠️ **The ESP32/ESP32-S3 firmware should NOT enforce firmware-level LED display restrictions** (brightness clamping, pattern bounds, LED index validation). It is a pass-through bridge — any LED hardware constraints belong in the Teensy firmware only. Basic input sanitization (e.g., ensuring values are valid integers, rejecting malformed requests) is still appropriate on the ESP32/ESP32-S3 side.
 
 ---
 
@@ -42,12 +59,14 @@ Quick-lookup for ports, pins, constants, and non-secret configuration.
 ## Firmware Defines (Teensy — Arduino IDE build)
 
 ```cpp
-#define NUM_LEDS      32    // physical LEDs on strip
-#define DISPLAY_LEDS  32    // all LEDs used for display (hardware level shifter)
-#define DISPLAY_LED_START 0 // first display LED index
-#define DATA_PIN      11
-#define CLOCK_PIN     13
-#define SERIAL_BAUD   115200
+#define NUM_LEDS             32    // physical LEDs on strip (compile-time array max)
+// g_displayLeds    = 31   // default; runtime-configurable via web UI → EEPROM
+// g_displayLedStart = 1   // default; = sacrificialLeds
+#define DEFAULT_NUM_LEDS     32
+#define DEFAULT_SACRIFICIAL_LEDS  1
+#define DATA_PIN             11
+#define CLOCK_PIN            13
+#define SERIAL_BAUD          115200
 ```
 
 ---
@@ -56,10 +75,10 @@ Quick-lookup for ports, pins, constants, and non-secret configuration.
 
 | Parameter | Value | Notes |
 |-----------|-------|-------|
-| Display height | **32 pixels** | Fixed — one per display LED |
-| Display width | Variable | `round(src_width × (32 / src_height))` |
+| Display height | **31 px (default)** | Runtime-configurable via web UI; 1 per display LED |
+| Display width | Variable | `round(src_width × (displayLeds / src_height))` |
 | Max brightness | 255 | Adjustable 0–255 |
-| Frame rate range | 10–120 FPS | Adjustable |
+| Frame rate range | 10–1000 FPS | Adjustable; 500+ for POV |
 | Recommended spin rate | 2–3 RPS | For good POV persistence |
 | BMP format | 24-bit uncompressed | Required for BMPImageReader |
 

@@ -4,10 +4,32 @@ import {
   Upload, ImageIcon, RefreshCw, Sparkles,
   Sliders, Activity, Palette, Box,
   Plus, Trash2, ListOrdered, Play, Pause, SkipForward, SkipBack, Clock,
-  ChevronLeft, Users
+  ChevronLeft, Users, Zap
 } from 'lucide-react';
 import { SequenceItem } from '../types';
 import { useDebounce } from '../hooks';
+
+// Pattern definitions — must match Teensy firmware pattern IDs
+const PATTERN_LIST = [
+  { id: 0,  label: 'Rainbow' },
+  { id: 1,  label: 'Wave' },
+  { id: 2,  label: 'Gradient' },
+  { id: 3,  label: 'Sparkle' },
+  { id: 4,  label: 'Fire' },
+  { id: 5,  label: 'Comet' },
+  { id: 6,  label: 'Breathing' },
+  { id: 7,  label: 'Strobe' },
+  { id: 8,  label: 'Meteor' },
+  { id: 9,  label: 'Wipe' },
+  { id: 10, label: 'Plasma' },
+  { id: 11, label: 'VU Meter' },
+  { id: 12, label: 'Pulse' },
+  { id: 13, label: 'Audio Rainbow' },
+  { id: 14, label: 'Center Burst' },
+  { id: 15, label: 'Audio Sparkle' },
+  { id: 16, label: 'Split Spin' },
+  { id: 17, label: 'Theater Chase' },
+];
 
 interface ImageLabProps {
   onPreviewUpdate: (url: string) => void;
@@ -23,6 +45,13 @@ function getDeviceBase(): string {
   return window.location.origin;
 }
 
+// Teensy sequence slot for user-defined sequences (slot 0 is the preloaded demo sequence)
+const USER_SEQUENCE_SLOT = 1;
+// First image slot available for user uploads (slots 0-4 are preloaded demo images).
+// The sequence protocol limits image indices to 7 bits (0-127), so uploads wrap at 127.
+const FIRST_USER_IMAGE_SLOT = 5;
+const MAX_USER_IMAGE_SLOT = 127;
+
 const ImageLab: React.FC<ImageLabProps> = ({ onPreviewUpdate, initialPreview, ledCount, setLedCount }) => {
   const [labMode, setLabMode] = useState<'upload' | 'procedural'>('upload');
   const [selectedImage, setSelectedImage] = useState<string | null>(initialPreview);
@@ -36,6 +65,10 @@ const ImageLab: React.FC<ImageLabProps> = ({ onPreviewUpdate, initialPreview, le
   const [activeSequenceIndex, setActiveSequenceIndex] = useState<number>(-1);
   const [isPlayingSequence, setIsPlayingSequence] = useState(false);
   const [frameDuration, setFrameDuration] = useState(2000);
+
+  // Pattern-in-sequence state
+  const [showPatternPicker, setShowPatternPicker] = useState(false);
+  const [patternPickerDuration, setPatternPickerDuration] = useState(2000);
 
   // Procedural States
   const [patternType, setPatternType] = useState<'organic' | 'geometric'>('organic');
@@ -211,10 +244,27 @@ const ImageLab: React.FC<ImageLabProps> = ({ onPreviewUpdate, initialPreview, le
       name: labMode === 'upload' ? 'Upload Frame' : `${patternType} Pattern`,
       dataUrl: selectedImage,
       blob,
-      duration: frameDuration
+      duration: frameDuration,
+      kind: 'image',
     };
     setSequence(prev => [...prev, newItem]);
     setStatus("Frame added to timeline.");
+  };
+
+  const addPatternToSequence = (patternId: number) => {
+    const pat = PATTERN_LIST.find(p => p.id === patternId);
+    if (!pat) return;
+    const newItem: SequenceItem = {
+      id: crypto.randomUUID(),
+      name: `Pattern: ${pat.label}`,
+      dataUrl: '',           // no preview image for patterns
+      duration: patternPickerDuration,
+      kind: 'pattern',
+      patternId,
+    };
+    setSequence(prev => [...prev, newItem]);
+    setShowPatternPicker(false);
+    setStatus(`Pattern "${pat.label}" added to timeline.`);
   };
 
   const removeFromSequence = (id: string) => {
@@ -262,105 +312,150 @@ const ImageLab: React.FC<ImageLabProps> = ({ onPreviewUpdate, initialPreview, le
     }
   }, [activeSequenceIndex, onPreviewUpdate]);
 
-  // Fleet sync via POST /api/image (existing firmware endpoint)
+  // Deploy sequence/image to hardware via POST /api/image (for images) + POST /api/sequence
   const handleFleetSync = async () => {
     if (sequence.length === 0 && !selectedImage) return;
     setIsSyncing(true);
-    setStatus("Broadcasting Sequence to Fleet via /api/image...");
+    const base = getDeviceBase();
 
-    try {
-      // Build target list; convert canvas to raw RGB blobs for firmware compatibility
-      const rawTargets: Array<{ blob: Blob; filename: string }> = [];
-      type SyncSource = { blob?: Blob; name: string };
-      const sourceItems: SyncSource[] = sequence.length > 0 ? sequence : [{
-        blob: bmpBlob || (canvasRef.current ? createBMP(canvasRef.current) : undefined),
-        name: 'single_frame.bmp'
-      }];
-      for (const item of sourceItems) {
-        if (!item.blob) continue;
-        // If we have a canvas, prefer fresh raw RGB; otherwise convert the stored blob via ImageBitmap
-        if (canvasRef.current && sequence.length === 0) {
-          rawTargets.push(createRawRGB(canvasRef.current));
+    // Single-image mode (no sequence built): just upload and display
+    if (sequence.length === 0 && selectedImage) {
+      setStatus('Uploading image to hardware...');
+      try {
+        const blob = bmpBlob || (canvasRef.current ? createBMP(canvasRef.current) : null);
+        if (!blob) { setStatus('No image data to upload.'); return; }
+        const { blob: rgbBlob, filename } = createRawRGB(canvasRef.current!);
+        const formData = new FormData();
+        formData.append('file', rgbBlob, filename);
+        const res = await fetch(`${base}/api/image`, { method: 'POST', body: formData });
+        if (res.ok) {
+          setStatus('Image uploaded and displaying on hardware.');
         } else {
-          // Re-draw the stored blob onto an offscreen canvas, then export raw RGB
-          const offscreen = document.createElement('canvas');
-          const url = URL.createObjectURL(item.blob);
-          await new Promise<void>(resolve => {
-            const img = new window.Image();
-            img.onload = () => {
-              offscreen.width = img.naturalWidth;
-              offscreen.height = img.naturalHeight;
-              const ctx = offscreen.getContext('2d');
-              ctx?.drawImage(img, 0, 0);
-              URL.revokeObjectURL(url);
-              resolve();
-            };
-            img.onerror = () => { URL.revokeObjectURL(url); resolve(); };
-            img.src = url;
+          setStatus('Image upload failed. Check device connection.');
+        }
+      } catch {
+        setStatus('Upload error. Check POV-POI-WiFi connectivity.');
+      } finally {
+        setIsSyncing(false);
+      }
+      return;
+    }
+
+    // Multi-item sequence mode: upload images, then push sequence definition
+    setStatus(`Uploading ${sequence.length} items to hardware...`);
+    try {
+      // Build sequence items with assigned slots
+      interface HardwareItem {
+        kind: 'image' | 'pattern';
+        index: number;  // image slot or pattern id
+        duration: number;
+      }
+      const hwItems: HardwareItem[] = [];
+      let uploadErrors = 0;
+
+      for (const item of sequence) {
+        if (item.kind === 'pattern') {
+          // Pattern item — no upload needed, reference by patternId directly
+          hwItems.push({
+            kind: 'pattern',
+            index: item.patternId ?? 0,
+            duration: item.duration,
           });
-          rawTargets.push(createRawRGB(offscreen));
+          continue;
+        }
+
+        // Image item — must have blob or dataUrl; skip with error if neither is present
+        if (!item.blob && !item.dataUrl) {
+          console.warn('[ImageLab] Image item missing blob and dataUrl; skipping', item.name);
+          uploadErrors++;
+          continue;
+        }
+
+        // Image item — upload to device and get assigned slot
+        try {
+          let rgbBlob: Blob;
+          let filename: string;
+
+          if (item.blob) {
+            // Re-draw stored blob to an offscreen canvas for raw RGB export
+            const offscreen = document.createElement('canvas');
+            const url = URL.createObjectURL(item.blob);
+            await new Promise<void>(resolve => {
+              const img = new window.Image();
+              img.onload = () => {
+                offscreen.width = img.naturalWidth;
+                offscreen.height = img.naturalHeight;
+                const ctx = offscreen.getContext('2d');
+                ctx?.drawImage(img, 0, 0);
+                URL.revokeObjectURL(url);
+                resolve();
+              };
+              img.onerror = () => { URL.revokeObjectURL(url); resolve(); };
+              img.src = url;
+            });
+            const raw = createRawRGB(offscreen);
+            rgbBlob = raw.blob;
+            filename = raw.filename;
+          } else if (canvasRef.current) {
+            const raw = createRawRGB(canvasRef.current);
+            rgbBlob = raw.blob;
+            filename = raw.filename;
+          } else {
+            uploadErrors++;
+            continue;
+          }
+
+          const formData = new FormData();
+          formData.append('file', rgbBlob, filename);
+          const res = await fetch(`${base}/api/image`, { method: 'POST', body: formData });
+          if (res.ok) {
+            const json = await res.json() as { slot?: number };
+            if (typeof json.slot !== 'number') {
+              console.warn('[ImageLab] /api/image response missing slot; using fallback', FIRST_USER_IMAGE_SLOT);
+            }
+            // Clamp to MAX_USER_IMAGE_SLOT (127) — the sequence protocol only has 7 bits for image index
+            const rawSlot = typeof json.slot === 'number' ? json.slot : FIRST_USER_IMAGE_SLOT;
+            const assignedSlot = Math.min(rawSlot, MAX_USER_IMAGE_SLOT);
+            hwItems.push({ kind: 'image', index: assignedSlot, duration: item.duration });
+          } else {
+            uploadErrors++;
+          }
+        } catch {
+          uploadErrors++;
         }
       }
 
-      const failedUploadIps = new Set<string>();
-      let firstFilename = '';
-
-      for (const [idx, target] of rawTargets.entries()) {
-        const formData = new FormData();
-        formData.append('file', target.blob, target.filename);
-        if (idx === 0) firstFilename = target.filename;
-
-        // Push to the connected device via POST /api/image.
-        // Multi-device fleet broadcast is handled at the firmware level via ESP-NOW
-        // (see esp32_firmware.ino /api/sync/execute). The UI targets one device only.
-        const base = getDeviceBase();
-        const syncPromises = [async () => {
-          try {
-            const response = await fetch(`${base}/api/image`, { method: 'POST', body: formData });
-            if (!response.ok) {
-              failedUploadIps.add(base || 'device');
-            }
-          } catch {
-            failedUploadIps.add(base || 'device');
-          }
-        }].map(fn => fn());
-        await Promise.all(syncPromises);
+      if (hwItems.length === 0) {
+        setStatus('No items to sequence. Check uploads.');
+        return;
       }
 
-      // Auto-load the first frame after upload
-      const failedLoadIps = new Set<string>();
-      if (rawTargets.length > 0 && firstFilename) {
-        const loadBase = getDeviceBase();
-        const loadPromises = [async () => {
-          try {
-            const response = await fetch(`${loadBase}/api/sd/load`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ filename: firstFilename }),
-            });
-            if (!response.ok) {
-              failedLoadIps.add(loadBase || 'device');
-            }
-          } catch {
-            failedLoadIps.add(loadBase || 'device');
-          }
-        }].map(fn => fn());
-        await Promise.all(loadPromises);
-      }
+      // Push sequence definition to Teensy via /api/sequence
+      const seqBody = {
+        index: USER_SEQUENCE_SLOT,   // slot 1 = user sequence (slot 0 = preloaded demo)
+        loop: true,
+        items: hwItems,
+      };
+      const seqRes = await fetch(`${base}/api/sequence`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(seqBody),
+      });
 
-      if (failedUploadIps.size === 0 && failedLoadIps.size === 0) {
-        setStatus('Fleet sequence deployment successful. Frame loaded.');
+      if (seqRes.ok) {
+        // Start sequence playback (mode=3, user sequence slot)
+        await fetch(`${base}/api/mode`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mode: 3, index: USER_SEQUENCE_SLOT }),
+        });
+        const errMsg = uploadErrors > 0 ? ` (${uploadErrors} upload error(s))` : '';
+        setStatus(`Sequence deployed to hardware (${hwItems.length} items).${errMsg}`);
       } else {
-        const uploadFailures = failedUploadIps.size
-          ? ` Upload failed for: ${Array.from(failedUploadIps).join(', ')}.`
-          : '';
-        const loadFailures = failedLoadIps.size
-          ? ` Load failed for: ${Array.from(failedLoadIps).join(', ')}.`
-          : '';
-        setStatus(`Fleet sequence deployment completed with errors.${uploadFailures}${loadFailures}`);
+        setStatus('Sequence push failed. Check device connection.');
       }
     } catch {
-      setStatus('Broadcast Error: Check POV-POI-WiFi connectivity.');
+      setStatus('Deployment error. Check POV-POI-WiFi connectivity.');
     } finally {
       setIsSyncing(false);
     }
@@ -454,13 +549,39 @@ const ImageLab: React.FC<ImageLabProps> = ({ onPreviewUpdate, initialPreview, le
               </button>
             )}
 
-            <div className="pt-4 border-t border-slate-800">
+            <div className="pt-4 border-t border-slate-800 space-y-2">
               <button
                 onClick={addToSequence}
-                className="w-full py-5 bg-pink-600 hover:bg-pink-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-pink-900/20 active:scale-95 transition-all flex items-center justify-center gap-2"
+                disabled={!selectedImage}
+                className="w-full py-5 bg-pink-600 hover:bg-pink-500 disabled:opacity-40 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-pink-900/20 active:scale-95 transition-all flex items-center justify-center gap-2"
               >
-                <Plus size={18} /> Add To Sequence
+                <Plus size={18} /> Add Image To Sequence
               </button>
+              <button
+                onClick={() => setShowPatternPicker(p => !p)}
+                className="w-full py-3 bg-purple-900/40 hover:bg-purple-800/60 border border-purple-700/40 text-purple-300 rounded-2xl font-black text-xs uppercase tracking-widest active:scale-95 transition-all flex items-center justify-center gap-2"
+              >
+                <Zap size={14} /> Add Pattern To Sequence
+              </button>
+              {showPatternPicker && (
+                <div className="bg-slate-950 border border-purple-700/40 rounded-2xl p-3 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 flex-shrink-0">Duration</label>
+                    <input type="number" min={100} step={100} value={patternPickerDuration}
+                      onChange={e => setPatternPickerDuration(Math.max(100, parseInt(e.target.value) || 100))}
+                      className="w-20 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-white font-mono text-xs outline-none" />
+                    <span className="text-[9px] text-slate-500">ms</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-1 max-h-48 overflow-y-auto custom-scrollbar">
+                    {PATTERN_LIST.map(p => (
+                      <button key={p.id} onClick={() => addPatternToSequence(p.id)}
+                        className="py-2 px-2 bg-slate-800 hover:bg-purple-900/40 border border-slate-700 hover:border-purple-500/50 text-slate-300 hover:text-purple-300 rounded-lg text-[10px] font-bold text-left transition-all">
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -476,7 +597,17 @@ const ImageLab: React.FC<ImageLabProps> = ({ onPreviewUpdate, initialPreview, le
               ) : (
                 sequence.map((item, idx) => (
                   <div key={item.id} className={`flex items-center gap-3 p-2 rounded-xl border transition-all ${activeSequenceIndex === idx ? 'bg-slate-800 border-cyan-500/50' : 'bg-slate-950/50 border-slate-800'}`}>
-                    <img src={item.dataUrl} className="w-10 h-10 rounded border border-slate-800 object-cover" alt="" />
+                    {item.kind === 'pattern' ? (
+                      <div className="w-10 h-10 rounded border border-purple-700/40 bg-purple-900/20 flex items-center justify-center flex-shrink-0">
+                        <Zap size={16} className="text-purple-400" />
+                      </div>
+                    ) : (
+                      item.dataUrl ? (
+                        <img src={item.dataUrl} className="w-10 h-10 rounded border border-slate-800 object-cover flex-shrink-0" alt="" />
+                      ) : (
+                        <div className="w-10 h-10 rounded border border-slate-800 bg-slate-900 flex-shrink-0" />
+                      )
+                    )}
                     <div className="flex-1 min-w-0">
                       <div className="text-[10px] font-bold text-slate-300 truncate">{item.name}</div>
                       <div className="text-[8px] text-slate-500 font-mono">{item.duration}ms</div>
@@ -504,7 +635,19 @@ const ImageLab: React.FC<ImageLabProps> = ({ onPreviewUpdate, initialPreview, le
                 <Clock size={14} className="text-pink-400" />
                 <input
                   type="number" step="100" min="100" value={frameDuration}
-                  onChange={(e) => setFrameDuration(parseInt(e.target.value))}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    if (raw === '') {
+                      setFrameDuration(100);
+                      return;
+                    }
+                    const v = parseInt(raw, 10);
+                    if (isNaN(v)) {
+                      setFrameDuration(100);
+                    } else {
+                      setFrameDuration(Math.max(100, v));
+                    }
+                  }}
                   className="bg-transparent text-[10px] font-mono text-cyan-400 outline-none w-12 text-center"
                 />
                 <span className="text-[8px] font-black text-slate-500 uppercase">ms/frame</span>
@@ -542,7 +685,7 @@ const ImageLab: React.FC<ImageLabProps> = ({ onPreviewUpdate, initialPreview, le
                 className="flex items-center justify-center gap-3 py-6 bg-purple-600 hover:bg-purple-500 text-white rounded-[1.5rem] font-black text-xs uppercase tracking-widest shadow-xl shadow-purple-900/30 transition-all disabled:opacity-30 active:scale-95 border border-purple-400/20"
               >
                 {isSyncing ? <RefreshCw className="animate-spin" size={18} /> : <Users size={18} />}
-                Deploy Sequence to Fleet
+                {sequence.length > 0 ? `Deploy Sequence (${sequence.length} items)` : 'Upload & Display'}
               </button>
             </div>
 

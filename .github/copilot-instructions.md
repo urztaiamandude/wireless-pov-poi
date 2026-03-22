@@ -20,36 +20,45 @@ Teensy 4.1 (POV Engine + FastLED)
 APA102 LED Strip (32 LEDs)
 ```
 
+### ⚠️ Hardware Responsibility Separation — IMPORTANT
+
+The **Teensy 4.1 is the ONLY device physically connected to the APA102 LEDs**. All LED display processing (rendering patterns, applying brightness, displaying images, frame timing) must be handled exclusively by the Teensy 4.1 firmware.
+
+The **ESP32-S3 is a WiFi/BLE bridge and web UI host**. It forwards user settings to the Teensy via serial UART. The ESP32-S3 should **NOT** enforce firmware-level LED display restrictions (e.g., brightness clamping, pattern count limits, LED index validation) because it does not physically control the LEDs.
+
+**When making changes:**
+- LED rendering logic, display restrictions, brightness application → **Teensy firmware only** (`teensy_firmware/`)
+- Web UI, API endpoints, settings relay, image upload handling → **ESP32 firmware** (`esp32_firmware/`)
+
 ## Critical Design Constraints
 
 ### ⚠️ LED Array Layout - ALWAYS FOLLOW THIS
 
-**CRITICAL**: LED 0 is NEVER used for display - it's reserved for hardware level shifting!
+The Teensy firmware uses a **sacrificial LED (LED 0)** for 3.3 V→5 V level shifting because the MOSFET-based level shifters are incompatible with the hardware. **31 LEDs (indices 1–31) are display pixels by default.**  The display range is now **runtime-configurable** via the web UI (Advanced Settings → LED Hardware Configuration) without recompiling — stored in EEPROM as `g_displayLeds` / `g_displayLedStart`.
 
 ```
 Physical LED Strip:
-┌────┬────┬────┬────┬─────┬────┐
-│ 0  │ 1  │ 2  │... │ 30  │ 31 │
-└────┴────┴────┴────┴─────┴────┘
-  ↑    ↑─────────────────────↑
-Level   Display pixels (31 total)
-Shift
+┌──────┬────┬────┬────┬─────┬────┐
+│  0   │ 1  │ 2  │... │ 30  │ 31 │
+└──────┴────┴────┴────┴─────┴────┘
+ Level    ↑────────────────────↑
+ shift    Display pixels (default 31)
 ```
 
 **ALL display code MUST:**
-- Start loops at index 1: `for (int i = 1; i < NUM_LEDS; i++)`
-- Use `DISPLAY_LEDS` (31) for height calculations
-- Use `DISPLAY_LED_START` (1) as first display index
+- Use runtime variables `g_displayLedStart` and `g_displayLeds` for indexing (NOT compile-time `#define` constants)
+- Default values: `g_displayLedStart = 1`, `g_displayLeds = 31`
+- Iterate with: `for (int i = g_displayLedStart; i < g_displayLedStart + g_displayLeds; i++)`
 
 ```cpp
-// ✅ CORRECT - Skip LED 0
-for (int i = 1; i < NUM_LEDS; i++) { 
-  leds[i] = color; 
+// ✅ CORRECT - Use runtime display range variables
+for (int i = g_displayLedStart; i < g_displayLedStart + g_displayLeds; i++) {
+  leds[i] = color;
 }
 
-// ❌ WRONG - Includes LED 0 (level shift LED)
-for (int i = 0; i < NUM_LEDS; i++) { 
-  leds[i] = color; 
+// ❌ WRONG - Hard-codes assumptions about the display range
+for (int i = 0; i < 32; i++) {
+  leds[i] = color;
 }
 ```
 
@@ -65,6 +74,19 @@ for (int i = 0; i < NUM_LEDS; i++) {
 | `docs/` | Documentation | `API.md`, `WIRING.md`, 22 guides | Complete |
 
 **Firmware recommendation**: Use `teensy_firmware/` (Arduino IDE) for production. PlatformIO version is for advanced users and some features are still being ported.
+
+### ⚠️ Non-Compiled Files — DO NOT apply firmware fixes here
+
+The following files are **NOT compiled into any firmware build**. Do not apply bug fixes, input validation, or security patches to these files expecting them to ship on hardware:
+
+| File | Purpose | Why it's excluded |
+|------|---------|-------------------|
+| `esp32_firmware/web_preview.html` | Standalone browser preview of the web UI | Not uploaded to SPIFFS/LittleFS, not served by ESP32 |
+| `esp32_firmware/test_webui_server.js` | Mock API server for local development | Node.js dev tool only |
+
+**The actual shipped web UI code lives in:**
+1. **`esp32_firmware/webui/`** — React app built to `dist/`, uploaded to SPIFFS/LittleFS via `pio run --target uploadfs`
+2. **`esp32_firmware/esp32_firmware.ino`** (PROGMEM `rootPage`) — Embedded fallback HTML served when SPIFFS is empty
 
 ## Build Commands
 
@@ -92,6 +114,12 @@ npm run build                 # Production build to dist/
 npm run preview               # Preview production build
 
 # Build size: ~325KB optimized for ESP32 SPIFFS/LittleFS
+
+# API proxy target (default http://192.168.4.1 – AP mode):
+# Override with VITE_API_PROXY_TARGET for STA/local-network IPs, e.g.:
+#   VITE_API_PROXY_TARGET=http://10.100.9.230 npm run dev
+# Or add to esp32_firmware/webui/.env:
+#   VITE_API_PROXY_TARGET=http://10.100.9.230
 ```
 
 ### Python Tests
@@ -111,8 +139,8 @@ Base URL: `http://192.168.4.1` (or `http://povpoi.local` via mDNS)
 | `/api/status` | GET | Returns `{mode, index, brightness, framerate, connected}` |
 | `/api/mode` | POST | Set mode & index: `{"mode": 2, "index": 0}` |
 | `/api/brightness` | POST | `{"brightness": 128}` (0-255) |
-| `/api/framerate` | POST | `{"framerate": 60}` (10-120) |
-| `/api/image` | POST | Multipart upload, auto-converts to 31px tall |
+| `/api/framerate` | POST | `{"framerate": 60}` (10-1000) |
+| `/api/image` | POST | Multipart upload, auto-converts to 32px tall |
 | `/api/pattern` | POST | `{"type": 0, "color1": "#FF0000", "speed": 50}` |
 | `/api/live` | POST | Raw RGB frame for live mode |
 
@@ -132,7 +160,7 @@ Patterns defined in `displayPattern()` switch. Types 0-15 exist (Rainbow→Music
 ```cpp
 // In teensy_firmware.ino displayPattern()
 case 16:  // New pattern
-  for (int i = 1; i < NUM_LEDS; i++) {  // Start from 1!
+  for (int i = 0; i < NUM_LEDS; i++) {
     leds[i] = CHSV(hue + i * 8, 255, 255);
   }
   break;
@@ -157,26 +185,26 @@ Audio config in `teensy_firmware.ino`: `AUDIO_PIN A0`, `AUDIO_SAMPLES 64`, `AUDI
 ## Image Conversion & Orientation
 
 ### Image Dimensions
-- **HEIGHT**: 31 pixels (FIXED - one pixel per display LED)
+- **HEIGHT**: `g_displayLeds` pixels (default **31** — one pixel per display LED, runtime-configurable via web UI)
 - **WIDTH**: Variable (calculated from aspect ratio, max ~200px)
 - LED strip forms the VERTICAL axis when spinning
-- LED 1 (bottom of strip) = bottom of image
-- LED 31 (top of strip) = top of image
+- LED `g_displayLedStart` (bottom of strip) = bottom of image
+- LED `g_displayLedStart + g_displayLeds - 1` (top of strip) = top of image
 
 ### Image Storage Format
 ```cpp
-// Storage: pixels[x][y] where y is LED index
-CRGB pixels[IMAGE_WIDTH][IMAGE_HEIGHT];  // Max 31x200
+// Storage: pixels[x][y] where y is display LED index (0 = first display LED)
+CRGB pixels[IMAGE_MAX_WIDTH][IMAGE_HEIGHT];  // IMAGE_HEIGHT=32 (compile-time max)
 
-// Display mapping (NO flip needed in latest code):
-leds[y] = pixels[current_column][y];  // y ranges 1-31
+// Display mapping (g_displayLedStart to g_displayLedStart + g_displayLeds - 1):
+leds[y + g_displayLedStart] = pixels[current_column][y];  // y ranges 0..g_displayLeds-1
 ```
 
 ### Python Converters
-All converters must produce 31px tall images:
+Converters use the default display height (31px). Match to the device's current `displayLeds` setting:
 ```python
 # Resize maintaining aspect ratio
-target_height = 31  # FIXED for 31 display LEDs
+target_height = 31  # Default for 1 sacrificial LED; change to match device displayLeds
 aspect_ratio = img.width / img.height
 target_width = int(target_height * aspect_ratio)
 img = img.resize((target_width, target_height), Image.LANCZOS)
@@ -202,7 +230,7 @@ pytest test_*.py -v
 **Common test failures:**
 - Missing Pillow: `pip install Pillow`
 - Wrong working directory: must run from `examples/`
-- Image dimension assertions: check 31px height (fixed), variable width
+- Image dimension assertions: check 32px height (fixed), variable width
 
 ### Manual Testing
 ```bash
@@ -225,7 +253,7 @@ Patterns defined in `displayPattern()` switch in `teensy_firmware.ino`. Types 0-
 ```cpp
 // In teensy_firmware.ino displayPattern()
 case 18:  // New pattern ID
-  for (int i = 1; i < NUM_LEDS; i++) {  // Start from 1!
+  for (int i = 0; i < NUM_LEDS; i++) {
     leds[i] = CHSV(hue + i * 8, 255, 255);
   }
   break;
@@ -262,7 +290,7 @@ python image_converter_gui.py
 
 # CLI converter
 python image_converter.py input.jpg
-# Creates: input_31px.bin (binary), input_31px.png (preview)
+# Creates: input_32px.bin (binary), input_32px.png (preview)
 
 # Web upload - automatic conversion
 # Access http://192.168.4.1 and use upload button
@@ -275,10 +303,12 @@ python image_converter.py input.jpg
 2. Verify APA102 connections:
    - Teensy Pin 11 → LED Data (DI)
    - Teensy Pin 13 → LED Clock (CI)
-3. **LED 0 must be connected** (required for level shifting)
+3. Verify APA102 connections:
+   - Teensy Pin 11 → LED Data (DI)
+   - Teensy Pin 13 → LED Clock (CI)
 4. Test with simple code:
    ```cpp
-   leds[1] = CRGB::Red;
+   leds[0] = CRGB::Red;
    FastLED.show();
    ```
 
@@ -302,7 +332,7 @@ python image_converter.py input.jpg
 
 ### Image Orientation Issues
 - Images should display correctly without manual flipping
-- LED 1 = bottom of strip = bottom of image
+- LED 0 = bottom of strip = bottom of image
 - LED 31 = top of strip = top of image
 - If upside down, check physical LED strip orientation
 - See `docs/POV_DISPLAY_ORIENTATION_GUIDE.md`
@@ -330,7 +360,7 @@ node --version
 ## Key Constraints
 
 - **Display modes**: 0=Idle, 1=Image, 2=Pattern, 3=Sequence, 4=Live
-- **Ranges**: brightness 0-255, FPS 10-120, image dimensions W×31 (width variable, height fixed at 31px)
+- **Ranges**: brightness 0-255, FPS 10-1000, image dimensions W×32 (width variable, height fixed at 32px)
 - **WiFi**: SSID `POV-POI-WiFi`, password `povpoi123`, IP `192.168.4.1`
 - **Performance**: Teensy loop is time-critical - no blocking calls
 - **Power**: Full brightness LEDs draw 2-3A at 5V
@@ -462,9 +492,9 @@ String response = "{\"brightness\":" + String(brightness) + "}";
 
 ### C++ Firmware
 - **Functions**: `camelCase` (e.g., `displayPattern()`)
-- **Constants**: `UPPER_CASE` (e.g., `NUM_LEDS`, `DISPLAY_LEDS`)
-- **Variables**: `camelCase` (e.g., `currentPatternIndex`)
-- **LED loops**: ALWAYS start from index 1
+- **Constants**: `UPPER_CASE` (e.g., `NUM_LEDS`, `DEFAULT_SACRIFICIAL_LEDS`)
+- **Variables**: `camelCase` (e.g., `currentPatternIndex`, `g_displayLeds`)
+- **LED loops**: ALWAYS use `g_displayLedStart` as the first index (not 0)
 - **Comments**: Use for complex logic, match existing style
 - **No blocking calls** in Teensy loop - it's time-critical
 

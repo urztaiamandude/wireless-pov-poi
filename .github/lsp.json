@@ -1,0 +1,47 @@
+{
+  "lspServers": {
+    "cpp": {
+      "command": "clangd",
+      "args": [
+        "--background-index",
+        "--clang-tidy",
+        "--compile-commands-dir=."
+      ],
+      "fileExtensions": {
+        ".c": "c",
+        ".cc": "cpp",
+        ".cpp": "cpp",
+        ".cxx": "cpp",
+        ".h": "cpp",
+        ".hh": "cpp",
+        ".hpp": "cpp",
+        ".ino": "cpp"
+      }
+    },
+    "typescript": {
+      "command": "typescript-language-server",
+      "args": [
+        "--stdio"
+      ],
+      "fileExtensions": {
+        ".ts": "typescript",
+        ".tsx": "typescript",
+        ".mts": "typescript",
+        ".cts": "typescript",
+        ".js": "javascript",
+        ".jsx": "javascript",
+        ".mjs": "javascript",
+        ".cjs": "javascript"
+      }
+    },
+    "python": {
+      "command": "pyright-langserver",
+      "args": [
+        "--stdio"
+      ],
+      "fileExtensions": {
+        ".py": "python"
+      }
+    }
+  }
+}

@@ -21,7 +21,7 @@ const FirmwareManager: React.FC = () => {
 
   const handleFirmwareSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file || !FEATURE_AVAILABLE) return;
 
     setIsUploading(true);
     setProgress(0);
@@ -156,12 +156,15 @@ const FirmwareManager: React.FC = () => {
               </div>
             ) : (
               <div className="space-y-8">
-                <div
-                  className="w-24 h-24 border-2 border-dashed border-slate-700 rounded-full flex items-center justify-center mx-auto hover:border-cyan-500 transition-colors cursor-pointer"
-                  onClick={() => fileInputRef.current?.click()}
+                <button
+                  onClick={() => FEATURE_AVAILABLE && fileInputRef.current?.click()}
+                  disabled={!FEATURE_AVAILABLE}
+                  className={`w-24 h-24 border-2 border-dashed border-slate-700 rounded-full flex items-center justify-center mx-auto transition-colors ${
+                    FEATURE_AVAILABLE ? 'hover:border-cyan-500 cursor-pointer' : 'opacity-50 cursor-not-allowed'
+                  }`}
                 >
                   <Upload size={32} className="text-slate-500" />
-                </div>
+                </button>
                 <div className="space-y-2">
                   <h3 className="text-xl font-bold text-white">Upload {target} Firmware</h3>
                   <p className="text-slate-400 text-sm max-w-sm">
@@ -172,9 +175,12 @@ const FirmwareManager: React.FC = () => {
                   </p>
                 </div>
                 <button
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={() => FEATURE_AVAILABLE && fileInputRef.current?.click()}
+                  disabled={!FEATURE_AVAILABLE}
                   className={`px-8 py-3 rounded-xl font-bold transition-all shadow-lg ${
-                    target === 'ESP32'
+                    !FEATURE_AVAILABLE
+                      ? 'bg-slate-700 text-slate-500 cursor-not-allowed shadow-none'
+                      : target === 'ESP32'
                       ? 'bg-cyan-600 hover:bg-cyan-500 shadow-cyan-900/20'
                       : 'bg-purple-600 hover:bg-purple-500 shadow-purple-900/20'
                   }`}
@@ -186,6 +192,7 @@ const FirmwareManager: React.FC = () => {
                   type="file"
                   className="hidden"
                   accept={target === 'ESP32' ? '.bin' : '.hex'}
+                  disabled={!FEATURE_AVAILABLE}
                   onChange={handleFirmwareSelect}
                 />
               </div>

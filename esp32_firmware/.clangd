@@ -1,6 +1,6 @@
 CompileFlags:
   Add:
-    - --query-driver=C:/Users/urzam/.platformio/packages/toolchain-xtensa-esp32s3/bin/xtensa-esp32s3-elf-g*
+    - --query-driver=*xtensa-esp32s3-elf-g*
   Remove:
     - -mlongcalls
     - -fstrict-volatile-bitfields

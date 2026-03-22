@@ -69,7 +69,7 @@ Get current system state and connection status.
   - 4: Live mode
 - `index` (integer): Current image/pattern/sequence index
 - `brightness` (integer): LED brightness (0-255)
-- `framerate` (integer): Display frame rate (10-120 FPS)
+- `framerate` (integer): Display frame rate (10-1000 FPS)
 
 **Example:**
 
@@ -186,10 +186,11 @@ Change the display refresh rate.
 
 **Request Fields:**
 
-- `framerate` (integer, required): Frame rate in FPS (10-120)
+- `framerate` (integer, required): Frame rate in FPS (10-1000)
   - 30: Smooth, lower CPU usage
   - 50: Default, good balance
   - 60+: Very smooth, higher CPU usage
+  - 500+: POV-quality (high column density per revolution)
 
 **Response:**
 

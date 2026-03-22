@@ -2,20 +2,21 @@
  * Nebula Poi - Teensy 4.1 Firmware
  * 
  * This firmware controls a 32 LED APA102 strip for POV (Persistence of Vision) display.
- * All 32 LEDs are used for display (hardware level shifter is used).
+ * By default, LED 0 is sacrificial (3.3V→5V level shifting) and LEDs 1-31 are the 31 display pixels.
+ * The display range is runtime-configurable via the web UI without recompiling.
  * Communicates with ESP32 via Serial1 to receive images, patterns, and sequences.
  * 
  * Hardware:
  * - Teensy 4.1
- * - APA102 LED Strip (32 LEDs)
- * - Hardware level shifter (3.3V -> 5V for data/clock)
+ * - APA102 LED Strip (32 physical LEDs; default: LED 0 sacrificial, LEDs 1-31 display)
  * - MAX9814 Microphone Amplifier Module (for audio-reactive patterns)
- * - ESP32 connected via Serial1 (RX1=0, TX1=1)
+ * - ESP32 connected via Serial1 (RX=0, TX=1)
  * - Optional: microSD card in Teensy 4.1 built-in slot (for SD_SUPPORT)
  * - Optional: 2x 8MB PSRAM chips for 16MB external RAM (for PSRAM support)
  */
 
 #include <FastLED.h>
+#include <EEPROM.h>
 
 // Teensy 4.1 PSRAM support - declare external_psram_size if not already declared
 #ifdef ARDUINO_TEENSY41
@@ -33,16 +34,20 @@
 #endif
 
 // LED Configuration
-// All 32 LEDs are used for display (hardware level shifter handles 3.3V -> 5V)
-// All display loops start from index 0.
-// Example: for (int i = 0; i < NUM_LEDS; i++) { leds[i] = color; }
-#define NUM_LEDS 32
+// By default, LED 0 is sacrificial (3.3V→5V level shifting); LEDs 1-31 are the 31 display pixels.
+// The display range (g_displayLeds, g_displayLedStart) is runtime-configurable via the web UI
+// (POST /api/hardware/leds on ESP32 → serial command 0x09 → EEPROM) without recompiling.
+#define NUM_LEDS 32  // Total physical LEDs (compile-time max for array sizing)
+static_assert(NUM_LEDS == 32, "NUM_LEDS must be 32 — includes sacrificial LED(s) for level shifting");
 #define DATA_PIN 11
 #define CLOCK_PIN 13
 #define LED_TYPE APA102
 #define COLOR_ORDER BGR
-#define DISPLAY_LEDS 32       // All 32 LEDs used for display (hardware level shifter)
-#define DISPLAY_LED_START 0   // First LED index used for display content
+// Default LED display range — stored in EEPROM and loaded at runtime.
+// Change via web UI (Advanced Settings → LED Hardware Configuration) without recompiling.
+#define DEFAULT_NUM_LEDS 32         // Physical LEDs total
+#define DEFAULT_SACRIFICIAL_LEDS 1  // LEDs 0..N-1 used only for level shifting (default: LED 0)
+// g_displayLeds and g_displayLedStart are runtime variables initialized in setup().
 
 // Audio Input Configuration (MAX9814 Microphone Amplifier Module)
 // MAX9814 output connects through level shifter to Teensy analog input.
@@ -54,26 +59,28 @@
 
 // Communication
 #define SERIAL_BAUD 115200
+#define SERIAL_TX_PIN 0   // DO NOT CHANGE: ESP32-S3 serial link
+#define SERIAL_RX_PIN 1   // DO NOT CHANGE: ESP32-S3 serial link
+static_assert(SERIAL_TX_PIN == 0, "SERIAL_TX_PIN must remain 0 for ESP32-S3 serial link");
+static_assert(SERIAL_RX_PIN == 1, "SERIAL_RX_PIN must remain 1 for ESP32-S3 serial link");
 #define ESP32_SERIAL Serial1
 
 // Display Configuration
-// NOTE: IMAGE_HEIGHT = DISPLAY_LEDS = 32 (fixed, matches physical LEDs)
-//       IMAGE_MAX_WIDTH = variable (calculated from aspect ratio)
-// PSRAM: 2x 8MB chips installed = 16MB PSRAM on Teensy 4.1
+// IMAGE_HEIGHT is the compile-time array dimension (= NUM_LEDS = max possible display height).
+// g_displayLeds (runtime variable, loaded from EEPROM) controls how many rows are displayed.
 #ifdef ARDUINO_TEENSY41
-  // With 16MB PSRAM: 200 images at 32x400 (~7.3MB, ~46% of PSRAM)
-  // Without PSRAM: 10 images at 32x200 (~60KB internal RAM)
+  // With 16MB PSRAM: 200 images at up to 32x400
+  // Without PSRAM: 10 images at up to 32x200
   #define MAX_IMAGES 200
-  #define IMAGE_MAX_WIDTH 400     // Maximum width for stored images (with PSRAM)
+  #define IMAGE_MAX_WIDTH 400
 #else
   #define MAX_IMAGES 10
-  #define IMAGE_MAX_WIDTH 200     // Conservative limit without PSRAM
+  #define IMAGE_MAX_WIDTH 200
 #endif
-#define IMAGE_WIDTH 32          // Fixed width for POV display (matches DISPLAY_LEDS)
-#define IMAGE_HEIGHT 32         // Fixed: matches DISPLAY_LEDS (one pixel per LED)
-#define MAX_PATTERNS 18  // Total pattern slots (indexed 0-17)
+#define IMAGE_HEIGHT 32  // Compile-time array dimension (max = NUM_LEDS)
+#define MAX_PATTERNS 18
 #define MAX_SEQUENCES 5
-const uint8_t kPatternSpeedDivisor = 20;  // Used for split-spin/theater chase speed scaling.
+const uint8_t kPatternSpeedDivisor = 20;
 
 #ifdef SD_SUPPORT
   // SD Card Configuration - 64GB microSD installed
@@ -85,6 +92,13 @@ const uint8_t kPatternSpeedDivisor = 20;  // Used for split-spin/theater chase s
 
 // LED Array
 CRGB leds[NUM_LEDS];
+
+// Runtime LED display configuration — loaded from EEPROM in setup()
+uint8_t g_displayLeds = DEFAULT_NUM_LEDS - DEFAULT_SACRIFICIAL_LEDS;
+uint8_t g_displayLedStart = DEFAULT_SACRIFICIAL_LEDS;
+// Pattern state that must reset when LED config changes
+uint8_t g_cometPos = DEFAULT_SACRIFICIAL_LEDS;
+uint8_t g_wipePos  = DEFAULT_SACRIFICIAL_LEDS;
 
 // Image storage structure
 // Note: With PSRAM, pixels array can be much larger (IMAGE_MAX_WIDTH x IMAGE_HEIGHT)
@@ -150,8 +164,18 @@ uint8_t currentSequenceItem = 0;
 uint32_t sequenceStartTime = 0;
 bool sequencePlaying = false;
 
+// Next image upload slot (default 0; set via command 0x0B before command 0x02).
+// Allows the ESP32 to store uploaded images in specific slots for multi-image sequences.
+// Automatically resets to 0 after each image upload so the slot must be re-sent each time.
+uint8_t g_nextImageSlot = 0;
+
+// SD card initialization state
+#ifdef SD_SUPPORT
+bool sdInitialized = false;
+#endif
+
 // Live mode buffer
-CRGB liveBuffer[DISPLAY_LEDS];
+CRGB liveBuffer[NUM_LEDS];  // Sized at NUM_LEDS (max); g_displayLeds entries are used
 
 // Serial command buffer
 // Buffer size calculation for larger images:
@@ -167,6 +191,39 @@ CRGB liveBuffer[DISPLAY_LEDS];
   uint8_t cmdBuffer[CMD_BUFFER_SIZE];
 #endif
 uint32_t cmdBufferIndex = 0;
+
+// ── LED Config EEPROM Persistence ─────────────────────────────────────────
+// Layout: addr 0 = magic (0xA5), addr 1 = numLeds, addr 2 = sacrificialLeds
+#define LED_CFG_EEPROM_ADDR 0
+#define LED_CFG_MAGIC 0xA5
+
+void loadLEDConfig() {
+  if (EEPROM.read(LED_CFG_EEPROM_ADDR) == LED_CFG_MAGIC) {
+    uint8_t n = EEPROM.read(LED_CFG_EEPROM_ADDR + 1);
+    uint8_t s = EEPROM.read(LED_CFG_EEPROM_ADDR + 2);
+    if (n >= 2 && n <= NUM_LEDS && s < n) {
+      g_displayLedStart = s;
+      g_displayLeds = n - s;
+      Serial.printf("LED config (EEPROM): %u physical, %u sacrificial → %u display (LED %u–%u)\n",
+                    n, s, g_displayLeds, g_displayLedStart,
+                    g_displayLedStart + g_displayLeds - 1);
+      return;
+    }
+  }
+  // Defaults
+  g_displayLeds    = DEFAULT_NUM_LEDS - DEFAULT_SACRIFICIAL_LEDS;
+  g_displayLedStart = DEFAULT_SACRIFICIAL_LEDS;
+  Serial.printf("LED config (default): %u display LEDs (LED %u–%u)\n",
+                g_displayLeds, g_displayLedStart,
+                g_displayLedStart + g_displayLeds - 1);
+}
+
+void saveLEDConfig(uint8_t numLeds, uint8_t sacrificial) {
+  EEPROM.update(LED_CFG_EEPROM_ADDR,     LED_CFG_MAGIC);
+  EEPROM.update(LED_CFG_EEPROM_ADDR + 1, numLeds);
+  EEPROM.update(LED_CFG_EEPROM_ADDR + 2, sacrificial);
+  Serial.printf("LED config saved: %u physical, %u sacrificial\n", numLeds, sacrificial);
+}
 
 void setup() {
   // Initialize Serial for debugging
@@ -199,6 +256,7 @@ void setup() {
   ESP32_SERIAL.begin(SERIAL_BAUD);
   
   // Initialize FastLED
+  loadLEDConfig();
   FastLED.addLeds<LED_TYPE, DATA_PIN, CLOCK_PIN, COLOR_ORDER>(leds, NUM_LEDS);
   FastLED.setBrightness(128);
   FastLED.clear();
@@ -306,7 +364,7 @@ void initStorage() {
 }
 
 // Create default POV images
-// These are real display-ready images sized for the 32-LED strip.
+// These are real display-ready images sized for g_displayLeds LEDs.
 // Each image is wider than tall (typical for POV), so when the poi
 // spins it traces a detailed ring of light.
 void createDemoImages() {
@@ -469,16 +527,16 @@ void createDemoSequence() {
   sequences[0].items[0] = 0;  // Image 0
   sequences[0].durations[0] = 3000;
   
-  // Item 1: Rainbow pattern for 2 seconds
-  sequences[0].items[1] = 0;  // Pattern 0 (rainbow)
+  // Item 1: Rainbow pattern for 2 seconds (bit 7 set = pattern)
+  sequences[0].items[1] = 0x80 | 0;  // Pattern 0 (rainbow)
   sequences[0].durations[1] = 2000;
   
   // Item 2: Heart image for 3 seconds
   sequences[0].items[2] = 2;  // Image 2
   sequences[0].durations[2] = 3000;
   
-  // Item 3: Fire pattern for 2 seconds
-  sequences[0].items[3] = 1;  // Pattern 1 (fire)
+  // Item 3: Fire pattern for 2 seconds (bit 7 set = pattern)
+  sequences[0].items[3] = 0x80 | 1;  // Pattern 1 (fire)
   sequences[0].durations[3] = 2000;
   
   // Item 4: Starburst image for 3 seconds
@@ -497,10 +555,10 @@ void createDemoSequence() {
 }
 
 void startupAnimation() {
-  // Rainbow sweep animation (all 32 display LEDs)
+  // Rainbow sweep startup animation (only active display LEDs)
   for (int hue = 0; hue < 256; hue += 4) {
-    for (int i = DISPLAY_LED_START; i < NUM_LEDS; i++) {
-      leds[i] = CHSV(hue + (i * 8), 255, 255);
+    for (int i = g_displayLedStart; i < g_displayLedStart + g_displayLeds; i++) {
+      leds[i] = CHSV(hue + ((i - g_displayLedStart) * 8), 255, 255);
     }
     FastLED.show();
     delay(10);
@@ -596,8 +654,21 @@ void parseCommand() {
       sendAck(cmd);
       break;
       
-    case 0x07:  // Set frame rate
-      if (dataLen >= 1) {
+    case 0x07:  // Set frame rate (uint16_t FPS, big-endian)
+      if (dataLen >= 2) {
+        // New 2-byte protocol: FPS as uint16_t big-endian
+        uint16_t fps = ((uint16_t)cmdBuffer[3] << 8) | cmdBuffer[4];
+        if (fps > 0) {
+          frameDelay = 1000 / fps;
+          if (frameDelay == 0) frameDelay = 1;  // Cap at 1ms minimum
+        }
+        Serial.print("Frame rate set to: ");
+        Serial.print(fps);
+        Serial.print(" FPS (delay=");
+        Serial.print(frameDelay);
+        Serial.println("ms)");
+      } else if (dataLen == 1) {
+        // Legacy 1-byte protocol: raw delay in ms (backward compat)
         frameDelay = cmdBuffer[3];
         Serial.print("Frame delay set to: ");
         Serial.println(frameDelay);
@@ -618,6 +689,54 @@ void parseCommand() {
       sendAck(cmd);
       break;
 
+    case 0x09:  // Set LED config: [numLeds:1][sacrificialLeds:1]
+      if (dataLen >= 2) {
+        uint8_t newN = cmdBuffer[3];
+        uint8_t newS = cmdBuffer[4];
+        if (newN >= 2 && newN <= NUM_LEDS && newS < newN) {
+          g_displayLedStart = newS;
+          g_displayLeds     = newN - newS;
+          g_cometPos = g_displayLedStart;
+          g_wipePos  = g_displayLedStart;
+          saveLEDConfig(newN, newS);
+          FastLED.clear();
+          FastLED.show();
+          Serial.printf("LED config applied: %u display LEDs starting at LED %u\n",
+                        g_displayLeds, g_displayLedStart);
+        } else {
+          Serial.println("LED config rejected: values out of range");
+        }
+      }
+      sendAck(cmd);
+      break;
+
+    case 0x0A:  // Get LED config → [0xFF][0xBD][numLeds][sacrificialLeds][displayLeds][0xFE]
+      {
+        uint8_t numLeds = (uint8_t)(g_displayLedStart + g_displayLeds);
+        ESP32_SERIAL.write(0xFF);
+        ESP32_SERIAL.write(0xBD);
+        ESP32_SERIAL.write(numLeds);
+        ESP32_SERIAL.write(g_displayLedStart);  // = sacrificialLeds
+        ESP32_SERIAL.write(g_displayLeds);
+        ESP32_SERIAL.write(0xFE);
+      }
+      break;
+
+    case 0x0B:  // Set next image upload slot: [slotIndex:1]
+      // Allows the ESP32 to specify which image slot the next 0x02 command stores into.
+      // The slot resets to 0 after each image upload.
+      if (dataLen >= 1) {
+        uint8_t reqSlot = cmdBuffer[3];
+        if (reqSlot < MAX_IMAGES) {
+          g_nextImageSlot = reqSlot;
+          Serial.printf("Next image upload slot set to: %u\n", g_nextImageSlot);
+        } else {
+          Serial.println("Set slot rejected: index out of range");
+        }
+      }
+      sendAck(cmd);
+      break;
+
     case 0x10:  // Status request
       sendStatus();
       break;
@@ -627,16 +746,20 @@ void parseCommand() {
       saveImageToSD();
       break;
       
-    case 0x21:  // Load image from SD
-      loadImageFromSD();
-      break;
-      
-    case 0x22:  // List SD images
+    case 0x21:  // List SD images
       listSDImages();
       break;
       
-    case 0x23:  // Delete image from SD
+    case 0x22:  // Delete image from SD
       deleteSDImage();
+      break;
+      
+    case 0x23:  // SD card info
+      sendSDInfo();
+      break;
+      
+    case 0x24:  // Load image from SD
+      loadImageFromSD();
       break;
       
     case 0x30:  // Pattern preset commands (save/load/list/delete)
@@ -658,9 +781,10 @@ void receiveImage() {
   uint16_t srcWidth = cmdBuffer[4] | (cmdBuffer[5] << 8);   // 16-bit width
   uint16_t srcHeight = cmdBuffer[6] | (cmdBuffer[7] << 8);  // 16-bit height
   
-  // Always store uploaded images in slot 0 (most recent upload)
-  // This simplifies the web/app interface - they don't need to manage slots
-  uint8_t imgIndex = 0;
+  // Use g_nextImageSlot (set by command 0x0B) then reset to 0 for the next upload.
+  // This allows the ESP32 to direct images into specific slots for multi-image sequences.
+  uint8_t imgIndex = g_nextImageSlot;
+  g_nextImageSlot = 0;  // Reset so a forgotten 0x0B defaults back to slot 0
   
   // Calculate expected data size
   // Cast to uint32_t to prevent overflow: max is 400*64*3 = 76,800 bytes
@@ -788,8 +912,8 @@ void receiveSequence() {
 }
 
 void receiveLiveFrame() {
-  // Receive live frame data for immediate display (32 LEDs * 3 bytes RGB = 96 bytes)
-  for (int i = 0; i < DISPLAY_LEDS && (3 + (i + 1) * 3 - 1) < CMD_BUFFER_SIZE; i++) {
+  // Receive live frame data for immediate display (g_displayLeds * 3 bytes RGB)
+  for (int i = 0; i < g_displayLeds && (3 + (i + 1) * 3 - 1) < CMD_BUFFER_SIZE; i++) {
     liveBuffer[i] = CRGB(cmdBuffer[3 + i * 3], cmdBuffer[4 + i * 3], cmdBuffer[5 + i * 3]);
   }
 }
@@ -828,10 +952,16 @@ void displayImage() {
   }
   
   POVImage& img = images[currentIndex];
-  
-  // Display current column of the image (all 32 LEDs are display LEDs)
-  for (int i = 0; i < DISPLAY_LEDS && i < img.height; i++) {
-    leds[i + DISPLAY_LED_START] = img.pixels[currentColumn][i];
+
+  // Ensure sacrificial LEDs (indices 0..g_displayLedStart-1) stay black
+  if (g_displayLedStart > 0) {
+    for (int i = 0; i < g_displayLedStart; i++) {
+      leds[i] = CRGB::Black;
+    }
+  }
+  // Clear rows beyond the image height within the display range
+  for (int i = 0; i < g_displayLeds; i++) {
+    leds[i + g_displayLedStart] = (i < img.height) ? img.pixels[currentColumn][i] : CRGB::Black;
   }
   
   currentColumn = (currentColumn + 1) % img.width;
@@ -851,15 +981,15 @@ void displayPattern() {
   
   switch (pat.type) {
     case 0:  // Rainbow
-      for (int i = DISPLAY_LED_START; i < NUM_LEDS; i++) {
-        uint8_t hue = (patternTime * pat.speed / 10 + i * 255 / DISPLAY_LEDS) % 256;
+      for (int i = g_displayLedStart; i < g_displayLedStart + g_displayLeds; i++) {
+        uint8_t hue = (patternTime * pat.speed / 10 + (i - g_displayLedStart) * 255 / g_displayLeds) % 256;
         leds[i] = CHSV(hue, 255, 255);
       }
       break;
       
     case 1:  // Wave
-      for (int i = DISPLAY_LED_START; i < NUM_LEDS; i++) {
-        uint8_t brightness = (sin8(patternTime * pat.speed / 10 + i * 255 / DISPLAY_LEDS));
+      for (int i = g_displayLedStart; i < g_displayLedStart + g_displayLeds; i++) {
+        uint8_t brightness = (sin8(patternTime * pat.speed / 10 + (i - g_displayLedStart) * 255 / g_displayLeds));
         leds[i] = pat.color1;
         leds[i].nscale8(brightness);
       }
@@ -870,9 +1000,9 @@ void displayPattern() {
         uint32_t gradMillis = (uint32_t)((int32_t)millis() + syncTimeOffset);
         // Use 8-bit math so the phase wraps naturally and avoids 32-bit overflow
         uint8_t timeOffset = (uint8_t)((uint8_t)(gradMillis / 500u) * pat.speed);
-        for (int i = DISPLAY_LED_START; i < NUM_LEDS; i++) {
+        for (int i = g_displayLedStart; i < g_displayLedStart + g_displayLeds; i++) {
           // sin8 gives a smooth 0-255 wave that wraps naturally (no hard snap)
-          uint8_t phase = (uint8_t)((i - DISPLAY_LED_START) * 255 / DISPLAY_LEDS) + timeOffset;
+          uint8_t phase = (uint8_t)((i - g_displayLedStart) * 255 / g_displayLeds) + timeOffset;
           leds[i] = blend(pat.color1, pat.color2, sin8(phase));
         }
       }
@@ -880,29 +1010,30 @@ void displayPattern() {
       
     case 3:  // Sparkle
       if (random8() < pat.speed) {
-        leds[random8(DISPLAY_LED_START, NUM_LEDS)] = pat.color1;
+        leds[random8(g_displayLedStart, g_displayLedStart + g_displayLeds)] = pat.color1;
       }
-      fadeToBlackBy(leds, NUM_LEDS, 20);
+      fadeToBlackBy(leds + g_displayLedStart, g_displayLeds, 20);
       break;
       
     case 4:  // Fire - heat rises from bottom upward
       {
         static uint8_t heat[NUM_LEDS];
-        // Cool down every cell
-        for (int i = DISPLAY_LED_START; i < NUM_LEDS; i++) {
-          heat[i] = qsub8(heat[i], random8(0, ((55 * 10) / DISPLAY_LEDS) + 2));
+        const int displayEnd = g_displayLedStart + g_displayLeds;
+        // Cool down every cell in display range
+        for (int i = g_displayLedStart; i < displayEnd; i++) {
+          heat[i] = qsub8(heat[i], random8(0, ((55 * 10) / g_displayLeds) + 2));
         }
-        // Heat rises - drift heat upward
-        for (int i = NUM_LEDS - 1; i >= 2; i--) {
+        // Heat rises - drift heat upward within display range
+        for (int i = displayEnd - 1; i >= g_displayLedStart + 2; i--) {
           heat[i] = (heat[i - 1] + heat[i - 2] + heat[i - 2]) / 3;
         }
-        // Random ignition at the bottom
+        // Random ignition at the bottom (clamped to display range)
         if (random8() < pat.speed) {
-          int y = random8(DISPLAY_LED_START, DISPLAY_LED_START + 3);
+          int y = random8(g_displayLedStart, min(g_displayLedStart + 3, displayEnd));
           heat[y] = qadd8(heat[y], random8(160, 255));
         }
-        // Map heat to colors
-        for (int i = DISPLAY_LED_START; i < NUM_LEDS; i++) {
+        // Map heat to colors for display range only
+        for (int i = g_displayLedStart; i < displayEnd; i++) {
           leds[i] = HeatColor(heat[i]);
         }
       }
@@ -910,16 +1041,16 @@ void displayPattern() {
       
     case 5:  // Comet - single bright head with fading tail
       {
-        static uint8_t cometPos = DISPLAY_LED_START;
+        const int displayEnd = g_displayLedStart + g_displayLeds;
         static int8_t direction = 1;
-        fadeToBlackBy(leds, NUM_LEDS, 60);  // Fade creates tail
-        cometPos += direction;
-        if (cometPos >= NUM_LEDS - 1 || cometPos <= DISPLAY_LED_START) {
+        fadeToBlackBy(leds + g_displayLedStart, g_displayLeds, 60);  // Fade creates tail
+        g_cometPos += direction;
+        if (g_cometPos >= displayEnd - 1 || g_cometPos <= g_displayLedStart) {
           direction = -direction;
         }
-        leds[cometPos] = pat.color1;
-        int8_t tailPos = cometPos - direction;
-        if (tailPos >= DISPLAY_LED_START && tailPos < NUM_LEDS) {
+        leds[g_cometPos] = pat.color1;
+        int8_t tailPos = g_cometPos - direction;
+        if (tailPos >= g_displayLedStart && tailPos < displayEnd) {
           leds[tailPos] = pat.color1;
           leds[tailPos].nscale8(128);
         }
@@ -929,7 +1060,7 @@ void displayPattern() {
     case 6:  // Breathing - smooth pulse on/off
       {
         uint8_t breath = beatsin8(pat.speed / 4, 20, 255);
-        for (int i = DISPLAY_LED_START; i < NUM_LEDS; i++) {
+        for (int i = g_displayLedStart; i < g_displayLedStart + g_displayLeds; i++) {
           leds[i] = pat.color1;
           leds[i].nscale8(breath);
         }
@@ -946,7 +1077,7 @@ void displayPattern() {
           strobeOn = !strobeOn;
           lastStrobeMs = nowMs;
         }
-        for (int i = DISPLAY_LED_START; i < NUM_LEDS; i++) {
+        for (int i = g_displayLedStart; i < g_displayLedStart + g_displayLeds; i++) {
           leds[i] = strobeOn ? pat.color1 : CRGB::Black;
         }
       }
@@ -954,9 +1085,14 @@ void displayPattern() {
       
     case 8:  // Meteor - falling with random decay
       {
-        static uint8_t meteorPos = NUM_LEDS - 1;
-        // Fade all LEDs randomly for sparkly tail
-        for (int i = DISPLAY_LED_START; i < NUM_LEDS; i++) {
+        const int displayEnd = g_displayLedStart + g_displayLeds;
+        // 255 is used as a sentinel for "not initialized yet"
+        static uint8_t meteorPos = 255;
+        if (meteorPos == 255 || meteorPos < g_displayLedStart || meteorPos >= displayEnd) {
+          meteorPos = (uint8_t)(displayEnd - 1);
+        }
+        // Fade all display LEDs randomly for sparkly tail
+        for (int i = g_displayLedStart; i < displayEnd; i++) {
           if (random8() < 80) {
             leds[i].fadeToBlackBy(64);
           }
@@ -964,13 +1100,13 @@ void displayPattern() {
         // Draw meteor head
         for (int i = 0; i < 4; i++) {
           int16_t pos = (int16_t)meteorPos - i;
-          if (pos >= DISPLAY_LED_START && pos < NUM_LEDS) {
+          if (pos >= g_displayLedStart && pos < displayEnd) {
             leds[pos] = pat.color1;
             leds[pos].nscale8(255 - (i * 60));
           }
         }
-        if (meteorPos <= DISPLAY_LED_START) {
-          meteorPos = NUM_LEDS - 1;
+        if (meteorPos <= g_displayLedStart) {
+          meteorPos = (uint8_t)(displayEnd - 1);
         } else {
           meteorPos--;
         }
@@ -979,21 +1115,26 @@ void displayPattern() {
       
     case 9:  // Color Wipe - progressive fill then clear
       {
-        static uint8_t wipePos = DISPLAY_LED_START;
+        const int displayEnd = g_displayLedStart + g_displayLeds;
         static bool filling = true;
-        leds[wipePos] = filling ? pat.color1 : CRGB::Black;
-        wipePos++;
-        if (wipePos >= NUM_LEDS) {
-          wipePos = DISPLAY_LED_START;
+        // Clamp g_wipePos in case the display range changed at runtime (via cmd 0x09)
+        if (g_wipePos < g_displayLedStart || g_wipePos >= displayEnd) {
+          g_wipePos = g_displayLedStart;
+        }
+        leds[g_wipePos] = filling ? pat.color1 : CRGB::Black;
+        g_wipePos++;
+        if (g_wipePos >= displayEnd) {
+          g_wipePos = g_displayLedStart;
           filling = !filling;
         }
       }
       break;
       
     case 10:  // Plasma - organic color mixing
-      for (int i = DISPLAY_LED_START; i < NUM_LEDS; i++) {
-        uint8_t hue = sin8(i * 10 + patternTime * pat.speed / 20) + 
-                      sin8(i * 15 - patternTime * pat.speed / 15) +
+      for (int i = g_displayLedStart; i < g_displayLedStart + g_displayLeds; i++) {
+        uint8_t idx = i - g_displayLedStart;
+        uint8_t hue = sin8(idx * 10 + patternTime * pat.speed / 20) + 
+                      sin8(idx * 15 - patternTime * pat.speed / 15) +
                       sin8(patternTime * pat.speed / 10);
         leds[i] = CHSV(hue, 255, 255);
       }
@@ -1043,17 +1184,17 @@ void displayPattern() {
         }
         
         // Map audio level to number of LEDs to light
-        uint8_t ledsToLight = map(audioLevel, 0, 255, 0, DISPLAY_LEDS);
+        uint8_t ledsToLight = map(audioLevel, 0, 255, 0, g_displayLeds);
         
-        // Draw VU meter with color gradient (all 32 display LEDs)
-        for (int i = DISPLAY_LED_START; i < NUM_LEDS; i++) {
-          uint8_t ledIndex = i - DISPLAY_LED_START;
+        // Draw VU meter with color gradient (display LEDs)
+        for (int i = g_displayLedStart; i < g_displayLedStart + g_displayLeds; i++) {
+          uint8_t ledIndex = i - g_displayLedStart;
           if (ledIndex < ledsToLight) {
             // Gradient from green to yellow to red based on position
             uint8_t hue;
-            if (ledIndex < DISPLAY_LEDS / 3) {
+            if (ledIndex < g_displayLeds / 3) {
               hue = 96;  // Green
-            } else if (ledIndex < 2 * DISPLAY_LEDS / 3) {
+            } else if (ledIndex < 2 * g_displayLeds / 3) {
               hue = 64;  // Yellow
             } else {
               hue = 0;   // Red
@@ -1067,8 +1208,8 @@ void displayPattern() {
         }
         
         // Draw peak indicator
-        uint8_t peakPos = map(peakLevel, 0, 255, DISPLAY_LED_START, NUM_LEDS - 1);
-        if (peakPos >= DISPLAY_LED_START && peakPos < NUM_LEDS) {
+        uint8_t peakPos = map(peakLevel, 0, 255, g_displayLedStart, g_displayLedStart + g_displayLeds - 1);
+        if (peakPos >= g_displayLedStart && peakPos < g_displayLedStart + g_displayLeds) {
           leds[peakPos] = CRGB::White;
         }
       }
@@ -1102,8 +1243,8 @@ void displayPattern() {
         }
         lastLevel = audioLevel;
         
-        // Apply pulse to all display LEDs
-        for (int i = DISPLAY_LED_START; i < NUM_LEDS; i++) {
+        // Apply pulse to display LEDs
+        for (int i = g_displayLedStart; i < g_displayLedStart + g_displayLeds; i++) {
           leds[i] = pat.color1;
           leds[i].nscale8(pulseVal);
         }
@@ -1137,9 +1278,9 @@ void displayPattern() {
         // Audio level controls rainbow speed
         rainbowOffset += map(audioLevel, 0, 255, 1, 20);
         
-        // Draw rainbow with audio-controlled speed (all 32 display LEDs)
-        for (int i = DISPLAY_LED_START; i < NUM_LEDS; i++) {
-          uint8_t hue = (rainbowOffset / 4 + i * 255 / DISPLAY_LEDS) % 256;
+        // Draw rainbow with audio-controlled speed (display LEDs)
+        for (int i = g_displayLedStart; i < g_displayLedStart + g_displayLeds; i++) {
+          uint8_t hue = (rainbowOffset / 4 + (i - g_displayLedStart) * 255 / g_displayLeds) % 256;
           uint8_t brightness = constrain(audioLevel + 50, 50, 255);
           leds[i] = CHSV(hue, 255, brightness);
         }
@@ -1167,17 +1308,17 @@ void displayPattern() {
         uint8_t audioLevel = map(level, 0, 512, 0, 255);
         
         // Map level to expansion from center
-        uint8_t expansion = map(audioLevel, 0, 255, 0, DISPLAY_LEDS / 2);
-        uint8_t center = DISPLAY_LED_START + DISPLAY_LEDS / 2;
+        uint8_t expansion = map(audioLevel, 0, 255, 0, g_displayLeds / 2);
+        uint8_t center = g_displayLedStart + g_displayLeds / 2;
         
-        // Fade all first
-        fadeToBlackBy(leds, NUM_LEDS, 80);
+        // Fade all display LEDs first
+        fadeToBlackBy(leds + g_displayLedStart, g_displayLeds, 80);
         
-        // Draw expanding from center (all 32 display LEDs)
+        // Draw expanding from center (display LEDs)
         for (int i = 0; i <= expansion; i++) {
           uint8_t hue = patternTime * pat.speed / 20 + i * 10;
-          if (center + i < NUM_LEDS) leds[center + i] = CHSV(hue, 255, 255);
-          if ((int16_t)center - i >= DISPLAY_LED_START) leds[center - i] = CHSV(hue, 255, 255);
+          if (center + i < g_displayLedStart + g_displayLeds) leds[center + i] = CHSV(hue, 255, 255);
+          if ((int16_t)center - i >= g_displayLedStart) leds[center - i] = CHSV(hue, 255, 255);
         }
       }
       break;
@@ -1202,13 +1343,13 @@ void displayPattern() {
         level = constrain(level - AUDIO_NOISE_FLOOR, 0, 512);
         uint8_t audioLevel = map(level, 0, 512, 0, 255);
         
-        // Fade existing
-        fadeToBlackBy(leds, NUM_LEDS, 40);
+        // Fade existing display LEDs
+        fadeToBlackBy(leds + g_displayLedStart, g_displayLeds, 40);
         
-        // Add sparkles based on audio - more audio = more sparkles (all 32 display LEDs)
+        // Add sparkles based on audio level (display LEDs)
         uint8_t numSparkles = map(audioLevel, 0, 255, 0, 8);
         for (int s = 0; s < numSparkles; s++) {
-          uint8_t pos = random8(DISPLAY_LED_START, NUM_LEDS);
+          uint8_t pos = random8(g_displayLedStart, g_displayLedStart + g_displayLeds);
           uint8_t hue = patternTime * 2 + random8(64);  // Shifting colors
           leds[pos] = CHSV(hue, 255, 255);
         }
@@ -1217,10 +1358,10 @@ void displayPattern() {
 
     case 16:  // Split Spin - rotating two-color halves
       {
-        uint8_t offset = (patternTime * pat.speed / kPatternSpeedDivisor) % DISPLAY_LEDS;
-        uint8_t splitPoint = DISPLAY_LEDS / 2;
-        for (int i = DISPLAY_LED_START; i < NUM_LEDS; i++) {
-          uint8_t pos = (i - 1 + offset) % DISPLAY_LEDS;
+        uint8_t offset = (patternTime * pat.speed / kPatternSpeedDivisor) % g_displayLeds;
+        uint8_t splitPoint = g_displayLeds / 2;
+        for (int i = g_displayLedStart; i < g_displayLedStart + g_displayLeds; i++) {
+          uint8_t pos = ((i - g_displayLedStart) + offset) % g_displayLeds;
           leds[i] = (pos < splitPoint) ? pat.color1 : pat.color2;
         }
       }
@@ -1229,8 +1370,8 @@ void displayPattern() {
     case 17:  // Theater Chase - dotted chase with background
       {
         uint8_t chaseOffset = (patternTime * pat.speed / kPatternSpeedDivisor) % 3;
-        for (int i = DISPLAY_LED_START; i < NUM_LEDS; i++) {
-          uint8_t phase = (i - 1 + chaseOffset) % 3;
+        for (int i = g_displayLedStart; i < g_displayLedStart + g_displayLeds; i++) {
+          uint8_t phase = ((i - g_displayLedStart) + chaseOffset) % 3;
           leds[i] = (phase == 0) ? pat.color1 : pat.color2;
         }
       }
@@ -1330,9 +1471,9 @@ void displaySequence() {
 }
 
 void displayLive() {
-  // Display the live buffer (all 32 LEDs)
-  for (int i = 0; i < DISPLAY_LEDS; i++) {
-    leds[i + DISPLAY_LED_START] = liveBuffer[i];
+  // Display the live buffer (g_displayLeds LEDs starting at g_displayLedStart)
+  for (int i = 0; i < g_displayLeds; i++) {
+    leds[i + g_displayLedStart] = liveBuffer[i];
   }
 }
 
@@ -1344,13 +1485,18 @@ void sendAck(uint8_t cmd) {
 }
 
 void sendStatus() {
-  // #region agent log
-  Serial.println("[DBG][H2] sendStatus: writing FF BB mode idx FE to ESP32_SERIAL");
-  // #endregion
+  // Response frame (6 bytes total):
+  //   0xFF 0xBB mode index sd_present 0xFE
+  // ESP32 checkTeensyConnection() must read and validate the trailing 0xFE.
   ESP32_SERIAL.write(0xFF);
   ESP32_SERIAL.write(0xBB);  // Status response
   ESP32_SERIAL.write(currentMode);
   ESP32_SERIAL.write(currentIndex);
+  #ifdef SD_SUPPORT
+  ESP32_SERIAL.write(sdInitialized ? (uint8_t)1 : (uint8_t)0);
+  #else
+  ESP32_SERIAL.write((uint8_t)0);
+  #endif
   ESP32_SERIAL.write(0xFE);
 }
 
@@ -1363,10 +1509,12 @@ void initSDCard() {
   if (!SD.begin(BUILTIN_SDCARD)) {
     Serial.println("Failed!");
     Serial.println("Check that SD card is inserted");
+    sdInitialized = false;
     return;
   }
   
   Serial.println("OK");
+  sdInitialized = true;
   
   // Create image directory if it doesn't exist
   if (!SD.exists(SD_IMAGE_DIR)) {
@@ -1442,29 +1590,24 @@ void saveImageToSD() {
 }
 
 void loadImageFromSD() {
-  // Protocol: 0xFF 0x21 len filename_len [filename] img_index 0xFE
-  // Load image from SD card into specified image slot
+  // Protocol: 0xFF 0x24 dataLen [filenameLen] [filename] [imgIndex] 0xFE
+  // Load image from SD card into the specified slot
+  // cmdBuffer[3] = filenameLen, cmdBuffer[4..] = filename bytes
   
   uint8_t filenameLen = cmdBuffer[3];
   if (filenameLen == 0 || filenameLen > MAX_FILENAME_LEN) {
     Serial.println("Invalid filename length");
-    sendAck(0x21);
+    sendAck(0x24);
     return;
   }
   
-  // Extract filename
+  // Extract filename from cmdBuffer[4] onwards
   char filename[MAX_FILENAME_LEN + 1];
   memcpy(filename, &cmdBuffer[4], filenameLen);
   filename[filenameLen] = '\0';
   
-  // Get image index
+  // Image slot follows filename
   uint8_t imgIndex = cmdBuffer[4 + filenameLen];
-  
-  if (imgIndex >= MAX_IMAGES) {
-    Serial.println("Invalid image index");
-    sendAck(0x21);
-    return;
-  }
   
   // Build full path
   char filepath[MAX_FILEPATH_LEN];
@@ -1477,7 +1620,7 @@ void loadImageFromSD() {
   File file = SD.open(filepath, FILE_READ);
   if (!file) {
     Serial.println("Failed to open file");
-    sendAck(0x21);
+    sendAck(0x24);
     return;
   }
   
@@ -1490,7 +1633,7 @@ void loadImageFromSD() {
   if (width > IMAGE_MAX_WIDTH || height > IMAGE_HEIGHT) {
     Serial.println("Image dimensions too large");
     file.close();
-    sendAck(0x21);
+    sendAck(0x24);
     return;
   }
   
@@ -1514,11 +1657,11 @@ void loadImageFromSD() {
   Serial.print("x");
   Serial.print(height);
   Serial.println(")");
-  sendAck(0x21);
+  sendAck(0x24);
 }
 
 void listSDImages() {
-  // Protocol: 0xFF 0x22 len 0xFE
+  // Protocol: 0xFF 0x21 0 0xFE
   // Response: 0xFF 0xCC count [name1_len name1 ...] 0xFE
   
   Serial.println("Listing SD images...");
@@ -1576,16 +1719,17 @@ void listSDImages() {
 }
 
 void deleteSDImage() {
-  // Protocol: 0xFF 0x23 len filename_len [filename] 0xFE
+  // Protocol: 0xFF 0x22 dataLen [filenameLen] [filename] 0xFE
+  // cmdBuffer[3] = filenameLen, cmdBuffer[4..] = filename bytes
   
   uint8_t filenameLen = cmdBuffer[3];
   if (filenameLen == 0 || filenameLen > MAX_FILENAME_LEN) {
     Serial.println("Invalid filename length");
-    sendAck(0x23);
+    sendAck(0x22);
     return;
   }
   
-  // Extract filename
+  // Extract filename from cmdBuffer[4] onwards
   char filename[MAX_FILENAME_LEN + 1];
   memcpy(filename, &cmdBuffer[4], filenameLen);
   filename[filenameLen] = '\0';
@@ -1599,11 +1743,50 @@ void deleteSDImage() {
   
   if (SD.remove(filepath)) {
     Serial.println("Image deleted successfully");
-    sendAck(0x23);
+    sendAck(0x22);
   } else {
     Serial.println("Failed to delete image");
-    sendAck(0x23);
+    sendAck(0x22);
   }
+}
+
+void sendSDInfo() {
+  // Protocol: 0xFF 0x23 0 0xFE
+  // Response: 0xFF 0xDD [present:1][totalSpace:8][freeSpace:8] 0xFE
+  
+  Serial.println("Sending SD card info...");
+  
+  ESP32_SERIAL.write(0xFF);
+  ESP32_SERIAL.write(0xDD);  // SD info response marker
+  
+  // Get card info using Teensy SD library methods
+  uint64_t totalSpace = SD.totalSize();
+  uint64_t usedSpace = SD.usedSize();
+  bool present = (totalSpace > 0);
+  uint64_t freeSpace = present ? (totalSpace - usedSpace) : 0;
+  
+  // Present flag
+  ESP32_SERIAL.write(present ? (uint8_t)1 : (uint8_t)0);
+  
+  // Total space (8 bytes, big-endian)
+  for (int i = 7; i >= 0; i--) {
+    ESP32_SERIAL.write((uint8_t)((totalSpace >> (i * 8)) & 0xFF));
+  }
+  
+  // Free space (8 bytes, big-endian)
+  for (int i = 7; i >= 0; i--) {
+    ESP32_SERIAL.write((uint8_t)((freeSpace >> (i * 8)) & 0xFF));
+  }
+  
+  ESP32_SERIAL.write(0xFE);
+  
+  Serial.print("SD Info: present=");
+  Serial.print(present);
+  Serial.print(" total=");
+  Serial.print((uint32_t)(totalSpace / 1048576));
+  Serial.print("MB free=");
+  Serial.print((uint32_t)(freeSpace / 1048576));
+  Serial.println("MB");
 }
 
 // ==================== PATTERN PRESET FUNCTIONS ====================

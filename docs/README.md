@@ -192,7 +192,7 @@ See [ESP32-S3 Compatibility Guide](ESP32_S3_COMPATIBILITY.md) for detailed ESP32
 
 #### System Controls
 - **Brightness** - Adjust LED brightness (0-255)
-- **Frame Rate** - Set refresh rate (10-120 FPS)
+- **Frame Rate** - Set refresh rate (10-1000 FPS; 500+ for POV spinning)
 
 #### Quick Patterns
 - **Rainbow** - Rotating rainbow effect
