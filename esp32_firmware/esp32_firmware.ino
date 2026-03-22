@@ -43,6 +43,7 @@ void handleSetFrameRate();
 void handlePowerMode();
 void handleUploadPattern();
 void handleUploadImage();
+void handleUploadSequence();
 void handleLiveFrame();
 void handleSDList();
 void handleSDDelete();
@@ -182,6 +183,8 @@ struct SystemState {
   bool sdCardPresent;
   uint8_t powerMode;  // 0=performance, 1=balanced, 2=powersave, 3=ultrasave
   uint8_t imageCount;  // Number of uploaded images (tracked locally)
+  // Next slot for image uploads (wraps 5..MAX_IMAGES-1, preserving preloaded images 0-4)
+  uint8_t nextImageSlot;
 } state;
 
 void setup() {
@@ -247,6 +250,7 @@ void setup() {
   state.sdCardPresent = false;
   state.powerMode = 1;  // Start in balanced mode (matches JS default)
   state.imageCount = 0;
+  state.nextImageSlot = 5;  // Start uploads at slot 5 (0-4 are preloaded demo images)
   
   Serial.println("ESP32 Nebula Poi Controller Ready!");
   Serial.print("IP Address: ");
@@ -350,6 +354,7 @@ void setupWebServer() {
   server.on("/api/framerate", HTTP_POST, handleSetFrameRate);
   server.on("/api/power/mode", HTTP_POST, handlePowerMode);
   server.on("/api/pattern", HTTP_POST, handleUploadPattern);
+  server.on("/api/sequence", HTTP_POST, handleUploadSequence);
   server.on("/api/image", HTTP_POST, 
     []() { 
       // Final response sent in handleUploadImage after upload completes
@@ -742,7 +747,10 @@ static const char rootPage[] PROGMEM = R"rawliteral(
                     <label class="chk"><input type="checkbox" id="flip-vertical"> Flip Vertical</label>
                     <label class="chk"><input type="checkbox" id="flip-horizontal"> Flip Horizontal</label>
                 </div>
-                <button class="btn btn-primary" onclick="uploadImage()">Upload & Display</button>
+                <div class="grid2">
+                    <button class="btn btn-primary" onclick="uploadImage()">Upload &amp; Display</button>
+                    <button class="btn btn-slate" onclick="addImageToSequence()">+ Add to Sequence</button>
+                </div>
             </div>
 
             <!-- Procedural Generator -->
@@ -771,6 +779,58 @@ static const char rootPage[] PROGMEM = R"rawliteral(
                     <span style="color:#334155;font-size:12px">No image loaded</span>
                 </div>
                 <div id="img-dimensions" style="margin-top:8px;font-size:11px;color:#64748b;font-family:monospace;text-align:center"></div>
+            </div>
+
+            <!-- Sequence Builder -->
+            <div class="card">
+                <div class="card-title"><span class="dot" style="background:#f59e0b"></span> Sequence Builder</div>
+                <div style="font-size:12px;color:#64748b;margin-bottom:12px">Build a custom sequence of images and patterns, then deploy it to the hardware.</div>
+
+                <!-- Add pattern to sequence -->
+                <div style="margin-bottom:14px">
+                    <label style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.08em;display:block;margin-bottom:6px">Add Pattern Step</label>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+                        <select id="seq-pattern-select" style="flex:1;padding:8px 12px;background:#0f172a;border:1px solid #334155;border-radius:8px;color:#e2e8f0;font-size:13px;outline:none">
+                            <option value="0">Rainbow</option>
+                            <option value="1">Wave</option>
+                            <option value="2">Gradient</option>
+                            <option value="3">Sparkle</option>
+                            <option value="4">Fire</option>
+                            <option value="5">Comet</option>
+                            <option value="6">Breathing</option>
+                            <option value="7">Strobe</option>
+                            <option value="8">Meteor</option>
+                            <option value="9">Wipe</option>
+                            <option value="10">Plasma</option>
+                            <option value="11">VU Meter</option>
+                            <option value="12">Pulse</option>
+                            <option value="13">Audio Rainbow</option>
+                            <option value="14">Center Burst</option>
+                            <option value="15">Audio Sparkle</option>
+                            <option value="16">Split Spin</option>
+                            <option value="17">Theater Chase</option>
+                        </select>
+                        <input type="number" id="seq-pattern-dur" value="2000" min="100" step="100" style="width:80px;padding:8px;background:#0f172a;border:1px solid #334155;border-radius:8px;color:#e2e8f0;font-size:13px;outline:none" title="Duration ms">
+                        <button class="btn btn-slate btn-sm btn-icon" onclick="addPatternStepToSequence()" style="white-space:nowrap">+ Pattern</button>
+                    </div>
+                </div>
+
+                <!-- Sequence timeline -->
+                <div id="seq-timeline" style="max-height:220px;overflow-y:auto;margin-bottom:12px">
+                    <div id="seq-empty" style="text-align:center;color:#475569;font-size:12px;padding:16px;border:1px dashed #1e293b;border-radius:8px">Sequence empty — add images or patterns above.</div>
+                </div>
+
+                <!-- Playback controls -->
+                <div id="seq-controls" style="display:none;margin-bottom:12px">
+                    <label style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.08em;display:block;margin-bottom:6px">Sequence Options</label>
+                    <label class="chk" style="margin-bottom:10px"><input type="checkbox" id="seq-loop" checked> Loop sequence</label>
+                </div>
+
+                <div class="grid2">
+                    <button class="btn btn-red btn-sm" onclick="clearSequence()">Clear</button>
+                    <button class="btn btn-primary" onclick="deploySequence()" id="btn-deploy-seq">Deploy to Hardware</button>
+                </div>
+                <div id="seq-status" style="margin-top:10px;font-size:12px;color:#64748b;text-align:center;min-height:16px"></div>
             </div>
         </div>
 
@@ -1379,6 +1439,115 @@ static const char rootPage[] PROGMEM = R"rawliteral(
         }catch(e){showToast('Upload error: '+e.message)}
     }
 
+    // ===== Sequence Builder =====
+    // seqItems: [{kind:'image'|'pattern', name:String, file:File|null, patternId:Number, duration:Number}]
+    let seqItems=[];
+    const SEQ_PATTERN_NAMES=['Rainbow','Wave','Gradient','Sparkle','Fire','Comet','Breathing',
+        'Strobe','Meteor','Wipe','Plasma','VU Meter','Pulse','Audio Rainbow','Center Burst',
+        'Audio Sparkle','Split Spin','Theater Chase'];
+
+    function renderSeqTimeline(){
+        const tl=document.getElementById('seq-timeline');
+        const em=document.getElementById('seq-empty');
+        const ctrl=document.getElementById('seq-controls');
+        if(seqItems.length===0){
+            em.style.display='block';ctrl.style.display='none';
+            tl.innerHTML='';tl.appendChild(em);return;
+        }
+        em.style.display='none';ctrl.style.display='block';
+        let html='';
+        seqItems.forEach((it,i)=>{
+            const icon=it.kind==='pattern'?'&#9889;':'&#128444;';
+            html+='<div class="sd-file" style="background:#1e293b;border-radius:8px;margin-bottom:6px">'
+                +'<span style="font-size:18px;margin-right:8px">'+icon+'</span>'
+                +'<span class="fname">'+it.name+'</span>'
+                +'<span style="font-family:monospace;font-size:11px;color:#64748b;margin-right:8px">'+it.duration+'ms</span>'
+                +'<div class="actions">'
+                +'<button class="btn btn-slate btn-sm btn-icon" onclick="removeSeqItem('+i+')" style="padding:4px 8px">&#10005;</button>'
+                +'</div></div>';
+        });
+        tl.innerHTML=html;
+    }
+    function removeSeqItem(i){seqItems.splice(i,1);renderSeqTimeline();}
+
+    function addPatternStepToSequence(){
+        const pid=parseInt(document.getElementById('seq-pattern-select').value)||0;
+        const dur=parseInt(document.getElementById('seq-pattern-dur').value)||2000;
+        seqItems.push({kind:'pattern',name:'Pattern: '+SEQ_PATTERN_NAMES[pid],file:null,patternId:pid,duration:Math.max(100,dur)});
+        renderSeqTimeline();
+        showToast('Pattern added to sequence');
+    }
+
+    // pendingUploadFile: the file selected in the image upload input that can also be queued
+    function addImageToSequence(){
+        const fi=document.getElementById('image-upload');
+        if(!fi.files||!fi.files[0]){showToast('Select an image file first');return;}
+        const f=fi.files[0];
+        const dur=parseInt(document.getElementById('seq-pattern-dur').value)||3000;
+        seqItems.push({kind:'image',name:f.name,file:f,patternId:0,duration:Math.max(100,dur)});
+        renderSeqTimeline();
+        showToast('Image queued in sequence');
+    }
+
+    function clearSequence(){seqItems=[];renderSeqTimeline();document.getElementById('seq-status').textContent='';}
+
+    async function deploySequence(){
+        if(seqItems.length===0){showToast('Sequence is empty');return;}
+        const btn=document.getElementById('btn-deploy-seq');
+        btn.disabled=true;
+        const setSeqStatus=t=>{document.getElementById('seq-status').textContent=t;};
+        setSeqStatus('Uploading images...');
+        const hwItems=[];
+        let errors=0;
+        for(const it of seqItems){
+            if(it.kind==='pattern'){
+                hwItems.push({kind:'pattern',index:it.patternId,duration:it.duration});
+                continue;
+            }
+            // Upload image file
+            if(!it.file){errors++;continue;}
+            try{
+                const tW=parseInt(document.getElementById('image-width').value)||32;
+                const tH=32;
+                const cv=document.createElement('canvas');cv.width=tW;cv.height=tH;
+                const cx=cv.getContext('2d');
+                const bmp=await createImageBitmap(it.file);
+                cx.drawImage(bmp,0,0,tW,tH);
+                const iD=cx.getImageData(0,0,tW,tH);const px=iD.data;
+                const rgb=new Uint8Array(tW*tH*3);let ri=0;
+                for(let i=0;i<px.length;i+=4){rgb[ri++]=px[i];rgb[ri++]=px[i+1];rgb[ri++]=px[i+2];}
+                const blob=new Blob([rgb],{type:'application/octet-stream'});
+                const fd=new FormData();fd.append('file',blob,'image_'+tW+'x'+tH+'.rgb');
+                const res=await fetch('/api/image',{method:'POST',body:fd});
+                if(res.ok){
+                    const j=await res.json();
+                    hwItems.push({kind:'image',index:j.slot||5,duration:it.duration});
+                }else{errors++;}
+            }catch(e){errors++;}
+        }
+        if(hwItems.length===0){setSeqStatus('No items to deploy ('+errors+' error(s))');btn.disabled=false;return;}
+        setSeqStatus('Pushing sequence to Teensy...');
+        try{
+            const loop=document.getElementById('seq-loop').checked;
+            const res=await fetch('/api/sequence',{
+                method:'POST',
+                headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({index:1,loop:loop,items:hwItems})
+            });
+            if(res.ok){
+                // Start sequence playback (mode=3, index=1)
+                await fetch('/api/mode',{method:'POST',headers:{'Content-Type':'application/json'},
+                    body:JSON.stringify({mode:3,index:1})});
+                const errTxt=errors>0?' ('+errors+' error(s))':'';
+                setSeqStatus('Sequence deployed! ('+hwItems.length+' items'+errTxt+')');
+                showToast('Sequence playing!');
+            }else{
+                setSeqStatus('Failed to push sequence. Check connection.');
+            }
+        }catch(e){setSeqStatus('Error: '+e.message);}
+        btn.disabled=false;
+    }
+
     // ===== Live Draw =====
     const canvas=document.getElementById('live-canvas');
     const ctx=canvas.getContext('2d');
@@ -1982,6 +2151,104 @@ void handleUploadPattern() {
   }
 }
 
+void handleUploadSequence() {
+  // POST /api/sequence
+  // Sends a user-defined sequence to the Teensy for hardware playback.
+  //
+  // Request JSON:
+  //   {
+  //     "index":  <0-4>,        // sequence slot on Teensy (default 1; slot 0 = demo)
+  //     "loop":   <true|false>, // whether to loop (default true)
+  //     "items": [              // up to 10 items
+  //       { "kind": "image",   "index": <0-199>, "duration": <ms> },
+  //       { "kind": "pattern", "index": <0-17>,  "duration": <ms> }
+  //     ]
+  //   }
+  //
+  // Teensy command 0x04 payload:
+  //   [seqIndex][itemCount][loop][item0][dur0_h][dur0_l]...[itemN][durN_h][durN_l]
+  //   item byte: bit7=0 → image index (0-127), bit7=1 → pattern index (0-127)
+
+  if (!server.hasArg("plain")) {
+    server.send(400, "application/json", "{\"error\":\"No data\"}");
+    return;
+  }
+
+  String body = server.arg("plain");
+  JsonDocument doc;
+  if (deserializeJson(doc, body)) {
+    server.send(400, "application/json", "{\"error\":\"Invalid JSON\"}");
+    return;
+  }
+
+  uint8_t seqIndex = doc["index"] | 1;  // default slot 1 (slot 0 reserved for demo)
+  if (seqIndex >= 5) {                   // Teensy MAX_SEQUENCES = 5 (valid: 0-4)
+    server.send(400, "application/json", "{\"error\":\"index out of range (0-4)\"}");
+    return;
+  }
+
+  bool loop = doc["loop"] | true;
+
+  JsonArray items = doc["items"].as<JsonArray>();
+  if (items.isNull() || items.size() == 0) {
+    server.send(400, "application/json", "{\"error\":\"items array required\"}");
+    return;
+  }
+
+  uint8_t itemCount = 0;
+  const uint8_t kMaxSeqItems = 10;
+  uint8_t itemBytes[kMaxSeqItems];
+  uint8_t durHi[kMaxSeqItems];
+  uint8_t durLo[kMaxSeqItems];
+
+  for (JsonObject item : items) {
+    if (itemCount >= kMaxSeqItems) break;
+
+    String kind = item["kind"] | String("image");
+    uint8_t idx = item["index"] | 0;
+    uint16_t dur = item["duration"] | 2000;
+    if (dur < 100) dur = 100;   // minimum 100 ms per item
+
+    uint8_t itemByte;
+    if (kind == "pattern") {
+      if (idx > 17) idx = 17;          // Teensy MAX_PATTERNS - 1
+      itemByte = 0x80 | (idx & 0x7F); // bit 7 = pattern
+    } else {
+      if (idx > 199) idx = 199;        // Teensy MAX_IMAGES - 1
+      itemByte = idx & 0x7F;           // bit 7 = 0 → image
+    }
+
+    itemBytes[itemCount] = itemByte;
+    durHi[itemCount]     = (uint8_t)(dur >> 8);
+    durLo[itemCount]     = (uint8_t)(dur & 0xFF);
+    itemCount++;
+  }
+
+  // dataLen = seqIndex(1) + itemCount(1) + loop(1) + items(itemCount*3)
+  uint8_t dataLen = 3 + itemCount * 3;
+  sendTeensyCommand(0x04, dataLen);
+  TEENSY_SERIAL.write(seqIndex);
+  TEENSY_SERIAL.write(itemCount);
+  TEENSY_SERIAL.write(loop ? (uint8_t)1 : (uint8_t)0);
+  for (uint8_t i = 0; i < itemCount; i++) {
+    TEENSY_SERIAL.write(itemBytes[i]);
+    TEENSY_SERIAL.write(durHi[i]);
+    TEENSY_SERIAL.write(durLo[i]);
+  }
+  TEENSY_SERIAL.write(0xFE);
+
+  Serial.printf("[SEQ] Uploaded sequence %u (%u items, loop=%u) to Teensy\n",
+                seqIndex, itemCount, (unsigned)loop);
+
+  JsonDocument resp;
+  resp["status"]    = "ok";
+  resp["seqIndex"]  = (int)seqIndex;
+  resp["itemCount"] = (int)itemCount;
+  String respStr;
+  serializeJson(resp, respStr);
+  server.send(200, "application/json", respStr);
+}
+
 void handleUploadImage() {
   // Handle image upload from web interface
   // Images are pre-converted to RGB data by the web interface
@@ -2068,6 +2335,20 @@ void handleUploadImage() {
     
     Serial.printf("Detected image: %dx%d (%u bytes)\n", imageWidth, imageHeight, (unsigned)actualSize);
     
+    // Assign an image slot and tell Teensy which slot to store this image in.
+    // Slots 0-4 are reserved for preloaded demo images; user uploads start at 5.
+    // Note: slots 5-199 can hold up to 195 unique images per session. After wrapping
+    // at 199, older uploads (slot 5+) will be overwritten. Sessions exceeding 195 uploads
+    // are unusual given Teensy RAM constraints (10 images without PSRAM, 50 with PSRAM).
+    uint8_t assignedSlot = state.nextImageSlot;
+    // Advance to next slot; wrap back to 5 (preserving demo images 0-4)
+    state.nextImageSlot = (state.nextImageSlot < 199) ? (state.nextImageSlot + 1) : 5;
+    
+    // Send "set upload slot" command 0x0B to Teensy before the image
+    sendTeensyCommand(0x0B, 1);
+    TEENSY_SERIAL.write(assignedSlot);
+    TEENSY_SERIAL.write(0xFE);
+    
     // Send image data to Teensy for processing
     // Protocol: 0xFF 0x02 dataLen_high dataLen_low width_low width_high height_low height_high [RGB data...] 0xFE
     // Updated to support 16-bit dimensions for PSRAM support
@@ -2086,14 +2367,14 @@ void handleUploadImage() {
     }
     TEENSY_SERIAL.write(0xFE);  // End marker
     
-    Serial.println("Image forwarded to Teensy");
+    Serial.printf("Image forwarded to Teensy (slot %u)\n", assignedSlot);
     
     // Track uploaded images
     if (state.imageCount < 255) state.imageCount++;
     
-    // Set mode to image display (remove unnecessary delay)
+    // Set mode to image display
     state.currentMode = 1;
-    state.currentIndex = 0;
+    state.currentIndex = assignedSlot;
     sendTeensyCommand(0x01, 2);
     TEENSY_SERIAL.write(state.currentMode);
     TEENSY_SERIAL.write(state.currentIndex);
@@ -2114,14 +2395,13 @@ void handleUploadImage() {
       
       // Teensy save protocol (0x20):
       // [filename_len][filename][img_index]
-      // The image has already been uploaded to slot 0 via command 0x02.
       uint8_t totalDataLen = 1 + filenameLen + 1;
       
-      // Save slot 0 to SD using provided filename stem.
+      // Save the assigned slot to SD using provided filename stem.
       sendTeensyCommand(0x20, totalDataLen);
       TEENSY_SERIAL.write(filenameLen);
       TEENSY_SERIAL.write((const uint8_t*)filename, filenameLen);
-      TEENSY_SERIAL.write((uint8_t)0);  // image slot index
+      TEENSY_SERIAL.write(assignedSlot);  // image slot index
       TEENSY_SERIAL.write(0xFE);
       
       Serial.print("Auto-saving image to SD: ");
@@ -2131,7 +2411,13 @@ void handleUploadImage() {
       Serial.println("SD card not present - skipping auto-save");
     }
     
-    server.send(200, "application/json", "{\"status\":\"ok\"}");
+    // Return the assigned slot so callers (e.g. sequence builder) know where to find it
+    JsonDocument resp;
+    resp["status"] = "ok";
+    resp["slot"] = (int)assignedSlot;
+    String respStr;
+    serializeJson(resp, respStr);
+    server.send(200, "application/json", respStr);
   } else if (upload.status == UPLOAD_FILE_ABORTED) {
     Serial.println("Upload aborted");
     server.send(500, "application/json", "{\"error\":\"Upload aborted\"}");
@@ -2476,13 +2762,14 @@ void checkTeensyConnection() {
   unsigned long start = millis();
   while (millis() - start < 100) {
     int av = TEENSY_SERIAL.available();
-    if (av >= 5) {
+    if (av >= 6) {  // 6 bytes: 0xFF 0xBB mode index sd_present 0xFE
       uint8_t b0 = TEENSY_SERIAL.read();
       uint8_t b1 = TEENSY_SERIAL.read();
       if (b0 == 0xFF && b1 == 0xBB) {
         state.currentMode = TEENSY_SERIAL.read();
         state.currentIndex = TEENSY_SERIAL.read();
         state.sdCardPresent = (TEENSY_SERIAL.read() != 0);
+        TEENSY_SERIAL.read();  // consume trailing 0xFE to prevent UART desync
         state.connected = true;
         if (!lastConnected) {
           Serial.println("[LINK] Teensy connection established");

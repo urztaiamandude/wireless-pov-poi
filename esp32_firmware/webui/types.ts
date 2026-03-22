@@ -41,4 +41,7 @@ export interface SequenceItem {
   dataUrl: string;
   blob?: Blob;
   duration: number; // ms
+  kind?: 'image' | 'pattern'; // default 'image'
+  patternId?: number;          // pattern type (0-17) when kind='pattern'
+  slot?: number;               // assigned Teensy image slot (set after upload)
 }
