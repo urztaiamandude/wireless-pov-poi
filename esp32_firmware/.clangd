@@ -1,6 +1,36 @@
 CompileFlags:
+  Add:
+    - -x
+    - c++
+    - -include
+    - Arduino.h
+    - -ferror-limit=0
   Remove:
     - -mlongcalls
     - -fstrict-volatile-bitfields
     - -fno-tree-switch-conversion
     - -fno-jump-tables
+    - -felide-constructors
+    - -fpermissive
+Diagnostics:
+  Suppress:
+    # GCC/clang standard library & header incompatibilities
+    - err_ovl_diff_return_type
+    - err_member_redeclared
+    - err_redefinition
+    - err_redefinition_different_kind
+    - err_redefinition_different_typedef
+    - err_typecheck_invalid_operands
+    - err_undeclared_var_use
+    - err_unknown_typename
+    - err_use_of_tag_name_without_tag
+    - err_typename_nested_not_found
+    - err_no_member
+    - err_expected_class_name
+    # GCC built-in / attribute incompatibilities
+    - err_attribute_not_supported_on_arch
+    - warn_unknown_attribute_ignored
+    - warn_gcc_compat
+    # Xtensa cross-compilation noise
+    - warn_pragma_ignored
+    - pp_file_not_found
