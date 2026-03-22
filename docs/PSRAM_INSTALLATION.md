@@ -6,8 +6,8 @@ This guide covers installing external PSRAM chips on your Teensy 4.1 to dramatic
 
 The Teensy 4.1 has two footprints on the bottom for optional PSRAM chips. With PSRAM installed, the firmware can store:
 
-- **Without PSRAM**: 10 images at 32×200 pixels (~60KB total)
-- **With 16MB PSRAM** (2× 8MB chips): 50 images at 32×400 pixels (~1.8MB total, only 11% of PSRAM)
+- **Without PSRAM**: 10 images at 32×200 pixels (~192KB total in internal RAM for image data)
+- **With 16MB PSRAM** (2× 8MB chips): 200 images at 32×400 pixels (~7.3MB total, ≈46% of PSRAM)
 
 This allows storing many more images and larger POV images for better visual quality.
 
@@ -104,7 +104,8 @@ Repeat the process for the second PSRAM chip on the other footprint.
 4. **Check startup message**:
    ```
    PSRAM detected: 16 MB
-   Image capacity: 50 images at 400x32 max
+   Image capacity: 200 images at 400x32 max
+   EXTMEM usage: ~7 MB of 16 MB PSRAM
    ```
 
 If PSRAM is not detected, check:
@@ -115,16 +116,16 @@ If PSRAM is not detected, check:
 
 ## Firmware Configuration
 
-The firmware automatically detects PSRAM at startup. No configuration changes are needed - the code uses preprocessor directives to enable PSRAM features when `ARDUINO_TEENSY41` is defined.
+The firmware automatically detects PSRAM at startup. No configuration changes are needed — the code uses preprocessor directives to enable PSRAM features when `ARDUINO_TEENSY41` is defined. If PSRAM is not detected at runtime the firmware **halts** with a clear error message rather than continuing with invalid EXTMEM pointers.
 
 ### Key Changes with PSRAM:
 
 ```cpp
 // Automatically configured in teensy_firmware.ino:
 #ifdef ARDUINO_TEENSY41
-  #define MAX_IMAGES 50              // vs 10 without PSRAM
+  #define MAX_IMAGES 200             // vs 10 without PSRAM
   #define IMAGE_MAX_WIDTH 400        // vs 200 without PSRAM
-  #define CMD_BUFFER_SIZE 40000      // vs 6400 without PSRAM
+  #define CMD_BUFFER_SIZE 80000      // vs 6400 without PSRAM
   EXTMEM POVImage images[MAX_IMAGES]; // Stored in PSRAM
 #endif
 ```
@@ -136,9 +137,8 @@ With PSRAM installed, the memory layout is:
 | Region | Size | Usage |
 |--------|------|-------|
 | Internal RAM | 1 MB | Code, stack, small buffers |
-| PSRAM Chip 1 | 8 MB | Image storage |
-| PSRAM Chip 2 | 8 MB | Image storage |
-| **Total PSRAM** | **16 MB** | **~1.8 MB used for 50 images** |
+| External PSRAM (2× 8MB) | 16 MB | Image storage and large buffers (e.g. command buffer) |
+| **Typical PSRAM usage** | **~7.3 MB** | **200 images × ~38 KB + 80 KB cmd buffer (≈46% of total PSRAM)** |
 
 The firmware uses the `EXTMEM` keyword to place large arrays in PSRAM:
 - Image pixel arrays
@@ -172,7 +172,7 @@ The firmware uses the `EXTMEM` keyword to place large arrays in PSRAM:
 **Symptoms**: Code won't upload or crashes at runtime
 
 **Solutions**:
-1. Reduce MAX_IMAGES if testing without PSRAM
+1. Verify PSRAM is detected at startup — the firmware will halt with a `FATAL:` message if not found
 2. Check power supply can handle increased current
 3. Verify no shorts to ground or adjacent pins
 4. Test with simpler sketch to isolate PSRAM vs code issues

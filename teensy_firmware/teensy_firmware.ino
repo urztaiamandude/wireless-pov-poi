@@ -233,6 +233,9 @@ void setup() {
   Serial.println("Teensy 4.1 Nebula Poi Initializing...");
   
   // Check for PSRAM (Teensy 4.1 only)
+  // EXTMEM arrays (images[], cmdBuffer[]) are placed in external PSRAM by the linker.
+  // Accessing them without PSRAM physically installed causes a hard fault, so we halt
+  // here with a clear diagnostic if PSRAM is not detected.
   #ifdef ARDUINO_TEENSY41
     uint32_t psram_size = external_psram_size;
     Serial.print("PSRAM detected: ");
@@ -246,10 +249,22 @@ void setup() {
       Serial.print("x");
       Serial.print(IMAGE_HEIGHT);
       Serial.println(" max");
+      uint32_t extmem_used = (uint32_t)sizeof(images) + sizeof(cmdBuffer);
+      Serial.print("EXTMEM usage: ~");
+      Serial.print(extmem_used / (1024 * 1024));
+      Serial.print(" MB of ");
+      Serial.print(psram_size / (1024 * 1024));
+      Serial.println(" MB PSRAM");
     } else {
-      Serial.println("NONE - Using internal RAM only");
-      Serial.println("WARNING: Large image arrays may cause issues without PSRAM!");
-      Serial.println("Consider reducing MAX_IMAGES or IMAGE_MAX_WIDTH in code");
+      Serial.println("NONE");
+      Serial.println("FATAL: This firmware requires PSRAM (2x 8MB chips on Teensy 4.1 upgrade pads).");
+      Serial.println("The image array and command buffer are placed in external RAM (EXTMEM).");
+      Serial.println("Accessing them without PSRAM installed will cause a hard fault.");
+      Serial.println("See docs/PSRAM_INSTALLATION.md for installation instructions.");
+      Serial.println("Halting.");
+      while (true) {
+        delay(1000);  // Halt in low-power manner — firmware cannot run safely without PSRAM
+      }
     }
   #endif
   

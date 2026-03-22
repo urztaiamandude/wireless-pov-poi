@@ -13,7 +13,7 @@
 - **Main Controller**: Teensy 4.1 @ 600MHz (ARM Cortex-M7)
   - 1MB Internal RAM
   - **Optional**: 16MB PSRAM (2× 8MB chips) for expanded storage
-  - With PSRAM: 50 images at 32×400px, without: 10 images at 32×200px
+  - With PSRAM: 200 images at 32×400px, without: 10 images at 32×200px
 - **WiFi Co-processor**: ESP32-S3 N16R8 (16MB Flash, 8MB PSRAM) *recommended*, or standard ESP32
 - **Display**: APA102 RGB LED strip (32 LEDs total)
   - Default: LED 0 sacrificial for level shifting; LEDs 1–31 are 31 display pixels
@@ -370,8 +370,8 @@ for (int y = 0; y < g_displayLeds; y++) {
 - **Internal RAM**: 1MB total
 - **Flash**: 8MB total
 - **PSRAM (Optional)**: 16MB (2× 8MB chips soldered to board)
-  - **With PSRAM**: ~1.8MB for 50 images (32×400 pixels each)
-  - **Without PSRAM**: ~60KB for 10 images (32×200 pixels each)
+  - **With PSRAM**: ~7.3MB for 200 images (32×400 pixels each)
+  - **Without PSRAM**: ~192KB for 10 images (32×200 pixels each, stored as `CRGB pixels[200][32]`)
   - See [PSRAM Installation Guide](docs/PSRAM_INSTALLATION.md)
 - **Pattern storage**: Minimal (~100 bytes per pattern)
 - **Performance**: PSRAM is 2-3x slower than internal RAM but sufficient for image storage
