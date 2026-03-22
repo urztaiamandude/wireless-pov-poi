@@ -30,6 +30,8 @@ Comprehensive power supply design guide for the Nebula Poi with Teensy 4.1, ESP3
 | APA102 LEDs (32) | 5V | 60mA/LED | 1.92A | 9.6W |
 | **Total** | **5V** | **~300mA + LED load** | **~2.4A** | **~12W** |
 
+> **Teensy 4.1 VIN Voltage Range (per PJRC):** The Teensy 4.1 VIN pin accepts **3.6V to 5.5V**. The Teensy is a 3.3V logic device internally — its onboard regulator converts VIN down to 3.3V for the processor. The 3.3V pin is a **regulated output**, not a power input. While the Teensy itself can run from as low as 3.6V on VIN, this project uses **5V on VIN** because the APA102 LED strip requires 5V, making a shared 5V rail the simplest and most practical design. Do not exceed 5.5V on VIN — this can damage the onboard regulator. See the [PJRC Teensy 4.1 documentation](https://www.pjrc.com/store/teensy41.html) for official specifications.
+
 ### Detailed LED Power Calculations
 
 ```
@@ -1132,7 +1134,7 @@ The XL6019 (by XLSEMI) is a DC-DC converter IC commonly sold on Amazon, AliExpre
 | Component | Required Voltage | Typical Current | Max Current |
 |-----------|-----------------|-----------------|-------------|
 | APA102 LED strip (32 LEDs) | 5V | 960mA (50% brightness) | 1.92A |
-| Teensy 4.1 | 5V (via VIN) | 100–150mA | 250mA |
+| Teensy 4.1 | 5V (via VIN; accepts 3.6–5.5V) | 100–150mA | 250mA |
 | ESP32/ESP32-S3 | 5V (via VIN/internal regulator) | 80–150mA | 240mA |
 | MAX9814 Microphone | 3.3V | ~5mA | ~10mA |
 | **System Total** | **5V** | **~1.2A (50%)** | **~2.4A** |

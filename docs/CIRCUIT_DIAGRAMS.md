@@ -111,7 +111,8 @@ Visual POV Display ✨
     • Pin 1 (TX1)  - Serial transmit to ESP32
     • Pin 11 (MOSI) - APA102 Data signal
     • Pin 13 (SCK)  - APA102 Clock signal
-    • VIN          - 5V power input
+    • VIN          - Power input (3.6–5.5V per PJRC; 5V used here)
+    • 3.3V         - Regulated OUTPUT (not a power input)
     • GND          - Ground (connect to all)
 ```
 

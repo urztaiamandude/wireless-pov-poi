@@ -146,6 +146,27 @@ AR and GAIN can both be left unconnected for a fully working default setup.
 
 ## Power Supply Requirements
 
+### Teensy 4.1 Voltage Specifications
+
+Per PJRC (the Teensy manufacturer), the Teensy 4.1 VIN pin accepts **3.6V to 5.5V**:
+
+| Pin | Voltage | Direction | Notes |
+|-----|---------|-----------|-------|
+| VIN | 3.6–5.5V | Input | External power input; feeds onboard 3.3V regulator |
+| 3.3V | 3.3V | **Output** | Regulated output from onboard regulator — do NOT use as power input |
+| VUSB | 5V | Input | From USB connector; internally connected to VIN (can be cut) |
+
+The Teensy 4.1 is a **3.3V logic device** — its ARM Cortex-M7 processor runs at 3.3V internally. The onboard regulator steps VIN down to 3.3V. While the Teensy can operate from as low as 3.6V on VIN, this project uses **5V on VIN** because the APA102 LED strip requires 5V, making a shared 5V rail the simplest design.
+
+> ⚠️ **Do not exceed 5.5V on VIN** — this can damage the onboard regulator and the processor.
+
+### System Power Configuration
+
+**System supply voltage:** 5V DC (shared rail for all components)
+- Teensy 4.1 VIN: 5V (within its 3.6–5.5V range)
+- ESP32/ESP32-S3 VIN: 5V (internal regulator converts to 3.3V)
+- APA102 LED strip: 5V (required by the LEDs)
+
 ### Minimum Configuration
 - **Voltage:** 5V DC (±5%)
 - **Current:** 2A minimum

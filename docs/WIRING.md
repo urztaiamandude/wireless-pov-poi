@@ -90,7 +90,7 @@ See [ESP32-S3 Compatibility Guide](ESP32_S3_COMPATIBILITY.md) for detailed varia
 | Pin A0 (pin 14) | Analog Input | MAX9814 OUT (optional) | Audio input for music-reactive patterns |
 | 3.3V | Power Output | MAX9814 VCC (optional) | Power for microphone module |
 | GND | Ground | Common Ground | Shared with ESP32 and LEDs |
-| VIN | Power Input | 5V Power Supply | 5V input (or USB power) |
+| VIN | Power Input | 5V Power Supply | Accepts 3.6–5.5V per PJRC; 5V used for shared rail with LEDs |
 
 ### ESP32 / ESP32-S3 Pin Assignments
 
@@ -158,6 +158,9 @@ All variants use the same GPIO pins - **no wiring changes needed between variant
    Teensy VIN → 5V Power Supply (+)
    Teensy GND → Power Supply Ground (-)
    ```
+   - Teensy 4.1 VIN accepts 3.6–5.5V (per PJRC); 5V is used here to share the LED power rail
+   - The 3.3V pin is a regulated **output** — do not use it as a power input
+   - Do not exceed 5.5V on VIN
    - Alternatively: Power via USB (testing only)
 
 ### Step 3: ESP32 or ESP32-S3 Connections

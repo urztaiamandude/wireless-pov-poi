@@ -124,7 +124,8 @@ Quick-lookup for ports, pins, constants, and non-secret configuration.
 
 | Item | Spec |
 |------|------|
-| Supply voltage | 5 V |
+| System supply voltage | 5 V (shared rail for LEDs, Teensy, ESP32) |
+| Teensy 4.1 VIN range | 3.6–5.5 V (per PJRC); 5 V used in this project |
 | Minimum current | 2 A |
 | Recommended current | 3 A |
 | WiFi range (typical) | ~30 m |
