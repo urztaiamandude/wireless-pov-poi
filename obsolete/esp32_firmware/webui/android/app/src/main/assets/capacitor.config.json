@@ -1,0 +1,8 @@
+{
+	"appId": "com.nebulapoi.mobile",
+	"appName": "Nebula POV Poi",
+	"webDir": "dist",
+	"server": {
+		"cleartext": true
+	}
+}
