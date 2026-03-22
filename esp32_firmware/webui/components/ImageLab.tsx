@@ -47,8 +47,10 @@ function getDeviceBase(): string {
 
 // Teensy sequence slot for user-defined sequences (slot 0 is the preloaded demo sequence)
 const USER_SEQUENCE_SLOT = 1;
-// First image slot available for user uploads (slots 0-4 are preloaded demo images)
+// First image slot available for user uploads (slots 0-4 are preloaded demo images).
+// The sequence protocol limits image indices to 7 bits (0-127), so uploads wrap at 127.
 const FIRST_USER_IMAGE_SLOT = 5;
+const MAX_USER_IMAGE_SLOT = 127;
 
 const ImageLab: React.FC<ImageLabProps> = ({ onPreviewUpdate, initialPreview, ledCount, setLedCount }) => {
   const [labMode, setLabMode] = useState<'upload' | 'procedural'>('upload');
@@ -352,13 +354,20 @@ const ImageLab: React.FC<ImageLabProps> = ({ onPreviewUpdate, initialPreview, le
       let uploadErrors = 0;
 
       for (const item of sequence) {
-        if (item.kind === 'pattern' || (!item.blob && !item.dataUrl)) {
-          // Pattern item — no upload needed, reference by patternId
+        if (item.kind === 'pattern') {
+          // Pattern item — no upload needed, reference by patternId directly
           hwItems.push({
             kind: 'pattern',
             index: item.patternId ?? 0,
             duration: item.duration,
           });
+          continue;
+        }
+
+        // Image item — must have blob or dataUrl; skip with error if neither is present
+        if (!item.blob && !item.dataUrl) {
+          console.warn('[ImageLab] Image item missing blob and dataUrl; skipping', item.name);
+          uploadErrors++;
           continue;
         }
 
@@ -404,7 +413,9 @@ const ImageLab: React.FC<ImageLabProps> = ({ onPreviewUpdate, initialPreview, le
             if (typeof json.slot !== 'number') {
               console.warn('[ImageLab] /api/image response missing slot; using fallback', FIRST_USER_IMAGE_SLOT);
             }
-            const assignedSlot = typeof json.slot === 'number' ? json.slot : FIRST_USER_IMAGE_SLOT;
+            // Clamp to MAX_USER_IMAGE_SLOT (127) — the sequence protocol only has 7 bits for image index
+            const rawSlot = typeof json.slot === 'number' ? json.slot : FIRST_USER_IMAGE_SLOT;
+            const assignedSlot = Math.min(rawSlot, MAX_USER_IMAGE_SLOT);
             hwItems.push({ kind: 'image', index: assignedSlot, duration: item.duration });
           } else {
             uploadErrors++;

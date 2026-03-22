@@ -747,6 +747,10 @@ static const char rootPage[] PROGMEM = R"rawliteral(
                     <label class="chk"><input type="checkbox" id="flip-vertical"> Flip Vertical</label>
                     <label class="chk"><input type="checkbox" id="flip-horizontal"> Flip Horizontal</label>
                 </div>
+                <div class="ctrl" style="margin-bottom:8px">
+                    <label style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.08em;display:block;margin-bottom:4px">Image step duration (ms)</label>
+                    <input type="number" id="seq-image-dur" value="3000" min="100" step="100" style="width:100%;padding:8px;background:#0f172a;border:1px solid #334155;border-radius:8px;color:#e2e8f0;font-size:13px;outline:none" title="Duration when used in a sequence">
+                </div>
                 <div class="grid2">
                     <button class="btn btn-primary" onclick="uploadImage()">Upload &amp; Display</button>
                     <button class="btn btn-slate" onclick="addImageToSequence()">+ Add to Sequence</button>
@@ -1483,7 +1487,7 @@ static const char rootPage[] PROGMEM = R"rawliteral(
         const fi=document.getElementById('image-upload');
         if(!fi.files||!fi.files[0]){showToast('Select an image file first');return;}
         const f=fi.files[0];
-        const dur=parseInt(document.getElementById('seq-pattern-dur').value)||3000;
+        const dur=parseInt(document.getElementById('seq-image-dur').value)||3000;
         seqItems.push({kind:'image',name:f.name,file:f,patternId:0,duration:Math.max(100,dur)});
         renderSeqTimeline();
         showToast('Image queued in sequence');
@@ -2157,17 +2161,18 @@ void handleUploadSequence() {
   //
   // Request JSON:
   //   {
-  //     "index":  <0-4>,        // sequence slot on Teensy (default 1; slot 0 = demo)
+  //     "index":  <1-4>,        // sequence slot on Teensy (1-4; 0 reserved for demo)
   //     "loop":   <true|false>, // whether to loop (default true)
   //     "items": [              // up to 10 items
-  //       { "kind": "image",   "index": <0-199>, "duration": <ms> },
+  //       { "kind": "image",   "index": <0-127>, "duration": <ms> },
   //       { "kind": "pattern", "index": <0-17>,  "duration": <ms> }
   //     ]
   //   }
   //
   // Teensy command 0x04 payload:
   //   [seqIndex][itemCount][loop][item0][dur0_h][dur0_l]...[itemN][durN_h][durN_l]
-  //   item byte: bit7=0 → image index (0-127), bit7=1 → pattern index (0-127)
+  //   item byte: bit7=0 → image index (0-127), bit7=1 → pattern index (0-17)
+  //   Image indices are limited to 7 bits (0-127) because bit 7 encodes the kind.
 
   if (!server.hasArg("plain")) {
     server.send(400, "application/json", "{\"error\":\"No data\"}");
@@ -2181,9 +2186,14 @@ void handleUploadSequence() {
     return;
   }
 
-  uint8_t seqIndex = doc["index"] | 1;  // default slot 1 (slot 0 reserved for demo)
-  if (seqIndex >= 5) {                   // Teensy MAX_SEQUENCES = 5 (valid: 0-4)
-    server.send(400, "application/json", "{\"error\":\"index out of range (0-4)\"}");
+  uint8_t seqIndex = doc["index"] | 1;  // default slot 1
+  // Slot 0 is reserved for the preloaded demo sequence; user slots are 1-4.
+  if (seqIndex == 0) {
+    server.send(400, "application/json", "{\"error\":\"index 0 is reserved for the demo sequence\"}");
+    return;
+  }
+  if (seqIndex >= 5) {                   // Teensy MAX_SEQUENCES = 5 (valid: 1-4)
+    server.send(400, "application/json", "{\"error\":\"index out of range (1-4)\"}");
     return;
   }
 
@@ -2205,17 +2215,27 @@ void handleUploadSequence() {
     if (itemCount >= kMaxSeqItems) break;
 
     String kind = item["kind"] | String("image");
-    uint8_t idx = item["index"] | 0;
+    // Parse index as signed int to catch negative values and values > 255 before casting.
+    int idx = item["index"] | 0;
     uint16_t dur = item["duration"] | 2000;
     if (dur < 100) dur = 100;   // minimum 100 ms per item
 
     uint8_t itemByte;
     if (kind == "pattern") {
-      if (idx > 17) idx = 17;          // Teensy MAX_PATTERNS - 1
-      itemByte = 0x80 | (idx & 0x7F); // bit 7 = pattern
+      // Pattern index must be 0-17 (Teensy MAX_PATTERNS-1)
+      if (idx < 0 || idx > 17) {
+        server.send(400, "application/json", "{\"error\":\"pattern index out of range (0-17)\"}");
+        return;
+      }
+      itemByte = 0x80 | ((uint8_t)idx & 0x7F); // bit 7 = pattern
     } else {
-      if (idx > 199) idx = 199;        // Teensy MAX_IMAGES - 1
-      itemByte = idx & 0x7F;           // bit 7 = 0 → image
+      // Image index must fit in 7 bits (0-127); bit 7 is reserved for the kind flag.
+      // Upload slots are also capped at 127 to match this constraint.
+      if (idx < 0 || idx > 127) {
+        server.send(400, "application/json", "{\"error\":\"image index out of range (0-127)\"}");
+        return;
+      }
+      itemByte = (uint8_t)idx & 0x7F;  // bit 7 = 0 → image
     }
 
     itemBytes[itemCount] = itemByte;
@@ -2337,12 +2357,11 @@ void handleUploadImage() {
     
     // Assign an image slot and tell Teensy which slot to store this image in.
     // Slots 0-4 are reserved for preloaded demo images; user uploads start at 5.
-    // Note: slots 5-199 can hold up to 195 unique images per session. After wrapping
-    // at 199, older uploads (slot 5+) will be overwritten. Sessions exceeding 195 uploads
-    // are unusual given Teensy RAM constraints (10 images without PSRAM, 50 with PSRAM).
+    // Image indices are limited to 127 because the Teensy sequence protocol packs
+    // the kind flag into bit 7 of the item byte, leaving only 7 bits (0-127) for the index.
     uint8_t assignedSlot = state.nextImageSlot;
     // Advance to next slot; wrap back to 5 (preserving demo images 0-4)
-    state.nextImageSlot = (state.nextImageSlot < 199) ? (state.nextImageSlot + 1) : 5;
+    state.nextImageSlot = (state.nextImageSlot < 127) ? (state.nextImageSlot + 1) : 5;
     
     // Send "set upload slot" command 0x0B to Teensy before the image
     sendTeensyCommand(0x0B, 1);
