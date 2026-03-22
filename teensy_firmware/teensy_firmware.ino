@@ -85,6 +85,7 @@ const uint8_t kPatternSpeedDivisor = 20;
 #ifdef SD_SUPPORT
   // SD Card Configuration - 64GB microSD installed
   #define SD_IMAGE_DIR "/poi_images"
+  #define SD_PATTERN_DIR "/poi_patterns"
   #define MAX_FILENAME_LEN 32
   #define MAX_SD_FILES 100   // 64GB card can hold thousands; 100 files visible in UI
   #define MAX_FILEPATH_LEN 64
@@ -889,6 +890,13 @@ void receivePattern() {
   Serial.print("Pattern ");
   Serial.print(patIndex);
   Serial.println(" received");
+  
+  // Persist updated pattern set to SD so it survives power cycles
+  #ifdef SD_SUPPORT
+  if (sdInitialized) {
+    savePatternPreset("default");
+  }
+  #endif
 }
 
 void receiveSequence() {
@@ -1503,6 +1511,9 @@ void sendStatus() {
 // ==================== SD CARD FUNCTIONS ====================
 #ifdef SD_SUPPORT
 
+void autoLoadImagesFromSD();
+void autoLoadPatternPreset();
+
 void initSDCard() {
   Serial.print("Initializing SD card...");
   
@@ -1523,7 +1534,158 @@ void initSDCard() {
     SD.mkdir(SD_IMAGE_DIR);
   }
   
+  // Create pattern directory if it doesn't exist
+  if (!SD.exists(SD_PATTERN_DIR)) {
+    Serial.print("Creating directory: ");
+    Serial.println(SD_PATTERN_DIR);
+    SD.mkdir(SD_PATTERN_DIR);
+  }
+  
   Serial.println("SD Card: Ready");
+  
+  // Auto-load saved images from SD into PSRAM slots (slots 5-MAX_IMAGES)
+  autoLoadImagesFromSD();
+  
+  // Auto-load saved pattern preset from SD into RAM
+  autoLoadPatternPreset();
+}
+
+// Auto-load all .pov image files from SD into PSRAM slots on boot.
+// User upload slots start at 5 (0-4 are reserved for preloaded demo images).
+void autoLoadImagesFromSD() {
+  if (!sdInitialized) return;
+  
+  File dir = SD.open(SD_IMAGE_DIR);
+  if (!dir) {
+    Serial.println("autoLoadImages: cannot open image dir");
+    return;
+  }
+  
+  // Slots 0-4 reserved for demo images; user-uploaded files start at slot 5.
+  uint8_t slot = 5;
+  int loaded = 0;
+  
+  while (true) {
+    File entry = dir.openNextFile();
+    if (!entry) break;
+    
+    String name = String(entry.name());
+    entry.close();
+    
+    if (!name.endsWith(".pov")) continue;
+    
+    // SD library returns just the base filename (no path separators)
+    String stem = name.substring(0, name.length() - 4);  // remove ".pov"
+    
+    if (stem.length() == 0 || stem.length() > MAX_FILENAME_LEN) continue;
+    
+    if (slot >= MAX_IMAGES) {
+      Serial.println("autoLoadImages: all image slots full, remaining SD files skipped");
+      break;
+    }
+    
+    // Build full path
+    char filepath[MAX_FILEPATH_LEN];
+    snprintf(filepath, sizeof(filepath), "%s/%s.pov", SD_IMAGE_DIR, stem.c_str());
+    
+    File file = SD.open(filepath, FILE_READ);
+    if (!file) continue;
+    
+    // Read 4-byte header: width (2 bytes little-endian) + height (2 bytes little-endian)
+    int b0 = file.read(), b1 = file.read(), b2 = file.read(), b3 = file.read();
+    if (b0 < 0 || b1 < 0 || b2 < 0 || b3 < 0) {
+      file.close();
+      Serial.print("autoLoadImages: skipping ");
+      Serial.print(filepath);
+      Serial.println(" (truncated header)");
+      continue;
+    }
+    uint16_t width  = (uint16_t)b0 | ((uint16_t)b1 << 8);
+    uint16_t height = (uint16_t)b2 | ((uint16_t)b3 << 8);
+    
+    if (width == 0 || width > IMAGE_MAX_WIDTH || height == 0 || height > IMAGE_HEIGHT) {
+      file.close();
+      Serial.print("autoLoadImages: skipping ");
+      Serial.print(filepath);
+      Serial.println(" (invalid dimensions)");
+      continue;
+    }
+    
+    // Validate that the file contains the full RGB payload: 4-byte header + width*height*3 bytes
+    uint32_t expectedSize = 4UL + (uint32_t)width * (uint32_t)height * 3UL;
+    if ((uint32_t)file.size() < expectedSize) {
+      file.close();
+      Serial.print("autoLoadImages: skipping ");
+      Serial.print(filepath);
+      Serial.println(" (truncated payload)");
+      continue;
+    }
+    
+    images[slot].width  = width;
+    images[slot].height = height;
+    
+    bool readError = false;
+    for (int x = 0; x < width && !readError; x++) {
+      for (int y = 0; y < height; y++) {
+        int r = file.read();
+        int g = file.read();
+        int b = file.read();
+        if (r < 0 || g < 0 || b < 0) {
+          readError = true;
+          break;
+        }
+        images[slot].pixels[x][y].r = (uint8_t)r;
+        images[slot].pixels[x][y].g = (uint8_t)g;
+        images[slot].pixels[x][y].b = (uint8_t)b;
+      }
+    }
+    
+    file.close();
+    
+    if (readError) {
+      Serial.print("autoLoadImages: skipping ");
+      Serial.print(filepath);
+      Serial.println(" (short read while loading pixels)");
+      continue;
+    }
+    
+    // Only mark slot active after a complete, successful read
+    images[slot].active = true;
+    
+    Serial.print("autoLoadImages: loaded ");
+    Serial.print(filepath);
+    Serial.print(" -> slot ");
+    Serial.println(slot);
+    
+    slot++;
+    loaded++;
+  }
+  
+  dir.close();
+  
+  Serial.print("autoLoadImages: ");
+  Serial.print(loaded);
+  Serial.println(" image(s) restored from SD");
+}
+
+// Auto-load the "default" pattern preset from SD on boot so patterns
+// survive power cycles without requiring a manual load from the web UI.
+void autoLoadPatternPreset() {
+  if (!sdInitialized) return;
+  
+  char filepath[MAX_FILEPATH_LEN];
+  snprintf(filepath, sizeof(filepath), "%s/default.pat", SD_PATTERN_DIR);
+  
+  if (!SD.exists(filepath)) {
+    Serial.println("autoLoadPattern: no default.pat, skipping");
+    return;
+  }
+  
+  if (loadPatternPreset("default")) {
+    Serial.println("autoLoadPattern: default preset restored from SD");
+  } else {
+    Serial.println("autoLoadPattern: failed to load default.pat");
+  }
 }
 
 void saveImageToSD() {
@@ -1790,7 +1952,6 @@ void sendSDInfo() {
 }
 
 // ==================== PATTERN PRESET FUNCTIONS ====================
-#define SD_PATTERN_DIR "/poi_patterns"
 #define PATTERN_FILE_MAGIC 0x50415431  // "PAT1" in hex
 
 void savePatternPreset(const char* presetName) {
@@ -1857,9 +2018,21 @@ bool loadPatternPreset(const char* presetName) {
     return false;
   }
   
+  // Validate minimum file size: magic(4) + patCount(1) = 5 bytes (0 patterns is valid)
+  const uint32_t MIN_FILE_SIZE = 4 + 1;
+  if ((uint32_t)file.size() < MIN_FILE_SIZE) {
+    Serial.println("Pattern file too short");
+    file.close();
+    return false;
+  }
+  
   // Read and verify magic number
   uint32_t magic = 0;
-  file.read((uint8_t*)&magic, sizeof(magic));
+  if (file.read((uint8_t*)&magic, sizeof(magic)) != (int)sizeof(magic)) {
+    Serial.println("Failed to read pattern file magic");
+    file.close();
+    return false;
+  }
   if (magic != PATTERN_FILE_MAGIC) {
     Serial.println("Invalid pattern file format");
     file.close();
@@ -1867,20 +2040,44 @@ bool loadPatternPreset(const char* presetName) {
   }
   
   // Read number of patterns
-  uint8_t patCount = file.read();
+  int patCountRaw = file.read();
+  if (patCountRaw < 0) {
+    Serial.println("Failed to read pattern count");
+    file.close();
+    return false;
+  }
+  uint8_t patCount = (uint8_t)patCountRaw;
+  
+  // Validate that the file holds all declared patterns (9 bytes each)
+  uint32_t requiredSize = 4UL + 1UL + (uint32_t)patCount * 9UL;
+  if ((uint32_t)file.size() < requiredSize) {
+    Serial.println("Pattern file truncated");
+    file.close();
+    return false;
+  }
   
   // Read each pattern (up to our MAX_PATTERNS)
   for (int i = 0; i < patCount && i < MAX_PATTERNS; i++) {
     Pattern& pat = patterns[i];
-    pat.active = file.read() != 0;
-    pat.type = file.read();
-    pat.color1.r = file.read();
-    pat.color1.g = file.read();
-    pat.color1.b = file.read();
-    pat.color2.r = file.read();
-    pat.color2.g = file.read();
-    pat.color2.b = file.read();
-    pat.speed = file.read();
+    int fActive = file.read(), fType = file.read();
+    int fR1 = file.read(), fG1 = file.read(), fB1 = file.read();
+    int fR2 = file.read(), fG2 = file.read(), fB2 = file.read();
+    int fSpeed = file.read();
+    if (fActive < 0 || fType < 0 || fR1 < 0 || fG1 < 0 || fB1 < 0 ||
+        fR2 < 0 || fG2 < 0 || fB2 < 0 || fSpeed < 0) {
+      Serial.println("Short read while loading pattern fields");
+      file.close();
+      return false;
+    }
+    pat.active  = (fActive != 0);
+    pat.type    = (uint8_t)fType;
+    pat.color1.r = (uint8_t)fR1;
+    pat.color1.g = (uint8_t)fG1;
+    pat.color1.b = (uint8_t)fB1;
+    pat.color2.r = (uint8_t)fR2;
+    pat.color2.g = (uint8_t)fG2;
+    pat.color2.b = (uint8_t)fB2;
+    pat.speed   = (uint8_t)fSpeed;
   }
   
   file.close();
@@ -1893,7 +2090,8 @@ void listPatternPresets() {
   
   if (!SD.exists(SD_PATTERN_DIR)) {
     Serial.println("No pattern presets directory");
-    ESP32_SERIAL.write(0xCC);
+    ESP32_SERIAL.write(0xFF);
+    ESP32_SERIAL.write(0xCD);
     ESP32_SERIAL.write((uint8_t)0);
     ESP32_SERIAL.write(0xFE);
     return;
@@ -1929,7 +2127,9 @@ void listPatternPresets() {
   Serial.print("Total pattern presets: ");
   Serial.println(count);
   
-  // Send list to ESP32
+  // Send list to ESP32 — framing: 0xFF 0xCD [count][nameLen][name...]...0xFE
+  // (0xFF prefix so readTeensyResponse(0xCD,...) on the ESP32 can find it)
+  ESP32_SERIAL.write(0xFF);
   ESP32_SERIAL.write(0xCD);  // Pattern list response
   ESP32_SERIAL.write(count);
   
