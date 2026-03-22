@@ -862,6 +862,12 @@ void receivePattern() {
     Serial.println("Warning: Pattern packet too short");
     return;
   }
+  // Verify that the buffer actually contains the full frame:
+  // start (1) + cmd (1) + len (1) + payload (dataLen) + end (1) = 4 + dataLen bytes total
+  if (cmdBufferIndex < (uint32_t)(4 + dataLen)) {
+    Serial.println("Warning: Pattern packet truncated");
+    return;
+  }
   uint8_t patIndex = cmdBuffer[3];
   
   if (patIndex >= MAX_PATTERNS) return;
@@ -884,6 +890,11 @@ void receiveSequence() {
     Serial.println("Warning: Sequence packet too short");
     return;
   }
+  // Verify the buffer contains the full frame before reading any fields
+  if (cmdBufferIndex < (uint32_t)(4 + dataLen)) {
+    Serial.println("Warning: Sequence packet truncated");
+    return;
+  }
   uint8_t seqIndex = cmdBuffer[3];
   
   if (seqIndex >= MAX_SEQUENCES) return;
@@ -894,6 +905,8 @@ void receiveSequence() {
     Serial.println("Warning: Sequence packet too short for item count");
     return;
   }
+  // Clamp count to the backing array size so displaySequence() never reads OOB
+  if (count > 10) count = 10;
 
   sequences[seqIndex].active = true;
   sequences[seqIndex].count = count;

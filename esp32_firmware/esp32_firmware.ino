@@ -2187,17 +2187,24 @@ bool readTeensyResponse(uint8_t expectedMarker, uint8_t* buffer, size_t maxLen, 
         if (TEENSY_SERIAL.available() > 0) {
           uint8_t marker = TEENSY_SERIAL.read();
           if (marker == expectedMarker) {
-            // Read data until 0xFE
-            while (millis() - start < timeout && bytesRead < maxLen - 1) {
+            // Collect payload bytes until 0xFE terminator.
+            // Always drain the stream up to 0xFE even if the buffer fills up,
+            // so no leftover bytes misalign subsequent frames.
+            bool terminatorSeen = false;
+            while (millis() - start < timeout) {
               if (TEENSY_SERIAL.available() > 0) {
-                uint8_t byte = TEENSY_SERIAL.read();
-                if (byte == 0xFE) {
-                  return true;
+                uint8_t b = TEENSY_SERIAL.read();
+                if (b == 0xFE) {
+                  terminatorSeen = true;
+                  break;
                 }
-                buffer[bytesRead++] = byte;
+                if (bytesRead < maxLen) {
+                  buffer[bytesRead++] = b;
+                }
+                // else: buffer is full but keep draining until 0xFE
               }
             }
-            return bytesRead > 0;
+            return terminatorSeen;
           }
         }
       }
