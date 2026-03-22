@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { Device, PowerMode } from '../types';
 import { useDebounce } from '../hooks';
+import { fetchWithTimeout } from '../fetchWithTimeout';
 
 interface DashboardProps {
   previewUrl: string | null;
@@ -125,7 +126,7 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
         const base = isLocalhost || !activeDevice.ip
           ? window.location.origin
           : `${protocol}//${activeDevice.ip}`;
-        const res = await fetch(`${base}/api/status`, { signal: AbortSignal.timeout(1500) });
+        const res = await fetchWithTimeout(`${base}/api/status`, {}, 1500);
         if (res.ok) {
           const data = await res.json();
           setIsOnline(true);
@@ -163,8 +164,8 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
     setSdLoading(true);
     try {
       const [listRes, infoRes] = await Promise.all([
-        fetch(`${base}/api/sd/list`, { signal: AbortSignal.timeout(SD_API_TIMEOUT_MS) }),
-        fetch(`${base}/api/sd/info`, { signal: AbortSignal.timeout(SD_API_TIMEOUT_MS) }),
+        fetchWithTimeout(`${base}/api/sd/list`, {}, SD_API_TIMEOUT_MS),
+        fetchWithTimeout(`${base}/api/sd/info`, {}, SD_API_TIMEOUT_MS),
       ]);
       if (listRes.ok) {
         const listData = await listRes.json();

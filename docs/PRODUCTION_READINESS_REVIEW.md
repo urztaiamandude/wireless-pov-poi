@@ -9,22 +9,22 @@ This review was performed after reading the project architecture in `README.md` 
 
 ## Critical findings
 
-### 1) Teensy image buffer write can go out-of-bounds for 64px uploads
-**Where:** `teensy_firmware/teensy_firmware.ino` (`POVImage::pixels` and `receiveImage()`)
+### 1) Teensy image buffer write can go out-of-bounds for >32px-tall uploads (up to 64px)
+**Where:** `teensy_firmware/teensy_firmware.ino` (`POVImage.pixels` member and `receiveImage()`)
 
 **Issue:**
-- `POVImage::pixels` is declared as `pixels[IMAGE_MAX_WIDTH][IMAGE_HEIGHT]` where `IMAGE_HEIGHT` is 32.
-- `receiveImage()` accepts and processes heights up to `IMAGE_HEIGHT * 2` (64), then writes `pixels[x][y]` when `y < IMAGE_HEIGHT * 2`.
-- This allows writes past the second dimension (32), causing memory corruption.
+- `POVImage.pixels` is declared as `pixels[IMAGE_MAX_WIDTH][IMAGE_HEIGHT]` where `IMAGE_HEIGHT` is 32.
+- `receiveImage()` accepts and processes image heights up to `IMAGE_HEIGHT * 2` (64) but writes `pixels[x][y]` for all received rows, i.e., for `y < receivedHeight` (up to `IMAGE_HEIGHT * 2`).
+- For any upload taller than `IMAGE_HEIGHT` (33–64 rows), this allows writes past the second dimension (32), causing memory corruption.
 
 **Production risk:** intermittent crashes, corrupted image data, undefined behavior under larger uploads.
 
 **Suggested fix (no feature removal):**
 - Make dimensions consistent across firmware boundary.
 - Either:
-  1. Expand backing storage to a true 64-row structure (if intentionally supporting dual-side/stacked uploads), or
-  2. Strictly clamp write bounds to `y < IMAGE_HEIGHT` and reject/resize uploads that exceed 32 rows before write.
-- Add an explicit guard before any write: `if (y >= IMAGE_HEIGHT) continue;`.
+  1. Expand backing storage to a true 64-row structure (e.g., make `POVImage::pixels` a real 64-row buffer if intentionally supporting dual-side/stacked uploads) so that `images[imgIndex].height` can safely be set to the full `srcHeight`, or
+  2. Strictly clamp to the actual backing height: reject or resize uploads that exceed 32 rows **and** clamp the stored metadata height (for example, `images[imgIndex].height = min(srcHeight, IMAGE_HEIGHT);`) so it never advertises more rows than `POVImage::pixels` can hold.
+- In the write loop, add an explicit guard before any write into `pixels`: `if (y >= IMAGE_HEIGHT) continue;` (or equivalent), to ensure no out-of-bounds access even if upstream validation fails.
 
 ---
 
@@ -84,14 +84,14 @@ This review was performed after reading the project architecture in `README.md` 
 **Where:** `esp32_firmware/esp32_firmware.ino` (`checkTeensyConnection()`)
 
 **Issue:**
-- Reads fixed bytes after `0xFF 0xBB` marker but does not verify end marker (`0xFE`).
+- Status frame is documented as 6 bytes total (`0xFF 0xBB` + 3 status bytes + `0xFE`), but the implementation only waits for `available() >= 5` before reading, so the trailing `0xFE` can be left in the UART buffer and cause subsequent frame parsing to become misaligned.
 - Can leave stream misaligned if any stray bytes arrive.
 
 **Production risk:** false disconnects, stale status, occasional protocol desync under noise/high traffic.
 
 **Suggested fix:**
 - Reuse `readTeensyResponse()` for status checks as well.
-- Enforce complete frame validation (`start`, `marker`, expected payload bytes, `end`).
+- Enforce complete frame validation (`start`, `marker`, expected payload bytes, `end`), and ensure the full 6-byte status frame (including the `0xFE` terminator) is read before interpreting the response.
 - Flush/realign on malformed response.
 
 ## Medium-priority findings
@@ -113,7 +113,7 @@ This review was performed after reading the project architecture in `README.md` 
 ---
 
 ### 7) Web UI depends on `AbortSignal.timeout()` (compatibility risk)
-**Where:** multiple fetch calls in `esp32_firmware/webui/components/AdvancedSettings.tsx`
+**Where:** multiple fetch calls (e.g. in `esp32_firmware/webui/components/AdvancedSettings.tsx` and `esp32_firmware/webui/components/Dashboard.tsx`)
 
 **Issue:**
 - `AbortSignal.timeout()` is not universal across older mobile webviews/browsers.

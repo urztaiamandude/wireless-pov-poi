@@ -1,7 +1,8 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ViewMode } from './types';
 import { getESP32Sketch, getTeensySketch } from './constants';
+import { fetchWithTimeout } from './fetchWithTimeout';
 import Dashboard from './components/Dashboard';
 import PatternPreview from './components/PatternPreview';
 import CodeViewer from './components/CodeViewer';
@@ -25,6 +26,19 @@ const App: React.FC = () => {
   const [view, setView] = useState<ViewMode>(ViewMode.DASHBOARD);
   const [globalPreviewUrl, setGlobalPreviewUrl] = useState<string | null>(null);
   const [ledCount, setLedCount] = useState<number>(31);
+
+  // Bootstrap LED count from hardware at app startup so all tabs start with the
+  // correct value instead of waiting for the user to open Advanced Settings.
+  useEffect(() => {
+    fetchWithTimeout('/api/hardware/leds', {}, 3000)
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then((data: { displayLeds?: number }) => {
+        if (typeof data.displayLeds === 'number') {
+          setLedCount(data.displayLeds);
+        }
+      })
+      .catch(() => { /* keep default of 31 if device is unreachable */ });
+  }, []);
 
   const renderContent = () => {
     switch (view) {

@@ -305,7 +305,9 @@ void onWiFiEvent(WiFiEvent_t event) {
       break;
     case ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
       Serial.println("STA disconnected, reconnecting...");
-      WiFi.begin(staSsid.c_str(), staPassword.c_str());
+      if (staSsid.length() > 0) {
+        WiFi.begin(staSsid.c_str(), staPassword.c_str());
+      }
       break;
     default:
       break;
@@ -2185,17 +2187,24 @@ bool readTeensyResponse(uint8_t expectedMarker, uint8_t* buffer, size_t maxLen, 
         if (TEENSY_SERIAL.available() > 0) {
           uint8_t marker = TEENSY_SERIAL.read();
           if (marker == expectedMarker) {
-            // Read data until 0xFE
-            while (millis() - start < timeout && bytesRead < maxLen - 1) {
+            // Collect payload bytes until 0xFE terminator.
+            // Always drain the stream up to 0xFE even if the buffer fills up,
+            // so no leftover bytes misalign subsequent frames.
+            bool terminatorSeen = false;
+            while (millis() - start < timeout) {
               if (TEENSY_SERIAL.available() > 0) {
-                uint8_t byte = TEENSY_SERIAL.read();
-                if (byte == 0xFE) {
-                  return true;
+                uint8_t b = TEENSY_SERIAL.read();
+                if (b == 0xFE) {
+                  terminatorSeen = true;
+                  break;
                 }
-                buffer[bytesRead++] = byte;
+                if (bytesRead < maxLen) {
+                  buffer[bytesRead++] = b;
+                }
+                // else: buffer is full but keep draining until 0xFE
               }
             }
-            return bytesRead > 0;
+            return terminatorSeen;
           }
         }
       }
@@ -2470,27 +2479,23 @@ void checkTeensyConnection() {
   // Request status from Teensy
   sendTeensyCommand(0x10, 0);
   TEENSY_SERIAL.write(0xFE);
-  
-  // Wait for response (simplified)
-  // Format: 0xFF 0xBB mode index sd_present 0xFE
-  unsigned long start = millis();
-  while (millis() - start < 100) {
-    int av = TEENSY_SERIAL.available();
-    if (av >= 5) {
-      uint8_t b0 = TEENSY_SERIAL.read();
-      uint8_t b1 = TEENSY_SERIAL.read();
-      if (b0 == 0xFF && b1 == 0xBB) {
-        state.currentMode = TEENSY_SERIAL.read();
-        state.currentIndex = TEENSY_SERIAL.read();
-        state.sdCardPresent = (TEENSY_SERIAL.read() != 0);
-        state.connected = true;
-        if (!lastConnected) {
-          Serial.println("[LINK] Teensy connection established");
-        }
-        lastConnected = true;
-        return;
-      }
+
+  // Read and validate the full framed status response via the shared parser.
+  // readTeensyResponse() scans for 0xFF, validates the 0xBB marker, collects
+  // payload bytes until 0xFE, then returns. respBuf receives the 3 payload
+  // bytes: mode, currentIndex, sd_present (frame markers are consumed internally).
+  uint8_t respBuf[3];  // payload: mode, currentIndex, sd_present
+  size_t bytesRead = 0;
+  if (readTeensyResponse(0xBB, respBuf, sizeof(respBuf), bytesRead, 100) && bytesRead >= 3) {
+    state.currentMode = respBuf[0];
+    state.currentIndex = respBuf[1];
+    state.sdCardPresent = (respBuf[2] != 0);
+    state.connected = true;
+    if (!lastConnected) {
+      Serial.println("[LINK] Teensy connection established");
     }
+    lastConnected = true;
+    return;
   }
   state.connected = false;
   state.sdCardPresent = false;
@@ -2828,10 +2833,10 @@ void loadDeviceConfig() {
   deviceConfig.autoSync = preferences.getBool("autoSync", AUTO_SYNC_ENABLED);
   deviceConfig.syncInterval = preferences.getULong("syncInterval", AUTO_SYNC_INTERVAL);
   
-  // Load saved WiFi STA (client) credentials for connecting to existing network
-  // Default to "Office" network so phone can stay on its home WiFi with internet
-  staSsid = preferences.getString("sta_ssid", "Office");
-  staPassword = preferences.getString("sta_password", "6195717200");
+  // Load saved WiFi STA (client) credentials for connecting to existing network.
+  // Default to empty strings — STA connection only starts when explicitly configured.
+  staSsid = preferences.getString("sta_ssid", "");
+  staPassword = preferences.getString("sta_password", "");
 
   // Load LED hardware config
   hwLEDConfig.numLeds        = (uint8_t)preferences.getUInt("hw_numLeds",  32);

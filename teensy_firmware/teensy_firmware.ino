@@ -823,7 +823,8 @@ void receiveImage() {
   Serial.println(srcHeight);
   
   images[imgIndex].width = srcWidth;
-  images[imgIndex].height = srcHeight;
+  // Clamp stored height to IMAGE_HEIGHT so metadata never exceeds the backing array
+  images[imgIndex].height = min(srcHeight, (uint16_t)IMAGE_HEIGHT);
   images[imgIndex].active = true;
   
   // Read pixel data directly
@@ -834,7 +835,7 @@ void receiveImage() {
     if (bufferPos + 2 < (uint32_t)(cmdBufferIndex - 1)) { // -1 for end marker
       uint16_t x = i % srcWidth;
       uint16_t y = i / srcWidth;
-      if (x < IMAGE_MAX_WIDTH && y < IMAGE_HEIGHT * 2) {  // Safety bounds check
+      if (x < IMAGE_MAX_WIDTH && y < IMAGE_HEIGHT) {  // Guard: y must be within backing array
         images[imgIndex].pixels[x][y] = CRGB(
           cmdBuffer[bufferPos],
           cmdBuffer[bufferPos + 1],
@@ -845,7 +846,7 @@ void receiveImage() {
       // Fill remaining with black if data is incomplete
       uint16_t x = i % srcWidth;
       uint16_t y = i / srcWidth;
-      if (x < IMAGE_MAX_WIDTH && y < IMAGE_HEIGHT * 2) {
+      if (x < IMAGE_MAX_WIDTH && y < IMAGE_HEIGHT) {
         images[imgIndex].pixels[x][y] = CRGB::Black;
       }
     }
@@ -855,6 +856,18 @@ void receiveImage() {
 }
 
 void receivePattern() {
+  // Pattern packet payload: patIndex + type + r1,g1,b1 + r2,g2,b2 + speed = 9 bytes minimum
+  uint8_t dataLen = cmdBuffer[2];
+  if (dataLen < 9) {
+    Serial.println("Warning: Pattern packet too short");
+    return;
+  }
+  // Verify that the buffer actually contains the full frame:
+  // start (1) + cmd (1) + len (1) + payload (dataLen) + end (1) = 4 + dataLen bytes total
+  if (cmdBufferIndex < (uint32_t)(4 + dataLen)) {
+    Serial.println("Warning: Pattern packet truncated");
+    return;
+  }
   uint8_t patIndex = cmdBuffer[3];
   
   if (patIndex >= MAX_PATTERNS) return;
@@ -871,12 +884,32 @@ void receivePattern() {
 }
 
 void receiveSequence() {
+  // Sequence packet payload: seqIndex + count + loop + (count * 3) item bytes
+  uint8_t dataLen = cmdBuffer[2];
+  if (dataLen < 3) {
+    Serial.println("Warning: Sequence packet too short");
+    return;
+  }
+  // Verify the buffer contains the full frame before reading any fields
+  if (cmdBufferIndex < (uint32_t)(4 + dataLen)) {
+    Serial.println("Warning: Sequence packet truncated");
+    return;
+  }
   uint8_t seqIndex = cmdBuffer[3];
   
   if (seqIndex >= MAX_SEQUENCES) return;
   
+  uint8_t count = cmdBuffer[4];
+  // Validate that the packet contains all expected item bytes
+  if (dataLen < 3 + (uint16_t)count * 3) {
+    Serial.println("Warning: Sequence packet too short for item count");
+    return;
+  }
+  // Clamp count to the backing array size so displaySequence() never reads OOB
+  if (count > 10) count = 10;
+
   sequences[seqIndex].active = true;
-  sequences[seqIndex].count = cmdBuffer[4];
+  sequences[seqIndex].count = count;
   sequences[seqIndex].loop = cmdBuffer[5];
   
   // Receive sequence items and durations
@@ -891,8 +924,15 @@ void receiveSequence() {
 }
 
 void receiveLiveFrame() {
+  // Validate packet length before reading: need 4-byte header + g_displayLeds*3 payload
+  // Structure: 0xFF 0x05 dataLen [pixels...] 0xFE
+  uint32_t expectedLen = 4 + (uint32_t)g_displayLeds * 3;
+  if (cmdBufferIndex < expectedLen) {
+    Serial.println("Warning: Live frame too short, keeping previous frame");
+    return;
+  }
   // Receive live frame data for immediate display (g_displayLeds * 3 bytes RGB)
-  for (int i = 0; i < g_displayLeds && (3 + (i + 1) * 3 - 1) < CMD_BUFFER_SIZE; i++) {
+  for (int i = 0; i < g_displayLeds && (3 + (i + 1) * 3 - 1) < cmdBufferIndex; i++) {
     liveBuffer[i] = CRGB(cmdBuffer[3 + i * 3], cmdBuffer[4 + i * 3], cmdBuffer[5 + i * 3]);
   }
 }
