@@ -164,6 +164,11 @@ uint8_t currentSequenceItem = 0;
 uint32_t sequenceStartTime = 0;
 bool sequencePlaying = false;
 
+// Next image upload slot (default 0; set via command 0x0B before command 0x02).
+// Allows the ESP32 to store uploaded images in specific slots for multi-image sequences.
+// Automatically resets to 0 after each image upload so the slot must be re-sent each time.
+uint8_t g_nextImageSlot = 0;
+
 // SD card initialization state
 #ifdef SD_SUPPORT
 bool sdInitialized = false;
@@ -522,16 +527,16 @@ void createDemoSequence() {
   sequences[0].items[0] = 0;  // Image 0
   sequences[0].durations[0] = 3000;
   
-  // Item 1: Rainbow pattern for 2 seconds
-  sequences[0].items[1] = 0;  // Pattern 0 (rainbow)
+  // Item 1: Rainbow pattern for 2 seconds (bit 7 set = pattern)
+  sequences[0].items[1] = 0x80 | 0;  // Pattern 0 (rainbow)
   sequences[0].durations[1] = 2000;
   
   // Item 2: Heart image for 3 seconds
   sequences[0].items[2] = 2;  // Image 2
   sequences[0].durations[2] = 3000;
   
-  // Item 3: Fire pattern for 2 seconds
-  sequences[0].items[3] = 1;  // Pattern 1 (fire)
+  // Item 3: Fire pattern for 2 seconds (bit 7 set = pattern)
+  sequences[0].items[3] = 0x80 | 1;  // Pattern 1 (fire)
   sequences[0].durations[3] = 2000;
   
   // Item 4: Starburst image for 3 seconds
@@ -717,6 +722,21 @@ void parseCommand() {
       }
       break;
 
+    case 0x0B:  // Set next image upload slot: [slotIndex:1]
+      // Allows the ESP32 to specify which image slot the next 0x02 command stores into.
+      // The slot resets to 0 after each image upload.
+      if (dataLen >= 1) {
+        uint8_t reqSlot = cmdBuffer[3];
+        if (reqSlot < MAX_IMAGES) {
+          g_nextImageSlot = reqSlot;
+          Serial.printf("Next image upload slot set to: %u\n", g_nextImageSlot);
+        } else {
+          Serial.println("Set slot rejected: index out of range");
+        }
+      }
+      sendAck(cmd);
+      break;
+
     case 0x10:  // Status request
       sendStatus();
       break;
@@ -761,9 +781,10 @@ void receiveImage() {
   uint16_t srcWidth = cmdBuffer[4] | (cmdBuffer[5] << 8);   // 16-bit width
   uint16_t srcHeight = cmdBuffer[6] | (cmdBuffer[7] << 8);  // 16-bit height
   
-  // Always store uploaded images in slot 0 (most recent upload)
-  // This simplifies the web/app interface - they don't need to manage slots
-  uint8_t imgIndex = 0;
+  // Use g_nextImageSlot (set by command 0x0B) then reset to 0 for the next upload.
+  // This allows the ESP32 to direct images into specific slots for multi-image sequences.
+  uint8_t imgIndex = g_nextImageSlot;
+  g_nextImageSlot = 0;  // Reset so a forgotten 0x0B defaults back to slot 0
   
   // Calculate expected data size
   // Cast to uint32_t to prevent overflow: max is 400*64*3 = 76,800 bytes
