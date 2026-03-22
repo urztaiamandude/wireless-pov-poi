@@ -353,7 +353,7 @@ node --version
 
 ### Memory Issues on Teensy
 - Without PSRAM: Limit to ~10 images (32×200px)
-- With PSRAM: Support up to ~50 images (32×400px)
+- With PSRAM: Support up to ~200 images (32×400px)
 - Reduce image width if running out of memory
 - Consider enabling SD card support for external storage
 
@@ -371,7 +371,7 @@ node --version
 - **Internal RAM**: 1MB total
 - **Flash**: 8MB total
 - **PSRAM (Optional)**: 16MB (2× 8MB chips soldered to board)
-  - **With PSRAM**: ~1.8MB for 50 images (32×400 pixels each)
+  - **With PSRAM**: ~7.3MB for 200 images (32×400 pixels each)
   - **Without PSRAM**: ~60KB for 10 images (32×200 pixels each)
   - PSRAM is 2-3x slower than internal RAM but sufficient for image storage
 - **Pattern storage**: Minimal (~100 bytes per pattern)
