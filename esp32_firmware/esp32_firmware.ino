@@ -49,6 +49,9 @@ void handleSDList();
 void handleSDDelete();
 void handleSDInfo();
 void handleSDLoad();
+void handleSDPatternList();
+void handleSDPatternSave();
+void handleSDPatternLoad();
 void handleManifest();
 void handleServiceWorker();
 void handleNotFound();
@@ -393,6 +396,9 @@ void setupWebServer() {
   server.on("/api/sd/info", HTTP_GET, handleSDInfo);
   server.on("/api/sd/delete", HTTP_POST, handleSDDelete);
   server.on("/api/sd/load", HTTP_POST, handleSDLoad);
+  server.on("/api/sd/pattern/list", HTTP_GET, handleSDPatternList);
+  server.on("/api/sd/pattern/save", HTTP_POST, handleSDPatternSave);
+  server.on("/api/sd/pattern/load", HTTP_POST, handleSDPatternLoad);
   
   // PWA support
   server.on("/manifest.json", HTTP_GET, handleManifest);
@@ -2149,6 +2155,21 @@ void handleUploadPattern() {
       espNowSync.broadcastPattern(index, type, r1, g1, b1, r2, g2, b2, speed);
     }
 
+    // Auto-save all patterns to the SD "default" preset so they survive reboots
+    if (state.sdCardPresent) {
+      delay(10);  // let Teensy finish storing the pattern
+      // Teensy cmd 0x30 sub-cmd 0x01: save pattern preset
+      // Payload: [sub_cmd][name_len][name_bytes]
+      const char* presetName = "default";
+      uint8_t nameLen = strlen(presetName);
+      sendTeensyCommand(0x30, 2 + nameLen);
+      TEENSY_SERIAL.write((uint8_t)0x01);  // sub-cmd: save
+      TEENSY_SERIAL.write(nameLen);
+      TEENSY_SERIAL.write((const uint8_t*)presetName, nameLen);
+      TEENSY_SERIAL.write(0xFE);
+      Serial.println("Auto-saving pattern preset to SD: default.pat");
+    }
+
     server.send(200, "application/json", "{\"status\":\"ok\"}");
   } else {
     server.send(400, "application/json", "{\"error\":\"No data\"}");
@@ -2610,7 +2631,7 @@ void handleSDLoad() {
   if (server.hasArg("plain")) {
     String body = server.arg("plain");
 
-    // Parse JSON: {"filename":"name.pov"}
+    // Parse JSON: {"filename":"name.pov"} or {"filename":"name.pov","slot":N}
     JsonDocument doc;
     if (deserializeJson(doc, body) || !doc["filename"].is<const char*>()) {
       server.send(400, "application/json", "{\"error\":\"Missing filename\"}");
@@ -2630,27 +2651,153 @@ void handleSDLoad() {
     // Clamp to Teensy MAX_FILENAME_LEN (32) for SD image load as well
     if (filenameLen > 32) filenameLen = 32;
 
+    // Optional target PSRAM slot; defaults to 0 for backwards compatibility
+    uint8_t targetSlot = 0;
+    if (doc["slot"].is<int>()) {
+      int reqSlot = doc["slot"].as<int>();
+      if (reqSlot >= 0 && reqSlot <= 127) targetSlot = (uint8_t)reqSlot;
+    }
+
     // Teensy protocol: 0x24 = load SD image into slot
     // Payload: [filename_len][filename_bytes...][imgIndex]
     sendTeensyCommand(0x24, filenameLen + 2);
     TEENSY_SERIAL.write(filenameLen);
     TEENSY_SERIAL.write((const uint8_t*)filename.c_str(), filenameLen);
-    TEENSY_SERIAL.write((uint8_t)0);  // load into image slot 0
+    TEENSY_SERIAL.write(targetSlot);
     TEENSY_SERIAL.write(0xFE);
 
     // Switch to image mode after loading
     delay(100);
     state.currentMode = 1;
-    state.currentIndex = 0;
+    state.currentIndex = targetSlot;
     sendTeensyCommand(0x01, 2);
     TEENSY_SERIAL.write(state.currentMode);
     TEENSY_SERIAL.write(state.currentIndex);
     TEENSY_SERIAL.write(0xFE);
 
-    server.send(200, "application/json", "{\"status\":\"ok\"}");
+    JsonDocument resp;
+    resp["status"] = "ok";
+    resp["slot"] = (int)targetSlot;
+    String respStr;
+    serializeJson(resp, respStr);
+    server.send(200, "application/json", respStr);
   } else {
     server.send(400, "application/json", "{\"error\":\"No data\"}");
   }
+}
+
+// ── Pattern Preset SD Handlers ────────────────────────────────────────────────
+
+// GET /api/sd/pattern/list
+// Returns: {"presets":["name1","name2",...]}
+void handleSDPatternList() {
+  if (!state.sdCardPresent) {
+    server.send(200, "application/json", "{\"error\":\"SD card not present\",\"presets\":[]}");
+    return;
+  }
+
+  // Teensy cmd 0x30 sub-cmd 0x03: list pattern presets
+  // Response marker 0xCD: [count][nameLen][name...]...0xFE
+  sendTeensyCommand(0x30, 1);
+  TEENSY_SERIAL.write((uint8_t)0x03);  // sub-cmd: list
+  TEENSY_SERIAL.write(0xFE);
+
+  uint8_t buffer[1024];
+  size_t bytesRead = 0;
+  if (readTeensyResponse(0xCD, buffer, sizeof(buffer), bytesRead, 1000)) {
+    JsonDocument doc;
+    JsonArray presets = doc["presets"].to<JsonArray>();
+    if (bytesRead > 0) {
+      uint8_t count = buffer[0];
+      size_t pos = 1;
+      for (uint8_t i = 0; i < count && pos < bytesRead; i++) {
+        uint8_t nameLen = buffer[pos++];
+        if (pos + nameLen <= bytesRead) {
+          char name[64];
+          uint8_t copyLen = nameLen < 63 ? nameLen : 63;
+          memcpy(name, &buffer[pos], copyLen);
+          name[copyLen] = '\0';
+          pos += nameLen;
+          presets.add(name);
+        }
+      }
+    }
+    String response;
+    serializeJson(doc, response);
+    server.send(200, "application/json", response);
+  } else {
+    server.send(200, "application/json", "{\"error\":\"Failed to read response\",\"presets\":[]}");
+  }
+}
+
+// POST /api/sd/pattern/save  body: {"name":"presetname"}
+void handleSDPatternSave() {
+  if (!server.hasArg("plain")) {
+    server.send(400, "application/json", "{\"error\":\"No data\"}");
+    return;
+  }
+  if (!state.sdCardPresent) {
+    server.send(503, "application/json", "{\"error\":\"SD card not present\"}");
+    return;
+  }
+
+  JsonDocument doc;
+  if (deserializeJson(doc, server.arg("plain")) || !doc["name"].is<const char*>()) {
+    server.send(400, "application/json", "{\"error\":\"Missing name\"}");
+    return;
+  }
+
+  String presetName = doc["name"].as<String>();
+  presetName.trim();
+  if (presetName.length() == 0 || presetName.length() > 32) {
+    server.send(400, "application/json", "{\"error\":\"Invalid name\"}");
+    return;
+  }
+
+  uint8_t nameLen = (uint8_t)presetName.length();
+  // Teensy cmd 0x30 sub-cmd 0x01: save preset
+  sendTeensyCommand(0x30, 2 + nameLen);
+  TEENSY_SERIAL.write((uint8_t)0x01);
+  TEENSY_SERIAL.write(nameLen);
+  TEENSY_SERIAL.write((const uint8_t*)presetName.c_str(), nameLen);
+  TEENSY_SERIAL.write(0xFE);
+
+  server.send(200, "application/json", "{\"status\":\"ok\"}");
+}
+
+// POST /api/sd/pattern/load  body: {"name":"presetname"}
+void handleSDPatternLoad() {
+  if (!server.hasArg("plain")) {
+    server.send(400, "application/json", "{\"error\":\"No data\"}");
+    return;
+  }
+  if (!state.sdCardPresent) {
+    server.send(503, "application/json", "{\"error\":\"SD card not present\"}");
+    return;
+  }
+
+  JsonDocument doc;
+  if (deserializeJson(doc, server.arg("plain")) || !doc["name"].is<const char*>()) {
+    server.send(400, "application/json", "{\"error\":\"Missing name\"}");
+    return;
+  }
+
+  String presetName = doc["name"].as<String>();
+  presetName.trim();
+  if (presetName.length() == 0 || presetName.length() > 32) {
+    server.send(400, "application/json", "{\"error\":\"Invalid name\"}");
+    return;
+  }
+
+  uint8_t nameLen = (uint8_t)presetName.length();
+  // Teensy cmd 0x30 sub-cmd 0x02: load preset
+  sendTeensyCommand(0x30, 2 + nameLen);
+  TEENSY_SERIAL.write((uint8_t)0x02);
+  TEENSY_SERIAL.write(nameLen);
+  TEENSY_SERIAL.write((const uint8_t*)presetName.c_str(), nameLen);
+  TEENSY_SERIAL.write(0xFE);
+
+  server.send(200, "application/json", "{\"status\":\"ok\"}");
 }
 
 void handleManifest() {

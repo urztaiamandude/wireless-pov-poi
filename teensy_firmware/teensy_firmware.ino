@@ -85,6 +85,7 @@ const uint8_t kPatternSpeedDivisor = 20;
 #ifdef SD_SUPPORT
   // SD Card Configuration - 64GB microSD installed
   #define SD_IMAGE_DIR "/poi_images"
+  #define SD_PATTERN_DIR "/poi_patterns"
   #define MAX_FILENAME_LEN 32
   #define MAX_SD_FILES 100   // 64GB card can hold thousands; 100 files visible in UI
   #define MAX_FILEPATH_LEN 64
@@ -889,6 +890,13 @@ void receivePattern() {
   Serial.print("Pattern ");
   Serial.print(patIndex);
   Serial.println(" received");
+  
+  // Persist updated pattern set to SD so it survives power cycles
+  #ifdef SD_SUPPORT
+  if (sdInitialized) {
+    savePatternPreset("default");
+  }
+  #endif
 }
 
 void receiveSequence() {
@@ -1503,6 +1511,9 @@ void sendStatus() {
 // ==================== SD CARD FUNCTIONS ====================
 #ifdef SD_SUPPORT
 
+void autoLoadImagesFromSD();
+void autoLoadPatternPreset();
+
 void initSDCard() {
   Serial.print("Initializing SD card...");
   
@@ -1523,7 +1534,131 @@ void initSDCard() {
     SD.mkdir(SD_IMAGE_DIR);
   }
   
+  // Create pattern directory if it doesn't exist
+  if (!SD.exists(SD_PATTERN_DIR)) {
+    Serial.print("Creating directory: ");
+    Serial.println(SD_PATTERN_DIR);
+    SD.mkdir(SD_PATTERN_DIR);
+  }
+  
   Serial.println("SD Card: Ready");
+  
+  // Auto-load saved images from SD into PSRAM slots (slots 5-MAX_IMAGES)
+  autoLoadImagesFromSD();
+  
+  // Auto-load saved pattern preset from SD into RAM
+  autoLoadPatternPreset();
+}
+
+// Auto-load all .pov image files from SD into PSRAM slots on boot.
+// User upload slots start at 5 (0-4 are reserved for preloaded demo images).
+void autoLoadImagesFromSD() {
+  if (!sdInitialized) return;
+  
+  File dir = SD.open(SD_IMAGE_DIR);
+  if (!dir) {
+    Serial.println("autoLoadImages: cannot open image dir");
+    return;
+  }
+  
+  // Slots 0-4 reserved for demo images; user-uploaded files start at slot 5.
+  uint8_t slot = 5;
+  int loaded = 0;
+  
+  while (true) {
+    File entry = dir.openNextFile();
+    if (!entry) break;
+    
+    String name = String(entry.name());
+    entry.close();
+    
+    if (!name.endsWith(".pov")) continue;
+    
+    // SD library returns just the base filename (no path separators)
+    String stem = name.substring(0, name.length() - 4);  // remove ".pov"
+    
+    if (stem.length() == 0 || stem.length() > MAX_FILENAME_LEN) continue;
+    
+    if (slot >= MAX_IMAGES) {
+      Serial.println("autoLoadImages: all image slots full, remaining SD files skipped");
+      break;
+    }
+    
+    // Build full path
+    char filepath[MAX_FILEPATH_LEN];
+    snprintf(filepath, sizeof(filepath), "%s/%s.pov", SD_IMAGE_DIR, stem.c_str());
+    
+    File file = SD.open(filepath, FILE_READ);
+    if (!file) continue;
+    
+    // Read 4-byte header: width (2 bytes little-endian) + height (2 bytes little-endian)
+    int b0 = file.read(), b1 = file.read(), b2 = file.read(), b3 = file.read();
+    if (b0 < 0 || b1 < 0 || b2 < 0 || b3 < 0) {
+      file.close();
+      Serial.print("autoLoadImages: skipping ");
+      Serial.print(filepath);
+      Serial.println(" (truncated header)");
+      continue;
+    }
+    uint16_t width  = (uint16_t)b0 | ((uint16_t)b1 << 8);
+    uint16_t height = (uint16_t)b2 | ((uint16_t)b3 << 8);
+    
+    if (width == 0 || width > IMAGE_MAX_WIDTH || height == 0 || height > IMAGE_HEIGHT) {
+      file.close();
+      Serial.print("autoLoadImages: skipping ");
+      Serial.print(filepath);
+      Serial.println(" (invalid dimensions)");
+      continue;
+    }
+    
+    images[slot].width  = width;
+    images[slot].height = height;
+    images[slot].active = true;
+    
+    for (int x = 0; x < width; x++) {
+      for (int y = 0; y < height; y++) {
+        images[slot].pixels[x][y].r = file.read();
+        images[slot].pixels[x][y].g = file.read();
+        images[slot].pixels[x][y].b = file.read();
+      }
+    }
+    
+    file.close();
+    
+    Serial.print("autoLoadImages: loaded ");
+    Serial.print(filepath);
+    Serial.print(" -> slot ");
+    Serial.println(slot);
+    
+    slot++;
+    loaded++;
+  }
+  
+  dir.close();
+  
+  Serial.print("autoLoadImages: ");
+  Serial.print(loaded);
+  Serial.println(" image(s) restored from SD");
+}
+
+// Auto-load the "default" pattern preset from SD on boot so patterns
+// survive power cycles without requiring a manual load from the web UI.
+void autoLoadPatternPreset() {
+  if (!sdInitialized) return;
+  
+  char filepath[MAX_FILEPATH_LEN];
+  snprintf(filepath, sizeof(filepath), "%s/default.pat", SD_PATTERN_DIR);
+  
+  if (!SD.exists(filepath)) {
+    Serial.println("autoLoadPattern: no default.pat, skipping");
+    return;
+  }
+  
+  if (loadPatternPreset("default")) {
+    Serial.println("autoLoadPattern: default preset restored from SD");
+  } else {
+    Serial.println("autoLoadPattern: failed to load default.pat");
+  }
 }
 
 void saveImageToSD() {
@@ -1790,7 +1925,6 @@ void sendSDInfo() {
 }
 
 // ==================== PATTERN PRESET FUNCTIONS ====================
-#define SD_PATTERN_DIR "/poi_patterns"
 #define PATTERN_FILE_MAGIC 0x50415431  // "PAT1" in hex
 
 void savePatternPreset(const char* presetName) {

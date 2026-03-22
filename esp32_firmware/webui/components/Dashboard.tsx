@@ -89,6 +89,7 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
   const [sdTotalSpace, setSdTotalSpace] = useState<number>(0);
   const [sdFreeSpace, setSdFreeSpace] = useState<number>(0);
   const [sdLoading, setSdLoading] = useState(false);
+  const [sdPatternPresets, setSdPatternPresets] = useState<string[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const lastBrightnessInteraction = useRef<number>(0);
@@ -162,19 +163,24 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
     const base = getDeviceBase(activeDevice.ip);
     setSdLoading(true);
     try {
-      const [listRes, infoRes] = await Promise.all([
+      const [listResult, infoResult, patternResult] = await Promise.allSettled([
         fetch(`${base}/api/sd/list`, { signal: AbortSignal.timeout(SD_API_TIMEOUT_MS) }),
         fetch(`${base}/api/sd/info`, { signal: AbortSignal.timeout(SD_API_TIMEOUT_MS) }),
+        fetch(`${base}/api/sd/pattern/list`, { signal: AbortSignal.timeout(SD_API_TIMEOUT_MS) }),
       ]);
-      if (listRes.ok) {
-        const listData = await listRes.json();
+      if (listResult.status === 'fulfilled' && listResult.value.ok) {
+        const listData = await listResult.value.json();
         setSdFiles(Array.isArray(listData.files) ? listData.files : []);
       }
-      if (infoRes.ok) {
-        const infoData = await infoRes.json();
+      if (infoResult.status === 'fulfilled' && infoResult.value.ok) {
+        const infoData = await infoResult.value.json();
         setSdPresent(!!infoData.present);
         if (typeof infoData.totalSpace === 'number') setSdTotalSpace(infoData.totalSpace);
         if (typeof infoData.freeSpace === 'number') setSdFreeSpace(infoData.freeSpace);
+      }
+      if (patternResult.status === 'fulfilled' && patternResult.value.ok) {
+        const patternData = await patternResult.value.json();
+        setSdPatternPresets(Array.isArray(patternData.presets) ? patternData.presets : []);
       }
     } catch { /* offline */ }
     setSdLoading(false);
@@ -223,6 +229,43 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
       }
     } catch {
       addLog(`[SD] Network error deleting "${file}"`, 'text-red-400');
+    }
+  };
+
+  const handleSdPatternLoad = async (name: string) => {
+    const base = getDeviceBase(activeDevice.ip);
+    try {
+      const res = await fetch(`${base}/api/sd/pattern/load`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+      if (res.ok) {
+        addLog(`[SD] Pattern preset "${name}" loaded`, 'text-green-400');
+      } else {
+        addLog(`[SD] Failed to load preset "${name}": ${res.status}`, 'text-red-400');
+      }
+    } catch {
+      addLog(`[SD] Network error loading preset "${name}"`, 'text-red-400');
+    }
+  };
+
+  const handleSdPatternSave = async (name: string) => {
+    const base = getDeviceBase(activeDevice.ip);
+    try {
+      const res = await fetch(`${base}/api/sd/pattern/save`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+      if (res.ok) {
+        addLog(`[SD] Pattern preset "${name}" saved`, 'text-green-400');
+        await refreshSdFiles();
+      } else {
+        addLog(`[SD] Failed to save preset "${name}": ${res.status}`, 'text-red-400');
+      }
+    } catch {
+      addLog(`[SD] Network error saving preset "${name}"`, 'text-red-400');
     }
   };
 
@@ -691,12 +734,15 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
                   </button>
                 </div>
               </div>
+
+              {/* Images */}
+              <div className="text-[8px] text-slate-600 uppercase tracking-widest mb-1.5">Images</div>
               {sdFiles.length === 0 ? (
-                <div className="text-[10px] text-slate-600 text-center py-4">
+                <div className="text-[10px] text-slate-600 text-center py-2 mb-2">
                   {sdLoading ? 'Scanning SD card…' : 'No .pov files found on SD card'}
                 </div>
               ) : (
-                <div className="space-y-1 max-h-48 overflow-y-auto">
+                <div className="space-y-1 max-h-40 overflow-y-auto mb-3">
                   {sdFiles.map(file => (
                     <div key={file} className="flex items-center gap-2 bg-slate-800/50 rounded-lg px-3 py-2 border border-slate-700/50 group">
                       <FolderOpen size={12} className="text-slate-500 shrink-0" />
@@ -704,7 +750,7 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
                       <button
                         onClick={() => handleSdLoad(file)}
                         className="p-1.5 bg-cyan-600/80 hover:bg-cyan-500 text-white rounded-lg transition-all opacity-70 group-hover:opacity-100"
-                        title="Load image"
+                        title="Load image into PSRAM slot 0"
                       >
                         <Download size={11} />
                       </button>
@@ -714,6 +760,39 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
                         title="Delete file"
                       >
                         <Trash2 size={11} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Pattern Presets */}
+              <div className="text-[8px] text-slate-600 uppercase tracking-widest mb-1.5 flex items-center justify-between">
+                <span>Pattern Presets</span>
+                <button
+                  onClick={() => handleSdPatternSave('default')}
+                  className="text-[8px] text-cyan-400 hover:text-cyan-300 transition-colors"
+                  title="Save current patterns as 'default' preset"
+                >
+                  Save current
+                </button>
+              </div>
+              {sdPatternPresets.length === 0 ? (
+                <div className="text-[10px] text-slate-600 text-center py-2">
+                  {sdLoading ? 'Scanning…' : 'No pattern presets on SD card'}
+                </div>
+              ) : (
+                <div className="space-y-1 max-h-32 overflow-y-auto">
+                  {sdPatternPresets.map(preset => (
+                    <div key={preset} className="flex items-center gap-2 bg-slate-800/50 rounded-lg px-3 py-2 border border-slate-700/50 group">
+                      <Sparkles size={12} className="text-slate-500 shrink-0" />
+                      <span className="flex-1 text-[10px] text-slate-300 font-mono truncate">{preset}</span>
+                      <button
+                        onClick={() => handleSdPatternLoad(preset)}
+                        className="p-1.5 bg-cyan-600/80 hover:bg-cyan-500 text-white rounded-lg transition-all opacity-70 group-hover:opacity-100"
+                        title="Load pattern preset"
+                      >
+                        <Download size={11} />
                       </button>
                     </div>
                   ))}
