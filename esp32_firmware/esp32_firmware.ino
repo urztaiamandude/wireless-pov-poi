@@ -2154,21 +2154,8 @@ void handleUploadPattern() {
     if (!_syncCommandInProgress) {
       espNowSync.broadcastPattern(index, type, r1, g1, b1, r2, g2, b2, speed);
     }
-
-    // Auto-save all patterns to the SD "default" preset so they survive reboots
-    if (state.sdCardPresent) {
-      delay(10);  // let Teensy finish storing the pattern
-      // Teensy cmd 0x30 sub-cmd 0x01: save pattern preset
-      // Payload: [sub_cmd][name_len][name_bytes]
-      const char* presetName = "default";
-      uint8_t nameLen = strlen(presetName);
-      sendTeensyCommand(0x30, 2 + nameLen);
-      TEENSY_SERIAL.write((uint8_t)0x01);  // sub-cmd: save
-      TEENSY_SERIAL.write(nameLen);
-      TEENSY_SERIAL.write((const uint8_t*)presetName, nameLen);
-      TEENSY_SERIAL.write(0xFE);
-      Serial.println("Auto-saving pattern preset to SD: default.pat");
-    }
+    // Note: pattern auto-save to SD "default" preset is handled on the Teensy
+    // side in receivePattern() when SD is initialized, to avoid duplicate writes.
 
     server.send(200, "application/json", "{\"status\":\"ok\"}");
   } else {
@@ -2690,6 +2677,17 @@ void handleSDLoad() {
 
 // GET /api/sd/pattern/list
 // Returns: {"presets":["name1","name2",...]}
+// Returns true if every character of name is in [A-Za-z0-9_-].
+// Used by pattern-preset handlers to prevent path-traversal via '/' or '..'.
+static bool isValidPresetName(const String& name) {
+  if (name.length() == 0 || name.length() > 32) return false;
+  for (size_t i = 0; i < name.length(); i++) {
+    char c = name[i];
+    if (!isalnum(c) && c != '_' && c != '-') return false;
+  }
+  return true;
+}
+
 void handleSDPatternList() {
   if (!state.sdCardPresent) {
     server.send(200, "application/json", "{\"error\":\"SD card not present\",\"presets\":[]}");
@@ -2702,7 +2700,9 @@ void handleSDPatternList() {
   TEENSY_SERIAL.write((uint8_t)0x03);  // sub-cmd: list
   TEENSY_SERIAL.write(0xFE);
 
-  uint8_t buffer[1024];
+  // Buffer sized for worst-case payload: MAX_SD_FILES(100) × (1 + MAX_FILENAME_LEN(32)) + 1 count byte ≈ 3301 bytes.
+  // Use 4096 to avoid truncation that would leave the 0xFE terminator in the UART RX buffer.
+  uint8_t buffer[4096];
   size_t bytesRead = 0;
   if (readTeensyResponse(0xCD, buffer, sizeof(buffer), bytesRead, 1000)) {
     JsonDocument doc;
@@ -2749,8 +2749,8 @@ void handleSDPatternSave() {
 
   String presetName = doc["name"].as<String>();
   presetName.trim();
-  if (presetName.length() == 0 || presetName.length() > 32) {
-    server.send(400, "application/json", "{\"error\":\"Invalid name\"}");
+  if (!isValidPresetName(presetName)) {
+    server.send(400, "application/json", "{\"error\":\"Invalid name (use A-Z a-z 0-9 _ -)\"}");
     return;
   }
 
@@ -2784,8 +2784,8 @@ void handleSDPatternLoad() {
 
   String presetName = doc["name"].as<String>();
   presetName.trim();
-  if (presetName.length() == 0 || presetName.length() > 32) {
-    server.send(400, "application/json", "{\"error\":\"Invalid name\"}");
+  if (!isValidPresetName(presetName)) {
+    server.send(400, "application/json", "{\"error\":\"Invalid name (use A-Z a-z 0-9 _ -)\"}");
     return;
   }
 
