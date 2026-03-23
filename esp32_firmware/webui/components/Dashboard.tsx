@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { Device, PowerMode } from '../types';
 import { useDebounce } from '../hooks';
+import { hapticImpact } from '../nativeFeatures';
 
 interface DashboardProps {
   previewUrl: string | null;
@@ -345,6 +346,7 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
   const handleModeSelect = async (mode: number) => {
     lastModeInteraction.current = Date.now();
     setCurrentMode(mode);
+    hapticImpact('medium');
     const targets = isSyncMode ? [devices[0]] : [activeDevice];
     for (const dev of targets) {
       try {
@@ -369,6 +371,7 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
   const handlePatternSelect = async (patternId: number) => {
     setCurrentPattern(patternId);
     setCurrentMode(2);
+    hapticImpact('light');
     const targets = isSyncMode ? [devices[0]] : [activeDevice];
     for (const dev of targets) {
       try {
