@@ -759,8 +759,11 @@
       <!-- ================== TAB: DASHBOARD ================== -->
       <div class="tab-panel active" id="tab-dashboard">
         <div class="page-header">
-          <h2>UI Dashboard</h2>
-          <p>Fleet control center for your POV poi system.</p>
+          <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+            <h2>Fleet Control</h2>
+            <span class="device-badge" style="background: rgba(239,68,68,0.1); color: var(--red-500);">Offline</span>
+          </div>
+          <p>Managing 2 POV Units • SSID: POV-POI-WiFi</p>
         </div>
 
         <!-- Fleet Sync -->
@@ -880,16 +883,17 @@
       <div class="tab-panel" id="tab-patterns">
         <div class="page-header">
           <h2>Pattern Preview</h2>
-          <p>Live canvas animation of all 18 patterns with speed and color controls.</p>
+          <p>Live preview of all 18 firmware patterns • Click a pattern for details</p>
         </div>
 
         <div class="card">
           <div class="canvas-container">
             <canvas id="pattern-canvas"></canvas>
           </div>
-          <div style="display: flex; gap: 12px; margin-bottom: 20px;">
-            <button class="btn btn-success" id="btn-play" onclick="togglePatternPlay()">▶ Play</button>
-            <button class="btn btn-secondary" onclick="nextPattern()">⏭ Next</button>
+          <div style="display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap;">
+            <button class="btn btn-success" id="btn-play" onclick="togglePatternPlay()">▶ Play All</button>
+            <button class="btn btn-secondary" id="audio-sim" onclick="setAudioSource(false)">🎛 Simulated</button>
+            <button class="btn btn-secondary" id="audio-mic" onclick="setAudioSource(true)">🎤 Live Mic</button>
           </div>
           <div class="slider-row">
             <span class="slider-label">Speed</span>
@@ -925,27 +929,26 @@
       <!-- ================== TAB: IMAGE LAB ================== -->
       <div class="tab-panel" id="tab-imagelab">
         <div class="page-header">
-          <h2>Image Lab</h2>
-          <p>Upload images, generate procedural art, and build sequences.</p>
+          <h2>POV Image Lab</h2>
+          <p>Design and sequence hardware-ready visuals.</p>
         </div>
 
         <div class="lab-tabs">
           <button class="lab-tab active" onclick="setLabMode('upload')">📤 Upload</button>
           <button class="lab-tab" onclick="setLabMode('procedural')">✨ Procedural</button>
-          <button class="lab-tab" onclick="setLabMode('sequence')">📋 Sequence</button>
         </div>
 
         <!-- Upload Mode -->
         <div class="card" id="lab-upload">
           <label class="upload-zone" for="img-upload">
             <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            <p>Click or drag to upload image<br><span style="font-size: 11px;">.bmp, .jpg, .png • Auto-converted to 31px height</span></p>
+            <p>Import Image<br><span id="upload-height-label" style="font-size: 11px;">Matches current display height: 31 px</span></p>
           </label>
           <input type="file" id="img-upload" accept=".bmp,.jpg,.jpeg,.png,.rgb" style="display: none;" onchange="handleImageUpload(this)">
           <div id="preview-container" style="margin-top: 20px; text-align: center; display: none;">
             <img id="preview-img" style="max-width: 100%; max-height: 200px; border-radius: 8px; border: 1px solid var(--slate-700);">
             <div style="margin-top: 12px;">
-              <button class="btn btn-primary" onclick="uploadToDevice()">⬆️ Upload to Device</button>
+              <button class="btn btn-primary" onclick="uploadToDevice()">⬆️ Upload &amp; Display</button>
             </div>
           </div>
         </div>
@@ -975,8 +978,8 @@
         </div>
 
         <!-- Sequence Mode -->
-        <div class="card" id="lab-sequence" style="display: none;">
-          <div class="card-title">Sequence Builder</div>
+        <div class="card" id="lab-sequence">
+          <div class="card-title">Timeline Editor (2)</div>
           <div class="sequence-list" id="seq-list">
             <div class="sequence-item">
               <span class="seq-name">rainbow_32x124.bmp</span>
@@ -992,9 +995,9 @@
             </div>
           </div>
           <div style="margin-top: 16px; display: flex; gap: 10px;">
-            <button class="btn btn-secondary">+ Add Image</button>
-            <button class="btn btn-secondary">+ Add Pattern</button>
-            <button class="btn btn-primary">▶ Play Sequence</button>
+            <button class="btn btn-secondary">+ Add Image To Sequence</button>
+            <button class="btn btn-secondary">+ Add Pattern To Sequence</button>
+            <button class="btn btn-primary">⬆️ Deploy Sequence (2 items)</button>
           </div>
         </div>
       </div>
@@ -1002,24 +1005,24 @@
       <!-- ================== TAB: DISPLAY CONFIG ================== -->
       <div class="tab-panel" id="tab-settings">
         <div class="page-header">
-          <h2>Display Config</h2>
-          <p>WiFi settings, LED hardware configuration, and display parameters.</p>
+          <h2>Display Configuration</h2>
+          <p>Reference settings for the Teensy 4.1 POV engine. Hardware pins and LED count are configured in Teensy firmware.</p>
         </div>
 
         <!-- WiFi Settings -->
         <div class="card">
           <div class="card-title">WiFi Network</div>
-          <div class="grid-2">
+          <form class="grid-2" onsubmit="event.preventDefault(); toast('WiFi connect request sent (simulated)');">
             <div>
               <div class="input-group">
                 <label>Network SSID</label>
-                <input type="text" class="input" placeholder="Enter WiFi network name" style="width: 100%;">
+                <input type="text" class="input" placeholder="Your WiFi name" style="width: 100%;" autocomplete="username">
               </div>
               <div class="input-group">
                 <label>Password</label>
-                <input type="password" class="input" placeholder="Enter password" style="width: 100%;">
+                <input type="password" class="input" placeholder="WiFi password" style="width: 100%;" autocomplete="current-password">
               </div>
-              <button class="btn btn-primary">Connect</button>
+              <button class="btn btn-primary" type="submit">Connect</button>
             </div>
             <div style="background: rgba(0,0,0,0.3); border-radius: 12px; padding: 16px;">
               <div style="font-size: 11px; color: var(--slate-500); text-transform: uppercase; margin-bottom: 12px;">Current Status</div>
@@ -1036,7 +1039,7 @@
                 <span class="mono" style="color: var(--cyan-400);">povpoi.local</span>
               </div>
             </div>
-          </div>
+          </form>
         </div>
 
         <!-- LED Hardware Config -->
@@ -1065,21 +1068,21 @@
                 </div>
                 <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
                   <span style="color: var(--slate-400);">First display LED</span>
-                  <span class="mono" style="color: var(--cyan-400);">LED 1</span>
+                  <span class="mono" style="color: var(--cyan-400);" id="disp-start">LED 1</span>
                 </div>
                 <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
                   <span style="color: var(--slate-400);">Last display LED</span>
-                  <span class="mono" style="color: var(--cyan-400);">LED 31</span>
+                  <span class="mono" style="color: var(--cyan-400);" id="disp-end">LED 31</span>
                 </div>
                 <div style="display: flex; justify-content: space-between;">
                   <span style="color: var(--slate-400);">Image height</span>
-                  <span class="mono" style="color: var(--cyan-400);">31 px</span>
+                  <span class="mono" style="color: var(--cyan-400);" id="disp-height">31 px</span>
                 </div>
               </div>
               <div style="background: rgba(0,0,0,0.4); border: 1px solid var(--slate-700); border-radius: 12px; padding: 16px; font-family: monospace; font-size: 11px; color: var(--slate-400);">
                 <div style="color: var(--slate-500); margin-bottom: 8px;">// Teensy firmware (applied at runtime)</div>
-                <div style="color: var(--cyan-400);">g_displayLeds = 31;</div>
-                <div style="color: var(--cyan-400);">g_displayLedStart = 1;</div>
+                <div style="color: var(--cyan-400);" id="code-display-leds">g_displayLeds = 31;</div>
+                <div style="color: var(--cyan-400);" id="code-display-start">g_displayLedStart = 1;</div>
                 <div style="color: var(--slate-500); margin-top: 8px;">// Stored in EEPROM — survives power cycle</div>
               </div>
             </div>
@@ -1088,16 +1091,24 @@
 
         <!-- Display Parameters -->
         <div class="card">
-          <div class="card-title">Display Parameters</div>
+          <div class="card-title">Reference Display Parameters</div>
           <div class="slider-row">
             <span class="slider-label">Refresh Rate</span>
-            <input type="range" min="30" max="240" value="60" id="refresh-rate">
-            <span class="slider-val">60 Hz</span>
+            <input type="range" min="10" max="250" value="60" id="refresh-rate">
+            <span class="slider-val">60 FPS</span>
           </div>
           <div class="slider-row">
-            <span class="slider-label">Pixel Density</span>
-            <input type="range" min="30" max="300" value="144" id="pixel-density">
-            <span class="slider-val">144 px/rev</span>
+            <span class="slider-label">Angular Resolution</span>
+            <input type="range" min="72" max="576" value="144" id="pixel-density">
+            <span class="slider-val">144 PX</span>
+          </div>
+          <div style="margin-top: 16px;">
+            <div class="card-title" style="margin-bottom: 8px;">Color Depth</div>
+            <div style="display: flex; gap: 10px;">
+              <button class="btn btn-secondary">8b</button>
+              <button class="btn btn-secondary">16b</button>
+              <button class="btn btn-primary">TRUE</button>
+            </div>
           </div>
         </div>
       </div>
@@ -1108,7 +1119,7 @@
           <div class="code-header">
             <div>
               <h2>ESP32-S3 Gateway (Simplified Example)</h2>
-              <p>Educational example showing basic WiFi AP and UART bridge architecture.</p>
+              <p>Educational example showing basic WiFi AP and UART bridge architecture. See esp32_firmware/esp32_firmware.ino for production code.</p>
             </div>
             <div style="display: flex; gap: 10px;">
               <button class="btn btn-secondary" onclick="downloadSketch('esp32')">Download</button>
@@ -1194,7 +1205,7 @@ void loop() {
           <div class="code-header">
             <div>
               <h2>Teensy 4.1 POV Engine (Simplified Example)</h2>
-              <p>Educational example showing basic LED control and serial communication.</p>
+              <p>Educational example showing basic LED control and serial communication. See teensy_firmware/teensy_firmware.ino for production code.</p>
             </div>
             <div style="display: flex; gap: 10px;">
               <button class="btn btn-secondary" onclick="downloadSketch('teensy')">Download</button>
@@ -1447,6 +1458,7 @@ var currentMode = 1;
 var currentPattern = 0;
 var powerMode = 1;
 var labMode = 'upload';
+var useLiveMic = false;
 var firmwareTarget = 'esp32';
 var patternSpeed = 50;
 var isPatternPlaying = false;
@@ -1589,9 +1601,18 @@ function setPatternSpeed(val) {
 
 function togglePatternPlay() {
   isPatternPlaying = !isPatternPlaying;
-  document.getElementById('btn-play').textContent = isPatternPlaying ? '⏸ Pause' : '▶ Play';
+  document.getElementById('btn-play').textContent = isPatternPlaying ? '⏸ Pause All' : '▶ Play All';
   if (isPatternPlaying) startPatternAnimation();
   else stopPatternAnimation();
+}
+
+function setAudioSource(live) {
+  useLiveMic = live;
+  document.getElementById('audio-sim').classList.toggle('btn-primary', !live);
+  document.getElementById('audio-sim').classList.toggle('btn-secondary', live);
+  document.getElementById('audio-mic').classList.toggle('btn-primary', live);
+  document.getElementById('audio-mic').classList.toggle('btn-secondary', !live);
+  log(live ? 'Audio source → Live Mic (simulated in preview)' : 'Audio source → Simulated', 'cmd');
 }
 
 function nextPattern() {
@@ -2026,7 +2047,7 @@ function setLabMode(mode) {
   event.currentTarget.classList.add('active');
   document.getElementById('lab-upload').style.display = mode === 'upload' ? 'block' : 'none';
   document.getElementById('lab-procedural').style.display = mode === 'procedural' ? 'block' : 'none';
-  document.getElementById('lab-sequence').style.display = mode === 'sequence' ? 'block' : 'none';
+  document.getElementById('lab-sequence').style.display = 'block';
   if (mode === 'procedural') generateProceduralArt();
 }
 
@@ -2096,6 +2117,12 @@ function applyLedConfig() {
   var sacLeds = parseInt(document.getElementById('sac-leds').value);
   var dispLeds = numLeds - sacLeds;
   document.getElementById('disp-leds').textContent = dispLeds;
+  document.getElementById('disp-start').textContent = 'LED ' + sacLeds;
+  document.getElementById('disp-end').textContent = 'LED ' + (numLeds - 1);
+  document.getElementById('disp-height').textContent = dispLeds + ' px';
+  document.getElementById('code-display-leds').textContent = 'g_displayLeds = ' + dispLeds + ';';
+  document.getElementById('code-display-start').textContent = 'g_displayLedStart = ' + sacLeds + ';';
+  document.getElementById('upload-height-label').textContent = 'Matches current display height: ' + dispLeds + ' px';
   toast('LED config applied (simulated)');
   log('LED config: ' + dispLeds + ' display LEDs', 'ok');
 }
