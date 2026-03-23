@@ -26,1319 +26,2229 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="theme-color" content="#111111">
+  <meta name="theme-color" content="#020617">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="POV POI">
-  <title>POV POI Control</title>
+  <meta name="apple-mobile-web-app-title" content="POV Architect">
+  <title>POV Architect — Nebula POI</title>
   <style>
+    /* ============================================================
+       Design System — Slate Color Palette (Tailwind colors)
+       ============================================================ */
     :root {
-      --c-1: #111;
-      --c-2: #222;
-      --c-3: #333;
-      --c-5: #555;
-      --c-6: #666;
-      --c-f: #fff;
-      --c-b: #2af;
-      --c-g: #2c1;
-      --c-r: #c32;
-      --c-y: #a90;
-      --c-p: #94f;
-      --th: 68px;
-      --bh: 60px;
+      --slate-950: #020617;
+      --slate-900: #0f172a;
+      --slate-800: #1e293b;
+      --slate-700: #334155;
+      --slate-600: #475569;
+      --slate-500: #64748b;
+      --slate-400: #94a3b8;
+      --slate-300: #cbd5e1;
+      --slate-200: #e2e8f0;
+      --cyan-500: #06b6d4;
+      --cyan-400: #22d3ee;
+      --cyan-600: #0891b2;
+      --purple-400: #c084fc;
+      --purple-500: #a855f7;
+      --pink-400: #f472b6;
+      --green-400: #4ade80;
+      --green-500: #22c55e;
+      --red-400: #f87171;
+      --red-500: #ef4444;
+      --yellow-400: #facc15;
+      --yellow-500: #eab308;
+      --amber-400: #fbbf24;
+      --amber-500: #f59e0b;
+      --sidebar-width: 256px;
     }
 
-    *, *::before, *::after { box-sizing: border-box; }
-    html { touch-action: manipulation; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { touch-action: manipulation; scroll-behavior: smooth; }
     body {
-      font-family: Verdana, sans-serif;
-      font-size: 1rem;
-      text-align: center;
-      background: var(--c-1);
-      color: var(--c-f);
-      line-height: 180%;
-      margin: 0;
-      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 14px;
+      background: var(--slate-950);
+      color: var(--slate-300);
+      line-height: 1.6;
+      min-height: 100vh;
     }
-    a, a:hover { color: var(--c-b); text-decoration: none; }
-    hr { border: none; border-top: 1px solid var(--c-3); margin: 8px 0; }
+    a { color: var(--cyan-400); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    button { font-family: inherit; cursor: pointer; }
+    code, pre, .mono { font-family: "SF Mono", Monaco, "Cascadia Code", Consolas, monospace; }
 
-    /* === TOP BAR === */
-    #topbar {
-      position: fixed; top: 0; left: 0; right: 0;
-      height: var(--th);
-      background: var(--c-2);
-      z-index: 20;
-      display: flex; align-items: center;
-      padding: 0 12px; gap: 10px;
-      border-bottom: 1px solid var(--c-3);
-    }
-    #pwr-btn {
-      width: 42px; height: 42px; border-radius: 50%;
-      background: var(--c-3); border: 2px solid var(--c-5);
-      color: var(--c-f); font-size: 20px; cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0; transition: all 0.3s; line-height: 1;
-    }
-    #pwr-btn.on { border-color: var(--c-b); color: var(--c-b); box-shadow: 0 0 10px rgba(34,170,255,0.3); }
-    #logo {
-      font-size: 1.05rem; font-weight: bold; color: var(--c-b);
-      white-space: nowrap; letter-spacing: 0.05em; line-height: 1.2;
-    }
-    #logo span { color: var(--c-6); font-size: 0.7rem; font-weight: normal; display: block; }
-    #bri-wrap {
-      flex: 1; display: flex; align-items: center; gap: 8px; min-width: 0;
-    }
-    #bri-lbl { font-size: 18px; color: var(--c-6); flex-shrink: 0; line-height: 1; }
-    #bri-slider { flex: 1; cursor: pointer; min-width: 40px; }
-    #bri-val { font-size: 12px; color: var(--c-b); font-family: monospace; white-space: nowrap; min-width: 34px; }
-    #status-dot {
-      width: 10px; height: 10px; border-radius: 50%;
-      background: var(--c-5); flex-shrink: 0; transition: background 0.5s;
-    }
-    #status-dot.online { background: var(--c-g); box-shadow: 0 0 6px rgba(34,204,17,0.5); }
-    #info-btn {
-      width: 36px; height: 36px; border-radius: 50%;
-      background: var(--c-3); border: none; color: var(--c-6);
-      font-size: 18px; cursor: pointer; flex-shrink: 0;
-      display: flex; align-items: center; justify-content: center;
-      transition: all 0.2s; line-height: 1;
-    }
-    #info-btn:hover { background: var(--c-5); color: var(--c-f); }
-
-    /* === MAIN === */
-    #main { padding-top: var(--th); padding-bottom: var(--bh); min-height: 100vh; }
-    .tab { display: none; padding: 6px 4px 12px; }
-    .tab.active { display: block; }
-
-    /* === BOTTOM TABS === */
-    #botbar {
-      position: fixed; bottom: 0; left: 0; right: 0;
-      height: var(--bh);
-      background: var(--c-2);
-      z-index: 20;
+    /* ============================================================
+       Layout: Sidebar + Main
+       ============================================================ */
+    .app-container {
       display: flex;
-      border-top: 1px solid var(--c-3);
-    }
-    .tbtn {
-      flex: 1; background: transparent; border: none;
-      color: var(--c-6); font-size: 10px; font-family: Verdana, sans-serif;
-      cursor: pointer; display: flex; flex-direction: column;
-      align-items: center; justify-content: center; gap: 3px;
-      transition: color 0.2s; padding: 6px 2px;
-    }
-    .tbtn svg { width: 22px; height: 22px; flex-shrink: 0; }
-    .tbtn.active { color: var(--c-b); }
-    .tbtn:hover { color: var(--c-f); }
-
-    /* === SECTIONS === */
-    .sec {
-      background: var(--c-2); border-radius: 20px;
-      padding: 12px; margin: 8px auto; max-width: 520px;
-    }
-    .sec-hd {
-      font-size: 12px; font-weight: bold; color: var(--c-6);
-      text-transform: uppercase; letter-spacing: 0.08em;
-      margin-bottom: 8px; text-align: left; padding: 0 4px;
+      min-height: 100vh;
     }
 
-    /* === BUTTONS === */
-    button, .btn {
-      background: var(--c-3); color: var(--c-f);
-      font-family: Verdana, sans-serif;
-      border: 0.3ch solid var(--c-3); border-radius: 24px;
-      display: inline-block; font-size: 15px;
-      margin: 5px 3px; padding: 7px 13px; min-width: 40px;
-      cursor: pointer; text-decoration: none; transition: all 0.3s;
-      line-height: 1.3;
+    /* Sidebar */
+    .sidebar {
+      width: var(--sidebar-width);
+      background: var(--slate-900);
+      border-right: 1px solid var(--slate-800);
+      padding: 16px;
+      position: fixed;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      overflow-y: auto;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
     }
-    button:hover, .btn:hover { background: var(--c-5); border-color: var(--c-5); }
-    button.sml { padding: 5px 8px; border-radius: 18px; font-size: 12px; min-width: 30px; margin: 0 0 0 5px; }
-    button.on, button.sel { background: var(--c-b); border-color: var(--c-b); color: #000; }
-    button.grn { background: var(--c-g); border-color: var(--c-g); color: #000; }
-    button.red { background: var(--c-r); border-color: var(--c-r); color: #fff; }
-    button.pur { background: var(--c-p); border-color: var(--c-p); color: #000; }
-    button:disabled { opacity: 0.4; cursor: default; }
+    .sidebar-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px;
+      margin-bottom: 20px;
+    }
+    .sidebar-logo svg { color: var(--cyan-400); width: 32px; height: 32px; }
+    .sidebar-logo h1 {
+      font-size: 18px;
+      font-weight: 700;
+      background: linear-gradient(90deg, var(--cyan-400), var(--purple-400));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .sidebar-logo .subtitle {
+      font-size: 9px;
+      color: var(--slate-600);
+      font-family: monospace;
+      display: block;
+      margin-top: 2px;
+    }
 
-    /* === SLIDERS === */
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      border-radius: 8px;
+      color: var(--slate-400);
+      transition: all 0.2s;
+      width: 100%;
+      background: transparent;
+      border: none;
+      text-align: left;
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 4px;
+    }
+    .nav-item:hover {
+      background: rgba(30,41,59,0.5);
+      color: var(--slate-200);
+    }
+    .nav-item.active {
+      background: var(--slate-800);
+      color: white;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      border: 1px solid var(--slate-700);
+    }
+    .nav-item svg { width: 20px; height: 20px; flex-shrink: 0; }
+
+    .nav-separator { height: 16px; }
+
+    .sidebar-footer {
+      margin-top: auto;
+      padding: 24px 16px 8px;
+    }
+    .sidebar-footer a {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--slate-500);
+    }
+    .sidebar-footer a:hover { color: var(--slate-300); }
+
+    /* Main Content */
+    .main-content {
+      flex: 1;
+      margin-left: var(--sidebar-width);
+      padding: 32px;
+      background: var(--slate-950);
+      min-height: 100vh;
+    }
+    .page-content {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    /* Tab panels */
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; animation: fadeIn 0.3s ease; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ============================================================
+       Component Styles
+       ============================================================ */
+    .page-header {
+      margin-bottom: 32px;
+    }
+    .page-header h2 {
+      font-size: 28px;
+      font-weight: 700;
+      color: white;
+      margin-bottom: 8px;
+    }
+    .page-header p { color: var(--slate-400); }
+
+    .card {
+      background: var(--slate-900);
+      border: 1px solid var(--slate-800);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+    .card:hover { border-color: var(--slate-700); }
+    .card-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--slate-500);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 16px;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 18px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      border: none;
+      transition: all 0.2s;
+    }
+    .btn-primary {
+      background: var(--cyan-600);
+      color: white;
+    }
+    .btn-primary:hover { background: var(--cyan-500); }
+    .btn-secondary {
+      background: var(--slate-800);
+      color: white;
+    }
+    .btn-secondary:hover { background: var(--slate-700); }
+    .btn-success { background: var(--green-500); color: white; }
+    .btn-success:hover { background: var(--green-400); }
+    .btn-danger { background: var(--red-500); color: white; }
+    .btn-danger:hover { background: var(--red-400); }
+    .btn-sm { padding: 6px 12px; font-size: 12px; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Mode/Pattern Buttons Grid */
+    .btn-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+      gap: 8px;
+    }
+    .mode-btn {
+      padding: 12px 8px;
+      border-radius: 12px;
+      background: var(--slate-800);
+      border: 1px solid var(--slate-700);
+      color: var(--slate-400);
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.2s;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+    .mode-btn:hover {
+      background: var(--slate-700);
+      color: white;
+    }
+    .mode-btn.active {
+      background: rgba(6,182,212,0.15);
+      border-color: var(--cyan-500);
+      color: var(--cyan-400);
+    }
+    .mode-btn svg { width: 20px; height: 20px; }
+
+    .pattern-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+    .pattern-btn {
+      padding: 10px 8px;
+      border-radius: 10px;
+      background: var(--slate-800);
+      border: none;
+      color: var(--slate-400);
+      font-size: 12px;
+      transition: all 0.2s;
+      text-align: center;
+    }
+    .pattern-btn:hover { background: var(--slate-700); color: white; }
+    .pattern-btn.active {
+      background: var(--cyan-500);
+      color: black;
+      font-weight: 600;
+    }
+    .pattern-btn.music {
+      border-top: 2px solid var(--purple-500);
+    }
+
+    /* Sliders */
+    .slider-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 0;
+    }
+    .slider-label {
+      font-size: 12px;
+      color: var(--slate-400);
+      min-width: 90px;
+    }
+    .slider-val {
+      font-size: 12px;
+      color: var(--cyan-400);
+      font-family: monospace;
+      min-width: 60px;
+      text-align: right;
+    }
     input[type="range"] {
-      -webkit-appearance: none; appearance: none;
-      width: 100%; height: 8px; border-radius: 4px;
-      background: var(--c-3); cursor: pointer; outline: none;
+      flex: 1;
+      -webkit-appearance: none;
+      appearance: none;
+      height: 6px;
+      background: var(--slate-700);
+      border-radius: 3px;
+      outline: none;
     }
     input[type="range"]::-webkit-slider-thumb {
-      -webkit-appearance: none; width: 20px; height: 20px;
-      border-radius: 50%; background: var(--c-b); cursor: pointer;
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--cyan-500);
+      cursor: pointer;
     }
-    input[type="range"]::-moz-range-thumb {
-      width: 20px; height: 20px; border-radius: 50%;
-      background: var(--c-b); cursor: pointer; border: none;
-    }
-    .slider-row {
-      display: flex; align-items: center; gap: 10px; padding: 5px 4px;
-    }
-    .slider-lbl { font-size: 12px; color: var(--c-6); min-width: 86px; text-align: right; flex-shrink: 0; }
-    .slider-val { font-size: 12px; color: var(--c-b); font-family: monospace; min-width: 52px; text-align: left; flex-shrink: 0; }
 
-    /* === INPUTS === */
-    input[type="text"], input[type="number"], input[type="password"], select {
-      background: var(--c-3); color: var(--c-f);
-      font-family: Verdana, sans-serif; font-size: 14px;
-      border: 1px solid var(--c-5); border-radius: 8px;
-      padding: 6px 10px; margin: 2px; outline: none;
+    /* Inputs */
+    .input, select {
+      background: var(--slate-950);
+      border: 1px solid var(--slate-700);
+      border-radius: 8px;
+      padding: 10px 14px;
+      color: white;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s;
     }
-    input[type="text"]:focus, input[type="number"]:focus,
-    input[type="password"]:focus, select:focus { border-color: var(--c-b); }
-    input[type="number"] { width: 4.5em; }
-    input[type="number"].w80 { width: 80px; }
-    select { min-width: 120px; cursor: pointer; }
-
-    /* === MODE BUTTONS === */
-    #mode-btns { display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; padding: 4px; }
-    .mode-btn { padding: 7px 14px; border-radius: 20px; font-size: 13px; min-width: 68px; }
-
-    /* === PATTERN GRID === */
-    .pat-grid {
-      display: grid; grid-template-columns: repeat(3, 1fr);
-      gap: 5px; padding: 4px;
+    .input:focus, select:focus { border-color: var(--cyan-500); }
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 16px;
     }
-    .pat-btn {
-      background: var(--c-3); border: none; border-radius: 12px;
-      color: var(--c-6); cursor: pointer; padding: 9px 4px;
-      font-size: 11px; font-family: Verdana, sans-serif;
-      transition: all 0.2s; line-height: 1.3;
+    .input-group label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--slate-500);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
     }
-    .pat-btn:hover { background: var(--c-5); color: var(--c-f); }
-    .pat-btn.active { background: var(--c-b); color: #000; font-weight: bold; }
-    .pat-btn.music { border-top: 2px solid var(--c-p); }
-    .pat-icon { font-size: 18px; display: block; margin-bottom: 2px; }
+    .input-hint { font-size: 10px; color: var(--slate-500); }
 
-    /* === IMAGE LIST === */
-    #img-list { text-align: left; }
-    .img-item {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 7px 10px; border-radius: 10px; margin: 4px 0;
-      background: var(--c-3); cursor: pointer; transition: background 0.2s;
+    /* Device cards */
+    .device-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      background: var(--slate-800);
+      border-radius: 10px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
     }
-    .img-item:hover { background: var(--c-5); }
-    .img-item.active { background: rgba(34,170,255,0.12); border: 1px solid var(--c-b); }
-    .img-name { font-size: 13px; font-family: monospace; color: var(--c-f); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .img-actions { display: flex; gap: 4px; flex-shrink: 0; }
-
-    /* === UPLOAD ZONE === */
-    #upload-zone {
-      border: 2px dashed var(--c-5); border-radius: 16px;
-      padding: 24px 14px; margin: 6px auto; max-width: 480px;
-      cursor: pointer; transition: border-color 0.2s;
+    .device-card:hover { background: var(--slate-700); }
+    .device-card.selected {
+      background: rgba(6,182,212,0.1);
+      border: 1px solid var(--cyan-500);
     }
-    #upload-zone:hover, #upload-zone.drag { border-color: var(--c-b); background: rgba(34,170,255,0.04); }
-    #upload-zone p { color: var(--c-6); font-size: 12px; margin: 5px 0 0; line-height: 1.5; }
-
-    /* === WIFI ROWS === */
-    .wifi-row { display: flex; align-items: center; justify-content: space-between; padding: 7px 4px; gap: 8px; }
-    .wifi-lbl { font-size: 13px; color: var(--c-6); text-align: left; flex: 1; }
-    .wifi-val { font-size: 13px; color: var(--c-f); font-family: monospace; }
-    .wifi-badge {
-      display: inline-block; padding: 2px 8px; border-radius: 10px;
-      font-size: 10px; font-weight: bold; flex-shrink: 0;
+    .device-name { font-weight: 600; color: white; }
+    .device-status { font-size: 11px; color: var(--slate-400); }
+    .device-badge {
+      font-size: 10px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-weight: 600;
     }
-    .wifi-badge.up { background: rgba(34,204,17,0.12); color: var(--c-g); border: 1px solid var(--c-g); }
-    .wifi-badge.dn { background: rgba(204,51,34,0.12); color: var(--c-r); border: 1px solid var(--c-r); }
+    .badge-success { background: rgba(34,197,94,0.15); color: var(--green-400); }
+    .badge-info { background: rgba(6,182,212,0.15); color: var(--cyan-400); }
+    .badge-preview { background: rgba(6,182,212,0.1); color: var(--cyan-400); }
 
-    /* === LOG === */
-    #log-box {
-      background: #000; border-radius: 12px; padding: 8px 10px;
-      height: 106px; overflow-y: auto; text-align: left;
-      font-family: monospace; font-size: 11px;
-      border: 1px solid var(--c-3); scroll-behavior: smooth;
+    /* Log box */
+    .log-box {
+      background: black;
+      border: 1px solid var(--slate-800);
+      border-radius: 10px;
+      padding: 12px;
+      height: 150px;
+      overflow-y: auto;
+      font-family: monospace;
+      font-size: 11px;
     }
-    .log-ln { color: var(--c-6); line-height: 1.6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .log-ln.ok { color: var(--c-g); }
-    .log-ln.err { color: var(--c-r); }
-    .log-ln.cmd { color: var(--c-b); }
+    .log-line { color: var(--slate-500); line-height: 1.7; white-space: nowrap; }
+    .log-line.ok { color: var(--green-400); }
+    .log-line.err { color: var(--red-400); }
+    .log-line.cmd { color: var(--cyan-400); }
 
-    /* === WIRING TABLE === */
-    .wire-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; }
-    .wire-table th { color: var(--c-6); font-size: 11px; text-transform: uppercase; padding: 4px 8px; border-bottom: 1px solid var(--c-3); }
-    .wire-table td { padding: 5px 8px; border-bottom: 1px solid rgba(255,255,255,0.03); }
-    .pc { color: var(--c-b); font-family: monospace; }
-    .pp { color: var(--c-p); font-family: monospace; }
-    .py { color: var(--c-y); font-family: monospace; }
-    .pg { color: var(--c-g); font-family: monospace; }
-
-    /* === OTA / WARNING === */
-    .ota-warn {
-      background: rgba(170,153,0,0.08); border: 1px solid var(--c-y);
-      border-radius: 12px; padding: 10px 14px; margin: 8px 0;
-      text-align: left; color: var(--c-y); font-size: 13px; line-height: 1.5;
+    /* Warning banner */
+    .warning-banner {
+      background: rgba(245,158,11,0.1);
+      border: 2px solid rgba(245,158,11,0.5);
+      border-radius: 16px;
+      padding: 20px;
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+      margin-bottom: 24px;
     }
-    .prog-bar-wrap {
-      background: var(--c-3); border-radius: 6px; height: 8px;
-      overflow: hidden; margin: 8px 0;
-    }
-    .prog-bar { height: 100%; background: var(--c-b); width: 0%; transition: width 0.3s; }
+    .warning-banner svg { color: var(--amber-400); flex-shrink: 0; }
+    .warning-banner h3 { color: var(--amber-400); font-weight: 700; margin-bottom: 8px; }
+    .warning-banner p { color: rgba(251,191,36,0.8); font-size: 13px; line-height: 1.6; }
+    .warning-banner code { background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; }
 
-    /* === SEQUENCE === */
-    #seq-list { text-align: left; max-height: 180px; overflow-y: auto; }
-    .seq-item {
-      display: flex; align-items: center; gap: 7px;
-      padding: 5px 8px; background: var(--c-3); border-radius: 8px; margin: 3px 0;
+    /* Canvas Container */
+    .canvas-container {
+      background: black;
+      border: 1px solid var(--slate-700);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 20px;
+    }
+    #pattern-canvas {
+      width: 100%;
+      height: 200px;
+      display: block;
+      border-radius: 8px;
+    }
+
+    /* Wiring cards */
+    .wiring-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+    .wiring-card {
+      background: var(--slate-900);
+      border: 1px solid var(--slate-800);
+      border-radius: 16px;
+      padding: 20px;
+    }
+    .wiring-card:hover { border-color: var(--slate-700); }
+    .wiring-card h4 {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 16px;
+      font-weight: 700;
+      color: white;
+    }
+    .wiring-row {
+      margin-bottom: 12px;
+    }
+    .wiring-from { font-size: 11px; color: var(--slate-500); margin-bottom: 4px; }
+    .wiring-to {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--slate-300);
+      font-size: 13px;
+      font-family: monospace;
+    }
+    .wiring-line { flex: 1; height: 1px; background: var(--slate-700); }
+
+    /* Circuit diagram */
+    .circuit-diagram {
+      background: rgba(0,0,0,0.4);
+      border: 1px solid var(--slate-700);
+      border-radius: 12px;
+      padding: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 80px;
+      margin-bottom: 24px;
+    }
+    .circuit-box {
+      width: 160px;
+      height: 100px;
+      border-radius: 12px;
+      border-width: 2px;
+      border-style: solid;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .circuit-box.esp32 { border-color: var(--cyan-500); box-shadow: 0 0 20px rgba(6,182,212,0.15); }
+    .circuit-box.teensy { border-color: var(--purple-500); box-shadow: 0 0 20px rgba(168,85,247,0.15); }
+    .circuit-box span { font-weight: 700; }
+    .circuit-box .subtitle { font-size: 9px; color: var(--slate-500); margin-top: 6px; font-style: italic; }
+    .circuit-lines {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .circuit-line {
+      width: 80px;
+      height: 2px;
+      background: linear-gradient(90deg, var(--cyan-500), var(--slate-700), var(--purple-500));
+    }
+
+    /* Code viewer */
+    .code-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+    .code-libs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .code-lib {
+      padding: 4px 12px;
+      background: var(--slate-800);
+      border: 1px solid var(--slate-700);
+      border-radius: 20px;
+      font-size: 11px;
+      font-family: monospace;
+      color: var(--cyan-400);
+    }
+    .code-block {
+      background: var(--slate-900);
+      border: 1px solid var(--slate-800);
+      border-radius: 12px;
+      padding: 20px;
+      overflow-x: auto;
+      max-height: 500px;
+      overflow-y: auto;
+    }
+    .code-block pre {
+      margin: 0;
+      color: var(--slate-300);
       font-size: 12px;
+      line-height: 1.7;
+      white-space: pre-wrap;
     }
-    .seq-name { flex: 1; color: var(--c-f); font-family: monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .seq-dur { width: 52px; }
 
-    /* === MIRROR === */
-    #mirror {
-      display: flex; height: 30px; gap: 1px;
-      background: #000; border-radius: 8px; overflow: hidden; padding: 2px;
+    /* Upload zone */
+    .upload-zone {
+      border: 2px dashed var(--slate-600);
+      border-radius: 16px;
+      padding: 48px 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
     }
-    .ml { flex: 1; height: 100%; border-radius: 2px; background: #111; }
+    .upload-zone:hover { border-color: var(--cyan-500); background: rgba(6,182,212,0.03); }
+    .upload-zone svg { color: var(--slate-500); margin-bottom: 12px; }
+    .upload-zone p { color: var(--slate-500); font-size: 13px; }
 
-    /* === POWER MODES === */
-    #pwr-mode-btns { display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; padding: 2px; }
-    .pwr-btn { font-size: 12px; padding: 6px 11px; border-radius: 16px; min-width: 76px; }
+    /* Firmware target buttons */
+    .target-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .target-btn {
+      padding: 20px;
+      border-radius: 12px;
+      border: 1px solid var(--slate-700);
+      background: rgba(30,41,59,0.5);
+      color: var(--slate-500);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      transition: all 0.2s;
+    }
+    .target-btn:hover { background: var(--slate-800); color: var(--slate-300); }
+    .target-btn.active.esp32 {
+      background: rgba(6,182,212,0.1);
+      border-color: var(--cyan-500);
+      color: var(--cyan-400);
+    }
+    .target-btn.active.teensy {
+      background: rgba(168,85,247,0.1);
+      border-color: var(--purple-500);
+      color: var(--purple-400);
+    }
+    .target-btn svg { width: 32px; height: 32px; }
+    .target-btn span { font-weight: 700; font-size: 14px; }
+    .target-btn .ext { font-size: 9px; font-family: monospace; opacity: 0.6; }
 
-    /* === TOAST === */
+    /* Image Lab tabs */
+    .lab-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+    .lab-tab {
+      padding: 10px 20px;
+      border-radius: 10px;
+      background: var(--slate-800);
+      border: none;
+      color: var(--slate-400);
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+    .lab-tab:hover { background: var(--slate-700); color: white; }
+    .lab-tab.active { background: var(--cyan-600); color: white; }
+
+    /* Sequence list */
+    .sequence-list {
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .sequence-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      background: var(--slate-800);
+      border-radius: 8px;
+      margin-bottom: 6px;
+    }
+    .sequence-item .seq-name { flex: 1; font-family: monospace; font-size: 13px; color: white; }
+    .sequence-item input { width: 70px; }
+
+    /* Grid layouts */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+
+    /* Status indicator */
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--slate-600);
+    }
+    .status-dot.online { background: var(--green-400); box-shadow: 0 0 8px rgba(74,222,128,0.5); }
+
+    /* Toast */
     #toast {
-      opacity: 0; position: fixed;
-      bottom: calc(var(--bh) + 10px); left: 50%; transform: translateX(-50%);
-      background: var(--c-3); color: var(--c-f);
-      border-radius: 20px; padding: 9px 18px;
-      font-size: 13px; pointer-events: none; z-index: 99;
-      transition: opacity 0.3s; white-space: nowrap; max-width: 90%;
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--slate-800);
+      color: white;
+      padding: 12px 24px;
+      border-radius: 10px;
+      font-size: 13px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+      z-index: 1000;
     }
-    #toast.show { opacity: 1; background: #264; }
-    #toast.err { opacity: 1; background: #622; }
+    #toast.show { opacity: 1; background: #166534; }
+    #toast.err { opacity: 1; background: #991b1b; }
 
-    /* === INFO OVERLAY === */
-    #info-overlay {
-      display: none; position: fixed; inset: 0;
-      background: rgba(0,0,0,0.72); z-index: 30;
-      align-items: center; justify-content: center;
+    /* Responsive */
+    @media (max-width: 1024px) {
+      .sidebar { display: none; }
+      .main-content { margin-left: 0; }
     }
-    #info-overlay.show { display: flex; }
-    #info-panel {
-      background: var(--c-2); border-radius: 20px;
-      padding: 20px; max-width: 340px; width: 92%;
-      text-align: left;
-    }
-    #info-panel h3 { color: var(--c-b); margin: 0 0 12px; font-size: 1rem; }
-
-    /* === HELPERS === */
-    .hide { display: none !important; }
-    .muted { color: var(--c-6); font-size: 12px; }
-    .ok-txt { color: var(--c-g); }
-    .err-txt { color: var(--c-r); }
-
-    /* === RESPONSIVE === */
-    @media (max-width: 420px) {
-      #logo span { display: none; }
-      .slider-lbl { min-width: 68px; font-size: 11px; }
-      .pat-grid { grid-template-columns: repeat(2, 1fr); }
-    }
-    @media screen and (max-width: 767px) {
-      input[type="text"], input[type="number"], input[type="password"] { font-size: 16px; }
+    @media (max-width: 768px) {
+      .grid-2, .grid-3 { grid-template-columns: 1fr; }
+      .pattern-grid { grid-template-columns: repeat(2, 1fr); }
+      .circuit-diagram { flex-direction: column; gap: 32px; }
+      .circuit-lines { flex-direction: row; }
+      .circuit-line { width: 2px; height: 40px; background: linear-gradient(180deg, var(--cyan-500), var(--slate-700), var(--purple-500)); }
     }
   </style>
 </head>
 <body>
-
-<!-- ===== TOP BAR ===== -->
-<div id="topbar">
-  <button id="pwr-btn" onclick="togglePower()" title="Power on/off">&#9211;</button>
-  <div id="logo">POV POI<span>wireless-pov-poi</span></div>
-  <div id="bri-wrap">
-    <span id="bri-lbl">&#9788;</span>
-    <input type="range" id="bri-slider" min="0" max="255" value="128" oninput="setBrightness(this.value)">
-    <span id="bri-val">50%</span>
-  </div>
-  <div id="status-dot" title="Device offline"></div>
-  <button id="info-btn" onclick="toggleInfo()" title="Device info">&#x2139;</button>
-</div>
-
-<!-- ===== TOAST ===== -->
-<div id="toast"></div>
-
-<!-- ===== INFO OVERLAY ===== -->
-<div id="info-overlay" onclick="closeInfo()">
-  <div id="info-panel" onclick="event.stopPropagation()">
-    <h3>&#9675; Device Info</h3>
-    <div class="wifi-row"><span class="wifi-lbl">AP SSID</span><span class="wifi-val">POV-POI-WiFi</span></div>
-    <div class="wifi-row"><span class="wifi-lbl">IP Address</span><span class="wifi-val">192.168.4.1</span></div>
-    <div class="wifi-row"><span class="wifi-lbl">Display Mode</span><span class="wifi-val" id="inf-mode">—</span></div>
-    <div class="wifi-row"><span class="wifi-lbl">Brightness</span><span class="wifi-val" id="inf-bri">—</span></div>
-    <div class="wifi-row"><span class="wifi-lbl">Frame Rate</span><span class="wifi-val" id="inf-fps">—</span></div>
-    <div class="wifi-row"><span class="wifi-lbl">Images Stored</span><span class="wifi-val" id="inf-imgs">—</span></div>
-    <div class="wifi-row"><span class="wifi-lbl">Active Pattern</span><span class="wifi-val" id="inf-pat">—</span></div>
-    <div style="margin-top:12px;text-align:center">
-      <button onclick="closeInfo()">Close</button>
-    </div>
-  </div>
-</div>
-
-<!-- ===== MAIN ===== -->
-<div id="main">
-
-  <!-- ==================== TAB 0: CONTROL ==================== -->
-  <div class="tab active" id="tab-ctrl">
-
-    <!-- Fleet Sync -->
-    <div class="sec">
-      <div class="sec-hd">Fleet Sync</div>
+<div class="app-container">
+  <!-- ============================================================
+       SIDEBAR NAVIGATION
+       ============================================================ -->
+  <nav class="sidebar">
+    <div class="sidebar-logo">
+      <!-- CircuitBoard icon -->
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="2" y="2" width="20" height="20" rx="2" ry="2"/>
+        <path d="M6 6h.01M6 12h.01M6 18h.01M12 6h.01M12 12h.01M12 18h.01M18 6h.01M18 12h.01M18 18h.01"/>
+      </svg>
       <div>
-        <button id="btn-sync" class="sel" onclick="setSyncMode(true)">&#x1F517; Synchronized</button>
-        <button id="btn-solo" onclick="setSyncMode(false)">&#x1F4F1; Independent</button>
-      </div>
-      <div style="display:flex;justify-content:center;gap:6px;margin-top:6px">
-        <button id="dev-leader" class="sml sel" onclick="selectDev('leader')">&#11088; POV_LEADER</button>
-        <button id="dev-follower" class="sml" onclick="selectDev('follower')">&#x1F4F1; POV_FOLLOWER</button>
+        <h1>POV Architect</h1>
+        <span class="subtitle">Nebula POI • wireless-pov-poi</span>
       </div>
     </div>
 
-    <!-- Display Mode -->
-    <div class="sec">
-      <div class="sec-hd">Display Mode</div>
-      <div id="mode-btns">
-        <button class="mode-btn" id="mode-0" onclick="setMode(0)">&#9898; Idle</button>
-        <button class="mode-btn on" id="mode-1" onclick="setMode(1)">&#x1F5BC; Image</button>
-        <button class="mode-btn" id="mode-2" onclick="setMode(2)">&#x2728; Pattern</button>
-        <button class="mode-btn" id="mode-3" onclick="setMode(3)">&#x1F3AC; Sequence</button>
-        <button class="mode-btn" id="mode-4" onclick="setMode(4)">&#x1F58C; Live</button>
-      </div>
-    </div>
+    <button class="nav-item active" onclick="showTab('dashboard', this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      UI Dashboard
+    </button>
+    <button class="nav-item" onclick="showTab('patterns', this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="var(--cyan-400)" stroke-width="2"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2z"/></svg>
+      Pattern Preview
+    </button>
+    <button class="nav-item" onclick="showTab('imagelab', this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="var(--pink-400)" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+      Image Lab
+    </button>
+    <button class="nav-item" onclick="showTab('settings', this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      Display Config
+    </button>
 
-    <!-- Frame Rate -->
-    <div class="sec">
-      <div class="slider-row">
-        <span class="slider-lbl">Frame Rate</span>
-        <input type="range" min="10" max="1000" value="60" id="fps-slider" oninput="setFramerate(this.value)" style="flex:1">
-        <span class="slider-val" id="fps-val">60 FPS</span>
-      </div>
-    </div>
+    <div class="nav-separator"></div>
 
-    <!-- Playback & Upload -->
-    <div class="sec">
-      <div class="sec-hd">Playback</div>
-      <div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap">
-        <button class="grn" onclick="doPlay()">&#9654; Play</button>
-        <button class="red" onclick="doStop()">&#9632; Stop</button>
-        <button onclick="doRandom()">&#x1F500; Random</button>
-      </div>
-      <hr>
-      <div style="display:flex;align-items:center;gap:10px;padding:4px 4px 0">
-        <div style="flex:1;text-align:left">
-          <div class="muted">Active Asset</div>
-          <div id="active-asset" style="font-size:13px;font-family:monospace;color:var(--c-f)">—</div>
+    <button class="nav-item" onclick="showTab('esp32', this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg>
+      ESP32 Sketch
+    </button>
+    <button class="nav-item" onclick="showTab('teensy', this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg>
+      Teensy Sketch
+    </button>
+    <button class="nav-item" onclick="showTab('wiring', this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+      Wiring Guide
+    </button>
+    <button class="nav-item" onclick="showTab('firmware', this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      Firmware (OTA)
+    </button>
+
+    <div class="sidebar-footer">
+      <a href="https://github.com/urztaiamandude/wireless-pov-poi" target="_blank" rel="noreferrer">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+        wireless-pov-poi on GitHub
+      </a>
+    </div>
+  </nav>
+
+  <!-- ============================================================
+       MAIN CONTENT
+       ============================================================ -->
+  <main class="main-content">
+    <div class="page-content">
+
+      <!-- ================== TAB: DASHBOARD ================== -->
+      <div class="tab-panel active" id="tab-dashboard">
+        <div class="page-header">
+          <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+            <h2>Fleet Control</h2>
+            <span class="device-badge badge-preview">Preview</span>
+          </div>
+          <p>Previewing 2 sample POV units • SSID: POV-POI-WiFi</p>
         </div>
-        <label style="cursor:pointer;display:inline-block">
-          <input type="file" id="img-upload-ctrl" accept=".bmp,.rgb,.jpg,.jpeg,.png" style="display:none" onchange="uploadImage(this.files[0])">
-          <span class="btn sml" style="display:inline-block">&#x2191; Upload</span>
-        </label>
-      </div>
-    </div>
 
-    <!-- LED Mirror -->
-    <div class="sec">
-      <div class="sec-hd">LED Mirror (32 px)</div>
-      <div id="mirror"></div>
-    </div>
-
-    <!-- CPU Power Mode -->
-    <div class="sec">
-      <div class="sec-hd">CPU Power Mode</div>
-      <div id="pwr-mode-btns">
-        <button class="pwr-btn sel" id="pwrm-0" onclick="setPowerMode(0,'performance')">&#9889; Performance</button>
-        <button class="pwr-btn" id="pwrm-1" onclick="setPowerMode(1,'balanced')">&#x2696; Balanced</button>
-        <button class="pwr-btn" id="pwrm-2" onclick="setPowerMode(2,'powersave')">&#x1F50B; PowerSave</button>
-        <button class="pwr-btn" id="pwrm-3" onclick="setPowerMode(3,'ultrasave')">&#x1F4A4; UltraSave</button>
-      </div>
-    </div>
-
-    <!-- Fleet Log -->
-    <div class="sec">
-      <div class="sec-hd" style="display:flex;justify-content:space-between;align-items:center">
-        <span>&#x1F5A5; Fleet Monitor</span>
-        <button class="sml" onclick="clearLog()">Clear</button>
-      </div>
-      <div id="log-box">
-        <div class="log-ln muted">Connect to POV-POI-WiFi (192.168.4.1) and issue commands...</div>
-      </div>
-    </div>
-
-  </div><!-- /tab-ctrl -->
-
-  <!-- ==================== TAB 1: PATTERNS ==================== -->
-  <div class="tab" id="tab-pat">
-
-    <div class="sec">
-      <div class="slider-row">
-        <span class="slider-lbl">Speed</span>
-        <input type="range" min="1" max="255" value="50" id="speed-slider" oninput="setPatSpeed(this.value)" style="flex:1">
-        <span class="slider-val" id="speed-val">50</span>
-      </div>
-    </div>
-
-    <div class="sec">
-      <div class="sec-hd">Basic Patterns (0–10)</div>
-      <div id="pgrid-basic" class="pat-grid"></div>
-    </div>
-
-    <div class="sec">
-      <div class="sec-hd" style="color:var(--c-p)">&#x1F3B5; Music-Reactive (11–15) <span class="muted">— mic required</span></div>
-      <div id="pgrid-music" class="pat-grid"></div>
-    </div>
-
-    <div class="sec">
-      <div class="sec-hd">Advanced (16–17)</div>
-      <div id="pgrid-adv" class="pat-grid"></div>
-    </div>
-
-  </div><!-- /tab-pat -->
-
-  <!-- ==================== TAB 2: IMAGES ==================== -->
-  <div class="tab" id="tab-img">
-
-    <div class="sec">
-      <div class="sec-hd">Upload Image</div>
-      <label style="cursor:pointer">
-        <input type="file" id="img-upload" accept=".bmp,.rgb,.jpg,.jpeg,.png" style="display:none" onchange="uploadImage(this.files[0])">
-        <div id="upload-zone">
-          <div style="font-size:30px">&#x1F4E4;</div>
-          <div style="font-weight:bold;color:var(--c-b)">Click to upload image</div>
-          <p>Supported: BMP, RGB, JPG, PNG&nbsp;&nbsp;|&nbsp;&nbsp;Auto-converts to 32 px height</p>
+        <!-- Fleet Sync -->
+        <div class="card">
+          <div class="card-title">Fleet Sync Mode</div>
+          <div style="display: flex; gap: 10px; margin-bottom: 16px;">
+            <button class="btn btn-primary" id="btn-sync" onclick="setSyncMode(true)">🔗 Synchronized</button>
+            <button class="btn btn-secondary" id="btn-solo" onclick="setSyncMode(false)">📱 Independent</button>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <div class="device-card selected" onclick="selectDevice('leader', this)">
+              <div>
+                <div class="device-name">⭐ POV_LEADER</div>
+                <div class="device-status">192.168.4.1</div>
+              </div>
+              <span class="device-badge badge-success">Sync Leader</span>
+            </div>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <div class="device-card" onclick="selectDevice('follower', this)">
+              <div>
+                <div class="device-name">📱 POV_FOLLOWER</div>
+                <div class="device-status">192.168.4.2</div>
+              </div>
+              <span class="device-badge badge-info">Awaiting Sync</span>
+            </div>
+          </div>
         </div>
-      </label>
-      <div id="upload-progress" class="hide">
-        <div class="prog-bar-wrap"><div class="prog-bar" id="upload-bar"></div></div>
-        <div id="upload-status" class="muted"></div>
-      </div>
-    </div>
 
-    <div class="sec">
-      <div class="sec-hd" style="display:flex;justify-content:space-between;align-items:center">
-        <span>Stored Images</span>
-        <button class="sml" onclick="refreshImageList()">&#x21BB; Refresh</button>
-      </div>
-      <div id="img-list"><div class="muted">Loading...</div></div>
-    </div>
-
-    <div class="sec">
-      <div class="sec-hd">Sequence Builder</div>
-      <div id="seq-list"><div class="muted">No items. Load an image above, then tap +Seq.</div></div>
-      <div style="margin-top:8px">
-        <button class="sml" onclick="clearSeq()">&#x1F5D1; Clear</button>
-        <button class="sml on" onclick="deploySeq()">&#x1F680; Deploy</button>
-      </div>
-    </div>
-
-  </div><!-- /tab-img -->
-
-  <!-- ==================== TAB 3: SETTINGS ==================== -->
-  <div class="tab" id="tab-cfg">
-
-    <!-- WiFi -->
-    <div class="sec">
-      <div class="sec-hd">WiFi Configuration</div>
-      <div class="wifi-row">
-        <span class="wifi-lbl">Access Point (AP)</span>
-        <span class="wifi-val">POV-POI-WiFi</span>
-        <span class="wifi-badge up">UP</span>
-      </div>
-      <div class="wifi-row">
-        <span class="wifi-lbl">AP Password</span>
-        <span class="wifi-val">povpoi123</span>
-      </div>
-      <div class="wifi-row">
-        <span class="wifi-lbl">Home WiFi (STA)</span>
-        <span class="wifi-val" id="sta-ip">Not connected</span>
-        <span class="wifi-badge dn" id="sta-badge">DOWN</span>
-      </div>
-      <hr>
-      <div style="text-align:left;padding:4px">
-        <div class="muted" style="margin-bottom:6px">Connect to home network (optional):</div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap">
-          <input type="text" id="wifi-ssid" placeholder="SSID" style="flex:1;min-width:90px">
-          <input type="password" id="wifi-pass" placeholder="Password" style="flex:1;min-width:90px">
+        <!-- Display Mode -->
+        <div class="card">
+          <div class="card-title">Display Mode</div>
+          <div class="btn-grid">
+            <button class="mode-btn" id="mode-0" onclick="setMode(0)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+              Idle
+            </button>
+            <button class="mode-btn active" id="mode-1" onclick="setMode(1)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              Image
+            </button>
+            <button class="mode-btn" id="mode-2" onclick="setMode(2)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2z"/></svg>
+              Pattern
+            </button>
+            <button class="mode-btn" id="mode-3" onclick="setMode(3)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+              Sequence
+            </button>
+            <button class="mode-btn" id="mode-4" onclick="setMode(4)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+              Live
+            </button>
+          </div>
         </div>
-        <div style="margin-top:6px">
-          <button class="sml on" onclick="connectWifi()">Connect</button>
-          <button class="sml red" onclick="disconnectWifi()">Disconnect</button>
+
+        <!-- Patterns (quick access) -->
+        <div class="card">
+          <div class="card-title">Quick Pattern Select</div>
+          <div class="pattern-grid" id="dash-patterns"></div>
+        </div>
+
+        <!-- Controls -->
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title">Brightness</div>
+            <div class="slider-row">
+              <span class="slider-label">☀️</span>
+              <input type="range" min="0" max="255" value="128" id="bri-slider" oninput="setBrightness(this.value)">
+              <span class="slider-val" id="bri-val">50%</span>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">Frame Rate</div>
+            <div class="slider-row">
+              <span class="slider-label">⚡</span>
+              <input type="range" min="10" max="1000" value="60" id="fps-slider" oninput="setFramerate(this.value)">
+              <span class="slider-val" id="fps-val">60 FPS</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Playback -->
+        <div class="card">
+          <div class="card-title">Playback</div>
+          <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <button class="btn btn-success" onclick="doPlay()">▶ Play</button>
+            <button class="btn btn-danger" onclick="doStop()">⬛ Stop</button>
+            <button class="btn btn-secondary" onclick="doRandom()">🔀 Random</button>
+          </div>
+        </div>
+
+        <!-- Power Mode -->
+        <div class="card">
+          <div class="card-title">CPU Power Mode</div>
+          <div class="btn-grid">
+            <button class="mode-btn" id="pwr-0" onclick="setPowerMode(0)">⚡ Performance<br><span style="font-size:10px;color:var(--slate-500)">240 MHz</span></button>
+            <button class="mode-btn active" id="pwr-1" onclick="setPowerMode(1)">⚖️ Balanced<br><span style="font-size:10px;color:var(--slate-500)">160 MHz</span></button>
+            <button class="mode-btn" id="pwr-2" onclick="setPowerMode(2)">🔋 Power Save<br><span style="font-size:10px;color:var(--slate-500)">80 MHz</span></button>
+            <button class="mode-btn" id="pwr-3" onclick="setPowerMode(3)">💤 Ultra Save<br><span style="font-size:10px;color:var(--slate-500)">80 MHz*</span></button>
+          </div>
+        </div>
+
+        <!-- Fleet Log -->
+        <div class="card">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <div class="card-title" style="margin-bottom: 0;">🖥️ Fleet Monitor</div>
+            <button class="btn btn-sm btn-secondary" onclick="clearLog()">Clear</button>
+          </div>
+          <div class="log-box" id="log-box">
+            <div class="log-line">Connect to POV-POI-WiFi (192.168.4.1) to issue commands...</div>
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- LED Hardware -->
-    <div class="sec">
-      <div class="sec-hd">LED Hardware Config</div>
-      <div class="wifi-row">
-        <span class="wifi-lbl">LED Count (Height)</span>
-        <input type="number" id="led-count" value="32" min="1" max="512" class="w80">
-        <span class="muted">fixed: 32</span>
-      </div>
-      <div class="wifi-row">
-        <span class="wifi-lbl">Data Pin (MOSI)</span>
-        <input type="number" id="led-data" value="11" min="0" max="40" class="w80">
-      </div>
-      <div class="wifi-row">
-        <span class="wifi-lbl">Clock Pin (SCK)</span>
-        <input type="number" id="led-clk" value="13" min="0" max="40" class="w80">
-      </div>
-      <div class="slider-row" style="margin-top:6px">
-        <span class="slider-lbl">Refresh Rate</span>
-        <input type="range" min="10" max="1000" value="60" id="fps-cfg" oninput="document.getElementById('fps-cfg-val').textContent=this.value+' FPS'" style="flex:1">
-        <span class="slider-val" id="fps-cfg-val">60 FPS</span>
-      </div>
-      <div class="slider-row">
-        <span class="slider-lbl">Pixel Density</span>
-        <input type="range" min="30" max="300" value="144" id="pxd-cfg" oninput="document.getElementById('pxd-cfg-val').textContent=this.value+'/rev'" style="flex:1">
-        <span class="slider-val" id="pxd-cfg-val">144/rev</span>
-      </div>
-      <div style="margin-top:8px">
-        <span class="muted">Color Depth:&nbsp;</span>
-        <button class="sml" id="depth-8" onclick="setColorDepth(8)">8-bit</button>
-        <button class="sml sel" id="depth-24" onclick="setColorDepth(24)">24-bit True</button>
-      </div>
-      <div style="margin-top:10px">
-        <button onclick="deployConfig()">&#x1F680; Deploy Config</button>
-      </div>
-    </div>
+      <!-- ================== TAB: PATTERN PREVIEW ================== -->
+      <div class="tab-panel" id="tab-patterns">
+        <div class="page-header">
+          <h2>Pattern Preview</h2>
+          <p id="pattern-preview-subtitle">Live preview of firmware patterns • Click a pattern for details</p>
+        </div>
 
-    <!-- Wiring Guide -->
-    <div class="sec">
-      <div class="sec-hd">Wiring Guide</div>
-      <div style="text-align:left">
-        <div class="muted" style="margin-bottom:6px">UART Bridge — ESP32-S3 &#x2194; Teensy 4.1 (115200 baud)</div>
-        <table class="wire-table">
-          <tr><th>ESP32-S3</th><th>&nbsp;</th><th>Teensy 4.1</th></tr>
-          <tr><td class="pc">TX GPIO 17</td><td>&#x2192;</td><td class="pp">RX Pin 1</td></tr>
-          <tr><td class="pc">RX GPIO 16</td><td>&#x2190;</td><td class="pp">TX Pin 0</td></tr>
-          <tr><td class="pg">GND</td><td>&#x2014;</td><td class="pg">GND (shared)</td></tr>
-        </table>
-        <div class="muted" style="margin:10px 0 6px">SPI — Teensy 4.1 &#x2192; APA102 Strip</div>
-        <table class="wire-table">
-          <tr><th>Teensy 4.1</th><th>&nbsp;</th><th>APA102 Strip</th></tr>
-          <tr><td class="pp">MOSI Pin 11</td><td>&#x2192;</td><td class="py">DATA</td></tr>
-          <tr><td class="pp">SCK Pin 13</td><td>&#x2192;</td><td class="py">CLK</td></tr>
-          <tr><td class="pg">5V (dedicated)</td><td>&#x2192;</td><td class="py">VCC (2–3 A)</td></tr>
-          <tr><td class="pg">GND</td><td>&#x2014;</td><td class="py">GND</td></tr>
-        </table>
-        <div class="ota-warn" style="margin-top:10px">
-          &#x26A0; Use common GND for all boards. Power LEDs from a dedicated 5V/2–3A supply — do NOT use Teensy 5V pin.
+        <div class="card">
+          <div class="canvas-container">
+            <canvas id="pattern-canvas"></canvas>
+          </div>
+          <div style="display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap;">
+            <button class="btn btn-success" id="btn-play" onclick="togglePatternPlay()">▶ Play All</button>
+            <button class="btn btn-secondary" id="audio-sim" onclick="setAudioSource(false)">🎛 Simulated</button>
+            <button class="btn btn-secondary" id="audio-mic" onclick="setAudioSource(true)">🎤 Live Mic</button>
+          </div>
+          <div class="slider-row">
+            <span class="slider-label">Speed</span>
+            <input type="range" min="1" max="255" value="50" id="pat-speed" oninput="setPatternSpeed(this.value)">
+            <span class="slider-val" id="speed-val">50</span>
+          </div>
+          <div class="slider-row">
+            <span class="slider-label">Color 1</span>
+            <input type="color" value="#FF0000" id="color1" style="width: 50px; height: 30px; border: none; cursor: pointer;">
+          </div>
+          <div class="slider-row">
+            <span class="slider-label">Color 2</span>
+            <input type="color" value="#0000FF" id="color2" style="width: 50px; height: 30px; border: none; cursor: pointer;">
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Basic Patterns (0–10)</div>
+          <div class="pattern-grid" id="pgrid-basic"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title" style="color: var(--purple-400);">🎵 Music-Reactive (11–15) <span style="color: var(--slate-500); font-weight: normal;">— mic required</span></div>
+          <div class="pattern-grid" id="pgrid-music"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Advanced (16–17)</div>
+          <div class="pattern-grid" id="pgrid-adv"></div>
         </div>
       </div>
-    </div>
 
-    <!-- OTA Firmware -->
-    <div class="sec">
-      <div class="sec-hd">Firmware OTA Update</div>
-      <div class="ota-warn">
-        &#x26A0; OTA endpoints not yet active in firmware. Use USB + Arduino IDE / PlatformIO for updates.
+      <!-- ================== TAB: IMAGE LAB ================== -->
+      <div class="tab-panel" id="tab-imagelab">
+        <div class="page-header">
+          <h2>POV Image Lab</h2>
+          <p>Design and sequence hardware-ready visuals.</p>
+        </div>
+
+        <div class="lab-tabs">
+          <button class="lab-tab active" onclick="setLabMode('upload', this)">📤 Upload</button>
+          <button class="lab-tab" onclick="setLabMode('procedural', this)">✨ Procedural</button>
+        </div>
+
+        <!-- Upload Mode -->
+        <div class="card" id="lab-upload">
+          <label class="upload-zone" for="img-upload">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <p>Import Image<br><span id="upload-height-label" style="font-size: 11px;">Matches current display height: 31 px</span></p>
+          </label>
+          <input type="file" id="img-upload" accept=".bmp,.jpg,.jpeg,.png,.rgb" style="display: none;" onchange="handleImageUpload(this)">
+          <div id="preview-container" style="margin-top: 20px; text-align: center; display: none;">
+            <img id="preview-img" style="max-width: 100%; max-height: 200px; border-radius: 8px; border: 1px solid var(--slate-700);">
+            <div style="margin-top: 12px;">
+              <button class="btn btn-primary" onclick="uploadToDevice()">⬆️ Upload &amp; Display</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Procedural Mode -->
+        <div class="card" id="lab-procedural" style="display: none;">
+          <div class="card-title">Procedural Art Generator</div>
+          <div class="grid-2">
+            <div>
+              <div class="input-group">
+                <label>Pattern Type</label>
+                <select id="proc-type" onchange="generateProceduralArt()">
+                  <option value="organic">Organic Waves</option>
+                  <option value="geometric">Geometric Grid</option>
+                </select>
+              </div>
+              <div class="input-group">
+                <label>Complexity</label>
+                <input type="range" min="2" max="16" value="8" id="proc-complexity" oninput="generateProceduralArt()">
+              </div>
+              <button class="btn btn-secondary" onclick="randomizeSeed()">🎲 Randomize</button>
+            </div>
+            <div>
+              <canvas id="proc-canvas" width="124" height="31" style="width: 100%; image-rendering: pixelated; border-radius: 8px; border: 1px solid var(--slate-700);"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sequence Mode -->
+        <div class="card" id="lab-sequence">
+          <div class="card-title" id="timeline-title">Timeline Editor</div>
+          <div class="sequence-list" id="seq-list">
+            <div class="sequence-item">
+              <span class="seq-name">rainbow_32x124.bmp</span>
+              <input type="number" class="input" value="2000" min="100" step="100" style="width: 80px;">
+              <span style="font-size: 11px; color: var(--slate-500);">ms</span>
+              <button class="btn btn-sm btn-danger" onclick="removeSequencePreviewItem(this)">🗑</button>
+            </div>
+            <div class="sequence-item">
+              <span class="seq-name">Pattern: Fire</span>
+              <input type="number" class="input" value="3000" min="100" step="100" style="width: 80px;">
+              <span style="font-size: 11px; color: var(--slate-500);">ms</span>
+              <button class="btn btn-sm btn-danger" onclick="removeSequencePreviewItem(this)">🗑</button>
+            </div>
+          </div>
+          <div style="margin-top: 16px; display: flex; gap: 10px;">
+            <button class="btn btn-secondary">+ Add Image To Sequence</button>
+            <button class="btn btn-secondary">+ Add Pattern To Sequence</button>
+            <button class="btn btn-primary" id="deploy-sequence-btn">⬆️ Deploy Sequence</button>
+          </div>
+        </div>
       </div>
-      <div style="margin:10px 0">
-        <button class="sml sel" id="tgt-esp32" onclick="setOtaTgt('esp32')">ESP32-S3 (.bin)</button>
-        <button class="sml" id="tgt-teensy" onclick="setOtaTgt('teensy')">Teensy 4.1 (.hex)</button>
+
+      <!-- ================== TAB: DISPLAY CONFIG ================== -->
+      <div class="tab-panel" id="tab-settings">
+        <div class="page-header">
+          <h2>Display Configuration</h2>
+          <p>Reference settings for the Teensy 4.1 POV engine. Hardware pins and LED count are configured in Teensy firmware.</p>
+        </div>
+
+        <!-- WiFi Settings -->
+        <div class="card">
+          <div class="card-title">WiFi Network</div>
+          <form class="grid-2" onsubmit="handleWifiPreviewSubmit(event)">
+            <div>
+              <div class="input-group">
+                <label>Network SSID</label>
+                <input type="text" class="input" placeholder="Your WiFi name" style="width: 100%;" autocomplete="off">
+              </div>
+              <div class="input-group">
+                <label>Password</label>
+                <input type="password" class="input" placeholder="WiFi password" style="width: 100%;" autocomplete="current-password">
+              </div>
+              <button class="btn btn-primary" type="submit">Connect</button>
+            </div>
+            <div style="background: rgba(0,0,0,0.3); border-radius: 12px; padding: 16px;">
+              <div style="font-size: 11px; color: var(--slate-500); text-transform: uppercase; margin-bottom: 12px;">Current Status</div>
+              <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                <span style="color: var(--slate-400);">AP IP</span>
+                <span class="mono" style="color: white;">192.168.4.1</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                <span style="color: var(--slate-400);">AP SSID</span>
+                <span class="mono" style="color: white;">POV-POI-WiFi</span>
+              </div>
+              <div style="display: flex; justify-content: space-between;">
+                <span style="color: var(--slate-400);">mDNS</span>
+                <span class="mono" style="color: var(--cyan-400);">povpoi.local</span>
+              </div>
+            </div>
+          </form>
+        </div>
+
+        <!-- LED Hardware Config -->
+        <div class="card">
+          <div class="card-title">LED Hardware Configuration</div>
+          <div class="grid-2">
+            <div>
+              <div class="input-group">
+                <label>Total Physical LEDs</label>
+                <input type="number" class="input" value="32" min="2" max="32" id="num-leds" style="width: 100%;">
+                <span class="input-hint">Number of APA102 LEDs on the physical strip (2–32).</span>
+              </div>
+              <div class="input-group">
+                <label>Sacrificial LEDs (Level Shifting)</label>
+                <input type="number" class="input" value="1" min="0" max="31" id="sac-leds" style="width: 100%;">
+                <span class="input-hint">LEDs at the start used for 3.3V → 5V level shifting. Set to 0 if using external shifter.</span>
+              </div>
+              <button class="btn btn-primary" onclick="applyLedConfig()">Apply to Teensy</button>
+            </div>
+            <div>
+              <div style="background: rgba(0,0,0,0.4); border: 1px solid var(--slate-700); border-radius: 12px; padding: 16px; margin-bottom: 16px;">
+                <div style="font-size: 11px; color: var(--slate-500); text-transform: uppercase; margin-bottom: 12px;">Computed Display Range</div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                  <span style="color: var(--slate-400);">Display LEDs</span>
+                  <span class="mono" style="color: var(--cyan-400); font-weight: 700;" id="disp-leds">31</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                  <span style="color: var(--slate-400);">First display LED</span>
+                  <span class="mono" style="color: var(--cyan-400);" id="disp-start">LED 1</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                  <span style="color: var(--slate-400);">Last display LED</span>
+                  <span class="mono" style="color: var(--cyan-400);" id="disp-end">LED 31</span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                  <span style="color: var(--slate-400);">Image height</span>
+                  <span class="mono" style="color: var(--cyan-400);" id="disp-height">31 px</span>
+                </div>
+              </div>
+              <div style="background: rgba(0,0,0,0.4); border: 1px solid var(--slate-700); border-radius: 12px; padding: 16px; font-family: monospace; font-size: 11px; color: var(--slate-400);">
+                <div style="color: var(--slate-500); margin-bottom: 8px;">// Teensy firmware (applied at runtime)</div>
+                <div style="color: var(--cyan-400);" id="code-display-leds">g_displayLeds = 31;</div>
+                <div style="color: var(--cyan-400);" id="code-display-start">g_displayLedStart = 1;</div>
+                <div style="color: var(--slate-500); margin-top: 8px;">// Stored in EEPROM — survives power cycle</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Display Parameters -->
+        <div class="card">
+          <div class="card-title">Reference Display Parameters</div>
+          <div class="slider-row">
+            <span class="slider-label">Refresh Rate</span>
+            <input type="range" min="10" max="250" value="60" id="refresh-rate">
+            <span class="slider-val">60 FPS</span>
+          </div>
+          <div class="slider-row">
+            <span class="slider-label">Angular Resolution</span>
+            <input type="range" min="72" max="576" value="144" id="pixel-density">
+            <span class="slider-val">144 PX</span>
+          </div>
+          <div style="margin-top: 16px;">
+            <div class="card-title" style="margin-bottom: 8px;">Color Depth</div>
+            <div style="display: flex; gap: 10px;">
+              <button class="btn btn-secondary">8b</button>
+              <button class="btn btn-secondary">16b</button>
+              <button class="btn btn-primary">TRUE</button>
+            </div>
+          </div>
+        </div>
       </div>
-      <label style="cursor:pointer;display:inline-block">
-        <input type="file" id="ota-file" accept=".bin,.hex" style="display:none" onchange="doOta(this.files[0])">
-        <span class="btn" style="font-size:14px;display:inline-block">&#x1F4E4; Select Firmware File</span>
-      </label>
-      <div id="ota-prog" class="hide" style="margin-top:8px">
-        <div class="prog-bar-wrap"><div class="prog-bar" id="ota-bar"></div></div>
-        <div id="ota-status" class="muted"></div>
-      </div>
-    </div>
 
-  </div><!-- /tab-cfg -->
+      <!-- ================== TAB: ESP32 SKETCH ================== -->
+      <div class="tab-panel" id="tab-esp32">
+        <div class="page-header">
+          <div class="code-header">
+            <div>
+              <h2>ESP32-S3 Gateway (Simplified Example)</h2>
+              <p>Educational example showing basic WiFi AP and UART bridge architecture. See esp32_firmware/esp32_firmware.ino for production code.</p>
+            </div>
+            <div style="display: flex; gap: 10px;">
+              <button class="btn btn-secondary" onclick="downloadSketch('esp32')">Download</button>
+              <button class="btn btn-secondary" onclick="copySketch('esp32')">📋 Copy Code</button>
+            </div>
+          </div>
+        </div>
 
-</div><!-- /main -->
+        <div class="code-libs">
+          <span class="code-lib">#include &lt;WiFi&gt;</span>
+          <span class="code-lib">#include &lt;WebServer&gt;</span>
+          <span class="code-lib">#include &lt;SPIFFS&gt;</span>
+          <span class="code-lib">#include &lt;ArduinoJson&gt;</span>
+        </div>
 
-<!-- ===== BOTTOM TABS ===== -->
-<div id="botbar">
-  <button class="tbtn active" id="tbtn-ctrl" onclick="showTab(0)">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3M4.93 4.93l2.12 2.12m9.9 9.9 2.12 2.12M4.93 19.07l2.12-2.12m9.9-9.9 2.12-2.12"/>
-    </svg>
-    Control
-  </button>
-  <button class="tbtn" id="tbtn-pat" onclick="showTab(1)">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/>
-    </svg>
-    Patterns
-  </button>
-  <button class="tbtn" id="tbtn-img" onclick="showTab(2)">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/>
-    </svg>
-    Images
-  </button>
-  <button class="tbtn" id="tbtn-cfg" onclick="showTab(3)">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
-      <circle cx="12" cy="12" r="3"/>
-    </svg>
-    Settings
-  </button>
-</div>
+        <div class="code-block">
+          <pre id="esp32-code">// ==========================================
+// SIMPLIFIED EXAMPLE - NOT PRODUCTION CODE
+// For production, see: esp32_firmware/esp32_firmware.ino
+// ==========================================
 
-<script>
-// ===================================================================
-// STATE
-// ===================================================================
-var NUM_LEDS = 32;
-var brightness = 128;
-var currentMode = 1;
-var currentPat = 0;
-var patSpeed = 50;
-var framerate = 60;
-var isSyncMode = true;
-var selectedDev = 'leader';
-var otaTgt = 'esp32';
-var colorDepth = 24;
-var imageList = [];
-var sequence = [];
-var isOnline = false;
-var mirrorHue = 0;
-var briTimer, fpsTimer;
+#include &lt;Arduino.h&gt;
+#include &lt;WiFi.h&gt;
+#include &lt;WebServer.h&gt;
+#include &lt;SPIFFS.h&gt;
+#include &lt;ArduinoJson.h&gt;
 
-// ===================================================================
-// PATTERNS
-// ===================================================================
-var PATTERNS = [
-  {i:0,  n:'Rainbow',       e:'🌈', c:'basic'},
-  {i:1,  n:'Wave',          e:'🌊', c:'basic'},
-  {i:2,  n:'Gradient',      e:'🎨', c:'basic'},
-  {i:3,  n:'Sparkle',       e:'✨', c:'basic'},
-  {i:4,  n:'Fire',          e:'🔥', c:'basic'},
-  {i:5,  n:'Comet',         e:'☄️',  c:'basic'},
-  {i:6,  n:'Breathing',     e:'💫', c:'basic'},
-  {i:7,  n:'Strobe',        e:'⚡', c:'basic'},
-  {i:8,  n:'Meteor',        e:'🌠', c:'basic'},
-  {i:9,  n:'Wipe',          e:'➡️',  c:'basic'},
-  {i:10, n:'Plasma',        e:'🔮', c:'basic'},
-  {i:11, n:'VU Meter',      e:'📊', c:'music'},
-  {i:12, n:'Pulse',         e:'💓', c:'music'},
-  {i:13, n:'Audio Rainbow', e:'🎵', c:'music'},
-  {i:14, n:'Center Burst',  e:'💥', c:'music'},
-  {i:15, n:'Audio Sparkle', e:'🎶', c:'music'},
-  {i:16, n:'Split Spin',    e:'🔄', c:'adv'},
-  {i:17, n:'Theater Chase', e:'🎭', c:'adv'}
-];
+const char* ssid = "POV-POI-WiFi";
+const char* password = "povpoi123";
 
-// ===================================================================
-// INIT
-// ===================================================================
-window.onload = function() {
-  buildMirror();
-  buildPatternGrids();
-  startMirrorAnim();
-  loadPrefs();
-  startStatusPoll();
-  refreshImageList();
-  checkWifiStatus();
-};
+#define TEENSY_SERIAL Serial2
+#define SERIAL_BAUD 115200
 
-// ===================================================================
-// TABS
-// ===================================================================
-var TAB_IDS = ['ctrl', 'pat', 'img', 'cfg'];
-function showTab(n) {
-  TAB_IDS.forEach(function(id, i) {
-    document.getElementById('tab-' + id).className = 'tab' + (i === n ? ' active' : '');
-    document.getElementById('tbtn-' + id).className = 'tbtn' + (i === n ? ' active' : '');
-  });
+WebServer server(80);
+
+void sendTeensyCommand(uint8_t cmd, const uint8_t* data, size_t len) {
+  TEENSY_SERIAL.write(0xFF);  // Start marker
+  TEENSY_SERIAL.write(cmd);   // Command byte
+  TEENSY_SERIAL.write(len);   // Data length
+  TEENSY_SERIAL.write(data, len);
+  TEENSY_SERIAL.write(0xFE);  // End marker
 }
 
-// ===================================================================
-// TOP BAR
-// ===================================================================
-function togglePower() {
-  if (currentMode === 0) {
-    setMode(2);
-    toast('POV POI on');
-  } else {
-    setMode(0);
-    toast('POV POI idle');
+void setup() {
+  Serial.begin(115200);
+  TEENSY_SERIAL.begin(SERIAL_BAUD, SERIAL_8N1, 44, 43);
+  
+  if(!SPIFFS.begin(true)) {
+    Serial.println("SPIFFS Mount Failed");
   }
+
+  WiFi.softAP(ssid, password);
+  Serial.print("AP IP: ");
+  Serial.println(WiFi.softAPIP());
+
+  server.on("/api/status", HTTP_GET, [](){
+    server.send(200, "application/json", 
+      "{\"mode\":1,\"brightness\":128,\"connected\":true}");
+  });
+
+  server.on("/api/brightness", HTTP_POST, [](){
+    if (server.hasArg("plain")) {
+      String body = server.arg("plain");
+      TEENSY_SERIAL.println(body);
+      server.send(200, "application/json", "{\"status\":\"ok\"}");
+    }
+  });
+
+  server.serveStatic("/", SPIFFS, "/").setDefaultFile("index.html");
+  server.begin();
+  Serial.println("HTTP server started");
+}
+
+void loop() {
+  server.handleClient();
+}</pre>
+        </div>
+      </div>
+
+      <!-- ================== TAB: TEENSY SKETCH ================== -->
+      <div class="tab-panel" id="tab-teensy">
+        <div class="page-header">
+          <div class="code-header">
+            <div>
+              <h2>Teensy 4.1 POV Engine (Simplified Example)</h2>
+              <p>Educational example showing basic LED control and serial communication. See teensy_firmware/teensy_firmware.ino for production code.</p>
+            </div>
+            <div style="display: flex; gap: 10px;">
+              <button class="btn btn-secondary" onclick="downloadSketch('teensy')">Download</button>
+              <button class="btn btn-secondary" onclick="copySketch('teensy')">📋 Copy Code</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="code-libs">
+          <span class="code-lib">#include &lt;FastLED&gt;</span>
+          <span class="code-lib">#include &lt;SdFat&gt;</span>
+          <span class="code-lib">#include &lt;ArduinoJson&gt;</span>
+        </div>
+
+        <div class="code-block">
+          <pre id="teensy-code">// ==========================================
+// SIMPLIFIED EXAMPLE - NOT PRODUCTION CODE
+// For production, see: teensy_firmware/teensy_firmware.ino
+// ==========================================
+
+#include &lt;Arduino.h&gt;
+#include &lt;FastLED.h&gt;
+#include &lt;SdFat.h&gt;
+#include &lt;ArduinoJson.h&gt;
+
+#define NUM_LEDS 32
+#define DATA_PIN 11
+#define CLOCK_PIN 13
+#define SERIAL_BAUD 115200
+#define DEFAULT_BRIGHTNESS 128
+
+CRGB leds[NUM_LEDS];
+SdFs sd;
+
+uint8_t currentBrightness = DEFAULT_BRIGHTNESS;
+uint8_t currentMode = 0;
+
+void displayPattern(uint8_t patternIndex) {
+  static uint8_t hue = 0;
+  
+  // Rainbow pattern across all display LEDs
+  for (int i = 0; i &lt; NUM_LEDS; i++) {
+    leds[i] = CHSV(hue + (i * 10), 255, 255);
+  }
+  hue++;
+  FastLED.show();
+}
+
+void clearLEDs() {
+  fill_solid(leds, NUM_LEDS, CRGB::Black);
+  FastLED.show();
+}
+
+void setup() {
+  Serial1.begin(SERIAL_BAUD);  // ESP32 communication
+  Serial.begin(115200);        // Debug
+
+  FastLED.addLeds&lt;APA102, DATA_PIN, CLOCK_PIN, BGR&gt;(leds, NUM_LEDS);
+  FastLED.setBrightness(currentBrightness);
+  clearLEDs();
+
+  if (!sd.begin(SdioConfig(FIFO_SDIO))) {
+    Serial.println("SD card initialization failed");
+  }
+
+  Serial.println("Teensy POV Engine Ready");
+}
+
+void loop() {
+  if (Serial1.available()) {
+    String line = Serial1.readStringUntil('\n');
+    StaticJsonDocument&lt;256&gt; doc;
+    
+    if (deserializeJson(doc, line) == DeserializationError::Ok) {
+      String cmd = doc["cmd"] | "";
+      if (cmd == "brightness") {
+        currentBrightness = doc["value"] | 128;
+        FastLED.setBrightness(currentBrightness);
+      } else if (cmd == "mode") {
+        currentMode = doc["value"] | 0;
+      }
+    }
+  }
+  
+  if (currentMode == 2) {
+    displayPattern(0);
+    delay(16);
+  }
+}</pre>
+        </div>
+      </div>
+
+      <!-- ================== TAB: WIRING GUIDE ================== -->
+      <div class="tab-panel" id="tab-wiring">
+        <div class="page-header">
+          <h2>Inter-Board Wiring Guide</h2>
+          <p>Proper electrical connections for stable serial communication.</p>
+        </div>
+
+        <div class="wiring-grid">
+          <div class="wiring-card">
+            <h4>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--cyan-400)" stroke-width="2"><path d="M16 3h5v5M4 20L20.2 3.8M21 16v5h-5M15 15l5.1 5.1M4 4l5 5"/></svg>
+              UART Bridge
+            </h4>
+            <div class="wiring-row">
+              <div class="wiring-from">ESP32-S3 TX (GPIO 43)</div>
+              <div class="wiring-to"><span class="wiring-line"></span> Teensy 4.1 RX1 (Pin 0)</div>
+            </div>
+            <div class="wiring-row">
+              <div class="wiring-from">ESP32-S3 RX (GPIO 44)</div>
+              <div class="wiring-to"><span class="wiring-line"></span> Teensy 4.1 TX1 (Pin 1)</div>
+            </div>
+          </div>
+
+          <div class="wiring-card">
+            <h4>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--yellow-400)" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              Power Logic
+            </h4>
+            <div class="wiring-row">
+              <div class="wiring-from">Common GND</div>
+              <div class="wiring-to"><span class="wiring-line"></span> Essential for Serial logic</div>
+            </div>
+            <div class="wiring-row">
+              <div class="wiring-from">5V Power</div>
+              <div class="wiring-to"><span class="wiring-line"></span> Direct to LED Strip VCC</div>
+            </div>
+            <div class="wiring-row">
+              <div class="wiring-from">Teensy VIN</div>
+              <div class="wiring-to"><span class="wiring-line"></span> 5V (High Current)</div>
+            </div>
+          </div>
+
+          <div class="wiring-card">
+            <h4>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--purple-400)" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+              LED Interface
+            </h4>
+            <div class="wiring-row">
+              <div class="wiring-from">Teensy SCK (Pin 13)</div>
+              <div class="wiring-to"><span class="wiring-line"></span> APA102 CLK</div>
+            </div>
+            <div class="wiring-row">
+              <div class="wiring-from">Teensy MOSI (Pin 11)</div>
+              <div class="wiring-to"><span class="wiring-line"></span> APA102 DATA</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 style="color: white; margin-bottom: 20px;">Circuit Diagram Simulation</h3>
+          <div class="circuit-diagram">
+            <div class="circuit-box esp32" style="background: var(--slate-800);">
+              <span style="color: var(--cyan-400);">ESP32-S3</span>
+              <span class="subtitle">(The Brain)</span>
+            </div>
+            <div class="circuit-lines">
+              <div class="circuit-line"></div>
+              <div class="circuit-line"></div>
+            </div>
+            <div class="circuit-box teensy" style="background: var(--slate-800);">
+              <span style="color: var(--purple-400);">Teensy 4.1</span>
+              <span class="subtitle">(The Muscle)</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="border-color: var(--red-500); background: rgba(239,68,68,0.05);">
+          <h4 style="color: var(--red-400); margin-bottom: 8px;">⚠️ CRITICAL SAFETY</h4>
+          <p style="color: var(--slate-400); font-size: 13px; line-height: 1.7;">
+            High-density APA102 LED strips can pull significant amperage. <strong style="color: white;">Do not power the LEDs directly from the Teensy 5V pin.</strong>
+            Use a dedicated 5V power supply and share the ground with both boards. For portable POV systems, use 18650 cells with a boost converter.
+          </p>
+        </div>
+      </div>
+
+      <!-- ================== TAB: FIRMWARE (OTA) ================== -->
+      <div class="tab-panel" id="tab-firmware">
+        <div class="warning-banner">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <div>
+            <h3>OTA Feature Not Yet Implemented</h3>
+            <p>
+              The firmware manager UI is ready, but the backend OTA endpoints (<code>/api/ota/esp32</code> and <code>/api/ota/teensy</code>) 
+              are not yet implemented in the current ESP32 firmware. To enable wireless updates, these endpoints need to be added to 
+              <code>esp32_firmware/esp32_firmware.ino</code>.
+            </p>
+            <p style="margin-top: 8px; font-style: italic; opacity: 0.7;">For now, use USB cable and Arduino IDE/PlatformIO to update firmware manually.</p>
+          </div>
+        </div>
+
+        <div class="page-header">
+          <h2>Firmware &amp; OTA</h2>
+          <p>Push wireless updates to your POV system components via <span class="mono" style="color: var(--cyan-400);">POV-POI-WiFi</span>.</p>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title">Select Target Hardware</div>
+            <div class="target-grid">
+              <button class="target-btn active esp32" onclick="setFirmwareTarget('esp32', this)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/></svg>
+                <span>ESP32-S3</span>
+                <span class="ext">.bin</span>
+              </button>
+              <button class="target-btn teensy" onclick="setFirmwareTarget('teensy', this)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                <span>Teensy 4.1</span>
+                <span class="ext">.hex</span>
+              </button>
+            </div>
+
+            <div style="background: var(--slate-800); border-radius: 10px; padding: 12px; display: flex; gap: 10px; align-items: flex-start; margin-bottom: 12px;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--green-400)" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              <p style="font-size: 12px; color: var(--slate-400);">Endpoint: <span class="mono" style="color: var(--slate-200);">http://192.168.4.1/api/ota/esp32</span></p>
+            </div>
+            <div style="background: rgba(245,158,11,0.1); border-radius: 10px; padding: 12px; display: flex; gap: 10px; align-items: flex-start;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--amber-500)" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              <p style="font-size: 12px; color: rgba(251,191,36,0.8); line-height: 1.5;">Ensure a stable 5V power supply. Disconnecting during the write phase will result in a hard brick.</p>
+            </div>
+          </div>
+
+          <div class="card" style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; min-height: 300px;">
+            <label class="upload-zone" for="fw-upload" style="width: 100%; margin: 0;">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              <p>Select firmware file<br><span style="font-size: 11px;">.bin for ESP32 • .hex for Teensy</span></p>
+            </label>
+            <input type="file" id="fw-upload" accept=".bin,.hex" style="display: none;" disabled>
+            <p style="color: var(--slate-500); font-size: 12px; margin-top: 16px;">(Feature not yet available)</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<!-- Toast notification -->
+<div id="toast"></div>
+
+<script>
+// ============================================================
+// STATE
+// ============================================================
+var currentTab = 'dashboard';
+var brightness = 128;
+var framerate = 60;
+var currentMode = 1;
+var currentPattern = 0;
+var powerMode = 1;
+var labMode = 'upload';
+var useLiveMic = false;
+var firmwareTarget = 'esp32';
+var patternSpeed = 50;
+var isPatternPlaying = false;
+var patternAnimId = null;
+
+var PATTERNS = [
+  { id: 0,  label: 'Rainbow',       group: 'basic' },
+  { id: 1,  label: 'Wave',          group: 'basic' },
+  { id: 2,  label: 'Gradient',      group: 'basic' },
+  { id: 3,  label: 'Sparkle',       group: 'basic' },
+  { id: 4,  label: 'Fire',          group: 'basic' },
+  { id: 5,  label: 'Comet',         group: 'basic' },
+  { id: 6,  label: 'Breathing',     group: 'basic' },
+  { id: 7,  label: 'Strobe',        group: 'basic' },
+  { id: 8,  label: 'Meteor',        group: 'basic' },
+  { id: 9,  label: 'Wipe',          group: 'basic' },
+  { id: 10, label: 'Plasma',        group: 'basic' },
+  { id: 11, label: 'VU Meter',      group: 'audio' },
+  { id: 12, label: 'Pulse',         group: 'audio' },
+  { id: 13, label: 'Audio Rainbow', group: 'audio' },
+  { id: 14, label: 'Center Burst',  group: 'audio' },
+  { id: 15, label: 'Audio Sparkle', group: 'audio' },
+  { id: 16, label: 'Split Spin',    group: 'advanced' },
+  { id: 17, label: 'Theater Chase', group: 'advanced' }
+];
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+function showTab(tabName, button) {
+  currentTab = tabName;
+  // Update nav items
+  document.querySelectorAll('.nav-item').forEach(function(item, i) {
+    item.classList.remove('active');
+  });
+  if (button) button.classList.add('active');
+  // Update panels
+  document.querySelectorAll('.tab-panel').forEach(function(panel) {
+    panel.classList.remove('active');
+  });
+  var panel = document.getElementById('tab-' + tabName);
+  if (panel) panel.classList.add('active');
+}
+
+// ============================================================
+// DASHBOARD CONTROLS
+// ============================================================
+function setSyncMode(sync) {
+  document.getElementById('btn-sync').classList.toggle('btn-primary', sync);
+  document.getElementById('btn-sync').classList.toggle('btn-secondary', !sync);
+  document.getElementById('btn-solo').classList.toggle('btn-primary', !sync);
+  document.getElementById('btn-solo').classList.toggle('btn-secondary', sync);
+  log(sync ? 'Fleet sync enabled' : 'Independent mode', 'cmd');
+}
+
+function selectDevice(id, card) {
+  document.querySelectorAll('.device-card').forEach(function(card) { card.classList.remove('selected'); });
+  if (card) card.classList.add('selected');
+  log('Selected device: ' + id, 'cmd');
+}
+
+function setMode(mode) {
+  currentMode = mode;
+  document.querySelectorAll('#tab-dashboard .mode-btn').forEach(function(btn, i) {
+    btn.classList.toggle('active', i === mode);
+  });
+  var labels = ['Idle', 'Image', 'Pattern', 'Sequence', 'Live'];
+  log('Mode → ' + labels[mode], 'cmd');
 }
 
 function setBrightness(val) {
   brightness = parseInt(val);
   document.getElementById('bri-val').textContent = Math.round(brightness / 255 * 100) + '%';
-  clearTimeout(briTimer);
-  briTimer = setTimeout(function() {
-    apiPost('/api/brightness', {brightness: brightness});
-    savePrefs();
-  }, 200);
 }
 
-// ===================================================================
-// DISPLAY MODE
-// ===================================================================
-var MODE_NAMES = ['Idle', 'Image', 'Pattern', 'Sequence', 'Live'];
-
-function setMode(m) {
-  currentMode = m;
-  for (var i = 0; i <= 4; i++) {
-    var b = document.getElementById('mode-' + i);
-    if (b) b.className = 'mode-btn' + (i === m ? ' on' : '');
-  }
-  document.getElementById('pwr-btn').className = m === 0 ? 'pwr-btn' : 'pwr-btn on';
-  apiPost('/api/mode', {mode: m, index: currentPat});
-  log('[CMD] MODE ' + MODE_NAMES[m], 'cmd');
-}
-
-// ===================================================================
-// FRAME RATE
-// ===================================================================
 function setFramerate(val) {
   framerate = parseInt(val);
   document.getElementById('fps-val').textContent = framerate + ' FPS';
-  clearTimeout(fpsTimer);
-  fpsTimer = setTimeout(function() {
-    apiPost('/api/framerate', {framerate: framerate});
-    savePrefs();
-  }, 300);
 }
 
-// ===================================================================
-// PATTERNS
-// ===================================================================
-function buildPatternGrids() {
-  var basic = '', music = '', adv = '';
-  PATTERNS.forEach(function(p) {
-    var cls = 'pat-btn' + (p.c === 'music' ? ' music' : '') + (p.i === currentPat ? ' active' : '');
-    var btn = '<button class="' + cls + '" id="pat-' + p.i + '" onclick="selectPat(' + p.i + ')">' +
-              '<span class="pat-icon">' + p.e + '</span>' + p.n + '</button>';
-    if (p.c === 'basic') basic += btn;
-    else if (p.c === 'music') music += btn;
-    else adv += btn;
-  });
-  document.getElementById('pgrid-basic').innerHTML = basic;
-  document.getElementById('pgrid-music').innerHTML = music;
-  document.getElementById('pgrid-adv').innerHTML = adv;
-}
-
-function selectPat(idx) {
-  currentPat = idx;
-  document.querySelectorAll('.pat-btn').forEach(function(b) { b.classList.remove('active'); });
-  var b = document.getElementById('pat-' + idx);
-  if (b) b.classList.add('active');
-  document.getElementById('active-asset').textContent = PATTERNS[idx].e + ' ' + PATTERNS[idx].n;
-  document.getElementById('inf-pat').textContent = PATTERNS[idx].n;
-  apiPost('/api/pattern', {index: idx, type: idx, speed: patSpeed});
-  if (currentMode !== 2) setMode(2);
-  log('[CMD] PATTERN ' + PATTERNS[idx].n, 'cmd');
-}
-
-function setPatSpeed(val) {
-  patSpeed = parseInt(val);
-  document.getElementById('speed-val').textContent = val;
-  apiPost('/api/pattern', {index: currentPat, type: currentPat, speed: patSpeed});
-}
-
-// ===================================================================
-// FLEET / SYNC
-// ===================================================================
-function setSyncMode(sync) {
-  isSyncMode = sync;
-  document.getElementById('btn-sync').className = sync ? 'sel' : '';
-  document.getElementById('btn-solo').className = sync ? '' : 'sel';
-  toast(sync ? 'Synchronized mode' : 'Independent mode');
-}
-
-function selectDev(dev) {
-  selectedDev = dev;
-  document.getElementById('dev-leader').className = 'sml' + (dev === 'leader' ? ' sel' : '');
-  document.getElementById('dev-follower').className = 'sml' + (dev === 'follower' ? ' sel' : '');
-}
-
-// ===================================================================
-// PLAYBACK
-// ===================================================================
-function doPlay() {
-  var target = isSyncMode ? 'ALL' : selectedDev.toUpperCase();
-  if (isSyncMode) apiPost('/api/sync/execute', {action: 'play', val: 1});
-  else apiPost('/api/mode', {mode: currentMode, index: currentPat});
-  log('[CMD] PLAY -> ' + target, 'cmd');
-  toast('Play');
-}
-
-function doStop() {
-  var target = isSyncMode ? 'ALL' : selectedDev.toUpperCase();
-  if (isSyncMode) apiPost('/api/sync/execute', {action: 'stop', val: 0});
-  else setMode(0);
-  log('[CMD] STOP -> ' + target, 'cmd');
-  toast('Stop');
-}
-
-function doRandom() {
-  var idx = Math.floor(Math.random() * 18);
-  selectPat(idx);
-  if (isSyncMode) apiPost('/api/sync/execute', {action: 'pattern', val: idx});
-  toast('Random: ' + PATTERNS[idx].n);
-}
-
-// ===================================================================
-// CPU POWER MODE
-// ===================================================================
-function setPowerMode(idx, name) {
+function setPowerMode(mode) {
+  powerMode = mode;
   for (var i = 0; i < 4; i++) {
-    var b = document.getElementById('pwrm-' + i);
-    if (b) b.className = 'pwr-btn' + (i === idx ? ' sel' : '');
+    var btn = document.getElementById('pwr-' + i);
+    if (btn) btn.classList.toggle('active', i === mode);
   }
-  apiPost('/api/power/mode', {mode: name});
-  log('[CMD] POWER ' + name.toUpperCase(), 'cmd');
-  toast('Power: ' + name);
+  var labels = ['Performance', 'Balanced', 'Power Save', 'Ultra Save'];
+  log('Power mode → ' + labels[mode], 'cmd');
 }
 
-// ===================================================================
-// IMAGE UPLOAD
-// ===================================================================
-function uploadImage(file) {
-  if (!file) return;
-  var fd = new FormData();
-  fd.append('file', file);
-  document.getElementById('upload-progress').className = '';
-  document.getElementById('upload-bar').style.width = '0%';
-  document.getElementById('upload-status').textContent = 'Uploading ' + file.name + '...';
-  var xhr = new XMLHttpRequest();
-  xhr.open('POST', '/api/image', true);
-  xhr.upload.onprogress = function(e) {
-    if (e.lengthComputable)
-      document.getElementById('upload-bar').style.width = Math.round(e.loaded / e.total * 100) + '%';
-  };
-  xhr.onload = function() {
-    if (xhr.status === 200) {
-      document.getElementById('upload-bar').style.width = '100%';
-      document.getElementById('upload-status').textContent = 'Done: ' + file.name;
-      log('[OK] Uploaded ' + file.name, 'ok');
-      toast('Uploaded: ' + file.name);
-      setTimeout(function() { document.getElementById('upload-progress').className = 'hide'; }, 3000);
-      refreshImageList();
-    } else {
-      document.getElementById('upload-status').textContent = 'Failed (' + xhr.status + ')';
-      log('[ERR] Upload failed: HTTP ' + xhr.status, 'err');
-      toastErr('Upload failed');
-    }
-  };
-  xhr.onerror = function() {
-    document.getElementById('upload-status').textContent = 'Network error';
-    log('[ERR] Upload: network error', 'err');
-    toastErr('Network error');
-  };
-  xhr.send(fd);
-}
+function doPlay() { log('▶ Play', 'ok'); }
+function doStop() { log('⬛ Stop', 'err'); }
+function doRandom() { log('🔀 Random pattern selected', 'cmd'); }
 
-// ===================================================================
-// IMAGE LIST
-// ===================================================================
-function refreshImageList() {
-  apiGet('/api/image/list', function(data) {
-    imageList = data.images || (Array.isArray(data) ? data : []);
-    renderImageList();
-  }, function() {
-    document.getElementById('img-list').innerHTML = '<div class="muted">Could not load image list (device offline?)</div>';
-  });
-}
-
-function renderImageList() {
-  var el = document.getElementById('img-list');
-  if (!imageList.length) {
-    el.innerHTML = '<div class="muted">No images stored.</div>';
-    return;
-  }
-  el.innerHTML = '';
-  imageList.forEach(function(img) {
-    var name = typeof img === 'string' ? img : (img.name || img.filename || String(img));
-    var div = document.createElement('div');
-    div.className = 'img-item';
-    div.innerHTML =
-      '<span class="img-name">&#x1F5BC; ' + escHtml(name) + '</span>' +
-      '<span class="img-actions">' +
-        '<button class="sml on" onclick="loadImg(\'' + escAttr(name) + '\')">Load</button>' +
-        '<button class="sml" onclick="addToSeq(\'' + escAttr(name) + '\')">+Seq</button>' +
-      '</span>';
-    el.appendChild(div);
-  });
-}
-
-function loadImg(name) {
-  apiPost('/api/sd/load', {filename: name}, function() {
-    document.getElementById('active-asset').textContent = '🖼 ' + name;
-    if (currentMode !== 1) setMode(1);
-    log('[CMD] LOAD ' + name, 'cmd');
-    toast('Loaded: ' + name);
-  });
-}
-
-// ===================================================================
-// SEQUENCE BUILDER
-// ===================================================================
-function addToSeq(name) {
-  sequence.push({name: name, duration: 3000});
-  renderSeq();
-  toast(name + ' added to sequence');
-}
-
-function clearSeq() {
-  sequence = [];
-  renderSeq();
-}
-
-function renderSeq() {
-  var el = document.getElementById('seq-list');
-  if (!sequence.length) {
-    el.innerHTML = '<div class="muted">No items. Tap +Seq next to an image above.</div>';
-    return;
-  }
-  el.innerHTML = '';
-  sequence.forEach(function(item, i) {
-    var div = document.createElement('div');
-    div.className = 'seq-item';
-    div.innerHTML =
-      '<span class="seq-name">' + escHtml(item.name) + '</span>' +
-      '<input class="seq-dur" type="number" value="' + (item.duration / 1000).toFixed(1) +
-        '" min="0.5" step="0.5" title="Duration (s)" onchange="sequence[' + i + '].duration=this.value*1000"> s' +
-      '<button class="sml red" onclick="sequence.splice(' + i + ',1);renderSeq()">&#x2715;</button>';
-    el.appendChild(div);
-  });
-}
-
-function deploySeq() {
-  if (!sequence.length) { toast('Add images first'); return; }
-  sequence.forEach(function(item, i) {
-    setTimeout(function() { apiPost('/api/sd/load', {filename: item.name}); }, i * 200);
-  });
-  setMode(3);
-  log('[CMD] DEPLOY SEQUENCE (' + sequence.length + ' items)', 'cmd');
-  toast('Sequence deployed (' + sequence.length + ')');
-}
-
-// ===================================================================
-// WIFI
-// ===================================================================
-function connectWifi() {
-  var ssid = document.getElementById('wifi-ssid').value.trim();
-  var pass = document.getElementById('wifi-pass').value;
-  if (!ssid) { toastErr('Enter SSID'); return; }
-  log('[CMD] WIFI CONNECT ' + ssid, 'cmd');
-  apiPost('/api/wifi/connect', {ssid: ssid, password: pass}, function() {
-    toast('Connecting to ' + ssid + '...');
-    var tries = 0;
-    var poll = setInterval(function() {
-      if (++tries > 15) { clearInterval(poll); toastErr('WiFi timeout'); return; }
-      checkWifiStatus(function(ok) { if (ok) clearInterval(poll); });
-    }, 2000);
-  });
-}
-
-function disconnectWifi() {
-  apiPost('/api/wifi/disconnect', {}, function() {
-    document.getElementById('sta-ip').textContent = 'Not connected';
-    setStaBadge(false);
-    log('[OK] WiFi STA disconnected', 'ok');
-    toast('WiFi disconnected');
-  });
-}
-
-function checkWifiStatus(cb) {
-  apiGet('/api/wifi/status', function(data) {
-    if (data.sta_connected) {
-      document.getElementById('sta-ip').textContent = data.sta_ip || 'Connected';
-      setStaBadge(true);
-      log('[OK] WiFi STA: ' + (data.sta_ip || 'connected'), 'ok');
-      if (cb) cb(true);
-    } else {
-      setStaBadge(false);
-      if (cb) cb(false);
-    }
-  });
-}
-
-function setStaBadge(up) {
-  var b = document.getElementById('sta-badge');
-  b.className = 'wifi-badge ' + (up ? 'up' : 'dn');
-  b.textContent = up ? 'UP' : 'DOWN';
-}
-
-// ===================================================================
-// LED CONFIG
-// ===================================================================
-function setColorDepth(d) {
-  colorDepth = d;
-  document.getElementById('depth-8').className = 'sml' + (d === 8 ? ' sel' : '');
-  document.getElementById('depth-24').className = 'sml' + (d === 24 ? ' sel' : '');
-}
-
-function deployConfig() {
-  var cfg = {
-    ledCount:    parseInt(document.getElementById('led-count').value),
-    dataPin:     parseInt(document.getElementById('led-data').value),
-    clkPin:      parseInt(document.getElementById('led-clk').value),
-    refreshRate: parseInt(document.getElementById('fps-cfg').value),
-    pixelDensity:parseInt(document.getElementById('pxd-cfg').value),
-    colorDepth:  colorDepth
-  };
-  apiPost('/api/device/config', cfg, function() {
-    log('[OK] Config deployed', 'ok');
-    toast('Config deployed');
-  });
-}
-
-// ===================================================================
-// OTA FIRMWARE
-// ===================================================================
-function setOtaTgt(t) {
-  otaTgt = t;
-  document.getElementById('tgt-esp32').className = 'sml' + (t === 'esp32' ? ' sel' : '');
-  document.getElementById('tgt-teensy').className = 'sml' + (t === 'teensy' ? ' sel' : '');
-}
-
-function doOta(file) {
-  if (!file) return;
-  var ep = otaTgt === 'esp32' ? '/api/ota/esp32' : '/api/ota/teensy';
-  var fd = new FormData();
-  fd.append('firmware', file);
-  document.getElementById('ota-prog').className = '';
-  document.getElementById('ota-bar').style.width = '0%';
-  document.getElementById('ota-status').textContent = 'Uploading ' + file.name + '...';
-  var xhr = new XMLHttpRequest();
-  xhr.open('POST', ep, true);
-  xhr.upload.onprogress = function(e) {
-    if (e.lengthComputable)
-      document.getElementById('ota-bar').style.width = Math.round(e.loaded / e.total * 100) + '%';
-  };
-  xhr.onload = function() {
-    if (xhr.status === 200) {
-      document.getElementById('ota-status').textContent = 'OTA complete. Rebooting...';
-      document.getElementById('ota-bar').style.width = '100%';
-      log('[OK] OTA complete — rebooting', 'ok');
-      toast('OTA complete — rebooting');
-    } else {
-      document.getElementById('ota-status').textContent = 'Failed (' + xhr.status + ')';
-      log('[ERR] OTA failed: HTTP ' + xhr.status, 'err');
-      toastErr('OTA failed');
-    }
-  };
-  xhr.onerror = function() { toastErr('OTA network error'); };
-  xhr.send(fd);
-}
-
-// ===================================================================
-// INFO OVERLAY
-// ===================================================================
-function toggleInfo() {
-  var el = document.getElementById('info-overlay');
-  if (el.className === 'show') { closeInfo(); return; }
-  refreshInfoPanel();
-  el.className = 'show';
-}
-function closeInfo() { document.getElementById('info-overlay').className = ''; }
-function refreshInfoPanel() {
-  document.getElementById('inf-mode').textContent = MODE_NAMES[currentMode] || '—';
-  document.getElementById('inf-bri').textContent = brightness + ' (' + Math.round(brightness / 255 * 100) + '%)';
-  document.getElementById('inf-fps').textContent = framerate + ' FPS';
-  document.getElementById('inf-imgs').textContent = imageList.length;
-  document.getElementById('inf-pat').textContent = PATTERNS[currentPat] ? PATTERNS[currentPat].n : '—';
-}
-
-// ===================================================================
-// STATUS POLL
-// ===================================================================
-function startStatusPoll() {
-  pollStatus();
-  setInterval(pollStatus, 5000);
-}
-
-function pollStatus() {
-  apiGet('/api/status', function(data) {
-    if (!isOnline) {
-      isOnline = true;
-      document.getElementById('status-dot').className = 'online';
-      document.getElementById('status-dot').title = 'Device online';
-      log('[OK] Device connected', 'ok');
-    }
-    if (data.mode !== undefined && data.mode !== currentMode) {
-      currentMode = data.mode;
-      for (var i = 0; i <= 4; i++) {
-        var b = document.getElementById('mode-' + i);
-        if (b) b.className = 'mode-btn' + (i === data.mode ? ' on' : '');
-      }
-    }
-    if (data.brightness !== undefined) {
-      brightness = data.brightness;
-      document.getElementById('bri-slider').value = brightness;
-      document.getElementById('bri-val').textContent = Math.round(brightness / 255 * 100) + '%';
-    }
-    if (data.framerate !== undefined) {
-      framerate = data.framerate;
-      document.getElementById('fps-slider').value = framerate;
-      document.getElementById('fps-val').textContent = framerate + ' FPS';
-    }
-  }, function() {
-    if (isOnline) {
-      isOnline = false;
-      document.getElementById('status-dot').className = '';
-      document.getElementById('status-dot').title = 'Device offline';
-    }
-  });
-}
-
-// ===================================================================
-// LED MIRROR ANIMATION
-// ===================================================================
-function buildMirror() {
-  var m = document.getElementById('mirror');
-  m.innerHTML = '';
-  for (var i = 0; i < NUM_LEDS; i++) {
-    var d = document.createElement('div');
-    d.className = 'ml'; d.id = 'ml-' + i;
-    m.appendChild(d);
-  }
-}
-
-function startMirrorAnim() {
-  (function frame() {
-    if (currentMode === 0) {
-      for (var i = 0; i < NUM_LEDS; i++) setMLed(i, 0, 0, 0);
-    } else {
-      for (var i = 0; i < NUM_LEDS; i++) {
-        var rgb = hsvToRgb(((i * 8 + mirrorHue) % 256) / 256, 1, 1);
-        setMLed(i, rgb[0], rgb[1], rgb[2]);
-      }
-      mirrorHue = (mirrorHue + 1) % 256;
-    }
-    requestAnimationFrame(frame);
-  })();
-}
-
-function setMLed(i, r, g, b) {
-  var el = document.getElementById('ml-' + i);
-  if (!el) return;
-  var s = brightness / 255;
-  el.style.background = 'rgb(' + Math.round(r*s) + ',' + Math.round(g*s) + ',' + Math.round(b*s) + ')';
-}
-
-function hsvToRgb(h, s, v) {
-  var r, g, b, i = Math.floor(h * 6), f = h * 6 - i;
-  var p = v*(1-s), q = v*(1-f*s), t = v*(1-(1-f)*s);
-  switch (i % 6) {
-    case 0: r=v;g=t;b=p; break; case 1: r=q;g=v;b=p; break;
-    case 2: r=p;g=v;b=t; break; case 3: r=p;g=q;b=v; break;
-    case 4: r=t;g=p;b=v; break; case 5: r=v;g=p;b=q; break;
-  }
-  return [Math.round(r*255), Math.round(g*255), Math.round(b*255)];
-}
-
-// ===================================================================
-// API HELPERS
-// ===================================================================
-function apiGet(url, ok, fail) {
-  var xhr = new XMLHttpRequest();
-  xhr.open('GET', url, true);
-  xhr.timeout = 4000;
-  xhr.onload = function() {
-    if (xhr.status === 200) {
-      try { ok(JSON.parse(xhr.responseText)); } catch(e) { ok({}); }
-    } else { if (fail) fail(xhr.status); }
-  };
-  xhr.onerror = xhr.ontimeout = function() { if (fail) fail(0); };
-  xhr.send();
-}
-
-function apiPost(url, data, ok, fail) {
-  var xhr = new XMLHttpRequest();
-  xhr.open('POST', url, true);
-  xhr.setRequestHeader('Content-Type', 'application/json');
-  xhr.timeout = 4000;
-  xhr.onload = function() {
-    if (xhr.status === 200) {
-      if (ok) { try { ok(JSON.parse(xhr.responseText)); } catch(e) { ok({}); } }
-    } else {
-      if (fail) fail(xhr.status);
-      log('[ERR] POST ' + url + ' -> HTTP ' + xhr.status, 'err');
-    }
-  };
-  xhr.onerror = xhr.ontimeout = function() { if (fail) fail(0); };
-  xhr.send(JSON.stringify(data));
-}
-
-// ===================================================================
-// LOG
-// ===================================================================
-function log(msg, cls) {
+function log(msg, type) {
   var box = document.getElementById('log-box');
-  // Clear placeholder
-  if (box.firstChild && box.firstChild.className && box.firstChild.className.indexOf('muted') >= 0) box.innerHTML = '';
-  var d = new Date();
-  var ts = [d.getHours(), d.getMinutes(), d.getSeconds()].map(function(n) { return String(n).padStart(2,'0'); }).join(':');
-  var el = document.createElement('div');
-  el.className = 'log-ln' + (cls ? ' ' + cls : '');
-  el.textContent = ts + ' ' + msg;
-  box.prepend(el);
-  while (box.children.length > 80) box.removeChild(box.lastChild);
+  var line = document.createElement('div');
+  line.className = 'log-line' + (type ? ' ' + type : '');
+  line.textContent = new Date().toLocaleTimeString() + ' ' + msg;
+  box.appendChild(line);
+  box.scrollTop = box.scrollHeight;
 }
 
 function clearLog() {
-  document.getElementById('log-box').innerHTML = '<div class="log-ln muted">Log cleared.</div>';
+  document.getElementById('log-box').innerHTML = '<div class="log-line">Log cleared.</div>';
 }
 
-// ===================================================================
+// ============================================================
+// PATTERN PREVIEW
+// ============================================================
+function buildPatternGrids() {
+  var basicHtml = '', musicHtml = '', advHtml = '', dashHtml = '';
+  PATTERNS.forEach(function(p) {
+    var cls = 'pattern-btn' + (p.group === 'audio' ? ' music' : '') + (p.id === currentPattern ? ' active' : '');
+    var btn = '<button class="' + cls + '" onclick="selectPattern(' + p.id + ', this)">' + p.label + '</button>';
+    if (p.group === 'basic') basicHtml += btn;
+    else if (p.group === 'audio') musicHtml += btn;
+    else advHtml += btn;
+    if (p.id < 6) dashHtml += btn; // First 6 on dashboard
+  });
+  document.getElementById('pgrid-basic').innerHTML = basicHtml;
+  document.getElementById('pgrid-music').innerHTML = musicHtml;
+  document.getElementById('pgrid-adv').innerHTML = advHtml;
+  document.getElementById('dash-patterns').innerHTML = dashHtml;
+  var subtitle = document.getElementById('pattern-preview-subtitle');
+  if (subtitle) {
+    subtitle.textContent = `Live preview of all ${PATTERNS.length} firmware patterns • Click a pattern for details`;
+  }
+}
+
+function selectPattern(id, button) {
+  currentPattern = id;
+  document.querySelectorAll('.pattern-btn').forEach(function(btn) {
+    btn.classList.remove('active');
+  });
+  if (button) button.classList.add('active');
+  log('Pattern → ' + PATTERNS[id].label, 'cmd');
+}
+
+function setPatternSpeed(val) {
+  patternSpeed = parseInt(val);
+  document.getElementById('speed-val').textContent = val;
+}
+
+function togglePatternPlay() {
+  isPatternPlaying = !isPatternPlaying;
+  document.getElementById('btn-play').textContent = isPatternPlaying ? '⏸ Pause All' : '▶ Play All';
+  if (isPatternPlaying) startPatternAnimation();
+  else stopPatternAnimation();
+}
+
+function setAudioSource(live) {
+  useLiveMic = live;
+  document.getElementById('audio-sim').classList.toggle('btn-primary', !live);
+  document.getElementById('audio-sim').classList.toggle('btn-secondary', live);
+  document.getElementById('audio-mic').classList.toggle('btn-primary', live);
+  document.getElementById('audio-mic').classList.toggle('btn-secondary', !live);
+  log(live ? 'Audio source → Live Mic (simulated in preview)' : 'Audio source → Simulated', 'cmd');
+}
+
+function nextPattern() {
+  currentPattern = (currentPattern + 1) % PATTERNS.length;
+  buildPatternGrids();
+}
+
+// ============================================================
+// COLOR HELPERS (Match FastLED behavior)
+// ============================================================
+function hsvToRgb(h, s, v) {
+  h = ((h % 256) + 256) % 256;
+  var hf = (h / 256) * 6;
+  var hi = Math.floor(hf);
+  var f = hf - hi;
+  var p = v * (1 - s / 255);
+  var q = v * (1 - (s / 255) * f);
+  var t = v * (1 - (s / 255) * (1 - f));
+  var r = 0, g = 0, b = 0;
+  switch (hi % 6) {
+    case 0: r = v; g = t; b = p; break;
+    case 1: r = q; g = v; b = p; break;
+    case 2: r = p; g = v; b = t; break;
+    case 3: r = p; g = q; b = v; break;
+    case 4: r = t; g = p; b = v; break;
+    case 5: r = v; g = p; b = q; break;
+  }
+  return [Math.round(r), Math.round(g), Math.round(b)];
+}
+
+function sin8(x) {
+  return Math.round((Math.sin((((x & 0xFF) / 256) * 2 * Math.PI) - Math.PI / 2) + 1) * 127.5);
+}
+
+function beatsin8(bpm, lo, hi, timeMs) {
+  var beat = (timeMs / 1000) * bpm / 60;
+  var val = (Math.sin(beat * 2 * Math.PI) + 1) / 2;
+  return Math.round(lo + val * (hi - lo));
+}
+
+function blendColor(c1, c2, amount) {
+  var a = amount / 255;
+  return [
+    Math.round(c1[0] + (c2[0] - c1[0]) * a),
+    Math.round(c1[1] + (c2[1] - c1[1]) * a),
+    Math.round(c1[2] + (c2[2] - c1[2]) * a)
+  ];
+}
+
+function heatColor(heat) {
+  if (heat < 85) return [heat * 3, 0, 0];
+  if (heat < 170) return [255, (heat - 85) * 3, 0];
+  return [255, 255, (heat - 170) * 3];
+}
+
+function scaleColor(c, s) {
+  return [Math.round(c[0] * s / 255), Math.round(c[1] * s / 255), Math.round(c[2] * s / 255)];
+}
+
+function fadeToBlack(c, amount) {
+  var scale = Math.max(0, 1 - amount / 255);
+  return [Math.round(c[0] * scale), Math.round(c[1] * scale), Math.round(c[2] * scale)];
+}
+
+function hexToRgb(hex) {
+  var r = parseInt(hex.slice(1, 3), 16);
+  var g = parseInt(hex.slice(3, 5), 16);
+  var b = parseInt(hex.slice(5, 7), 16);
+  return [r, g, b];
+}
+
+function clamp(v, min, max) {
+  return Math.max(min, Math.min(max, v));
+}
+
+function copyRgb(c) { return [c[0], c[1], c[2]]; }
+
+function getPreviewDisplayLedCount() {
+  var displayCount = parseInt(document.getElementById('disp-leds').textContent, 10);
+  return clamp(isNaN(displayCount) ? 31 : displayCount, 1, 32);
+}
+
+function addLedRectPath(ctx, x, y, width, height, radius) {
+  if (typeof ctx.roundRect === 'function') {
+    ctx.roundRect(x, y, width, height, radius);
+    return;
+  }
+
+  var safeRadius = Math.max(0, Math.min(radius, width / 2, height / 2));
+  if (!safeRadius) {
+    ctx.rect(x, y, width, height);
+    return;
+  }
+
+  ctx.moveTo(x + safeRadius, y);
+  ctx.lineTo(x + width - safeRadius, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + safeRadius);
+  ctx.lineTo(x + width, y + height - safeRadius);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - safeRadius, y + height);
+  ctx.lineTo(x + safeRadius, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - safeRadius);
+  ctx.lineTo(x, y + safeRadius);
+  ctx.quadraticCurveTo(x, y, x + safeRadius, y);
+  ctx.closePath();
+}
+
+// Pattern state for effects
+var patternState = null;
+var patternStartTime = 0;
+var simulatedAudioLevel = 0;
+
+function initPatternState(ledCount) {
+  return {
+    heat: new Array(ledCount).fill(0),
+    cometPos: 0,
+    cometDir: 1,
+    meteorPos: ledCount - 1,
+    wipePos: 0,
+    wipeFilling: true,
+    strobeOn: false,
+    lastStrobeMs: 0,
+    peakLevel: 0,
+    peakDecay: 0,
+    beatHue: 0,
+    pulseVal: 0,
+    lastAudioLevel: 0,
+    rainbowOffset: 0,
+    sparkleBuffer: new Array(ledCount).fill(null).map(function() { return [0, 0, 0]; })
+  };
+}
+
+function simulateAudioLevel(timeMs) {
+  var t = timeMs / 1000;
+  var bass = Math.max(0, Math.sin(t * 2 * Math.PI * 1.8) * 0.7);
+  var mid = Math.max(0, Math.sin(t * 2 * Math.PI * 3.2 + 1.3) * 0.4);
+  var hi = Math.max(0, Math.sin(t * 2 * Math.PI * 7.5 + 0.7) * 0.2);
+  var envelope = 0.5 + 0.5 * Math.sin(t * 2 * Math.PI * 0.15);
+  var noise = Math.random() * 0.08;
+  var raw = (bass + mid + hi + noise) * envelope;
+  return Math.round(clamp(raw * 255, 0, 255));
+}
+
+function startPatternAnimation() {
+  var canvas = document.getElementById('pattern-canvas');
+  if (!canvas) return;
+  var ctx = canvas.getContext('2d');
+  canvas.width = canvas.offsetWidth;
+  canvas.height = 200;
+  var ledCount = getPreviewDisplayLedCount();
+  patternState = initPatternState(ledCount);
+  patternStartTime = performance.now();
+
+  function render() {
+    if (!isPatternPlaying) return;
+    var now = performance.now();
+    var elapsed = now - patternStartTime;
+    var patternTime = Math.floor(elapsed / 16);
+    var timeMs = elapsed;
+    var speed = patternSpeed;
+    var c1 = hexToRgb(document.getElementById('color1').value);
+    var c2 = hexToRgb(document.getElementById('color2').value);
+    var st = patternState;
+    var audioLevel = simulateAudioLevel(timeMs);
+    
+    // LED buffer
+    var leds = [];
+    for (var i = 0; i < ledCount; i++) leds[i] = [0, 0, 0];
+
+    switch (currentPattern) {
+      // ── 0: Rainbow ─────────────────────────────────
+      case 0:
+        for (var i = 0; i < ledCount; i++) {
+          var hue = (patternTime * speed / 10 + i * 255 / ledCount) % 256;
+          leds[i] = hsvToRgb(hue, 255, 255);
+        }
+        break;
+
+      // ── 1: Wave ────────────────────────────────────
+      case 1:
+        for (var i = 0; i < ledCount; i++) {
+          var brightness = sin8(patternTime * speed / 10 + i * 255 / ledCount);
+          leds[i] = scaleColor(c1, brightness);
+        }
+        break;
+
+      // ── 2: Gradient ────────────────────────────────
+      case 2:
+        var timeOffset = Math.floor((timeMs / 500) * speed) & 0xFF;
+        for (var i = 0; i < ledCount; i++) {
+          var phase = ((i * 255 / ledCount) + timeOffset) & 0xFF;
+          leds[i] = blendColor(c1, c2, sin8(phase));
+        }
+        break;
+
+      // ── 3: Sparkle ─────────────────────────────────
+      case 3:
+        for (var i = 0; i < ledCount; i++) {
+          st.sparkleBuffer[i] = fadeToBlack(st.sparkleBuffer[i], 20);
+        }
+        if (Math.random() * 255 < speed) {
+          var pos = Math.floor(Math.random() * ledCount);
+          st.sparkleBuffer[pos] = copyRgb(c1);
+        }
+        for (var i = 0; i < ledCount; i++) leds[i] = copyRgb(st.sparkleBuffer[i]);
+        break;
+
+      // ── 4: Fire ────────────────────────────────────
+      case 4:
+        for (var i = 0; i < ledCount; i++) {
+          st.heat[i] = Math.max(0, st.heat[i] - Math.random() * (((55 * 10) / ledCount) + 2));
+        }
+        for (var i = ledCount - 1; i >= 2; i--) {
+          st.heat[i] = (st.heat[i - 1] + st.heat[i - 2] + st.heat[i - 2]) / 3;
+        }
+        if (Math.random() * 255 < speed) {
+          var y = Math.floor(Math.random() * Math.min(3, ledCount));
+          st.heat[y] = Math.min(255, st.heat[y] + 160 + Math.random() * 95);
+        }
+        for (var i = 0; i < ledCount; i++) {
+          leds[i] = heatColor(Math.round(st.heat[i]));
+        }
+        break;
+
+      // ── 5: Comet ───────────────────────────────────
+      case 5:
+        for (var i = 0; i < ledCount; i++) {
+          st.sparkleBuffer[i] = fadeToBlack(st.sparkleBuffer[i], 60);
+        }
+        st.cometPos += st.cometDir;
+        if (st.cometPos >= ledCount - 1 || st.cometPos <= 0) {
+          st.cometDir = -st.cometDir;
+        }
+        st.cometPos = clamp(st.cometPos, 0, ledCount - 1);
+        st.sparkleBuffer[st.cometPos] = copyRgb(c1);
+        var tailPos = st.cometPos - st.cometDir;
+        if (tailPos >= 0 && tailPos < ledCount) {
+          st.sparkleBuffer[tailPos] = scaleColor(c1, 128);
+        }
+        for (var i = 0; i < ledCount; i++) leds[i] = copyRgb(st.sparkleBuffer[i]);
+        break;
+
+      // ── 6: Breathing ───────────────────────────────
+      case 6:
+        var breath = beatsin8(speed / 4, 20, 255, timeMs);
+        for (var i = 0; i < ledCount; i++) {
+          leds[i] = scaleColor(c1, breath);
+        }
+        break;
+
+      // ── 7: Strobe ──────────────────────────────────
+      case 7:
+        var strobeDelay = 500 - ((speed / 255) * 490);
+        if (timeMs - st.lastStrobeMs >= strobeDelay) {
+          st.strobeOn = !st.strobeOn;
+          st.lastStrobeMs = timeMs;
+        }
+        for (var i = 0; i < ledCount; i++) {
+          leds[i] = st.strobeOn ? copyRgb(c1) : [0, 0, 0];
+        }
+        break;
+
+      // ── 8: Meteor ──────────────────────────────────
+      case 8:
+        for (var i = 0; i < ledCount; i++) {
+          if (Math.random() < 80 / 255) {
+            st.sparkleBuffer[i] = fadeToBlack(st.sparkleBuffer[i], 64);
+          }
+        }
+        for (var j = 0; j < 4; j++) {
+          var pos = st.meteorPos - j;
+          if (pos >= 0 && pos < ledCount) {
+            st.sparkleBuffer[pos] = scaleColor(c1, 255 - j * 60);
+          }
+        }
+        st.meteorPos--;
+        if (st.meteorPos < 0) st.meteorPos = ledCount - 1;
+        for (var i = 0; i < ledCount; i++) leds[i] = copyRgb(st.sparkleBuffer[i]);
+        break;
+
+      // ── 9: Wipe ────────────────────────────────────
+      case 9:
+        for (var i = 0; i < ledCount; i++) {
+          if (st.wipeFilling) {
+            leds[i] = i <= st.wipePos ? copyRgb(c1) : [0, 0, 0];
+          } else {
+            leds[i] = i <= st.wipePos ? [0, 0, 0] : copyRgb(c1);
+          }
+        }
+        st.wipePos++;
+        if (st.wipePos >= ledCount) {
+          st.wipePos = 0;
+          st.wipeFilling = !st.wipeFilling;
+        }
+        break;
+
+      // ── 10: Plasma ─────────────────────────────────
+      case 10:
+        for (var i = 0; i < ledCount; i++) {
+          var hue = (sin8(i * 10 + patternTime * speed / 20) +
+                    sin8(i * 15 - patternTime * speed / 15) +
+                    sin8(patternTime * speed / 10)) & 0xFF;
+          leds[i] = hsvToRgb(hue, 255, 255);
+        }
+        break;
+
+      // ── 11: VU Meter (audio-reactive) ──────────────
+      case 11:
+        var al = audioLevel;
+        if (al > st.peakLevel + 30) {
+          st.beatHue = (st.beatHue + 32) & 0xFF;
+        }
+        if (al > st.peakLevel) {
+          st.peakLevel = al;
+          st.peakDecay = 0;
+        } else {
+          st.peakDecay++;
+          if (st.peakDecay > 5) {
+            st.peakLevel = Math.max(0, st.peakLevel - 3);
+          }
+        }
+        var ledsToLight = Math.round(al / 255 * ledCount);
+        for (var i = 0; i < ledCount; i++) {
+          if (i < ledsToLight) {
+            var hue;
+            if (i < ledCount / 3) hue = 96;
+            else if (i < 2 * ledCount / 3) hue = 64;
+            else hue = 0;
+            hue = (hue + st.beatHue) & 0xFF;
+            leds[i] = hsvToRgb(hue, 255, 255);
+          } else {
+            leds[i] = [0, 0, 0];
+          }
+        }
+        var peakPos = Math.round(st.peakLevel / 255 * (ledCount - 1));
+        if (peakPos >= 0 && peakPos < ledCount) {
+          leds[peakPos] = [255, 255, 255];
+        }
+        break;
+
+      // ── 12: Music Pulse (audio-reactive) ───────────
+      case 12:
+        var al = audioLevel;
+        if (al > st.lastAudioLevel + 20 && al > 100) {
+          st.pulseVal = 255;
+        }
+        st.lastAudioLevel = al;
+        for (var i = 0; i < ledCount; i++) {
+          leds[i] = scaleColor(c1, Math.round(st.pulseVal));
+        }
+        st.pulseVal = st.pulseVal * (220 / 256);
+        break;
+
+      // ── 13: Audio Rainbow (audio-reactive) ─────────
+      case 13:
+        var al = audioLevel;
+        var speedAdd = Math.round(1 + (al / 255) * 19);
+        st.rainbowOffset += speedAdd;
+        for (var i = 0; i < ledCount; i++) {
+          var hue = (Math.floor(st.rainbowOffset / 4) + i * 255 / ledCount) & 0xFF;
+          var brightness = clamp(al + 50, 50, 255);
+          leds[i] = hsvToRgb(hue, 255, brightness);
+        }
+        break;
+
+      // ── 14: Center Burst (audio-reactive) ──────────
+      case 14:
+        var al = audioLevel;
+        var expansion = Math.round(al / 255 * (ledCount / 2));
+        var center = Math.floor(ledCount / 2);
+        for (var i = 0; i < ledCount; i++) {
+          st.sparkleBuffer[i] = fadeToBlack(st.sparkleBuffer[i], 80);
+        }
+        for (var i = 0; i <= expansion; i++) {
+          var hue = (patternTime * speed / 20 + i * 10) & 0xFF;
+          var rgb = hsvToRgb(hue, 255, 255);
+          if (center + i < ledCount) st.sparkleBuffer[center + i] = rgb;
+          if (center - i >= 0) st.sparkleBuffer[center - i] = rgb;
+        }
+        for (var i = 0; i < ledCount; i++) leds[i] = copyRgb(st.sparkleBuffer[i]);
+        break;
+
+      // ── 15: Audio Sparkle (audio-reactive) ─────────
+      case 15:
+        var al = audioLevel;
+        for (var i = 0; i < ledCount; i++) {
+          st.sparkleBuffer[i] = fadeToBlack(st.sparkleBuffer[i], 40);
+        }
+        var numSparkles = Math.round(al / 255 * 8);
+        for (var s = 0; s < numSparkles; s++) {
+          var pos = Math.floor(Math.random() * ledCount);
+          var hue = (patternTime * 2 + Math.floor(Math.random() * 64)) & 0xFF;
+          st.sparkleBuffer[pos] = hsvToRgb(hue, 255, 255);
+        }
+        for (var i = 0; i < ledCount; i++) leds[i] = copyRgb(st.sparkleBuffer[i]);
+        break;
+
+      // ── 16: Split Spin ─────────────────────────────
+      case 16:
+        var offset = Math.floor(patternTime * speed / 20) % ledCount;
+        var splitPoint = Math.floor(ledCount / 2);
+        for (var i = 0; i < ledCount; i++) {
+          var pos = (i + offset) % ledCount;
+          leds[i] = pos < splitPoint ? copyRgb(c1) : copyRgb(c2);
+        }
+        break;
+
+      // ── 17: Theater Chase ──────────────────────────
+      case 17:
+        var chaseOffset = Math.floor(patternTime * speed / 20) % 3;
+        for (var i = 0; i < ledCount; i++) {
+          var phase = (i + chaseOffset) % 3;
+          leds[i] = phase === 0 ? copyRgb(c1) : copyRgb(c2);
+        }
+        break;
+
+      default:
+        break;
+    }
+
+    // Render to canvas
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    var LED_GAP = 1;
+    var totalGap = (ledCount - 1) * LED_GAP;
+    var ledWidth = (canvas.width - totalGap - 4) / ledCount;
+    var ledHeight = canvas.height - 4;
+
+    for (var i = 0; i < ledCount; i++) {
+      var r = leds[i][0], g = leds[i][1], b = leds[i][2];
+      var x = 2 + i * (ledWidth + LED_GAP);
+      // Glow effect
+      if (r + g + b > 30) {
+        ctx.shadowBlur = 8;
+        ctx.shadowColor = 'rgb(' + r + ',' + g + ',' + b + ')';
+      } else {
+        ctx.shadowBlur = 0;
+      }
+      ctx.fillStyle = 'rgb(' + r + ',' + g + ',' + b + ')';
+      ctx.beginPath();
+      addLedRectPath(ctx, x, 2, ledWidth, ledHeight, 2);
+      ctx.fill();
+    }
+    ctx.shadowBlur = 0;
+
+    patternAnimId = requestAnimationFrame(render);
+  }
+  render();
+}
+
+function stopPatternAnimation() {
+  if (patternAnimId) cancelAnimationFrame(patternAnimId);
+  patternState = null;
+}
+
+// ============================================================
+// IMAGE LAB
+// ============================================================
+function setLabMode(mode, button) {
+  labMode = mode;
+  document.querySelectorAll('.lab-tab').forEach(function(tab) { tab.classList.remove('active'); });
+  if (button) button.classList.add('active');
+  document.getElementById('lab-upload').style.display = mode === 'upload' ? 'block' : 'none';
+  document.getElementById('lab-procedural').style.display = mode === 'procedural' ? 'block' : 'none';
+  document.getElementById('lab-sequence').style.display = 'block';
+  if (mode === 'procedural') generateProceduralArt();
+}
+
+function updateSequencePreviewUI() {
+  var count = document.querySelectorAll('#seq-list .sequence-item').length;
+  var timelineTitle = document.getElementById('timeline-title');
+  var deployButton = document.getElementById('deploy-sequence-btn');
+  if (!timelineTitle || !deployButton) return;
+  var itemLabel = count === 1 ? 'item' : 'items';
+  timelineTitle.textContent = `Timeline Editor (${count})`;
+  deployButton.textContent = count > 0
+    ? `⬆️ Deploy Sequence (${count} ${itemLabel})`
+    : '⬆️ Deploy Sequence';
+}
+
+function removeSequencePreviewItem(button) {
+  var item = button.closest('.sequence-item');
+  if (item) item.remove();
+  updateSequencePreviewUI();
+  toast('Sequence item removed (preview only)');
+}
+
+function handleImageUpload(input) {
+  var file = input.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    document.getElementById('preview-img').src = e.target.result;
+    document.getElementById('preview-container').style.display = 'block';
+    log('Image loaded: ' + file.name, 'ok');
+  };
+  reader.readAsDataURL(file);
+}
+
+function uploadToDevice() {
+  toast('Image upload simulated (no device connected)');
+}
+
+function generateProceduralArt() {
+  var canvas = document.getElementById('proc-canvas');
+  var ctx = canvas.getContext('2d');
+  var type = document.getElementById('proc-type').value;
+  var complexity = parseInt(document.getElementById('proc-complexity').value);
+  
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  
+  var hueStart = Math.random() * 360;
+  
+  if (type === 'organic') {
+    for (var i = 0; i < complexity; i++) {
+      var xOff = Math.random() * canvas.width;
+      var freq = 0.05 + Math.random() * 0.1;
+      var amp = canvas.height / 3;
+      var hue = (hueStart + i * (360 / complexity)) % 360;
+      ctx.beginPath();
+      ctx.strokeStyle = 'hsla(' + hue + ', 90%, 60%, 0.7)';
+      ctx.lineWidth = 1 + Math.random() * 2;
+      for (var x = 0; x <= canvas.width; x++) {
+        var y = canvas.height / 2 + Math.sin(x * freq + xOff) * amp;
+        if (x === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+  } else {
+    var cols = complexity * 2;
+    var w = canvas.width / cols;
+    for (var c = 0; c < cols; c++) {
+      var hue = (hueStart + c * (360 / cols)) % 360;
+      ctx.fillStyle = 'hsl(' + hue + ', 80%, 50%)';
+      ctx.fillRect(c * w, 0, w, canvas.height);
+    }
+  }
+}
+
+function randomizeSeed() {
+  generateProceduralArt();
+}
+
+// ============================================================
+// DISPLAY CONFIG
+// ============================================================
+function applyLedConfig() {
+  var numLedsInput = document.getElementById('num-leds');
+  var sacLedsInput = document.getElementById('sac-leds');
+  var numLeds = parseInt(numLedsInput.value, 10);
+  var sacLeds = parseInt(sacLedsInput.value, 10);
+
+  numLeds = clamp(isNaN(numLeds) ? 32 : numLeds, 2, 32);
+  sacLeds = clamp(isNaN(sacLeds) ? 1 : sacLeds, 0, numLeds - 1);
+  numLedsInput.value = numLeds;
+  sacLedsInput.value = sacLeds;
+
+  var dispLeds = numLeds - sacLeds;
+  document.getElementById('disp-leds').textContent = dispLeds;
+  document.getElementById('disp-start').textContent = `LED ${sacLeds}`;
+  document.getElementById('disp-end').textContent = `LED ${numLeds - 1}`;
+  document.getElementById('disp-height').textContent = `${dispLeds} px`;
+  document.getElementById('code-display-leds').textContent = `g_displayLeds = ${dispLeds};`;
+  document.getElementById('code-display-start').textContent = `g_displayLedStart = ${sacLeds};`;
+  document.getElementById('upload-height-label').textContent = `Matches current display height: ${dispLeds} px`;
+  if (isPatternPlaying) {
+    stopPatternAnimation();
+    startPatternAnimation();
+  }
+  toast('LED config applied (simulated)');
+  log('LED config: ' + dispLeds + ' display LEDs', 'ok');
+}
+
+function handleWifiPreviewSubmit(event) {
+  event.preventDefault();
+  toast('WiFi connect request sent (simulated)');
+}
+
+// ============================================================
+// CODE VIEWER
+// ============================================================
+function copySketch(type) {
+  var code = document.getElementById(type + '-code').textContent;
+  navigator.clipboard.writeText(code).then(function() {
+    toast('Code copied to clipboard!');
+  }).catch(function() {
+    toast('Failed to copy', true);
+  });
+}
+
+function downloadSketch(type) {
+  var code = document.getElementById(type + '-code').textContent;
+  var blob = new Blob([code], { type: 'text/plain' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = type + '_sketch.ino';
+  a.click();
+  toast('Sketch downloaded');
+}
+
+// ============================================================
+// FIRMWARE
+// ============================================================
+function setFirmwareTarget(target, button) {
+  firmwareTarget = target;
+  document.querySelectorAll('.target-btn').forEach(function(btn) {
+    btn.classList.remove('active');
+  });
+  if (button) button.classList.add('active');
+}
+
+// ============================================================
 // TOAST
-// ===================================================================
-function toast(msg) {
+// ============================================================
+function toast(msg, isErr) {
   var t = document.getElementById('toast');
   t.textContent = msg;
-  t.className = 'show';
+  t.className = isErr ? 'err' : 'show';
   clearTimeout(t._t);
-  t._t = setTimeout(function() { t.className = ''; }, 2000);
+  t._t = setTimeout(function() { t.className = ''; }, 2500);
 }
 
-function toastErr(msg) {
-  var t = document.getElementById('toast');
-  t.textContent = '\u2716 ' + msg;
-  t.className = 'err';
-  clearTimeout(t._t);
-  t._t = setTimeout(function() { t.className = ''; }, 3000);
-}
-
-// ===================================================================
-// PREFS (localStorage)
-// ===================================================================
-function loadPrefs() {
-  try {
-    var s = localStorage.getItem('povpoi');
-    if (!s) return;
-    var p = JSON.parse(s);
-    if (p.brightness !== undefined) {
-      brightness = p.brightness;
-      document.getElementById('bri-slider').value = brightness;
-      document.getElementById('bri-val').textContent = Math.round(brightness / 255 * 100) + '%';
-    }
-    if (p.framerate !== undefined) {
-      framerate = p.framerate;
-      document.getElementById('fps-slider').value = framerate;
-      document.getElementById('fps-val').textContent = framerate + ' FPS';
-    }
-  } catch(e) {}
-}
-
-function savePrefs() {
-  try { localStorage.setItem('povpoi', JSON.stringify({brightness: brightness, framerate: framerate})); } catch(e) {}
-}
-
-// ===================================================================
-// SECURITY HELPERS
-// ===================================================================
-function escHtml(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-function escAttr(s) {
-  return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-}
+// ============================================================
+// INIT
+// ============================================================
+document.addEventListener('DOMContentLoaded', function() {
+  buildPatternGrids();
+  updateSequencePreviewUI();
+});
 </script>
 </body>
 </html>
