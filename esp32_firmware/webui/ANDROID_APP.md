@@ -32,7 +32,7 @@ All native features degrade gracefully — the same React code runs in a regular
 
 | Requirement | Version |
 |-------------|---------|
-| Node.js | 18+ |
+| Node.js | 22+ |
 | npm | 9+ |
 | Android Studio | Latest (Hedgehog or newer) |
 | JDK | 21 |

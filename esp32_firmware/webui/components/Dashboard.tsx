@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { Device, PowerMode } from '../types';
 import { useDebounce } from '../hooks';
-import { hapticImpact, hapticNotification } from '../nativeFeatures';
+import { hapticImpact } from '../nativeFeatures';
 
 interface DashboardProps {
   previewUrl: string | null;

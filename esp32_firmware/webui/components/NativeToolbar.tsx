@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Camera, Vibrate, Wifi, WifiOff, Share2, Sun, SunDim,
-  Smartphone, X, ChevronUp, ChevronDown, Lock, Unlock
+  Smartphone, X, Lock, Unlock
 } from 'lucide-react';
 import {
   isNativePlatform,
@@ -25,11 +25,9 @@ import {
 interface NativeToolbarProps {
   /** Called when a photo is captured via the camera. */
   onPhotoCaptured?: (photo: CapturedPhoto) => void;
-  /** The IP the device is expected to be on (for connection indicator). */
-  deviceIp?: string;
 }
 
-const NativeToolbar: React.FC<NativeToolbarProps> = ({ onPhotoCaptured, deviceIp = '192.168.4.1' }) => {
+const NativeToolbar: React.FC<NativeToolbarProps> = ({ onPhotoCaptured }) => {
   const [expanded, setExpanded] = useState(false);
   const [networkInfo, setNetworkInfo] = useState<NetworkInfo>({ connected: false, connectionType: 'unknown' });
   const [keepAwake, setKeepAwake] = useState(false);
@@ -57,7 +55,7 @@ const NativeToolbar: React.FC<NativeToolbarProps> = ({ onPhotoCaptured, deviceIp
     if (photo && onPhotoCaptured) {
       onPhotoCaptured(photo);
       if (hapticsEnabled) await hapticNotification('success');
-      await showToast('Photo captured — open Image Lab to convert');
+      await showToast('Photo captured — opening Image Lab…');
     }
   }, [onPhotoCaptured, hapticsEnabled]);
 

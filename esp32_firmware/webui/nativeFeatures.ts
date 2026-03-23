@@ -131,7 +131,11 @@ export function onNetworkChange(callback: (info: NetworkInfo) => void): () => vo
   const handle = Network.addListener('networkStatusChange', (status) => {
     callback({ connected: status.connected, connectionType: status.connectionType });
   });
-  return () => { handle.then(h => h.remove()); };
+  return () => {
+    handle
+      .then((h) => h.remove())
+      .catch(() => { /* listener registration or removal failed; ignore */ });
+  };
 }
 
 /* ------------------------------------------------------------------ */
