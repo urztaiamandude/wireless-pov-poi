@@ -396,6 +396,7 @@
     }
     .badge-success { background: rgba(34,197,94,0.15); color: var(--green-400); }
     .badge-info { background: rgba(6,182,212,0.15); color: var(--cyan-400); }
+    .badge-preview { background: rgba(6,182,212,0.1); color: var(--cyan-400); }
 
     /* Log box */
     .log-box {
@@ -761,9 +762,9 @@
         <div class="page-header">
           <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
             <h2>Fleet Control</h2>
-            <span class="device-badge" style="background: rgba(239,68,68,0.1); color: var(--red-500);">Offline</span>
+            <span class="device-badge badge-preview">Preview</span>
           </div>
-          <p>Managing 2 POV Units • SSID: POV-POI-WiFi</p>
+          <p>Previewing 2 sample POV units • SSID: POV-POI-WiFi</p>
         </div>
 
         <!-- Fleet Sync -->
@@ -883,7 +884,7 @@
       <div class="tab-panel" id="tab-patterns">
         <div class="page-header">
           <h2>Pattern Preview</h2>
-          <p>Live preview of all 18 firmware patterns • Click a pattern for details</p>
+          <p id="pattern-preview-subtitle">Live preview of firmware patterns • Click a pattern for details</p>
         </div>
 
         <div class="card">
@@ -979,25 +980,25 @@
 
         <!-- Sequence Mode -->
         <div class="card" id="lab-sequence">
-          <div class="card-title">Timeline Editor (2)</div>
+          <div class="card-title" id="timeline-title">Timeline Editor</div>
           <div class="sequence-list" id="seq-list">
             <div class="sequence-item">
               <span class="seq-name">rainbow_32x124.bmp</span>
               <input type="number" class="input" value="2000" min="100" step="100" style="width: 80px;">
               <span style="font-size: 11px; color: var(--slate-500);">ms</span>
-              <button class="btn btn-sm btn-danger">🗑</button>
+              <button class="btn btn-sm btn-danger" onclick="removeSequencePreviewItem(this)">🗑</button>
             </div>
             <div class="sequence-item">
               <span class="seq-name">Pattern: Fire</span>
               <input type="number" class="input" value="3000" min="100" step="100" style="width: 80px;">
               <span style="font-size: 11px; color: var(--slate-500);">ms</span>
-              <button class="btn btn-sm btn-danger">🗑</button>
+              <button class="btn btn-sm btn-danger" onclick="removeSequencePreviewItem(this)">🗑</button>
             </div>
           </div>
           <div style="margin-top: 16px; display: flex; gap: 10px;">
             <button class="btn btn-secondary">+ Add Image To Sequence</button>
             <button class="btn btn-secondary">+ Add Pattern To Sequence</button>
-            <button class="btn btn-primary">⬆️ Deploy Sequence (2 items)</button>
+            <button class="btn btn-primary" id="deploy-sequence-btn">⬆️ Deploy Sequence</button>
           </div>
         </div>
       </div>
@@ -1012,11 +1013,11 @@
         <!-- WiFi Settings -->
         <div class="card">
           <div class="card-title">WiFi Network</div>
-          <form class="grid-2" onsubmit="event.preventDefault(); toast('WiFi connect request sent (simulated)');">
+          <form class="grid-2" onsubmit="handleWifiPreviewSubmit(event)">
             <div>
               <div class="input-group">
                 <label>Network SSID</label>
-                <input type="text" class="input" placeholder="Your WiFi name" style="width: 100%;" autocomplete="username">
+                <input type="text" class="input" placeholder="Your WiFi name" style="width: 100%;" autocomplete="off">
               </div>
               <div class="input-group">
                 <label>Password</label>
@@ -1583,6 +1584,10 @@ function buildPatternGrids() {
   document.getElementById('pgrid-music').innerHTML = musicHtml;
   document.getElementById('pgrid-adv').innerHTML = advHtml;
   document.getElementById('dash-patterns').innerHTML = dashHtml;
+  var subtitle = document.getElementById('pattern-preview-subtitle');
+  if (subtitle) {
+    subtitle.textContent = `Live preview of all ${PATTERNS.length} firmware patterns • Click a pattern for details`;
+  }
 }
 
 function selectPattern(id) {
@@ -2051,6 +2056,25 @@ function setLabMode(mode) {
   if (mode === 'procedural') generateProceduralArt();
 }
 
+function updateSequencePreviewUI() {
+  var count = document.querySelectorAll('#seq-list .sequence-item').length;
+  var timelineTitle = document.getElementById('timeline-title');
+  var deployButton = document.getElementById('deploy-sequence-btn');
+  if (!timelineTitle || !deployButton) return;
+  var itemLabel = count === 1 ? 'item' : 'items';
+  timelineTitle.textContent = `Timeline Editor (${count})`;
+  deployButton.textContent = count > 0
+    ? `⬆️ Deploy Sequence (${count} ${itemLabel})`
+    : '⬆️ Deploy Sequence';
+}
+
+function removeSequencePreviewItem(button) {
+  var item = button.closest('.sequence-item');
+  if (item) item.remove();
+  updateSequencePreviewUI();
+  toast('Sequence item removed (preview only)');
+}
+
 function handleImageUpload(input) {
   var file = input.files[0];
   if (!file) return;
@@ -2117,14 +2141,19 @@ function applyLedConfig() {
   var sacLeds = parseInt(document.getElementById('sac-leds').value);
   var dispLeds = numLeds - sacLeds;
   document.getElementById('disp-leds').textContent = dispLeds;
-  document.getElementById('disp-start').textContent = 'LED ' + sacLeds;
-  document.getElementById('disp-end').textContent = 'LED ' + (numLeds - 1);
-  document.getElementById('disp-height').textContent = dispLeds + ' px';
-  document.getElementById('code-display-leds').textContent = 'g_displayLeds = ' + dispLeds + ';';
-  document.getElementById('code-display-start').textContent = 'g_displayLedStart = ' + sacLeds + ';';
-  document.getElementById('upload-height-label').textContent = 'Matches current display height: ' + dispLeds + ' px';
+  document.getElementById('disp-start').textContent = `LED ${sacLeds}`;
+  document.getElementById('disp-end').textContent = `LED ${numLeds - 1}`;
+  document.getElementById('disp-height').textContent = `${dispLeds} px`;
+  document.getElementById('code-display-leds').textContent = `g_displayLeds = ${dispLeds};`;
+  document.getElementById('code-display-start').textContent = `g_displayLedStart = ${sacLeds};`;
+  document.getElementById('upload-height-label').textContent = `Matches current display height: ${dispLeds} px`;
   toast('LED config applied (simulated)');
   log('LED config: ' + dispLeds + ' display LEDs', 'ok');
+}
+
+function handleWifiPreviewSubmit(event) {
+  event.preventDefault();
+  toast('WiFi connect request sent (simulated)');
 }
 
 // ============================================================
@@ -2176,6 +2205,7 @@ function toast(msg, isErr) {
 // ============================================================
 document.addEventListener('DOMContentLoaded', function() {
   buildPatternGrids();
+  updateSequencePreviewUI();
 });
 </script>
 </body>
