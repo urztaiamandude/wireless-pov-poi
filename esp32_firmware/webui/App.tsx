@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { ViewMode } from './types';
 import { getESP32Sketch, getTeensySketch } from './constants';
 import Dashboard from './components/Dashboard';
@@ -9,6 +9,7 @@ import WiringGuide from './components/WiringGuide';
 import FirmwareManager from './components/FirmwareManager';
 import AdvancedSettings from './components/AdvancedSettings';
 import ImageLab from './components/ImageLab';
+import NativeToolbar from './components/NativeToolbar';
 import {
   LayoutDashboard,
   Cpu,
@@ -20,11 +21,25 @@ import {
   ImageIcon,
   Sparkles
 } from 'lucide-react';
+import { isNativePlatform, setDarkStatusBar, CapturedPhoto } from './nativeFeatures';
 
 const App: React.FC = () => {
   const [view, setView] = useState<ViewMode>(ViewMode.DASHBOARD);
   const [globalPreviewUrl, setGlobalPreviewUrl] = useState<string | null>(null);
   const [ledCount, setLedCount] = useState<number>(31);
+
+  // Configure native status bar on app launch
+  useEffect(() => {
+    if (isNativePlatform()) {
+      setDarkStatusBar();
+    }
+  }, []);
+
+  // Handler for photos captured via NativeToolbar camera
+  const handlePhotoCaptured = useCallback((photo: CapturedPhoto) => {
+    setGlobalPreviewUrl(photo.dataUrl);
+    setView(ViewMode.IMAGE_LAB);
+  }, []);
 
   const renderContent = () => {
     switch (view) {
@@ -132,6 +147,9 @@ const App: React.FC = () => {
           {renderContent()}
         </div>
       </main>
+
+      {/* Native-only floating toolbar (camera, keep-awake, share, etc.) */}
+      <NativeToolbar onPhotoCaptured={handlePhotoCaptured} />
     </div>
   );
 };

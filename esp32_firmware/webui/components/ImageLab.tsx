@@ -4,10 +4,11 @@ import {
   Upload, ImageIcon, RefreshCw, Sparkles,
   Sliders, Activity, Palette, Box,
   Plus, Trash2, ListOrdered, Play, Pause, SkipForward, SkipBack, Clock,
-  ChevronLeft, Users, Zap
+  ChevronLeft, Users, Zap, Camera
 } from 'lucide-react';
 import { SequenceItem } from '../types';
 import { useDebounce } from '../hooks';
+import { isNativePlatform, takePhoto, pickPhoto, hapticImpact } from '../nativeFeatures';
 
 // Pattern definitions — must match Teensy firmware pattern IDs
 const PATTERN_LIST = [
@@ -96,6 +97,32 @@ const ImageLab: React.FC<ImageLabProps> = ({ onPreviewUpdate, initialPreview, le
       reader.readAsDataURL(file);
     }
   };
+
+  /** Capture a photo via the native camera and load it into the editor. */
+  const handleCameraCapture = useCallback(async () => {
+    await hapticImpact('light');
+    const photo = await takePhoto();
+    if (photo) {
+      setSelectedImage(photo.dataUrl);
+      onPreviewUpdate(photo.dataUrl);
+      setBmpBlob(null);
+      setStatus('Photo captured — resize & deploy when ready');
+      setLabMode('upload');
+    }
+  }, [onPreviewUpdate]);
+
+  /** Pick a photo from the native gallery and load it into the editor. */
+  const handleGalleryPick = useCallback(async () => {
+    await hapticImpact('light');
+    const photo = await pickPhoto();
+    if (photo) {
+      setSelectedImage(photo.dataUrl);
+      onPreviewUpdate(photo.dataUrl);
+      setBmpBlob(null);
+      setStatus('Photo selected — resize & deploy when ready');
+      setLabMode('upload');
+    }
+  }, [onPreviewUpdate]);
 
   const createBMP = (canvas: HTMLCanvasElement): Blob => {
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
@@ -542,11 +569,23 @@ const ImageLab: React.FC<ImageLabProps> = ({ onPreviewUpdate, initialPreview, le
                 <button onClick={() => { setColorSeed(Math.random()); setTimeout(generateProceduralArt, 0); }} className="w-full py-4 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-[10px] font-black flex items-center justify-center gap-2 uppercase tracking-widest transition-all"><Palette size={16} className="text-pink-500" /> Roll Colors</button>
               </div>
             ) : (
-              <button onClick={() => fileInputRef.current?.click()} className="w-full py-10 border-2 border-dashed border-slate-800 rounded-3xl flex flex-col items-center gap-3 hover:border-pink-500/50 hover:bg-pink-500/5 transition-all group">
-                <Upload className="text-slate-600 group-hover:text-pink-500" size={24} />
-                <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Import Image</span>
-                <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
-              </button>
+              <div className="space-y-3">
+                <button onClick={() => fileInputRef.current?.click()} className="w-full py-10 border-2 border-dashed border-slate-800 rounded-3xl flex flex-col items-center gap-3 hover:border-pink-500/50 hover:bg-pink-500/5 transition-all group">
+                  <Upload className="text-slate-600 group-hover:text-pink-500" size={24} />
+                  <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Import Image</span>
+                  <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
+                </button>
+                {isNativePlatform() && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <button onClick={handleCameraCapture} className="py-4 bg-pink-900/30 hover:bg-pink-800/40 border border-pink-700/40 rounded-2xl text-xs font-bold text-pink-300 flex flex-col items-center gap-2 transition-all active:scale-95">
+                      <Camera size={18} /> Take Photo
+                    </button>
+                    <button onClick={handleGalleryPick} className="py-4 bg-cyan-900/30 hover:bg-cyan-800/40 border border-cyan-700/40 rounded-2xl text-xs font-bold text-cyan-300 flex flex-col items-center gap-2 transition-all active:scale-95">
+                      <ImageIcon size={18} /> Gallery
+                    </button>
+                  </div>
+                )}
+              </div>
             )}
 
             <div className="pt-4 border-t border-slate-800 space-y-2">
