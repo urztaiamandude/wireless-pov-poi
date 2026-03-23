@@ -35,21 +35,21 @@ const NativeToolbar: React.FC<NativeToolbarProps> = ({ onPhotoCaptured, deviceIp
   const [keepAwake, setKeepAwake] = useState(false);
   const [orientationLocked, setOrientationLocked] = useState(false);
   const [hapticsEnabled, setHapticsEnabled] = useState(true);
-
-  // Only render on native platforms
-  if (!isNativePlatform()) return null;
+  const isNative = isNativePlatform();
 
   // Subscribe to network changes
   useEffect(() => {
-    getNetworkStatus().then(setNetworkInfo);
+    if (!isNative) return;
+    getNetworkStatus().then(setNetworkInfo).catch(() => {});
     const unsub = onNetworkChange(setNetworkInfo);
     return unsub;
-  }, []);
+  }, [isNative]);
 
   // Restore keep-awake state indicator on mount
   useEffect(() => {
+    if (!isNative) return;
     setKeepAwake(isKeepAwakeActive());
-  }, []);
+  }, [isNative]);
 
   const handleTakePhoto = useCallback(async () => {
     if (hapticsEnabled) await hapticImpact('light');
@@ -104,6 +104,9 @@ const NativeToolbar: React.FC<NativeToolbarProps> = ({ onPhotoCaptured, deviceIp
   }, [hapticsEnabled]);
 
   const isWifi = networkInfo.connectionType === 'wifi';
+
+  // Only render on native platforms
+  if (!isNative) return null;
 
   return (
     <div className="fixed bottom-4 right-4 z-50 flex flex-col items-end gap-2">
