@@ -707,38 +707,38 @@
       </div>
     </div>
 
-    <button class="nav-item active" onclick="showTab('dashboard')">
+    <button class="nav-item active" onclick="showTab('dashboard', this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
       UI Dashboard
     </button>
-    <button class="nav-item" onclick="showTab('patterns')">
+    <button class="nav-item" onclick="showTab('patterns', this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="var(--cyan-400)" stroke-width="2"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2z"/></svg>
       Pattern Preview
     </button>
-    <button class="nav-item" onclick="showTab('imagelab')">
+    <button class="nav-item" onclick="showTab('imagelab', this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="var(--pink-400)" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
       Image Lab
     </button>
-    <button class="nav-item" onclick="showTab('settings')">
+    <button class="nav-item" onclick="showTab('settings', this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       Display Config
     </button>
 
     <div class="nav-separator"></div>
 
-    <button class="nav-item" onclick="showTab('esp32')">
+    <button class="nav-item" onclick="showTab('esp32', this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg>
       ESP32 Sketch
     </button>
-    <button class="nav-item" onclick="showTab('teensy')">
+    <button class="nav-item" onclick="showTab('teensy', this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg>
       Teensy Sketch
     </button>
-    <button class="nav-item" onclick="showTab('wiring')">
+    <button class="nav-item" onclick="showTab('wiring', this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
       Wiring Guide
     </button>
-    <button class="nav-item" onclick="showTab('firmware')">
+    <button class="nav-item" onclick="showTab('firmware', this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
       Firmware (OTA)
     </button>
@@ -775,7 +775,7 @@
             <button class="btn btn-secondary" id="btn-solo" onclick="setSyncMode(false)">📱 Independent</button>
           </div>
           <div style="display: flex; gap: 8px;">
-            <div class="device-card selected" onclick="selectDevice('leader')">
+            <div class="device-card selected" onclick="selectDevice('leader', this)">
               <div>
                 <div class="device-name">⭐ POV_LEADER</div>
                 <div class="device-status">192.168.4.1</div>
@@ -784,7 +784,7 @@
             </div>
           </div>
           <div style="display: flex; gap: 8px;">
-            <div class="device-card" onclick="selectDevice('follower')">
+            <div class="device-card" onclick="selectDevice('follower', this)">
               <div>
                 <div class="device-name">📱 POV_FOLLOWER</div>
                 <div class="device-status">192.168.4.2</div>
@@ -935,8 +935,8 @@
         </div>
 
         <div class="lab-tabs">
-          <button class="lab-tab active" onclick="setLabMode('upload')">📤 Upload</button>
-          <button class="lab-tab" onclick="setLabMode('procedural')">✨ Procedural</button>
+          <button class="lab-tab active" onclick="setLabMode('upload', this)">📤 Upload</button>
+          <button class="lab-tab" onclick="setLabMode('procedural', this)">✨ Procedural</button>
         </div>
 
         <!-- Upload Mode -->
@@ -1408,12 +1408,12 @@ void loop() {
           <div class="card">
             <div class="card-title">Select Target Hardware</div>
             <div class="target-grid">
-              <button class="target-btn active esp32" onclick="setFirmwareTarget('esp32')">
+              <button class="target-btn active esp32" onclick="setFirmwareTarget('esp32', this)">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/></svg>
                 <span>ESP32-S3</span>
                 <span class="ext">.bin</span>
               </button>
-              <button class="target-btn teensy" onclick="setFirmwareTarget('teensy')">
+              <button class="target-btn teensy" onclick="setFirmwareTarget('teensy', this)">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
                 <span>Teensy 4.1</span>
                 <span class="ext">.hex</span>
@@ -1489,13 +1489,13 @@ var PATTERNS = [
 // ============================================================
 // NAVIGATION
 // ============================================================
-function showTab(tabName) {
+function showTab(tabName, button) {
   currentTab = tabName;
   // Update nav items
   document.querySelectorAll('.nav-item').forEach(function(item, i) {
     item.classList.remove('active');
   });
-  event.currentTarget.classList.add('active');
+  if (button) button.classList.add('active');
   // Update panels
   document.querySelectorAll('.tab-panel').forEach(function(panel) {
     panel.classList.remove('active');
@@ -1515,9 +1515,9 @@ function setSyncMode(sync) {
   log(sync ? 'Fleet sync enabled' : 'Independent mode', 'cmd');
 }
 
-function selectDevice(id) {
+function selectDevice(id, card) {
   document.querySelectorAll('.device-card').forEach(function(card) { card.classList.remove('selected'); });
-  event.currentTarget.classList.add('selected');
+  if (card) card.classList.add('selected');
   log('Selected device: ' + id, 'cmd');
 }
 
@@ -1574,7 +1574,7 @@ function buildPatternGrids() {
   var basicHtml = '', musicHtml = '', advHtml = '', dashHtml = '';
   PATTERNS.forEach(function(p) {
     var cls = 'pattern-btn' + (p.group === 'audio' ? ' music' : '') + (p.id === currentPattern ? ' active' : '');
-    var btn = '<button class="' + cls + '" onclick="selectPattern(' + p.id + ')">' + p.label + '</button>';
+    var btn = '<button class="' + cls + '" onclick="selectPattern(' + p.id + ', this)">' + p.label + '</button>';
     if (p.group === 'basic') basicHtml += btn;
     else if (p.group === 'audio') musicHtml += btn;
     else advHtml += btn;
@@ -1590,12 +1590,12 @@ function buildPatternGrids() {
   }
 }
 
-function selectPattern(id) {
+function selectPattern(id, button) {
   currentPattern = id;
   document.querySelectorAll('.pattern-btn').forEach(function(btn) {
     btn.classList.remove('active');
   });
-  event.currentTarget.classList.add('active');
+  if (button) button.classList.add('active');
   log('Pattern → ' + PATTERNS[id].label, 'cmd');
 }
 
@@ -1695,6 +1695,35 @@ function clamp(v, min, max) {
 
 function copyRgb(c) { return [c[0], c[1], c[2]]; }
 
+function getPreviewDisplayLedCount() {
+  var displayCount = parseInt(document.getElementById('disp-leds').textContent, 10);
+  return clamp(isNaN(displayCount) ? 31 : displayCount, 1, 32);
+}
+
+function addLedRectPath(ctx, x, y, width, height, radius) {
+  if (typeof ctx.roundRect === 'function') {
+    ctx.roundRect(x, y, width, height, radius);
+    return;
+  }
+
+  var safeRadius = Math.max(0, Math.min(radius, width / 2, height / 2));
+  if (!safeRadius) {
+    ctx.rect(x, y, width, height);
+    return;
+  }
+
+  ctx.moveTo(x + safeRadius, y);
+  ctx.lineTo(x + width - safeRadius, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + safeRadius);
+  ctx.lineTo(x + width, y + height - safeRadius);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - safeRadius, y + height);
+  ctx.lineTo(x + safeRadius, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - safeRadius);
+  ctx.lineTo(x, y + safeRadius);
+  ctx.quadraticCurveTo(x, y, x + safeRadius, y);
+  ctx.closePath();
+}
+
 // Pattern state for effects
 var patternState = null;
 var patternStartTime = 0;
@@ -1733,10 +1762,11 @@ function simulateAudioLevel(timeMs) {
 
 function startPatternAnimation() {
   var canvas = document.getElementById('pattern-canvas');
+  if (!canvas) return;
   var ctx = canvas.getContext('2d');
   canvas.width = canvas.offsetWidth;
   canvas.height = 200;
-  var ledCount = 31;
+  var ledCount = getPreviewDisplayLedCount();
   patternState = initPatternState(ledCount);
   patternStartTime = performance.now();
 
@@ -2028,7 +2058,7 @@ function startPatternAnimation() {
       }
       ctx.fillStyle = 'rgb(' + r + ',' + g + ',' + b + ')';
       ctx.beginPath();
-      ctx.roundRect(x, 2, ledWidth, ledHeight, 2);
+      addLedRectPath(ctx, x, 2, ledWidth, ledHeight, 2);
       ctx.fill();
     }
     ctx.shadowBlur = 0;
@@ -2046,10 +2076,10 @@ function stopPatternAnimation() {
 // ============================================================
 // IMAGE LAB
 // ============================================================
-function setLabMode(mode) {
+function setLabMode(mode, button) {
   labMode = mode;
   document.querySelectorAll('.lab-tab').forEach(function(tab) { tab.classList.remove('active'); });
-  event.currentTarget.classList.add('active');
+  if (button) button.classList.add('active');
   document.getElementById('lab-upload').style.display = mode === 'upload' ? 'block' : 'none';
   document.getElementById('lab-procedural').style.display = mode === 'procedural' ? 'block' : 'none';
   document.getElementById('lab-sequence').style.display = 'block';
@@ -2137,8 +2167,16 @@ function randomizeSeed() {
 // DISPLAY CONFIG
 // ============================================================
 function applyLedConfig() {
-  var numLeds = parseInt(document.getElementById('num-leds').value);
-  var sacLeds = parseInt(document.getElementById('sac-leds').value);
+  var numLedsInput = document.getElementById('num-leds');
+  var sacLedsInput = document.getElementById('sac-leds');
+  var numLeds = parseInt(numLedsInput.value, 10);
+  var sacLeds = parseInt(sacLedsInput.value, 10);
+
+  numLeds = clamp(isNaN(numLeds) ? 32 : numLeds, 2, 32);
+  sacLeds = clamp(isNaN(sacLeds) ? 1 : sacLeds, 0, numLeds - 1);
+  numLedsInput.value = numLeds;
+  sacLedsInput.value = sacLeds;
+
   var dispLeds = numLeds - sacLeds;
   document.getElementById('disp-leds').textContent = dispLeds;
   document.getElementById('disp-start').textContent = `LED ${sacLeds}`;
@@ -2147,6 +2185,10 @@ function applyLedConfig() {
   document.getElementById('code-display-leds').textContent = `g_displayLeds = ${dispLeds};`;
   document.getElementById('code-display-start').textContent = `g_displayLedStart = ${sacLeds};`;
   document.getElementById('upload-height-label').textContent = `Matches current display height: ${dispLeds} px`;
+  if (isPatternPlaying) {
+    stopPatternAnimation();
+    startPatternAnimation();
+  }
   toast('LED config applied (simulated)');
   log('LED config: ' + dispLeds + ' display LEDs', 'ok');
 }
@@ -2181,12 +2223,12 @@ function downloadSketch(type) {
 // ============================================================
 // FIRMWARE
 // ============================================================
-function setFirmwareTarget(target) {
+function setFirmwareTarget(target, button) {
   firmwareTarget = target;
   document.querySelectorAll('.target-btn').forEach(function(btn) {
     btn.classList.remove('active');
   });
-  event.currentTarget.classList.add('active');
+  if (button) button.classList.add('active');
 }
 
 // ============================================================
