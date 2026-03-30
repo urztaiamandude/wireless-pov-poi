@@ -28,7 +28,7 @@ Invoke this skill when:
 
 ## Memory File Structure
 
-```
+```text
 docs/
 └── project_notes/
     ├── bugs.md        — Known bugs with root causes, solutions, and prevention
@@ -81,6 +81,7 @@ docs/
 ### When Adding Key Facts
 
 Add to `key_facts.md` only:
+
 - ✅ Pin numbers, GPIO assignments
 - ✅ Firmware `#define` constants
 - ✅ Hardware model numbers and specs
