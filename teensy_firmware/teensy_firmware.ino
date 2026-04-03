@@ -181,6 +181,7 @@ CRGB liveBuffer[NUM_LEDS];  // Sized at NUM_LEDS (max); g_displayLeds entries ar
 // Retro Strobe (pattern type 18) — temporal color interleaving
 // strobeMicros: duration of each phase in microseconds (default 300μs → ~3333 Hz show rate)
 // Controls the apparent 'width' of bars and gaps when poi is spinning.
+#define RETRO_STROBE_PATTERN_TYPE 18
 uint16_t strobeMicros = 300;
 
 // Serial command buffer
@@ -310,7 +311,7 @@ void loop() {
   // Retro Strobe (pattern 18) needs >1500 Hz FastLED.show() rate.
   // Bypass the normal frameDelay gate and use microsecond-precision timing.
   if (currentMode == 2 && currentIndex < MAX_PATTERNS &&
-      patterns[currentIndex].active && patterns[currentIndex].type == 18) {
+      patterns[currentIndex].active && patterns[currentIndex].type == RETRO_STROBE_PATTERN_TYPE) {
     displayRetroStrobe();
     return;
   }
@@ -1434,6 +1435,7 @@ void displayPattern() {
 void displayRetroStrobe() {
   static uint32_t lastStrobeUs = 0;
   static uint8_t  strobePhase  = 0;
+  static uint8_t  lastSpeed    = 0;   // cached to avoid re-decoding every call
 
   uint32_t now = micros();
   if (now - lastStrobeUs < strobeMicros) return;
@@ -1441,15 +1443,17 @@ void displayRetroStrobe() {
 
   Pattern& pat = patterns[currentIndex];
 
-  // Decode sub-mode and timing from speed byte
-  bool rgbMode = (pat.speed & 0x80) != 0;
-  uint16_t timing = (uint16_t)(pat.speed & 0x7F) * 5 + 100;
-  if (timing != strobeMicros) strobeMicros = timing;
-
-  // Clear sacrificial LEDs
-  for (int i = 0; i < g_displayLedStart; i++) {
-    leds[i] = CRGB::Black;
+  // Only re-decode timing when the speed byte actually changes
+  if (pat.speed != lastSpeed) {
+    lastSpeed = pat.speed;
+    strobeMicros = (uint16_t)(pat.speed & 0x7F) * 5 + 100;
+    // Ensure sacrificial LEDs are black whenever config changes
+    for (int i = 0; i < g_displayLedStart; i++) {
+      leds[i] = CRGB::Black;
+    }
   }
+
+  bool rgbMode = (pat.speed & 0x80) != 0;
 
   if (rgbMode) {
     // RGB (White) mode — 6-phase cycle: R, Black, G, Black, B, Black
