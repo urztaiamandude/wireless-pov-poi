@@ -104,7 +104,7 @@ const char* password = "povpoi123";
 #define SERIAL_RX_PIN 16  // DO NOT CHANGE: Teensy serial link
 static_assert(SERIAL_TX_PIN == 17, "SERIAL_TX_PIN must remain 17 for Teensy serial link");
 static_assert(SERIAL_RX_PIN == 16, "SERIAL_RX_PIN must remain 16 for Teensy serial link");
-const uint8_t kMaxPatternIndex = 17;
+const uint8_t kMaxPatternIndex = 18;
 
 // Image dimension limits
 // Updated to match Teensy PSRAM capabilities: 400px width, 64px height (2x32 LEDs)

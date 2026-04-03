@@ -55,6 +55,7 @@ const PATTERNS = [
   { id: 15, label: 'Audio Sparkle', group: 'audio' },
   { id: 16, label: 'Split Spin',    group: 'advanced' },
   { id: 17, label: 'Theater Chase', group: 'advanced' },
+  { id: 18, label: 'Retro Strobe',  group: 'advanced' },
 ];
 
 const SD_API_TIMEOUT_MS = 3000;
