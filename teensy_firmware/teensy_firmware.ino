@@ -78,7 +78,7 @@ static_assert(SERIAL_RX_PIN == 1, "SERIAL_RX_PIN must remain 1 for ESP32-S3 seri
   #define IMAGE_MAX_WIDTH 200
 #endif
 #define IMAGE_HEIGHT 32  // Compile-time array dimension (max = NUM_LEDS)
-#define MAX_PATTERNS 18
+#define MAX_PATTERNS 19
 #define MAX_SEQUENCES 5
 const uint8_t kPatternSpeedDivisor = 20;
 
@@ -111,13 +111,13 @@ struct POVImage {
 };
 
 // Pattern structure
-// Pattern types (0-17):
+// Pattern types (0-18):
 //   Basic:  0=rainbow, 1=wave, 2=gradient, 3=sparkle, 4=fire, 5=comet
 //           6=breathing, 7=strobe, 8=meteor, 9=wipe, 10=plasma
 //   Audio (MAX9814): 11=VU meter, 12=pulse, 13=rainbow, 14=center burst, 15=sparkle
-//   Extra:  16=split spin, 17=theater chase
+//   Extra:  16=split spin, 17=theater chase, 18=retro strobe (temporal color interleaving)
 struct Pattern {
-  uint8_t type;   // Pattern type (0-17), see types above
+  uint8_t type;   // Pattern type (0-18), see types above
   CRGB color1;    // Primary color for pattern
   CRGB color2;    // Secondary color for pattern
   uint8_t speed;  // Animation speed (1-255): higher = faster animation
@@ -177,6 +177,12 @@ bool sdInitialized = false;
 
 // Live mode buffer
 CRGB liveBuffer[NUM_LEDS];  // Sized at NUM_LEDS (max); g_displayLeds entries are used
+
+// Retro Strobe (pattern type 18) — temporal color interleaving
+// strobeMicros: duration of each phase in microseconds (default 300μs → ~3333 Hz show rate)
+// Controls the apparent 'width' of bars and gaps when poi is spinning.
+#define RETRO_STROBE_PATTERN_TYPE 18
+uint16_t strobeMicros = 300;
 
 // Serial command buffer
 // Buffer size calculation for larger images:
@@ -302,6 +308,14 @@ void loop() {
   // Process serial commands from ESP32
   processSerialCommands();
   
+  // Retro Strobe (pattern 18) needs >1500 Hz FastLED.show() rate.
+  // Bypass the normal frameDelay gate and use microsecond-precision timing.
+  if (currentMode == 2 && currentIndex < MAX_PATTERNS &&
+      patterns[currentIndex].active && patterns[currentIndex].type == RETRO_STROBE_PATTERN_TYPE) {
+    displayRetroStrobe();
+    return;
+  }
+
   // Update display based on current mode
   if (millis() - lastUpdate >= frameDelay) {
     lastUpdate = millis();
@@ -1399,11 +1413,110 @@ void displayPattern() {
         }
       }
       break;
+
+    case RETRO_STROBE_PATTERN_TYPE:  // Retro Strobe — delegated to displayRetroStrobe()
+      // Note: In Pattern mode (currentMode==2), loop() bypasses updateDisplay() entirely
+      // for this pattern to achieve >1500 Hz. When called from Sequence mode, it still
+      // works but is capped at the normal frameDelay rate (acceptable fallback).
+      displayRetroStrobe();
+      return;  // displayRetroStrobe() calls FastLED.show() itself
       
     default:
       FastLED.clear();
       break;
   }
+}
+
+// ── Retro Strobe (pattern type 18) — Temporal Color Interleaving ──────────
+// High-speed state machine that cycles through individual color components
+// separated by black gap frames. At rest the rapid flashing blends into a
+// single perceived color (white for RGB mode, mixed for dual-color mode).
+// When spun, POV reveals distinct solid bars of each component color.
+//
+// Sub-mode selection via the 'speed' byte:
+//   speed >= 128  →  RGB (White) mode:  R → Black → G → Black → B → Black  (6 phases)
+//   speed <  128  →  Dual-Color mode:   Color A → Black → Color B → Black   (4 phases)
+// The lower 7 bits of speed encode the strobeMicros timing:
+//   strobeMicros = (speed & 0x7F) * 5 + 100   (range 100–735 μs)
+//   Default speed 168 (RGB) or 40 (Dual) → 300 μs → 3333 Hz show rate.
+void displayRetroStrobe() {
+  static uint32_t lastStrobeUs = 0;
+  static uint8_t  strobePhase  = 0;
+  static uint8_t  lastSpeed    = 0xFF; // sentinel so first call always decodes
+
+  uint32_t now = micros();
+  if (now - lastStrobeUs < strobeMicros) return;
+  lastStrobeUs = now;
+
+  Pattern& pat = patterns[currentIndex];
+
+  // Only re-decode timing when the speed byte actually changes
+  if (pat.speed != lastSpeed) {
+    lastSpeed = pat.speed;
+    strobeMicros = (uint16_t)(pat.speed & 0x7F) * 5 + 100;
+    // Reset phase to avoid stale values when switching between RGB (6) and Dual (4) modes
+    strobePhase = 0;
+    // Ensure sacrificial LEDs are black whenever config changes
+    for (int i = 0; i < g_displayLedStart; i++) {
+      leds[i] = CRGB::Black;
+    }
+  }
+
+  bool rgbMode = (pat.speed & 0x80) != 0;
+
+  if (rgbMode) {
+    // RGB (White) mode — 6-phase cycle: R, Black, G, Black, B, Black
+    switch (strobePhase) {
+      case 0:  // Red
+        for (int i = g_displayLedStart; i < g_displayLedStart + g_displayLeds; i++)
+          leds[i] = CRGB(255, 0, 0);
+        break;
+      case 1:  // Black (gap)
+        for (int i = g_displayLedStart; i < g_displayLedStart + g_displayLeds; i++)
+          leds[i] = CRGB::Black;
+        break;
+      case 2:  // Green
+        for (int i = g_displayLedStart; i < g_displayLedStart + g_displayLeds; i++)
+          leds[i] = CRGB(0, 255, 0);
+        break;
+      case 3:  // Black (gap)
+        for (int i = g_displayLedStart; i < g_displayLedStart + g_displayLeds; i++)
+          leds[i] = CRGB::Black;
+        break;
+      case 4:  // Blue
+        for (int i = g_displayLedStart; i < g_displayLedStart + g_displayLeds; i++)
+          leds[i] = CRGB(0, 0, 255);
+        break;
+      case 5:  // Black (gap)
+        for (int i = g_displayLedStart; i < g_displayLedStart + g_displayLeds; i++)
+          leds[i] = CRGB::Black;
+        break;
+    }
+    strobePhase = (strobePhase + 1) % 6;
+  } else {
+    // Dual-Color mode — 4-phase cycle: Color A, Black, Color B, Black
+    switch (strobePhase) {
+      case 0:  // Color A
+        for (int i = g_displayLedStart; i < g_displayLedStart + g_displayLeds; i++)
+          leds[i] = pat.color1;
+        break;
+      case 1:  // Black (gap)
+        for (int i = g_displayLedStart; i < g_displayLedStart + g_displayLeds; i++)
+          leds[i] = CRGB::Black;
+        break;
+      case 2:  // Color B
+        for (int i = g_displayLedStart; i < g_displayLedStart + g_displayLeds; i++)
+          leds[i] = pat.color2;
+        break;
+      case 3:  // Black (gap)
+        for (int i = g_displayLedStart; i < g_displayLedStart + g_displayLeds; i++)
+          leds[i] = CRGB::Black;
+        break;
+    }
+    strobePhase = (strobePhase + 1) % 4;
+  }
+
+  FastLED.show();
 }
 
 void displaySequence() {

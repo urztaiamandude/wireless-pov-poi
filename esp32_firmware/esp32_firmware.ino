@@ -104,7 +104,7 @@ const char* password = "povpoi123";
 #define SERIAL_RX_PIN 16  // DO NOT CHANGE: Teensy serial link
 static_assert(SERIAL_TX_PIN == 17, "SERIAL_TX_PIN must remain 17 for Teensy serial link");
 static_assert(SERIAL_RX_PIN == 16, "SERIAL_RX_PIN must remain 16 for Teensy serial link");
-const uint8_t kMaxPatternIndex = 17;
+const uint8_t kMaxPatternIndex = 18;
 
 // Image dimension limits
 // Updated to match Teensy PSRAM capabilities: 400px width, 64px height (2x32 LEDs)
@@ -644,7 +644,7 @@ static const char rootPage[] PROGMEM = R"rawliteral(
                     </div>
                 </div>
                 <div style="padding:10px;background:#1e293b;border-radius:8px;font-size:12px;color:#64748b;margin-top:4px">
-                    Images: 0=Smiley, 1=Rainbow, 2=Heart | Patterns: 0-17 | Sequences: 0=Demo Mix
+                    Images: 0=Smiley, 1=Rainbow, 2=Heart | Patterns: 0-18 | Sequences: 0=Demo Mix
                 </div>
             </div>
 
@@ -2127,7 +2127,7 @@ void handleUploadPattern() {
     uint8_t g2 = doc["color2"]["g"] | 0;
     uint8_t b2 = doc["color2"]["b"] | 255;
 
-    // Clamp both index and type to supported pattern range (0-17)
+    // Clamp both index and type to supported pattern range (0-18)
     if (index > kMaxPatternIndex) {
       index = kMaxPatternIndex;
     }
@@ -2173,13 +2173,13 @@ void handleUploadSequence() {
   //     "loop":   <true|false>, // whether to loop (default true)
   //     "items": [              // up to 10 items
   //       { "kind": "image",   "index": <0-127>, "duration": <ms> },
-  //       { "kind": "pattern", "index": <0-17>,  "duration": <ms> }
+  //       { "kind": "pattern", "index": <0-18>,  "duration": <ms> }
   //     ]
   //   }
   //
   // Teensy command 0x04 payload:
   //   [seqIndex][itemCount][loop][item0][dur0_h][dur0_l]...[itemN][durN_h][durN_l]
-  //   item byte: bit7=0 → image index (0-127), bit7=1 → pattern index (0-17)
+  //   item byte: bit7=0 → image index (0-127), bit7=1 → pattern index (0-18)
   //   Image indices are limited to 7 bits (0-127) because bit 7 encodes the kind.
 
   if (!server.hasArg("plain")) {
@@ -2230,9 +2230,9 @@ void handleUploadSequence() {
 
     uint8_t itemByte;
     if (kind == "pattern") {
-      // Pattern index must be 0-17 (Teensy MAX_PATTERNS-1)
-      if (idx < 0 || idx > 17) {
-        server.send(400, "application/json", "{\"error\":\"pattern index out of range (0-17)\"}");
+      // Pattern index must be 0-18 (Teensy MAX_PATTERNS-1)
+      if (idx < 0 || idx > kMaxPatternIndex) {
+        server.send(400, "application/json", "{\"error\":\"pattern index out of range (0-18)\"}");
         return;
       }
       itemByte = 0x80 | ((uint8_t)idx & 0x7F); // bit 7 = pattern

@@ -4,6 +4,7 @@ import { ViewMode } from './types';
 import { getESP32Sketch, getTeensySketch } from './constants';
 import Dashboard from './components/Dashboard';
 import PatternPreview from './components/PatternPreview';
+import RetroStrobe from './components/RetroStrobe';
 import CodeViewer from './components/CodeViewer';
 import WiringGuide from './components/WiringGuide';
 import FirmwareManager from './components/FirmwareManager';
@@ -19,7 +20,8 @@ import {
   CloudUpload,
   Settings2,
   ImageIcon,
-  Sparkles
+  Sparkles,
+  Zap
 } from 'lucide-react';
 import { isNativePlatform, setDarkStatusBar, CapturedPhoto } from './nativeFeatures';
 
@@ -47,6 +49,8 @@ const App: React.FC = () => {
         return <Dashboard previewUrl={globalPreviewUrl} />;
       case ViewMode.PATTERN_PREVIEW:
         return <PatternPreview ledCount={ledCount} />;
+      case ViewMode.RETRO_STROBE:
+        return <RetroStrobe />;
       case ViewMode.IMAGE_LAB:
         return <ImageLab onPreviewUpdate={setGlobalPreviewUrl} initialPreview={globalPreviewUrl} ledCount={ledCount} setLedCount={setLedCount} />;
       case ViewMode.ADVANCED_SETTINGS:
@@ -89,6 +93,12 @@ const App: React.FC = () => {
           onClick={() => setView(ViewMode.PATTERN_PREVIEW)}
           icon={<Sparkles size={20} className="text-cyan-400" />}
           label="Pattern Preview"
+        />
+        <NavItem
+          active={view === ViewMode.RETRO_STROBE}
+          onClick={() => setView(ViewMode.RETRO_STROBE)}
+          icon={<Zap size={20} className="text-orange-400" />}
+          label="Retro Strobe"
         />
         <NavItem
           active={view === ViewMode.IMAGE_LAB}
