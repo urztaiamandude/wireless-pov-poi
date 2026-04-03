@@ -1413,6 +1413,13 @@ void displayPattern() {
         }
       }
       break;
+
+    case RETRO_STROBE_PATTERN_TYPE:  // Retro Strobe — delegated to displayRetroStrobe()
+      // Note: In Pattern mode (currentMode==2), loop() bypasses updateDisplay() entirely
+      // for this pattern to achieve >1500 Hz. When called from Sequence mode, it still
+      // works but is capped at the normal frameDelay rate (acceptable fallback).
+      displayRetroStrobe();
+      return;  // displayRetroStrobe() calls FastLED.show() itself
       
     default:
       FastLED.clear();
@@ -1440,7 +1447,7 @@ void displayPattern() {
 void displayRetroStrobe() {
   static uint32_t lastStrobeUs = 0;
   static uint8_t  strobePhase  = 0;
-  static uint8_t  lastSpeed    = 0;   // cached to avoid re-decoding every call
+  static uint8_t  lastSpeed    = 0xFF; // sentinel so first call always decodes
 
   uint32_t now = micros();
   if (now - lastStrobeUs < strobeMicros) return;
@@ -1452,6 +1459,8 @@ void displayRetroStrobe() {
   if (pat.speed != lastSpeed) {
     lastSpeed = pat.speed;
     strobeMicros = (uint16_t)(pat.speed & 0x7F) * 5 + 100;
+    // Reset phase to avoid stale values when switching between RGB (6) and Dual (4) modes
+    strobePhase = 0;
     // Ensure sacrificial LEDs are black whenever config changes
     for (int i = 0; i < g_displayLedStart; i++) {
       leds[i] = CRGB::Black;

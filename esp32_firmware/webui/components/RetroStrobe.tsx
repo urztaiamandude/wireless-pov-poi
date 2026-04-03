@@ -3,16 +3,13 @@ import React, { useState, useCallback } from 'react';
 import { Zap, ToggleLeft, ToggleRight } from 'lucide-react';
 import { hapticImpact } from '../nativeFeatures';
 
-function getDeviceBase(ip: string): string {
-  const isLocalhost = typeof window !== 'undefined' &&
-    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-  if (isLocalhost) return '';
-  const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
-  return ip ? `${protocol}//${ip}` : window.location.origin;
+function getDeviceBase(): string {
+  if (typeof window === 'undefined') return '';
+  const isLocalhost =
+    window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  if (isLocalhost) return ''; // Vite proxy handles /api -> ESP32
+  return window.location.origin;
 }
-
-/** Default device IP for the POI leader. */
-const DEFAULT_IP = '192.168.4.1';
 
 /** Pattern type ID for Retro Strobe on the Teensy. */
 const RETRO_STROBE_TYPE = 18;
@@ -53,7 +50,7 @@ const RetroStrobe: React.FC = () => {
     setStatus(null);
     hapticImpact('medium');
 
-    const base = getDeviceBase(DEFAULT_IP);
+    const base = getDeviceBase();
     const speed = encodeSpeed(rgbMode, timingIndex);
     const c1 = hexToRgb(colorA);
     const c2 = hexToRgb(colorB);
