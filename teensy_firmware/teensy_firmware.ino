@@ -1436,12 +1436,7 @@ void displayPattern() {
 // Sub-mode selection via the 'speed' byte:
 //   speed >= 128  →  RGB (White) mode:  R → Black → G → Black → B → Black  (6 phases)
 //   speed <  128  →  Dual-Color mode:   Color A → Black → Color B → Black   (4 phases)
-  static uint8_t  strobePhase  = 0;
-  static uint8_t  lastIndex    = 255;   // impossible value
-  if (currentIndex != lastIndex) {
-    strobePhase = 0;
-    lastIndex = currentIndex;
-  }
+// The lower 7 bits of speed encode the strobeMicros timing:
 //   strobeMicros = (speed & 0x7F) * 5 + 100   (range 100–735 μs)
 //   Default speed 168 (RGB) or 40 (Dual) → 300 μs → 3333 Hz show rate.
 void displayRetroStrobe() {
