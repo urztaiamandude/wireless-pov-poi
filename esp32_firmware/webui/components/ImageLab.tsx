@@ -30,6 +30,7 @@ const PATTERN_LIST = [
   { id: 15, label: 'Audio Sparkle' },
   { id: 16, label: 'Split Spin' },
   { id: 17, label: 'Theater Chase' },
+  { id: 18, label: 'Retro Strobe' },
 ];
 
 interface ImageLabProps {
