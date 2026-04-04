@@ -11,6 +11,16 @@ import { Device, PowerMode } from '../types';
 import { useDebounce } from '../hooks';
 import { hapticImpact } from '../nativeFeatures';
 
+/** Convert a hex color string like "#ff0000" to {r, g, b} for the firmware API */
+const hexToRgb = (hex: string) => {
+  const h = hex.replace('#', '');
+  return {
+    r: parseInt(h.substring(0, 2), 16) || 0,
+    g: parseInt(h.substring(2, 4), 16) || 0,
+    b: parseInt(h.substring(4, 6), 16) || 0,
+  };
+};
+
 interface DashboardProps {
   previewUrl: string | null;
 }
@@ -104,7 +114,6 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
   const lastBrightnessInteraction = useRef<number>(0);
   const lastFrameRateInteraction = useRef<number>(0);
   const lastModeInteraction = useRef<number>(0);
-  const lastPatternConfigInteraction = useRef<number>(0);
 
   const activeDevice = devices.find(d => d.id === selectedDeviceId) || devices[0];
 
@@ -354,7 +363,6 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
 
   // Send updated pattern config (speed/colors) without changing the pattern type
   const sendPatternConfig = useCallback(async (speed: number, color1: string, color2: string) => {
-    lastPatternConfigInteraction.current = Date.now();
     const targets = isSyncModeRef.current ? [devicesRef.current[0]] : [activeDeviceRef.current];
     for (const dev of targets) {
       try {
@@ -362,7 +370,7 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
         await fetch(`${base}/api/pattern`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ index: currentPattern, type: currentPattern, speed, color1, color2 }),
+          body: JSON.stringify({ index: currentPattern, type: currentPattern, speed, color1: hexToRgb(color1), color2: hexToRgb(color2) }),
         });
       } catch { /* offline */ }
     }
@@ -421,7 +429,7 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
         const resPattern = await fetch(`${base}/api/pattern`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ index: patternId, type: patternId, speed: patternSpeed, color1: patternColor1, color2: patternColor2 }),
+          body: JSON.stringify({ index: patternId, type: patternId, speed: patternSpeed, color1: hexToRgb(patternColor1), color2: hexToRgb(patternColor2) }),
         });
         if (!resPattern.ok) {
           const errText = await resPattern.text();

@@ -2598,9 +2598,10 @@ void handleSDDelete() {
     if (slash >= 0 && slash < (int)filename.length() - 1) {
       filename = filename.substring(slash + 1);
     }
-    uint8_t filenameLen = filename.length();
+    size_t rawLen = filename.length();
     // Teensy MAX_FILENAME_LEN is 32; clamp to avoid validation failures
-    if (filenameLen > 32) filenameLen = 32;
+    if (rawLen > MAX_SD_FILENAME_LEN) rawLen = MAX_SD_FILENAME_LEN;
+    uint8_t filenameLen = (uint8_t)rawLen;
 
     // Teensy protocol: 0x22 = delete SD image
     // Payload: [filename_len][filename_bytes...]
@@ -2635,8 +2636,9 @@ void handleSDLoad() {
     if (slash >= 0 && slash < (int)filename.length() - 1) {
       filename = filename.substring(slash + 1);
     }
-    uint8_t filenameLen = filename.length();
-    if (filenameLen > MAX_SD_FILENAME_LEN) filenameLen = MAX_SD_FILENAME_LEN;
+    size_t rawLen = filename.length();
+    if (rawLen > MAX_SD_FILENAME_LEN) rawLen = MAX_SD_FILENAME_LEN;
+    uint8_t filenameLen = (uint8_t)rawLen;
 
     // Optional target PSRAM slot; defaults to 0 for backwards compatibility
     uint8_t targetSlot = 0;
@@ -2680,7 +2682,7 @@ void handleSDLoad() {
 // Returns true if every character of name is in [A-Za-z0-9_-].
 // Used by pattern-preset handlers to prevent path-traversal via '/' or '..'.
 static bool isValidPresetName(const String& name) {
-  if (name.length() == 0 || name.length() > 32) return false;
+  if (name.length() == 0 || name.length() > MAX_SD_FILENAME_LEN) return false;
   for (size_t i = 0; i < name.length(); i++) {
     char c = name[i];
     if (!isalnum(c) && c != '_' && c != '-') return false;
