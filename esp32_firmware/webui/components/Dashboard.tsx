@@ -1,11 +1,11 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
-  Square, Sun, Smartphone,
+  Square, Sun, Smartphone, Save,
   Wifi, Upload, Terminal, Dices, Sparkles, Monitor, Activity,
   Crown, Users, Zap, Battery, BatteryLow, Shuffle,
   Music, Layers, SkipBack, SkipForward, Gauge, Image,
-  HardDrive, Trash2, FolderOpen, RefreshCw, Download
+  HardDrive, Trash2, FolderOpen, RefreshCw, Download, Palette
 } from 'lucide-react';
 import { Device, PowerMode } from '../types';
 import { useDebounce } from '../hooks';
@@ -85,6 +85,12 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
   const [powerMode, setPowerModeState] = useState<PowerMode>('balanced');
   const [maxContentIndex, setMaxContentIndex] = useState<number>(49);
 
+  // Pattern configuration state
+  const [patternSpeed, setPatternSpeed] = useState<number>(50);
+  const [patternColor1, setPatternColor1] = useState<string>('#ff0000');
+  const [patternColor2, setPatternColor2] = useState<string>('#0000ff');
+  const [sequenceSlot, setSequenceSlot] = useState<number>(1);
+
   // SD Card state
   const [sdFiles, setSdFiles] = useState<string[]>([]);
   const [sdPresent, setSdPresent] = useState(false);
@@ -92,11 +98,13 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
   const [sdFreeSpace, setSdFreeSpace] = useState<number>(0);
   const [sdLoading, setSdLoading] = useState(false);
   const [sdPatternPresets, setSdPatternPresets] = useState<string[]>([]);
+  const [presetName, setPresetName] = useState<string>('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const lastBrightnessInteraction = useRef<number>(0);
   const lastFrameRateInteraction = useRef<number>(0);
   const lastModeInteraction = useRef<number>(0);
+  const lastPatternConfigInteraction = useRef<number>(0);
 
   const activeDevice = devices.find(d => d.id === selectedDeviceId) || devices[0];
 
@@ -271,6 +279,25 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
     }
   };
 
+  const handleSdSaveImage = async (slot: number, name: string) => {
+    const base = getDeviceBase(activeDevice.ip);
+    try {
+      const res = await fetch(`${base}/api/sd/save`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slot, filename: name }),
+      });
+      if (res.ok) {
+        addLog(`[SD] Image slot ${slot} saved as "${name}" to SD card`, 'text-green-400');
+        await refreshSdFiles();
+      } else {
+        addLog(`[SD] Failed to save image: ${res.status}`, 'text-red-400');
+      }
+    } catch {
+      addLog(`[SD] Network error saving image to SD`, 'text-red-400');
+    }
+  };
+
   const addLog = (msg: string, color: string = 'text-slate-400') => {
     const now = new Date();
     const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
@@ -344,6 +371,39 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
     debouncedFrameRateUpdate(value);
   };
 
+  // Send updated pattern config (speed/colors) without changing the pattern type
+  const sendPatternConfig = useCallback(async (speed: number, color1: string, color2: string) => {
+    lastPatternConfigInteraction.current = Date.now();
+    const targets = isSyncModeRef.current ? [devicesRef.current[0]] : [activeDeviceRef.current];
+    for (const dev of targets) {
+      try {
+        const base = getDeviceBase(dev.ip);
+        await fetch(`${base}/api/pattern`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ index: currentPattern, type: currentPattern, speed, color1, color2 }),
+        });
+      } catch { /* offline */ }
+    }
+  }, [currentPattern]);
+
+  const debouncedPatternConfig = useDebounce(sendPatternConfig, 300);
+
+  const handlePatternSpeedChange = (value: number) => {
+    setPatternSpeed(value);
+    debouncedPatternConfig(value, patternColor1, patternColor2);
+  };
+
+  const handlePatternColor1Change = (value: string) => {
+    setPatternColor1(value);
+    debouncedPatternConfig(patternSpeed, value, patternColor2);
+  };
+
+  const handlePatternColor2Change = (value: string) => {
+    setPatternColor2(value);
+    debouncedPatternConfig(patternSpeed, patternColor1, value);
+  };
+
   const handleModeSelect = async (mode: number) => {
     lastModeInteraction.current = Date.now();
     setCurrentMode(mode);
@@ -355,7 +415,7 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
         const res = await fetch(`${base}/api/mode`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ mode, index: mode === 2 ? currentPattern : contentIndex }),
+          body: JSON.stringify({ mode, index: mode === 2 ? currentPattern : mode === 3 ? sequenceSlot : contentIndex }),
         });
         if (res.ok) {
           addLog(`[OK] Mode → ${DISPLAY_MODES[mode]?.label} on ${dev.name}`, 'text-cyan-400');
@@ -380,9 +440,7 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
         const resPattern = await fetch(`${base}/api/pattern`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          // Keep pattern storage index aligned with selected pattern ID.
-          // Teensy displays `patterns[currentIndex]`, so missing index causes dark slots.
-          body: JSON.stringify({ index: patternId, type: patternId, speed: 50 }),
+          body: JSON.stringify({ index: patternId, type: patternId, speed: patternSpeed, color1: patternColor1, color2: patternColor2 }),
         });
         if (!resPattern.ok) {
           const errText = await resPattern.text();
@@ -424,6 +482,31 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
         }
       } catch {
         addLog(`[Error] Content nav failed on ${dev.name}`, 'text-red-400');
+      }
+    }
+  };
+
+  const handleSequenceSlotChange = async (slot: number) => {
+    setSequenceSlot(slot);
+    if (currentMode !== 3) return;
+    lastModeInteraction.current = Date.now();
+    const targets = isSyncMode ? [devices[0]] : [activeDevice];
+    for (const dev of targets) {
+      try {
+        const base = getDeviceBase(dev.ip);
+        const res = await fetch(`${base}/api/mode`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mode: 3, index: slot }),
+        });
+        if (res.ok) {
+          addLog(`[OK] Sequence slot → ${slot === 0 ? 'Demo' : `User ${slot}`} on ${dev.name}`, 'text-cyan-400');
+        } else {
+          const errText = await res.text();
+          addLog(`[Error] Sequence slot change failed on ${dev.name}: ${res.status} ${errText}`, 'text-red-400');
+        }
+      } catch {
+        addLog(`[Error] Sequence slot change failed on ${dev.name}`, 'text-red-400');
       }
     }
   };
@@ -689,11 +772,11 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
             </div>
           </div>
 
-          {/* Content Navigation (Image / Sequence mode) */}
-          {(currentMode === 1 || currentMode === 3) && (
+          {/* Content Navigation (Image mode) */}
+          {currentMode === 1 && (
             <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4">
               <div className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-3">
-                {currentMode === 1 ? 'Image' : 'Sequence'} Navigation
+                Image Navigation
               </div>
               <div className="flex items-center gap-3">
                 <button
@@ -718,6 +801,30 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
             </div>
           )}
 
+          {/* Sequence Slot Selector (Sequence mode) */}
+          {currentMode === 3 && (
+            <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4">
+              <div className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-3">
+                Sequence Slot
+              </div>
+              <div className="grid grid-cols-5 gap-1.5">
+                {[0, 1, 2, 3, 4].map(slot => (
+                  <button
+                    key={slot}
+                    onClick={() => handleSequenceSlotChange(slot)}
+                    className={`py-2.5 px-1 rounded-xl text-[10px] font-bold transition-all active:scale-95 border ${
+                      sequenceSlot === slot
+                        ? 'bg-cyan-600 border-cyan-400/30 text-white shadow-lg'
+                        : 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700'
+                    }`}
+                  >
+                    {slot === 0 ? 'Demo' : `User ${slot}`}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* SD Card File Manager */}
           {sdPresent && (
             <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4">
@@ -738,6 +845,21 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
                   </button>
                 </div>
               </div>
+
+              {/* Save Current Image to SD */}
+              {currentMode === 1 && (
+                <div className="mb-3">
+                  <div className="text-[8px] text-slate-600 uppercase tracking-widest mb-1.5">Save Current Image</div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleSdSaveImage(contentIndex, `img_${contentIndex}`)}
+                      className="flex-1 py-2 bg-emerald-600/80 hover:bg-emerald-500 text-white rounded-lg text-[10px] font-bold flex items-center justify-center gap-1.5 transition-all active:scale-95"
+                    >
+                      <Save size={12} /> Save Slot {contentIndex} to SD
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* Images */}
               <div className="text-[8px] text-slate-600 uppercase tracking-widest mb-1.5">Images</div>
@@ -771,14 +893,20 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
               )}
 
               {/* Pattern Presets */}
-              <div className="text-[8px] text-slate-600 uppercase tracking-widest mb-1.5 flex items-center justify-between">
-                <span>Pattern Presets</span>
+              <div className="text-[8px] text-slate-600 uppercase tracking-widest mb-1.5">Pattern Presets</div>
+              <div className="flex items-center gap-1.5 mb-2">
+                <input
+                  type="text"
+                  value={presetName}
+                  onChange={e => setPresetName(e.target.value.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 20))}
+                  placeholder="preset name"
+                  className="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 text-[10px] text-white font-mono outline-none focus:ring-1 focus:ring-cyan-500/50"
+                />
                 <button
-                  onClick={() => handleSdPatternSave('default')}
-                  className="text-[8px] text-cyan-400 hover:text-cyan-300 transition-colors"
-                  title="Save current patterns as 'default' preset"
+                  onClick={() => { const name = presetName.trim() || 'default'; handleSdPatternSave(name); }}
+                  className="px-3 py-1.5 bg-cyan-600/80 hover:bg-cyan-500 text-white rounded-lg text-[9px] font-bold transition-all active:scale-95 flex items-center gap-1"
                 >
-                  Save current
+                  <Save size={10} /> Save
                 </button>
               </div>
               {sdPatternPresets.length === 0 ? (
@@ -870,6 +998,45 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
                         {p.label}
                       </button>
                     ))}
+                  </div>
+                </div>
+
+                {/* Pattern Speed */}
+                <div className="bg-slate-950/50 p-3 rounded-xl border border-slate-800">
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+                      <Gauge size={11} className="text-orange-400" /> Speed
+                    </label>
+                    <span className="text-orange-400 font-mono text-[10px]">{patternSpeed}</span>
+                  </div>
+                  <input
+                    type="range" min="1" max="255" value={patternSpeed}
+                    onChange={e => { const v = parseInt(e.target.value); if (!isNaN(v)) handlePatternSpeedChange(Math.max(1, Math.min(255, v))); }}
+                    className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-orange-500"
+                  />
+                </div>
+
+                {/* Pattern Colors */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="bg-slate-950/50 p-3 rounded-xl border border-slate-800">
+                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5 mb-2">
+                      <Palette size={11} className="text-pink-400" /> Color 1
+                    </label>
+                    <input
+                      type="color" value={patternColor1}
+                      onChange={e => handlePatternColor1Change(e.target.value)}
+                      className="w-full h-8 rounded-lg cursor-pointer border border-slate-700 bg-transparent"
+                    />
+                  </div>
+                  <div className="bg-slate-950/50 p-3 rounded-xl border border-slate-800">
+                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5 mb-2">
+                      <Palette size={11} className="text-cyan-400" /> Color 2
+                    </label>
+                    <input
+                      type="color" value={patternColor2}
+                      onChange={e => handlePatternColor2Change(e.target.value)}
+                      className="w-full h-8 rounded-lg cursor-pointer border border-slate-700 bg-transparent"
+                    />
                   </div>
                 </div>
               </div>

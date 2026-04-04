@@ -49,6 +49,7 @@ void handleSDList();
 void handleSDDelete();
 void handleSDInfo();
 void handleSDLoad();
+void handleSDSave();
 void handleSDPatternList();
 void handleSDPatternSave();
 void handleSDPatternLoad();
@@ -396,6 +397,7 @@ void setupWebServer() {
   server.on("/api/sd/info", HTTP_GET, handleSDInfo);
   server.on("/api/sd/delete", HTTP_POST, handleSDDelete);
   server.on("/api/sd/load", HTTP_POST, handleSDLoad);
+  server.on("/api/sd/save", HTTP_POST, handleSDSave);
   server.on("/api/sd/pattern/list", HTTP_GET, handleSDPatternList);
   server.on("/api/sd/pattern/save", HTTP_POST, handleSDPatternSave);
   server.on("/api/sd/pattern/load", HTTP_POST, handleSDPatternLoad);
@@ -2665,6 +2667,89 @@ void handleSDLoad() {
     JsonDocument resp;
     resp["status"] = "ok";
     resp["slot"] = (int)targetSlot;
+    String respStr;
+    serializeJson(resp, respStr);
+    server.send(200, "application/json", respStr);
+  } else {
+    server.send(400, "application/json", "{\"error\":\"No data\"}");
+  }
+}
+
+// ── Save PSRAM Image to SD ────────────────────────────────────────────────────
+
+// POST /api/sd/save
+// Body: {"slot":N, "filename":"basename"}
+// Sends Teensy command 0x20 to save image at PSRAM slot N to SD card as basename.pov
+void handleSDSave() {
+  if (server.hasArg("plain")) {
+    String body = server.arg("plain");
+
+    JsonDocument doc;
+    if (deserializeJson(doc, body)) {
+      server.send(400, "application/json", "{\"error\":\"Invalid JSON\"}");
+      return;
+    }
+
+    if (!doc["slot"].is<int>()) {
+      server.send(400, "application/json", "{\"error\":\"Missing slot\"}");
+      return;
+    }
+
+    int slot = doc["slot"].as<int>();
+    if (slot < 0 || slot > 199) {
+      server.send(400, "application/json", "{\"error\":\"Slot out of range (0-199)\"}");
+      return;
+    }
+
+    if (!state.sdCardPresent) {
+      server.send(503, "application/json", "{\"error\":\"SD card not present\"}");
+      return;
+    }
+
+    // Get or generate filename
+    String filename;
+    if (doc["filename"].is<const char*>()) {
+      filename = doc["filename"].as<String>();
+      filename.trim();
+    }
+    if (filename.length() == 0) {
+      // Auto-generate a filename
+      char buf[16];
+      snprintf(buf, sizeof(buf), "sv%05lu", millis() % 100000);
+      filename = buf;
+    }
+
+    // Strip .pov extension if provided (Teensy adds it)
+    if (filename.endsWith(".pov")) {
+      filename.remove(filename.length() - 4);
+    }
+    // Remove path components
+    int slash = filename.lastIndexOf('/');
+    if (slash >= 0 && slash < (int)filename.length() - 1) {
+      filename = filename.substring(slash + 1);
+    }
+
+    uint8_t filenameLen = filename.length();
+    if (filenameLen > 32) filenameLen = 32;
+
+    // Teensy save protocol (0x20): [filename_len][filename][img_index]
+    uint8_t totalDataLen = 1 + filenameLen + 1;
+    sendTeensyCommand(0x20, totalDataLen);
+    TEENSY_SERIAL.write(filenameLen);
+    TEENSY_SERIAL.write((const uint8_t*)filename.c_str(), filenameLen);
+    TEENSY_SERIAL.write((uint8_t)slot);
+    TEENSY_SERIAL.write(0xFE);
+
+    Serial.print("Manual save to SD: slot ");
+    Serial.print(slot);
+    Serial.print(" -> ");
+    Serial.print(filename);
+    Serial.println(".pov");
+
+    JsonDocument resp;
+    resp["status"] = "ok";
+    resp["slot"] = slot;
+    resp["filename"] = filename + ".pov";
     String respStr;
     serializeJson(resp, respStr);
     server.send(200, "application/json", respStr);
