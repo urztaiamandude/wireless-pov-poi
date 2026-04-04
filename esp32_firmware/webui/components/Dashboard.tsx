@@ -13,7 +13,11 @@ import { hapticImpact } from '../nativeFeatures';
 
 /** Convert a hex color string like "#ff0000" to {r, g, b} for the firmware API */
 const hexToRgb = (hex: string) => {
-  const h = hex.replace('#', '').padEnd(6, '0').substring(0, 6);
+  let h = hex.replace('#', '').toLowerCase();
+  if (h.length === 3) {
+    h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+  }
+  h = h.padEnd(6, '0').substring(0, 6);
   return {
     r: parseInt(h.substring(0, 2), 16) || 0,
     g: parseInt(h.substring(2, 4), 16) || 0,
