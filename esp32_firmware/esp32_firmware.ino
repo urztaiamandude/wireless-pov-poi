@@ -111,6 +111,7 @@ const uint8_t kMaxPatternIndex = 18;
 // Updated to match Teensy PSRAM capabilities: 400px width, 64px height (2x32 LEDs)
 #define MAX_IMAGE_WIDTH 400
 #define MAX_IMAGE_HEIGHT 64
+#define MAX_SD_FILENAME_LEN 32  // Must match Teensy MAX_FILENAME_LEN
 
 // Sync Configuration
 #define AUTO_SYNC_ENABLED false
@@ -2637,8 +2638,7 @@ void handleSDLoad() {
       filename = filename.substring(slash + 1);
     }
     uint8_t filenameLen = filename.length();
-    // Clamp to Teensy MAX_FILENAME_LEN (32) for SD image load as well
-    if (filenameLen > 32) filenameLen = 32;
+    if (filenameLen > MAX_SD_FILENAME_LEN) filenameLen = MAX_SD_FILENAME_LEN;
 
     // Optional target PSRAM slot; defaults to 0 for backwards compatibility
     uint8_t targetSlot = 0;
@@ -2691,7 +2691,7 @@ void handleSDSave() {
     }
 
     if (!doc["slot"].is<int>()) {
-      server.send(400, "application/json", "{\"error\":\"Missing slot\"}");
+      server.send(400, "application/json", "{\"error\":\"Slot must be an integer\"}");
       return;
     }
 
@@ -2715,7 +2715,7 @@ void handleSDSave() {
     if (filename.length() == 0) {
       // Auto-generate a filename
       char buf[16];
-      snprintf(buf, sizeof(buf), "sv%05lu", millis() % 100000);
+      snprintf(buf, sizeof(buf), "save%04lu", millis() % 10000);
       filename = buf;
     }
 
@@ -2730,7 +2730,7 @@ void handleSDSave() {
     }
 
     uint8_t filenameLen = filename.length();
-    if (filenameLen > 32) filenameLen = 32;
+    if (filenameLen > MAX_SD_FILENAME_LEN) filenameLen = MAX_SD_FILENAME_LEN;
 
     // Teensy save protocol (0x20): [filename_len][filename][img_index]
     uint8_t totalDataLen = 1 + filenameLen + 1;
