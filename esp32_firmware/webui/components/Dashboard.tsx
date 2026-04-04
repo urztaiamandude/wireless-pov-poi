@@ -279,25 +279,6 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
     }
   };
 
-  const handleSdSaveImage = async (slot: number, name: string) => {
-    const base = getDeviceBase(activeDevice.ip);
-    try {
-      const res = await fetch(`${base}/api/sd/save`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ slot, filename: name }),
-      });
-      if (res.ok) {
-        addLog(`[SD] Image slot ${slot} saved as "${name}" to SD card`, 'text-green-400');
-        await refreshSdFiles();
-      } else {
-        addLog(`[SD] Failed to save image: ${res.status}`, 'text-red-400');
-      }
-    } catch {
-      addLog(`[SD] Network error saving image to SD`, 'text-red-400');
-    }
-  };
-
   const addLog = (msg: string, color: string = 'text-slate-400') => {
     const now = new Date();
     const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
@@ -845,21 +826,6 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
                   </button>
                 </div>
               </div>
-
-              {/* Save Current Image to SD */}
-              {currentMode === 1 && (
-                <div className="mb-3">
-                  <div className="text-[8px] text-slate-600 uppercase tracking-widest mb-1.5">Save Current Image</div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleSdSaveImage(contentIndex, `img_${contentIndex}`)}
-                      className="flex-1 py-2 bg-emerald-600/80 hover:bg-emerald-500 text-white rounded-lg text-[10px] font-bold flex items-center justify-center gap-1.5 transition-all active:scale-95"
-                    >
-                      <Save size={12} /> Save Slot {contentIndex} to SD
-                    </button>
-                  </div>
-                </div>
-              )}
 
               {/* Images */}
               <div className="text-[8px] text-slate-600 uppercase tracking-widest mb-1.5">Images</div>
