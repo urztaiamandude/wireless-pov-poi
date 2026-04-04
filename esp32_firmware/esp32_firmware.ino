@@ -2599,9 +2599,7 @@ void handleSDDelete() {
       filename = filename.substring(slash + 1);
     }
     size_t rawLen = filename.length();
-    // Teensy MAX_FILENAME_LEN is 32; clamp to avoid validation failures
-    if (rawLen > MAX_SD_FILENAME_LEN) rawLen = MAX_SD_FILENAME_LEN;
-    uint8_t filenameLen = (uint8_t)rawLen;
+    uint8_t filenameLen = (uint8_t)min(rawLen, (size_t)MAX_SD_FILENAME_LEN);
 
     // Teensy protocol: 0x22 = delete SD image
     // Payload: [filename_len][filename_bytes...]
@@ -2637,8 +2635,7 @@ void handleSDLoad() {
       filename = filename.substring(slash + 1);
     }
     size_t rawLen = filename.length();
-    if (rawLen > MAX_SD_FILENAME_LEN) rawLen = MAX_SD_FILENAME_LEN;
-    uint8_t filenameLen = (uint8_t)rawLen;
+    uint8_t filenameLen = (uint8_t)min(rawLen, (size_t)MAX_SD_FILENAME_LEN);
 
     // Optional target PSRAM slot; defaults to 0 for backwards compatibility
     uint8_t targetSlot = 0;
