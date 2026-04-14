@@ -145,7 +145,7 @@ def _check_cpp_file(path: Path) -> List[Dict]:
 
 def _run_cpp_checks() -> List[Dict]:
     findings: List[Dict] = []
-    cpp_dirs = [REPO_ROOT / "teensy_firmware", REPO_ROOT / "esp32_firmware"]
+    cpp_dirs = [REPO_ROOT / "firmware" / "teensy_firmware", REPO_ROOT / "firmware" / "esp32_firmware"]
     for d in cpp_dirs:
         if not d.exists():
             continue
