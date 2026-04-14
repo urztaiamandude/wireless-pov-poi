@@ -124,7 +124,7 @@ def build_firmware() -> TestReport:
     report = TestReport("Build")
     report.add(run_cmd("Build Teensy firmware", ["pio", "run", "-e", "teensy41"]))
     report.add(run_cmd("Build ESP32 firmware", ["pio", "run", "-e", "esp32s3"],
-                       cwd=str(PROJECT_ROOT / "esp32_firmware")))
+                       cwd=str(PROJECT_ROOT / "firmware" / "esp32_firmware")))
     report.finish()
     return report
 
@@ -143,7 +143,7 @@ def flash_firmware(teensy_port: Optional[str], esp32_port: Optional[str]) -> Tes
         report.add(run_cmd("Flash ESP32", [
             "pio", "run", "-e", "esp32s3", "-t", "upload",
             "--upload-port", esp32_port,
-        ], cwd=str(PROJECT_ROOT / "esp32_firmware")))
+        ], cwd=str(PROJECT_ROOT / "firmware" / "esp32_firmware")))
     else:
         report.add(TestResult("Flash ESP32", Verdict.SKIP, 0, "No port specified"))
 

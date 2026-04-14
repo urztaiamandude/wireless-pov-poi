@@ -10,8 +10,8 @@
 build_output/
 
 # Arduino CLI build directory
-teensy_firmware/build/
-esp32_firmware/build/
+firmware/teensy_firmware/build/
+firmware/esp32_firmware/build/
 
 # PlatformIO source symlink (helper for building in root)
 /src/
@@ -57,9 +57,9 @@ build/
 .fuse_hidden*
 
 # Compiled binaries
-teensy_firmware/*.hex
-teensy_firmware/*.elf
-esp32_firmware/*.bin
+firmware/teensy_firmware/*.hex
+firmware/teensy_firmware/*.elf
+firmware/esp32_firmware/*.bin
 
 # Web development
 web_portal/node_modules/

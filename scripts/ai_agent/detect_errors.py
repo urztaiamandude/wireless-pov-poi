@@ -38,7 +38,7 @@ from typing import Dict, List, Optional, Tuple
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parents[1]
 OUTPUT_DIR = SCRIPT_DIR / "output"
-WEBUI_DIR = REPO_ROOT / "esp32_firmware" / "webui"
+WEBUI_DIR = REPO_ROOT / "firmware" / "esp32_firmware" / "webui"
 
 
 # ---------------------------------------------------------------------------
@@ -120,7 +120,7 @@ def _run_pio_builds() -> Tuple[List[Dict], bool]:
 
     builds = [
         ("teensy41", REPO_ROOT),
-        ("esp32s3", REPO_ROOT / "esp32_firmware"),
+        ("esp32s3", REPO_ROOT / "firmware" / "esp32_firmware"),
     ]
 
     all_passed = True
@@ -200,7 +200,7 @@ def _run_typescript_check() -> List[Dict]:
                 "source": "typescript_check",
                 "severity": "warn",
                 "description": f"npm ci failed (exit {rc}): {stderr.strip()[:200]}",
-                "suggested_fix": "Run 'npm ci' in esp32_firmware/webui/ and resolve errors.",
+                "suggested_fix": "Run 'npm ci' in firmware/esp32_firmware/webui/ and resolve errors.",
             })
             return findings
 

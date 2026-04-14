@@ -119,7 +119,7 @@ def _save_outputs(patterns: List[Dict], run_name: str) -> None:
         with open(snippet_path, "w", encoding="utf-8") as fh:
             fh.write(f"// Pattern {p['id']}: {p['name']}\n")
             fh.write(f"// {p['description']}\n")
-            fh.write("// Add this case to the displayPattern() switch in teensy_firmware.ino\n\n")
+            fh.write("// Add this case to the displayPattern() switch in firmware/teensy_firmware/teensy_firmware.ino\n\n")
             fh.write(p["code"])
             fh.write("\n")
         print(f"  Saved pattern snippet: {snippet_path}")
@@ -136,7 +136,7 @@ def _save_outputs(patterns: List[Dict], run_name: str) -> None:
             fh.write(f"```cpp\n{p['code']}\n```\n\n")
             fh.write(
                 f"**Integration:** Add the case above to `displayPattern()` in "
-                f"`teensy_firmware/teensy_firmware.ino` and update `MAX_PATTERNS`.\n\n"
+                f"`firmware/teensy_firmware/teensy_firmware.ino` and update `MAX_PATTERNS`.\n\n"
             )
     print(f"  Saved report: {md_path}")
 

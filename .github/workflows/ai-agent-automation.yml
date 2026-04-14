@@ -40,8 +40,8 @@ jobs:
           path: |
             ~/.platformio
             .pio
-            esp32_firmware/.pio
-          key: pio-${{ runner.os }}-${{ hashFiles('platformio.ini', 'esp32_firmware/platformio.ini') }}
+            firmware/esp32_firmware/.pio
+          key: pio-${{ runner.os }}-${{ hashFiles('platformio.ini', 'firmware/esp32_firmware/platformio.ini') }}
           restore-keys: |
             pio-${{ runner.os }}-
 
@@ -52,7 +52,7 @@ jobs:
         run: pio run -e teensy41
 
       - name: Build ESP32-S3 firmware
-        run: cd esp32_firmware && pio run -e esp32s3
+        run: cd firmware/esp32_firmware && pio run -e esp32s3
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
@@ -61,7 +61,7 @@ jobs:
           name: firmware-build-artifacts
           path: |
             .pio/build/teensy41/
-            esp32_firmware/.pio/build/esp32s3/
+            firmware/esp32_firmware/.pio/build/esp32s3/
           if-no-files-found: ignore
 
   # ---------------------------------------------------------------------------
@@ -92,8 +92,8 @@ jobs:
           path: |
             ~/.platformio
             .pio
-            esp32_firmware/.pio
-          key: pio-${{ runner.os }}-${{ hashFiles('platformio.ini', 'esp32_firmware/platformio.ini') }}
+            firmware/esp32_firmware/.pio
+          key: pio-${{ runner.os }}-${{ hashFiles('platformio.ini', 'firmware/esp32_firmware/platformio.ini') }}
           restore-keys: |
             pio-${{ runner.os }}-
 
@@ -176,8 +176,8 @@ jobs:
           path: |
             ~/.platformio
             .pio
-            esp32_firmware/.pio
-          key: pio-${{ runner.os }}-${{ hashFiles('platformio.ini', 'esp32_firmware/platformio.ini') }}
+            firmware/esp32_firmware/.pio
+          key: pio-${{ runner.os }}-${{ hashFiles('platformio.ini', 'firmware/esp32_firmware/platformio.ini') }}
           restore-keys: |
             pio-${{ runner.os }}-
 
