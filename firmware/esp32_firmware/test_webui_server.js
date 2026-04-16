@@ -119,15 +119,18 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  const handler = routes[key];
-  if (handler) {
-    let body = '';
-    req.on('data', chunk => body += chunk);
-    req.on('end', () => handler(req, res, body));
-  } else {
-    res.writeHead(404);
-    res.end();
+  if (Object.prototype.hasOwnProperty.call(routes, key)) {
+    const handler = routes[key];
+    if (typeof handler === 'function') {
+      let body = '';
+      req.on('data', chunk => body += chunk);
+      req.on('end', () => handler(req, res, body));
+      return;
+    }
   }
+
+  res.writeHead(404);
+  res.end();
 });
 
 server.listen(PORT, () => {
