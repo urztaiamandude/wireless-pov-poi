@@ -119,12 +119,11 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  if (Object.prototype.hasOwnProperty.call(routes, key)) {
-    const handler = routes[key];
-    if (typeof handler === 'function') {
+  for (const [routeKey, routeHandler] of Object.entries(routes)) {
+    if (routeKey === key && typeof routeHandler === 'function') {
       let body = '';
       req.on('data', chunk => body += chunk);
-      req.on('end', () => handler(req, res, body));
+      req.on('end', () => routeHandler(req, res, body));
       return;
     }
   }
