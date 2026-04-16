@@ -2,20 +2,33 @@
 
 ## Supported Versions
 
-Use this section to tell people about which versions of your project are
-currently being supported with security updates.
+Security fixes are provided for the latest released major version and the default development branch.
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 5.1.x   | :white_check_mark: |
-| 5.0.x   | :x:                |
-| 4.0.x   | :white_check_mark: |
-| < 4.0   | :x:                |
+| Version / Branch | Supported | Notes |
+| --- | --- | --- |
+| `1.x` (latest release line, currently `1.0.0`) | ✅ | Receives security patches and backports when feasible. |
+| `main` (unreleased development) | ✅ | Best-effort fixes may land here first, then be included in the next release. |
+| `< 1.0.0` | ❌ | No security updates are provided for pre-1.0 code. |
 
 ## Reporting a Vulnerability
 
-Use this section to tell people how to report a vulnerability.
+Please report vulnerabilities privately using GitHub Private Vulnerability Reporting:
 
-Tell them where to go, how often they can expect to get an update on a
-reported vulnerability, what to expect if the vulnerability is accepted or
-declined, etc.
+- <https://github.com/urztaiamandude/wireless-pov-poi/security/advisories/new>
+
+If private reporting is unavailable, open a private draft advisory in the same Security tab rather than a public issue.
+
+What to include in your report:
+
+- Affected component(s) and version/commit
+- Reproduction steps or proof of concept
+- Impact assessment (what an attacker can do)
+- Any suggested remediation
+
+Response targets:
+
+- Initial acknowledgment: within **3 business days**
+- Status update: within **7 business days** after acknowledgment
+- Remediation timeline: depends on severity and release constraints; critical issues are prioritized
+
+Please do **not** disclose vulnerabilities publicly until a fix or mitigation is available.
