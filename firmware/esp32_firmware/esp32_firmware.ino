@@ -3281,9 +3281,9 @@ void loadDeviceConfig() {
   deviceConfig.syncInterval = preferences.getULong("syncInterval", AUTO_SYNC_INTERVAL);
   
   // Load saved WiFi STA (client) credentials for connecting to existing network
-  // Default to "Office" network so phone can stay on its home WiFi with internet
-  staSsid = preferences.getString("sta_ssid", "Office");
-  staPassword = preferences.getString("sta_password", "6195717200");
+  // STA credentials must be configured via web UI; no defaults in source.
+  staSsid = preferences.getString("sta_ssid", "");
+  staPassword = preferences.getString("sta_password", "");
 
   // Load LED hardware config
   hwLEDConfig.numLeds        = (uint8_t)preferences.getUInt("hw_numLeds",  32);
