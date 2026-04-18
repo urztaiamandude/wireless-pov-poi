@@ -27,21 +27,21 @@ User device (browser/app) → WiFi/BLE → ESP32/S3 → UART (115200) → Teensy
 ### Teensy firmware
 
 ```bash
-cd /home/runner/work/wireless-pov-poi/wireless-pov-poi
+cd wireless-pov-poi
 pio run -e teensy41
 ```
 
 ### ESP32-S3 firmware
 
 ```bash
-cd /home/runner/work/wireless-pov-poi/wireless-pov-poi/firmware/esp32_firmware
+cd firmware/esp32_firmware
 pio run -e esp32s3
 ```
 
 ### Web UI
 
 ```bash
-cd /home/runner/work/wireless-pov-poi/wireless-pov-poi/firmware/esp32_firmware/webui
+cd firmware/esp32_firmware/webui
 npm install
 npx tsc --noEmit
 npm run build
@@ -50,7 +50,7 @@ npm run build
 ### Python examples/tests
 
 ```bash
-cd /home/runner/work/wireless-pov-poi/wireless-pov-poi/examples
+cd examples
 python3 -m pytest test_*.py -v
 ```
 

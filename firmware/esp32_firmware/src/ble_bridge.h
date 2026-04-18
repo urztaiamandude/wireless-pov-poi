@@ -26,6 +26,7 @@
 #endif
 
 #ifndef BLE_MAX_PACKET_SIZE
+// 509-byte payload keeps BLE packets below 512-byte MTU after protocol framing.
 #define BLE_MAX_PACKET_SIZE 509
 #endif
 

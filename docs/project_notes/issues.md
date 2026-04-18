@@ -58,4 +58,4 @@ Current issue tracker aligned to the present repository structure.
 ## Notes
 
 - This tracker intentionally excludes references to removed/nonexistent trees.
-- BUG-007 was removed because the referenced PlatformIO Teensy firmware tree is not present on main.
+- The stale PlatformIO Teensy-firmware issue entry was removed because that tree is not present on main.

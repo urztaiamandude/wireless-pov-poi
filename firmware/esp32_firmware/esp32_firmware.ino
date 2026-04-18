@@ -3281,7 +3281,7 @@ void loadDeviceConfig() {
   deviceConfig.syncInterval = preferences.getULong("syncInterval", AUTO_SYNC_INTERVAL);
   
   // Load saved WiFi STA (client) credentials for connecting to existing network
-  // STA credentials must be configured via web UI; no defaults in source.
+  // STA credentials must be configured via web UI; empty defaults disable STA until set.
   staSsid = preferences.getString("sta_ssid", "");
   staPassword = preferences.getString("sta_password", "");
 
