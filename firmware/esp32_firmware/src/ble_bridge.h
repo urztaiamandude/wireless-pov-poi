@@ -16,7 +16,26 @@
 #include <BLEServer.h>
 #include <BLEUtils.h>
 #include <BLE2902.h>
-#include "config.h"
+
+#ifndef BLE_ENABLED
+#define BLE_ENABLED true
+#endif
+
+#ifndef BLE_DEVICE_NAME
+#define BLE_DEVICE_NAME "Wireless POV Poi"
+#endif
+
+#ifndef BLE_MAX_PACKET_SIZE
+#define BLE_MAX_PACKET_SIZE 509
+#endif
+
+#ifndef BLE_CMD_START
+#define BLE_CMD_START 0xD0
+#endif
+
+#ifndef BLE_CMD_END
+#define BLE_CMD_END 0xD1
+#endif
 
 // Nordic UART Service UUIDs
 #define SERVICE_UUID           "6e400001-b5a3-f393-e0a9-e50e24dcca9e"
