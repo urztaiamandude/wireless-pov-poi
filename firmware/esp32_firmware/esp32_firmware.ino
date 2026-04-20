@@ -312,8 +312,12 @@ void onWiFiEvent(WiFiEvent_t event) {
                      WiFi.localIP().toString().c_str(), staSsid.c_str());
       break;
     case ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
-      Serial.println("STA disconnected, reconnecting...");
-      WiFi.begin(staSsid.c_str(), staPassword.c_str());
+      if (staSsid.length() > 0) {
+        Serial.println("STA disconnected, reconnecting...");
+        WiFi.begin(staSsid.c_str(), staPassword.c_str());
+      } else {
+        Serial.println("STA disconnected; reconnect skipped (no configured STA credentials).");
+      }
       break;
     default:
       break;
