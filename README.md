@@ -1,78 +1,66 @@
-# Wireless POV Poi — Nebula Poi
+# Wireless POV Poi (Nebula Poi)
 
-Welcome to the wireless POV Poi project - a creative venture that combines art and technology! This project aims to build a wireless LED poi that displays patterns and animations when spun.
+Wireless LED POV poi project with a dual-controller architecture:
 
-## Features
+- **Teensy 4.1** drives the APA102 LED strip and runs POV/pattern rendering.
+- **ESP32/ESP32-S3** provides WiFi/BLE control, web APIs, and UI hosting.
 
-### Core
-- **Wireless Control**: WiFi AP mode (SSID: `POV-POI-WiFi`) with optional connection to existing networks (STA mode), plus BLE via Nordic UART Service
-- **Customizable Patterns**: 18 built-in animated patterns with configurable dual colors and speed
-- **Rechargeable Battery**: Long-lasting 5V battery with power management profiles
+> Status note: this repository is under active cleanup and has **not** been fully hardware-validated end-to-end in its current state.
 
-### Display Modes
-- **Image Display**: Upload and display POV images (up to 400×32 pixels with PSRAM)
-- **Pattern Display**: 18 animated patterns including rainbow, fire, plasma, comet, meteor, and more
-- **Audio-Reactive Patterns**: 5 music-reactive patterns (VU meter, pulse, audio rainbow, center burst, sparkle) driven by an optional MAX9814 microphone
-- **Sequence/Playlist Mode**: Chain images and patterns with per-item durations and looping
-- **Live Drawing Mode**: Real-time interactive canvas drawing streamed to the LEDs
+## Current Repository Layout
 
-### Web Interface
-- **Responsive Web UI**: Mobile-optimized dark-theme interface with 7 tabs (Dashboard, Patterns, Image Lab, Live Draw, Multi-Poi, SD Card, Settings)
-- **PWA Support**: Installable Progressive Web App with Service Worker for offline caching
-- **Procedural Image Generator**: Create organic and geometric patterns in-browser and upload directly
-- **REST API**: Full programmatic control via REST endpoints for mode, brightness, frame rate, patterns, images, live frames, SD card, and multi-poi sync
-- **mDNS Discovery**: Access the web UI at `http://povpoi-XXXXX.local` when connected to the same network
+- `firmware/teensy_firmware/` — Teensy firmware (`teensy_firmware.ino`)
+- `firmware/esp32_firmware/` — ESP32 firmware (`esp32_firmware.ino` + BLE bridge sources)
+- `firmware/esp32_firmware/webui/` — React + TypeScript web UI with Capacitor (Android/iOS folders present)
+- `docs/` — project documentation
+- `examples/` — Python conversion tools/tests
 
-### Hardware & Storage
-- **PSRAM Support**: Optional 16 MB expanded memory on Teensy 4.1 for up to 200 stored images
-- **SD Card Storage**: Save and load images and pattern presets to the Teensy 4.1 built-in microSD slot
-- **5 Built-in Demo Images**: Smiley face, rainbow spectrum, heart, starburst, and nebula spiral pre-loaded
+## Architecture (High Level)
 
-### Multi-Poi Synchronization
-- **ESP-NOW Pairing**: Peer discovery, pairing, and heartbeat-based status tracking
-- **Mirror & Independent Modes**: Synchronized playback across poi or independent per-device control
-- **Sync Time Offset**: Phase alignment so paired poi animate in unison
+User device (browser/app) → WiFi/BLE → ESP32/S3 → UART (115200) → Teensy 4.1 → SPI → APA102 LEDs
 
-### Controls & Configuration
-- **Brightness Control**: Adjustable 0–255 via slider or API
-- **Frame Rate Control**: Adjustable 10–1000 FPS (500+ for POV spinning)
-- **Power Modes**: Four profiles (Performance, Balanced, Power Save, Ultra Save) that scale CPU frequency, max FPS, and brightness caps
-- **Device Configuration**: Customizable device name, sync group, and auto-sync settings persisted across reboots
-- **WiFi Network Manager**: Scan, connect, and disconnect from external WiFi networks with saved credentials
+- Teensy UART pins: RX1=0, TX1=1
+- ESP32 UART pins: RX=GPIO16, TX=GPIO17
 
-## Installation
+## Build Commands
 
-1. Clone the repository:  
-   `git clone https://github.com/urztaiamandude/wireless-pov-poi.git`
-2. Navigate into the project directory:  
-   `cd wireless-pov-poi`
-3. Install the required packages:  
-   `npm install`
+### Teensy firmware
 
-## Usage
+```bash
+cd wireless-pov-poi
+pio run -e teensy41
+```
 
-1. Connect the poi to your device.
-2. Use the mobile application to select designs.
-3. Spin your poi to see the magic!
+### ESP32-S3 firmware
 
-## Start Here (First Release)
+```bash
+cd firmware/esp32_firmware
+pio run -e esp32s3
+```
 
-If you are setting up your first physical pair of poi, follow:
+### Web UI
 
-- `docs/FIRST_PAIR_QUICKSTART.md` (beginner-friendly setup and validation checklist)
-- `docs/POI_PAIRING.md` (pairing and synchronization details)
+```bash
+cd firmware/esp32_firmware/webui
+npm install
+npx tsc --noEmit
+npm run build
+```
 
-## Contributing
+### Python examples/tests
 
-We welcome contributions from the community. Please fork the repository and create a pull request.
+```bash
+cd examples
+python3 -m pytest test_*.py -v
+```
+
+## Important Scope Notes
+
+- Multi-poi synchronization code exists, but synchronized behavior should be treated as **experimental until validated on hardware**.
+- No historical tree assumptions: the active firmware trees are only:
+  - `firmware/teensy_firmware/`
+  - `firmware/esp32_firmware/`
 
 ## License
 
-Distributed under the MIT License. See `LICENSE` for more information.
-
-## Acknowledgements
-
-- Inspired by the beauty of motion and light.
-- Special thanks to all contributors and supporters.
-
-*Spin on.* 🎨✨
+MIT — see `LICENSE`.

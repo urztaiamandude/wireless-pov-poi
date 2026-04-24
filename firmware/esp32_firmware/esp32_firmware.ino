@@ -312,8 +312,12 @@ void onWiFiEvent(WiFiEvent_t event) {
                      WiFi.localIP().toString().c_str(), staSsid.c_str());
       break;
     case ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
-      Serial.println("STA disconnected, reconnecting...");
-      WiFi.begin(staSsid.c_str(), staPassword.c_str());
+      if (staSsid.length() > 0) {
+        Serial.println("STA disconnected, reconnecting...");
+        WiFi.begin(staSsid.c_str(), staPassword.c_str());
+      } else {
+        Serial.println("STA disconnected; reconnect skipped (no configured STA credentials).");
+      }
       break;
     default:
       break;
@@ -3281,9 +3285,9 @@ void loadDeviceConfig() {
   deviceConfig.syncInterval = preferences.getULong("syncInterval", AUTO_SYNC_INTERVAL);
   
   // Load saved WiFi STA (client) credentials for connecting to existing network
-  // Default to "Office" network so phone can stay on its home WiFi with internet
-  staSsid = preferences.getString("sta_ssid", "Office");
-  staPassword = preferences.getString("sta_password", "6195717200");
+  // STA credentials must be configured via web UI; empty defaults disable STA until set.
+  staSsid = preferences.getString("sta_ssid", "");
+  staPassword = preferences.getString("sta_password", "");
 
   // Load LED hardware config
   hwLEDConfig.numLeds        = (uint8_t)preferences.getUInt("hw_numLeds",  32);

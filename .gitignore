@@ -81,3 +81,9 @@ docs/latex/
 
 # AI Agent outputs
 scripts/ai_agent/output/
+
+# Repository cleanup ignores
+compile_commands.json
+.cache/
+_codeql_detected_source_root
+.zenflow/tasks/

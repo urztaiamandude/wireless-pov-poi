@@ -5,6 +5,19 @@ All notable changes to the Nebula Poi project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- Removed hardcoded STA fallback SSID/password defaults from `firmware/esp32_firmware/esp32_firmware.ino` and replaced them with empty defaults configured only via the web UI.
+- Removed ESP32 firmware config split-brain by deleting `firmware/esp32_firmware/src/config.h` and moving BLE bridge defaults into `firmware/esp32_firmware/src/ble_bridge.h`.
+- Renamed Teensy UART pin macros in `firmware/teensy_firmware/teensy_firmware.ino` to `TEENSY_UART_RX_PIN` / `TEENSY_UART_TX_PIN` while preserving pin values.
+- Rewrote `docs/project_notes/key_facts.md` and `docs/project_notes/issues.md` to match the current repository layout and removed stale path references/BUG-007 notes.
+- Replaced the root `README.md` to match current firmware locations and removed production-readiness claims.
+- Added this changelog entry to document cleanup items 1–8.
+- Removed the `obsolete/` directory from source control.
+- Updated `.gitignore` for generated/tooling artifacts and untracked listed files/directories without deleting local copies.
+
 ## [1.0.0] - 2026-01-07
 
 ### Added
