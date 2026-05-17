@@ -130,14 +130,21 @@ SKIP_DIR_NAMES = {
 
 # Specific files that are documented as not-compiled-into-firmware. They live
 # in the source tree for tooling/preview purposes only and should not gate
-# real builds. Match is on basename, scoped to anywhere under a rule root.
-SKIP_FILES = {
+# real builds, but that exemption must only apply to those exact source files.
+# Do not skip by basename, because rule roots include the resolved
+# PROJECT_DATA_DIR/LittleFS payload and a served file with the same basename
+# must still be scanned.
+SKIP_EXACT_PATHS = {
     # documented in AGENTS.md / CLAUDE.md as standalone browser preview, not
     # uploaded to SPIFFS/LittleFS:
-    "web_preview.html",
+    (PROJECT_ROOT / "web_preview.html").resolve(),
     # documented as a Node.js mock API server for local dev:
-    "test_webui_server.js",
+    (PROJECT_ROOT / "test_webui_server.js").resolve(),
 }
+
+# Intentionally empty: basename-based skipping is unsafe across multiple rule
+# roots, especially when PROJECT_DATA_DIR points at the LittleFS payload.
+SKIP_FILES = set()
 
 # Binary-ish extensions we never bother to open.
 SKIP_EXTENSIONS = {
