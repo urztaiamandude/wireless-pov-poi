@@ -29,10 +29,35 @@ from pathlib import Path
 # PlatformIO injects `env` via the SCons Import() builtin. When run standalone
 # (e.g. `python check_forbidden_patterns.py` for local testing), fall back to
 # the script's own directory as the project root so the scan still works.
+#
+# ROOT_OVERRIDES maps a rule's logical scope key ("data", "src", "include") to
+# an absolute path. When running under PlatformIO we populate it from the env's
+# actual $PROJECT_DATA_DIR / $PROJECT_SRC_DIR / $PROJECT_INCLUDE_DIR so the
+# same FORBIDDEN rule set works across environments with different layouts
+# (e.g. ESP32 LittleFS at firmware/esp32_firmware/webui/dist, Teensy src at
+# firmware/teensy_firmware).
+ROOT_OVERRIDES = {}
+
 try:
     Import("env")  # noqa: F821  (provided by PlatformIO)
     PROJECT_ROOT = Path(env["PROJECT_DIR"])  # noqa: F821
     _RUNNING_UNDER_PIO = True
+
+    def _pio_dir(var):
+        try:
+            value = env.subst("$" + var)  # noqa: F821
+        except Exception:
+            return None
+        return value if value and value != "$" + var else None
+
+    for _key, _var in (
+        ("data", "PROJECT_DATA_DIR"),
+        ("src", "PROJECT_SRC_DIR"),
+        ("include", "PROJECT_INCLUDE_DIR"),
+    ):
+        _resolved = _pio_dir(_var)
+        if _resolved:
+            ROOT_OVERRIDES[_key] = Path(_resolved).resolve()
 except NameError:
     PROJECT_ROOT = Path(__file__).resolve().parent
     _RUNNING_UNDER_PIO = False
@@ -41,8 +66,9 @@ except NameError:
 # Configuration
 # ---------------------------------------------------------------------------
 
-# Default scope: the LittleFS data dir is where most failures land, since that's
-# what gets served to browsers and can't pull from CDNs once flashed.
+# Logical scope keys used in each rule's `applies_to` list. They're resolved
+# to actual paths via ROOT_OVERRIDES (when running under PlatformIO) or
+# relative to PROJECT_ROOT (when running standalone).
 DATA_DIR = "data"
 SRC_DIR = "src"
 INCLUDE_DIR = "include"
@@ -58,13 +84,26 @@ SKIP_DIR_NAMES = {
     ".vscode",
     ".idea",
     "node_modules",
-    "build",
-    "dist",
     "__pycache__",
     ".cache",
     ".zenflow",
     ".zencoder",
     ".claude",
+    # NOTE: `build` and `dist` are intentionally NOT skipped — the ESP32-S3
+    # platformio.ini sets `data_dir = webui/dist` (resolving to
+    # firmware/esp32_firmware/webui/dist), so the `dist/` folder *is* the
+    # LittleFS payload we must scan.
+}
+
+# Specific files that are documented as not-compiled-into-firmware. They live
+# in the source tree for tooling/preview purposes only and should not gate
+# real builds. Match is on basename, scoped to anywhere under a rule root.
+SKIP_FILES = {
+    # documented in AGENTS.md / CLAUDE.md as standalone browser preview, not
+    # uploaded to SPIFFS/LittleFS:
+    "web_preview.html",
+    # documented as a Node.js mock API server for local dev:
+    "test_webui_server.js",
 }
 
 # Binary-ish extensions we never bother to open.
@@ -81,7 +120,8 @@ IPV4_ALLOWLIST = {
     "0.0.0.0",
     "127.0.0.1",
     "255.255.255.255",
-    "192.168.4.1",   # documented SoftAP IP for the captive UI
+    "192.168.4.1",   # documented SoftAP IP for the captive UI (AP / leader)
+    "192.168.4.2",   # documented follower poi IP on the same SoftAP subnet
 }
 
 # WiFi credential literals we tolerate (documented in README / setup guides).
@@ -257,6 +297,8 @@ def _iter_files(root: Path, extensions):
         # Mutate dirnames in-place so os.walk doesn't descend into skip dirs.
         dirnames[:] = [d for d in dirnames if d not in SKIP_DIR_NAMES]
         for name in filenames:
+            if name in SKIP_FILES:
+                continue
             ext = os.path.splitext(name)[1].lower()
             if ext in SKIP_EXTENSIONS:
                 continue
@@ -282,10 +324,18 @@ def _read_text(path: Path):
 
 
 def _rule_files(rule):
-    """Resolve a rule's `applies_to` roots to absolute file paths."""
+    """Resolve a rule's `applies_to` roots to absolute file paths.
+
+    Each entry in `applies_to` is either a logical key present in
+    ROOT_OVERRIDES (resolved to whatever path the active PlatformIO env
+    defines) or a literal path relative to PROJECT_ROOT.
+    """
     extensions = rule.get("extensions")
     for rel_root in rule["applies_to"]:
-        root = (PROJECT_ROOT / rel_root).resolve()
+        if rel_root in ROOT_OVERRIDES:
+            root = ROOT_OVERRIDES[rel_root]
+        else:
+            root = (PROJECT_ROOT / rel_root).resolve()
         yield from _iter_files(root, extensions)
 
 
@@ -352,9 +402,26 @@ def _format_violation(name, path, lineno, col, snippet, message):
 
 def main():
     violations = scan()
+    # Build a short, human-readable summary of which scopes resolved to what,
+    # so build logs make it obvious whether the right trees got scanned.
+    def _short(p):
+        try:
+            return p.relative_to(PROJECT_ROOT)
+        except ValueError:
+            return p
+
+    if ROOT_OVERRIDES:
+        scope_summary = ", ".join(
+            f"{k}={_short(ROOT_OVERRIDES[k])}" for k in sorted(ROOT_OVERRIDES)
+        )
+    else:
+        scope_summary = f"root={PROJECT_ROOT}"
+
     if not violations:
-        print(f"check_forbidden_patterns: OK — scanned {len(FORBIDDEN)} rules under "
-              f"{PROJECT_ROOT}")
+        print(
+            f"check_forbidden_patterns: OK -- {len(FORBIDDEN)} rules, "
+            f"scopes: {scope_summary}"
+        )
         return 0
 
     # Stable, predictable ordering: by file, then line, then column, then rule.
