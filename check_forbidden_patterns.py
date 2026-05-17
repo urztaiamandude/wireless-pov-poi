@@ -38,6 +38,38 @@ from pathlib import Path
 # firmware/teensy_firmware).
 ROOT_OVERRIDES = {}
 
+
+def _coerce_root_list(value):
+    """Return `value` as a list of Path objects."""
+    if value is None:
+        return []
+    if isinstance(value, (list, tuple, set)):
+        items = value
+    else:
+        items = [value]
+    return [Path(item).resolve() for item in items]
+
+
+def _standalone_root_overrides(project_root: Path):
+    """Infer sensible repo-layout defaults for standalone execution.
+
+    Standalone runs should cover the same shipped trees the PlatformIO builds
+    would normally scan in this repository:
+      - root PlatformIO build      -> firmware/teensy_firmware
+      - firmware/esp32_firmware    -> esp32_firmware.ino, src/, webui/dist
+    """
+    teensy_root = project_root / "firmware" / "teensy_firmware"
+    esp32_root = project_root / "firmware" / "esp32_firmware"
+    return {
+        "data": [esp32_root / "webui" / "dist"],
+        "src": [
+            teensy_root,
+            esp32_root / "src",
+            esp32_root / "esp32_firmware.ino",
+        ],
+        "include": [esp32_root / "include"],
+    }
+
 try:
     Import("env")  # noqa: F821  (provided by PlatformIO)
     PROJECT_ROOT = Path(env["PROJECT_DIR"])  # noqa: F821
@@ -61,6 +93,7 @@ try:
 except NameError:
     PROJECT_ROOT = Path(__file__).resolve().parent
     _RUNNING_UNDER_PIO = False
+    ROOT_OVERRIDES = _standalone_root_overrides(PROJECT_ROOT)
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -293,6 +326,14 @@ def _iter_files(root: Path, extensions):
     """
     if not root.exists():
         return
+    if root.is_file():
+        ext = root.suffix.lower()
+        if ext in SKIP_EXTENSIONS:
+            return
+        if extensions is not None and ext not in extensions:
+            return
+        yield root
+        return
     for dirpath, dirnames, filenames in os.walk(root):
         # Mutate dirnames in-place so os.walk doesn't descend into skip dirs.
         dirnames[:] = [d for d in dirnames if d not in SKIP_DIR_NAMES]
@@ -331,12 +372,20 @@ def _rule_files(rule):
     defines) or a literal path relative to PROJECT_ROOT.
     """
     extensions = rule.get("extensions")
+    seen = set()
     for rel_root in rule["applies_to"]:
-        if rel_root in ROOT_OVERRIDES:
-            root = ROOT_OVERRIDES[rel_root]
-        else:
-            root = (PROJECT_ROOT / rel_root).resolve()
-        yield from _iter_files(root, extensions)
+        roots = (
+            _coerce_root_list(ROOT_OVERRIDES[rel_root])
+            if rel_root in ROOT_OVERRIDES
+            else [(PROJECT_ROOT / rel_root).resolve()]
+        )
+        for root in roots:
+            for path in _iter_files(root, extensions):
+                resolved = path.resolve()
+                if resolved in seen:
+                    continue
+                seen.add(resolved)
+                yield resolved
 
 
 def _rule_matches(rule, line):
@@ -360,9 +409,11 @@ def scan(project_root: Path = None):
     Exposed as a function so it can be invoked from unit tests / a standalone
     run without going through PlatformIO.
     """
-    global PROJECT_ROOT
+    global PROJECT_ROOT, ROOT_OVERRIDES
     if project_root is not None:
         PROJECT_ROOT = Path(project_root).resolve()
+        if not _RUNNING_UNDER_PIO:
+            ROOT_OVERRIDES = _standalone_root_overrides(PROJECT_ROOT)
 
     violations = []
     for rule in FORBIDDEN:
@@ -412,7 +463,9 @@ def main():
 
     if ROOT_OVERRIDES:
         scope_summary = ", ".join(
-            f"{k}={_short(ROOT_OVERRIDES[k])}" for k in sorted(ROOT_OVERRIDES)
+            f"{k}="
+            + ",".join(str(_short(path)) for path in _coerce_root_list(ROOT_OVERRIDES[k]))
+            for k in sorted(ROOT_OVERRIDES)
         )
     else:
         scope_summary = f"root={PROJECT_ROOT}"
