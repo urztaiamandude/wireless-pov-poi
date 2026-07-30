@@ -278,14 +278,14 @@ FORBIDDEN = [
             (?:
                 \b(?:ssid|password|passwd|psk|wifi_ssid|wifi_pass(?:word)?)\b
                 \s*[:=]\s*
-                "(?P<lit_a>[^"\n]{1,64})"
+                (?P<quote_a>['"])(?P<lit_a>[^'"\n]{1,64})(?P=quote_a)
             )
             |
             (?:
                 \bWiFi\.begin\s*\(\s*
-                "(?P<lit_b>[^"\n]{1,64})"
+                (?P<quote_b>['"])(?P<lit_b>[^'"\n]{1,64})(?P=quote_b)
                 \s*,\s*
-                "(?P<lit_c>[^"\n]{0,64})"
+                (?P<quote_c>['"])(?P<lit_c>[^'"\n]{0,64})(?P=quote_c)
             )
             """,
             re.IGNORECASE | re.VERBOSE,
