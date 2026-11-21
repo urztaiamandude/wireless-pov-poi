@@ -338,27 +338,17 @@ const char index_html[] PROGMEM = R"rawliteral(
 
 ---
 
-### Decision 5: ASCII vs Binary Protocol
+### Decision 5: Binary serial protocol
 
-**Question:** Should serial protocol be human-readable ASCII or compact binary?
+**Question:** Should the Teensy↔ESP32 link be human-readable ASCII or a compact binary frame?
 
-**Decision:** ASCII text commands
+**Decision:** Binary frames, `0xFF`, command, length, payload, `0xFE`.
 
-**Rationale:**
-- **Debugging:** Can monitor with terminal
-- **Simplicity:** Easy to parse and understand
-- **Flexibility:** Easy to extend with new commands
-- **Tradeoff:** Less efficient than binary
+**What the firmware does:** `processSerialCommands()` in `firmware/teensy_firmware/teensy_firmware.ino` only accepts that framing. Text lines such as `MODE:PATTERN` are not parsed. The command table is in [PROTOCOLS.md](PROTOCOLS.md).
 
-**Example:**
-```
-ASCII:  "MODE:PATTERN\n"  (14 bytes)
-Binary: 0x01 0x02        (2 bytes)
-```
+**Why it stayed binary:** Image payloads are large, and BLE already translates into the same frame. A text protocol would be a second parser.
 
-**Conclusion:** Debugging benefit > size overhead
-
-**Future:** Could add optional binary mode for large image transfers
+**Debugging:** Log the command byte on the Teensy USB serial port. Do not watch the UART for ASCII.
 
 ---
 
@@ -373,7 +363,7 @@ JavaScript POST to /api/pattern
     ↓
 ESP32 receives HTTP request
     ↓
-ESP32 sends "PATTERN:0\n" to Teensy via Serial
+ESP32 sends a `0xFF … 0xFE` frame to the Teensy (pattern upload is command `0x03`)
     ↓
 Teensy receives command
     ↓
@@ -712,9 +702,9 @@ void loop() {
 - Reduces polling overhead
 
 **2. Multi-POI Sync**
-- Mesh networking between devices
-- Synchronized patterns
-- Leader election algorithm
+- Discovery and sync code is already in the ESP32 firmware
+- Treat it as experimental until two physical poi are tested
+- See [POI_PAIRING.md](POI_PAIRING.md)
 
 **3. OTA Updates**
 - Update firmware over WiFi
@@ -740,7 +730,6 @@ void loop() {
 ---
 
 **Related Documentation:**
-- `CLAUDE.md` - AI coding context
-- `docs/PROTOCOLS.md` - Communication details
-- `docs/DEVELOPMENT.md` - Coding guidelines
-- `FIRMWARE_ARCHITECTURE.md` - Firmware comparison
+- [README](../README.md) - source of truth
+- [PROTOCOLS.md](PROTOCOLS.md) - binary frames
+- [API.md](API.md) - HTTP API

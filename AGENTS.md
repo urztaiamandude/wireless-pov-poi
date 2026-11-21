@@ -8,16 +8,14 @@ The root [README.md](README.md) is the description of the hardware. When this fi
 
 - Read [README.md](README.md) before changing hardware, firmware, or docs. Agents have been reading it and leaving it stale. If your change makes a sentence in the README wrong, edit the README in the same PR.
 - [docs/README.md](docs/README.md) is a map of the docs. It is not a second manual. Do not add a parallel "current hardware" section there.
-- Use these docs for detail. [PR #200](https://github.com/urztaiamandude/wireless-pov-poi/pull/200) adds or replaces several of them; link to these paths anyway:
+- Detail lives in these pages. Edit the existing page. Do not add `QUICKSTART.md`, a second architecture doc, or a copy of the README under another name.
   - [docs/HARDWARE_BOM.md](docs/HARDWARE_BOM.md) — parts for one pair
   - [docs/FLASHING.md](docs/FLASHING.md) — PlatformIO, Arduino IDE, Teensy Loader, browser flashing
   - [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)
-  - [docs/PROTOCOLS.md](docs/PROTOCOLS.md) — Teensy ↔ ESP32 serial frame. Until PR #200 merges, the copy on `main` still describes text commands. The firmware uses `0xFF CMD LEN DATA 0xFE`. Do not copy the text command list back into the code.
+  - [docs/PROTOCOLS.md](docs/PROTOCOLS.md) — Teensy ↔ ESP32 serial frame `0xFF CMD LEN DATA 0xFE`
   - [docs/WIRING.md](docs/WIRING.md)
   - [docs/POWER_SUPPLY_DESIGN.md](docs/POWER_SUPPLY_DESIGN.md)
   - [docs/BATTERY_POWER_INTEGRATION.md](docs/BATTERY_POWER_INTEGRATION.md) and [docs/BATTERY_WIRING_QUICK_REFERENCE.md](docs/BATTERY_WIRING_QUICK_REFERENCE.md)
-
-Edit the existing page. Do not add `QUICKSTART.md`, a second architecture doc, or a copy of the README under another name.
 
 ## Hardware baseline
 
@@ -43,30 +41,26 @@ The Teensy is the only device on the APA102 strip. LED rendering, brightness, an
 
 ## Firmware facts
 
-These come from `.claude/skillz/SKILL.md` where that file and `.github/copilot-instructions.md` disagreed, checked against the sketches. The skill wins unless the code says otherwise.
+Checked against the sketches.
 
-- One Teensy sketch: `firmware/teensy_firmware/teensy_firmware.ino`. PlatformIO builds that sketch (`pio run -e teensy41` from the repo root). Arduino IDE can open the same file. There is no `firmware/teensy41/` tree.
+- One Teensy sketch: `firmware/teensy_firmware/teensy_firmware.ino`. PlatformIO builds that sketch (`pio run -e teensy41` from the repo root). Arduino IDE can open the same file. There is no second Teensy tree.
 - UART is Teensy `Serial1` (pins 0 and 1) ↔ ESP32 `Serial2` (GPIO16 RX, GPIO17 TX) at 115200.
 - LED library is FastLED. Do not add a second LED library.
-- Large Teensy buffers in the sketch (`images[]`, `cmdBuffer`) are `EXTMEM`. The sketch halts if PSRAM is absent, so the comment about a 10-image build without PSRAM is not a supported target.
+- Large Teensy buffers in the sketch (`images[]`, `cmdBuffer`) are `EXTMEM`. The sketch halts if PSRAM is absent. A 10-image build without PSRAM is not a supported target.
 - BLE is the Nordic UART Service, implemented in `firmware/esp32_firmware/src/ble_bridge.cpp`.
 - Multi-poi sync is peer-to-peer. The README still treats synchronized behavior as experimental until it is tried on hardware.
 - WiFi AP address is `192.168.4.1`. The mDNS hostname is `povpoi-` plus the last six characters of the device id, with colons removed. It is not a fixed `povpoi.local`. Windows often fails to resolve it (BUG-006).
 - `SD_SUPPORT` is already defined. Image files are `/poi_images`, patterns are `/poi_patterns`.
-- `IMAGE_HEIGHT` is 32 (the array size). How many of those rows are shown is `g_displayLeds`. `MAX_PATTERNS` is 19 (pattern ids 0–18).
+- `IMAGE_HEIGHT` is 32 (the array size). How many of those rows are shown is `g_displayLeds`. `DEFAULT_SACRIFICIAL_LEDS` is 0. `MAX_PATTERNS` is 19 (pattern ids 0–18).
 - The serial frame is `0xFF CMD LEN DATA 0xFE` only. There is no second checksum framing.
 - Microphone defines in the sketch: `AUDIO_PIN A0`, `AUDIO_SAMPLES 64`, `AUDIO_NOISE_FLOOR 50`. Power the MAX9814 from 3.3 V.
-
-The skill's other two rules do not match the tree. They are not rules for new edits:
-
-- Display height is not fixed at 31, and there is no LED 32. `NUM_LEDS` is 32. Sacrificial count is configurable. The sketch on `main` still defaults it to 1 until PR #199; the rebuild default is 0.
-- The ESP32 sources do not call `ps_malloc()` or `malloc()`. Do not rewrite allocations to satisfy that skill line unless the change is about memory.
+- The ESP32 sources do not call `ps_malloc()` or `malloc()`. Do not rewrite allocations unless the change is about memory.
 
 ## Project memory
 
 `docs/project_notes/` is the log (`bugs.md`, `decisions.md`, `key_facts.md`, `issues.md`). Procedure: [.claude/skillz/SKILL.md](.claude/skillz/SKILL.md).
 
-Read this file and the README before the notes. On `main` the notes still say the display is 31 pixels, that LED 32 is the level shifter, and that `firmware/teensy41/` is a second firmware. Those sentences are stale. Update the note when you touch that topic. Do not treat the note as the hardware description, and do not put passwords or tokens in it. [PR #200](https://github.com/urztaiamandude/wireless-pov-poi/pull/200) already edits those notes. Leave them alone unless you were asked to overlap that PR.
+Read this file and the README before the notes. If a note disagrees, fix the note. Do not put passwords or tokens in it.
 
 After a bug fix or a hardware decision, add the bug or ADR entry and a line in `issues.md`. A hardware decision still updates the README, the BOM, and the wiring and power docs in the same PR.
 
@@ -75,8 +69,7 @@ After a bug fix or a hardware decision, add the bug or ADR entry and a line in `
 - Docs land in the same PR as the code or hardware change. The README is part of that, not a follow-up.
 - Both PlatformIO builds compile when firmware or build config changes:
   - Teensy, from the repo root: `pio run -e teensy41`. The root `platformio.ini` is the Teensy project (`src_dir = firmware/teensy_firmware`).
-  - ESP32-S3, only from `firmware/esp32_firmware`: `pio run -e esp32s3`. That `platformio.ini` pins `platform = espressif32@6.9.0` (Arduino-ESP32 2.0.17). Do not bump the pin without a successful compile of this sketch. An unpinned install resolves to 8.x and does not compile.
-  - Until [PR #199](https://github.com/urztaiamandude/wireless-pov-poi/pull/199) merges, `main` still has an `[env:esp32s3]` in the root file and an unpinned ESP32 platform. Ignore the root `esp32s3` environment. It compiles the Teensy sources.
+  - ESP32-S3, only from `firmware/esp32_firmware`: `pio run -e esp32s3`. That `platformio.ini` pins `platform = espressif32@6.9.0` (Arduino-ESP32 2.0.17) and `memory_type = qio_opi`. Do not bump the pin without a successful compile of this sketch. An unpinned install resolves to 8.x and does not compile. The board JSON name still prints "DevKitC-1-N8, No PSRAM"; the image is the 16 MB OPI build.
 - A protocol change updates `docs/PROTOCOLS.md` and both sides of the link: the Teensy parser and the ESP32 sender, plus `firmware/esp32_firmware/webui/` when the React app sends that command. The on-device page in the ESP32 sketch uses the same REST API.
 
 ## Dead files
@@ -106,7 +99,7 @@ Do not add a second document for a topic that already has a page. Edit that page
 
 - The Teensy sketch halts when the PSRAM chips are not soldered on. There is no supported 10-image fallback on this board.
 - `COLOR_ORDER` is `BGR`. On first power-up, check it against a known red. Many APA102 strips are `BRG`.
-- A Teensy with EEPROM magic `0xA5` at address 0, or an ESP32 that already saved `hw_sacLeds`, keeps the old sacrificial count. The new compile-time default does not erase that store. Until PR #199 merges, the sketch on `main` still defaults the sacrificial count to 1.
+- A Teensy with EEPROM magic `0xA5` at address 0, or an ESP32 that already saved `hw_sacLeds`, keeps that saved sacrificial count. The compile-time default does not erase that store.
 - The INA219 is in the wiring plan and is not read by the firmware. There is no `/api/battery`.
 - `BMPImageReader.h`, `BMPImageSequence.h`, and `BatteryMonitor.h` in `firmware/teensy_firmware/` are not `#include`d.
 - Shipped UI is the React app in `firmware/esp32_firmware/webui/` (built to `dist/`) and the PROGMEM page in `esp32_firmware.ino` when SPIFFS has no `index.html`. `web_preview.html` and `test_webui_server.js` are local tools. Fixes to on-device behavior go in the React app or the sketch, not those two files.

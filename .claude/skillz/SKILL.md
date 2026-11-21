@@ -74,13 +74,13 @@ Add pins, `#define` values, part numbers, and firmware paths to `key_facts.md` o
 
 Facts that are current (verify against AGENTS.md before copying them elsewhere):
 
-- Firmware trees: `firmware/teensy_firmware/` and `firmware/esp32_firmware/`. There is no `firmware/teensy41/` tree.
-- Preferred build: PlatformIO, commands in AGENTS.md. Arduino IDE is the other flashing path.
+- Firmware trees: `firmware/teensy_firmware/` and `firmware/esp32_firmware/`. There is one Teensy sketch.
+- Preferred build: PlatformIO, commands in AGENTS.md. Arduino IDE is the other flashing path. ESP32 platform pin is `espressif32@6.9.0`.
 - UART: Teensy `Serial1` pins 0/1 ↔ ESP32 `Serial2` GPIO16/17, 115200.
-- 32 APA102 LEDs. Sacrificial count default is 0 and stays configurable. There is no LED 32.
+- 32 APA102 LEDs. Sacrificial count default is 0 and stays configurable.
 - Level shift is two SN74AHCT1G125 buffers.
 - PSRAM on the Teensy is required. Large Teensy buffers in the sketch use `EXTMEM`.
-- The ESP32 sources do not call `ps_malloc()`. Do not rewrite allocations just to match the old skill line.
+- The ESP32 sources do not call `ps_malloc()`. Do not rewrite allocations just to match an old note.
 - LED library is FastLED. Do not add another LED library.
 - WiFi AP address is `192.168.4.1`. mDNS hostname is `povpoi-` plus a short device id, not `povpoi.local`.
 - BLE is the Nordic UART Service. Multi-poi sync is peer-to-peer.

@@ -4,7 +4,7 @@ Follow [AGENTS.md](AGENTS.md). That file is the ruleset for every coding agent. 
 
 ## While editing firmware
 
-- LED loops use the runtime range `g_displayLedStart` and `g_displayLeds`. `NUM_LEDS` stays 32.
+- LED loops use the runtime range `g_displayLedStart` and `g_displayLeds`. `NUM_LEDS` stays 32. `DEFAULT_SACRIFICIAL_LEDS` is 0.
 - The Teensy display loop stays non-blocking.
 - Image columns run along the strip: the LED at `g_displayLedStart` is the bottom of the image. See [docs/POV_DISPLAY_ORIENTATION_GUIDE.md](docs/POV_DISPLAY_ORIENTATION_GUIDE.md).
 - Names: `camelCase` for functions and locals, `PascalCase` for types, `UPPER_CASE` for constants.

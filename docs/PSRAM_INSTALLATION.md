@@ -1,15 +1,14 @@
 # Teensy 4.1 PSRAM Installation Guide
 
-This guide covers installing external PSRAM chips on your Teensy 4.1 to dramatically increase available memory for POV images and patterns.
+This guide covers soldering the external PSRAM chips on a Teensy 4.1.
 
 ## Overview
 
-The Teensy 4.1 has two footprints on the bottom for optional PSRAM chips. With PSRAM installed, the firmware can store:
+The current firmware **requires** PSRAM. `setup()` halts if `external_psram_size` is 0, because the image buffers are placed in external RAM. Both footprints must be populated. A board with no PSRAM, or only one chip, will not run this sketch.
 
-- **Without PSRAM**: 10 images at 32×200 pixels (~192KB total in internal RAM for image data)
-- **With 16MB PSRAM** (2× 8MB chips): 200 images at 32×400 pixels (~7.3MB total, ≈46% of PSRAM)
+With 16 MB (2× 8 MB) the sketch stores up to 200 images, each up to 32×400 pixels.
 
-This allows storing many more images and larger POV images for better visual quality.
+The Teensy 4.1 footprints are optional in PJRC's hardware sense. They are not optional for this project.
 
 ## Required Materials
 
@@ -116,19 +115,7 @@ If PSRAM is not detected, check:
 
 ## Firmware Configuration
 
-The firmware automatically detects PSRAM at startup. No configuration changes are needed — the code uses preprocessor directives to enable PSRAM features when `ARDUINO_TEENSY41` is defined. If PSRAM is not detected at runtime the firmware **halts** with a clear error message rather than continuing with invalid EXTMEM pointers.
-
-### Key Changes with PSRAM:
-
-```cpp
-// Automatically configured in teensy_firmware.ino:
-#ifdef ARDUINO_TEENSY41
-  #define MAX_IMAGES 200             // vs 10 without PSRAM
-  #define IMAGE_MAX_WIDTH 400        // vs 200 without PSRAM
-  #define CMD_BUFFER_SIZE 80000      // vs 6400 without PSRAM
-  EXTMEM POVImage images[MAX_IMAGES]; // Stored in PSRAM
-#endif
-```
+The firmware detects PSRAM at startup and **halts** with a `FATAL` message if it is missing. There is no runtime fallback to a smaller internal-RAM image set. On a Teensy 4.1 the sketch always builds the large `EXTMEM` arrays (`MAX_IMAGES` 200, `IMAGE_MAX_WIDTH` 400). The `#else` branch in the sketch (10 images, width 200) is for non-Teensy 4.1 builds and is not a supported poi configuration.
 
 ## Memory Usage
 

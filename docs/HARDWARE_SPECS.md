@@ -13,7 +13,7 @@
 - **Clock Speed:** 600 MHz
 - **Flash:** 8 MB (onboard)
 - **RAM:** 1024 KB
-- **PSRAM:** Optional 8MB (not required for this project)
+- **PSRAM:** **Required.** 2× 8 MB (16 MB) soldered to the Teensy 4.1. The firmware halts if PSRAM is missing. See [PSRAM_INSTALLATION.md](PSRAM_INSTALLATION.md).
 - **USB:** Native USB 2.0 (480 Mbit/sec)
 - **SD Card:** Built-in microSD card socket
 - **GPIO:** 55 digital pins
@@ -55,7 +55,7 @@
 **Pin Configuration:**
 - GPIO 16 (RX2): Serial receive from Teensy
 - GPIO 17 (TX2): Serial transmit to Teensy
-- GPIO 18: Optional status LED
+- GPIO 18 is not used. Do not move the UART there.
 
 ### ESP32 Classic (Supported but not recommended)
 
@@ -64,7 +64,7 @@
 - **PSRAM:** Not standard
 - **Still works** but less headroom for features
 
-**See:** `ESP32_S3_PURCHASE_GUIDE.md` for buying recommendations
+**See:** [HARDWARE_BOM.md](HARDWARE_BOM.md) for the parts to buy and [ESP32_S3_COMPATIBILITY.md](ESP32_S3_COMPATIBILITY.md) for the module notes.
 
 **Used Pins:**
 - GPIO 16 (RX2): Serial from Teensy
@@ -211,9 +211,10 @@ Common Ground        → APA102 GND
 ```
 
 **Level Shifting:**
-- Hardware level shifter used (e.g., 74AHCT125)
-- Teensy 3.3V -> Level Shifter -> 5V output to LED strip
-- All 32 LEDs used for display
+- Two SN74AHCT1G125 single-gate buffers (SOT-23-5), one for data and one for clock
+- VCC = 5 V, OE tied to GND, Teensy 3.3 V into A, 5 V out of Y
+- All 32 LEDs used for display. Sacrificial-LED count defaults to 0 and is runtime-configurable.
+- A MOSFET shifter with LED 0 left dark is a fallback only.
 
 ---
 
@@ -268,7 +269,7 @@ Common Ground        → APA102 GND
 
 ### First Power-On Test
 
-1. Connect power (2A minimum supply)
+1. Connect the 5 V 4 A bench supply
 2. Check Teensy LED (should blink if programmed)
 3. Check ESP32 WiFi (SSID "POV-POI-WiFi" appears)
 4. Connect to WiFi, navigate to 192.168.4.1
@@ -286,7 +287,7 @@ Common Ground        → APA102 GND
 | Teensy 4.1 | With headers | 1 | $30 |
 | ESP32-S3 N16R8 | DevKit | 1 | $10-15 |
 | APA102 Strip | 32 LEDs, 60/m | 1 | $15-20 |
-| Power Supply | 5V 3A | 1 | $8-12 |
+| Power Supply | 5V 4A bench, or Pololu D24V50F5 for the pack | 1 | see [HARDWARE_BOM.md](HARDWARE_BOM.md) |
 | Wires | 22-24 AWG | Set | $5 |
 
 **Total Essential:** ~$70-85
@@ -354,5 +355,6 @@ Common Ground        → APA102 GND
 
 ---
 
-**For wiring diagrams, see:** `WIRING.md`
-**For troubleshooting, see:** `TROUBLESHOOTING.md`
+**For wiring diagrams, see:** [WIRING.md](WIRING.md)
+**For the pair BOM, see:** [HARDWARE_BOM.md](HARDWARE_BOM.md)
+**For troubleshooting, see:** [TROUBLESHOOTING.md](TROUBLESHOOTING.md)

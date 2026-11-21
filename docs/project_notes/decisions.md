@@ -4,48 +4,48 @@ Check this file before proposing any architectural change. Entries are numbered;
 
 ---
 
-### ADR-001: Arduino IDE firmware is the canonical production firmware
+### ADR-001: One Teensy sketch, PlatformIO preferred
 
-**Date**: Project inception  
-**Status**: Active
+**Date**: Project inception, revised 2026-11-21  
+**Status**: Active.
 
-**Context**: Two firmware implementations exist for Teensy 4.1 — Arduino IDE single-file (`teensy_firmware/`) and PlatformIO modular (`firmware/teensy41/`).
+**Context**: Earlier notes described a second PlatformIO Teensy tree. That tree is not in the repository.
 
-**Decision**: Arduino IDE firmware (`teensy_firmware/teensy_firmware.ino`) is the recommended, production-ready build. PlatformIO firmware is for advanced users and has known incomplete command processing.
+**Decision**: `firmware/teensy_firmware/teensy_firmware.ino` is the only Teensy firmware. Build it with PlatformIO from the repository root (`pio run -e teensy41`). Arduino IDE + Teensy Loader is an alternate way to compile and flash the same file. ESP32-S3 builds only from `firmware/esp32_firmware`, which pins `platform = espressif32@6.9.0`.
 
-**Alternatives**: PlatformIO only, merged single codebase.
+**Alternatives**: Maintaining two Teensy codebases. Rejected. There is one sketch.
 
-**Consequences**: New features must be implemented in the Arduino IDE firmware first. PlatformIO version may lag. Do not direct new contributors to PlatformIO unless they have a specific need.
-
----
-
-### ADR-002: Fixed 31 display LEDs (all LEDs are display LEDs; LED 32 is for level shifting only)
-
-**Date**: Early hardware design  
-**Status**: Active
-
-**Context**: The APA102 strip has 32 physical LEDs. One LED is used as a "sacrificial" LED to boost the 3.3 V signal to 5 V logic before it reaches the display LEDs.
-
-**Decision**: LED positions 1–31 are display LEDs (mapped directly to image pixels). LED 32 is wired for level-shifting duty only and must NOT be included in display output. Images must therefore be exactly **31 pixels tall**.
-
-**Alternatives**: Use all 32 for display with an external level shifter only → chosen approach is simpler wiring.
-
-**Consequences**: All image processing, buffer sizing, and documentation must treat display height as 31, not 32. `NUM_LEDS = 32` in firmware but display height = 31.
+**Consequences**: Features land in the one sketch. Do not add a second Teensy tree.
 
 ---
 
-### ADR-003: Image HEIGHT fixed at 31px; WIDTH calculated from aspect ratio
+### ADR-002: All 32 LEDs display; sacrificial count defaults to 0
 
-**Date**: Early firmware design  
+**Date**: Early hardware design, revised 2026-11-21  
+**Status**: Active.
+
+**Context**: The strip has 32 APA102s. Teensy GPIO is 3.3 V and the strip wants 5 V clocks and data. An earlier build darkened LED 0 and hoped the first pixel would level-shift the rest. MOSFET shifter modules were a poor fit.
+
+**Decision**: Fit two SN74AHCT1G125 buffers (data and clock). `DEFAULT_SACRIFICIAL_LEDS` is 0, so LEDs 0–31 all display. The count stays runtime-configurable (command `0x09`, web UI, EEPROM) for a fallback build that still uses a sacrificial pixel. `NUM_LEDS` stays 32.
+
+**Alternatives**: Sacrificial LED 0 as the default. Kept only as the documented fallback.
+
+**Consequences**: Image height follows `g_displayLeds` (32 with a fresh EEPROM). Do not hard-code 31.
+
+---
+
+### ADR-003: Image HEIGHT follows the display LED count
+
+**Date**: Early firmware design, revised 2026-11-21  
 **Status**: Active
 
-**Context**: POV images must map exactly to the LED count. The poi's rotation speed determines the effective horizontal resolution.
+**Context**: POV images must map to the LEDs that are actually lit. Rotation sets how wide the image can look, not how many LEDs exist.
 
-**Decision**: HEIGHT is always **31 pixels** (one per display LED). WIDTH (frame count / number of column slices) is computed from the source image's aspect ratio: `frame_count = round(source_width × (31 / source_height))`. This preserves the original proportions of the image.
+**Decision**: HEIGHT is `g_displayLeds` (32 when the sacrificial count is 0). WIDTH (column count) comes from the source aspect ratio: `frame_count = round(source_width × (display_leds / source_height))`, capped by `IMAGE_MAX_WIDTH` (400 with the PSRAM build).
 
-**Alternatives**: Fixed width (e.g. always 60 frames) — rejected because it distorts non-square images.
+**Alternatives**: A fixed height one LED shorter than the strip. Withdrawn. Height follows `g_displayLeds`.
 
-**Consequences**: Image converters and the web upload endpoint must both implement this formula. Document clearly that "width" in POV context means "number of time slices", not physical pixels.
+**Consequences**: Converters and the upload path must use the active display height. "Width" means time slices along the spin, not a physical pixel pitch.
 
 ---
 

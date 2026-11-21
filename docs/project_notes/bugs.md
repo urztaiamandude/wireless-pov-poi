@@ -23,7 +23,7 @@ Entries are reverse-chronological. Search this file before debugging any recurri
 
 **Issue**: Uploaded image appears horizontally squashed or stretched when poi is spun.
 
-**Root Cause**: Image width (number of frame slices) was calculated incorrectly. The HEIGHT is always fixed at 31 display pixels; WIDTH (frame count) must be derived from the original image's aspect ratio: `frame_count = round(original_width * (31.0 / original_height))`.
+**Root Cause**: Image width (number of frame slices) was calculated incorrectly. HEIGHT matches the display LED count (`g_displayLeds`, 32 by default). WIDTH is derived from the source aspect ratio: `frame_count = round(original_width * (display_leds / original_height))`.
 
 **Solution**: Re-run image conversion with corrected aspect-ratio formula. Verify output dimensions match expected frame count before uploading.
 
@@ -31,15 +31,15 @@ Entries are reverse-chronological. Search this file before debugging any recurri
 
 ---
 
-### 2025-xx-xx — BUG-003: FastLED APA102 output corrupted without MOSFET level shifter
+### 2025-xx-xx — BUG-003: FastLED APA102 output corrupted without a 5 V level shifter
 
 **Issue**: LEDs display random colors or fail to respond despite correct wiring.
 
-**Root Cause**: Teensy 4.1 GPIO outputs 3.3 V logic; APA102 DATA/CLOCK inputs expect 5 V logic. Without level shifting the signal is unreliable, especially at higher clock speeds or cable lengths > ~10 cm.
+**Root Cause**: Teensy 4.1 GPIO outputs 3.3 V logic; APA102 DATA/CLOCK inputs expect 5 V logic. Without level shifting the signal is unreliable, especially at higher clock speeds or cable lengths over about 10 cm.
 
-**Solution**: Insert a hardware MOSFET level shifter (e.g. BSS138-based bidirectional module) between Teensy pins 11/13 and the APA102 strip DI/CI lines.
+**Solution**: Use one SN74AHCT1G125 per signal (data on pin 11, clock on pin 13). VCC = 5 V, OE tied to GND. A MOSFET module plus a dark sacrificial LED is only a fallback: set the sacrificial count to 1. The default count is 0, so all 32 LEDs display.
 
-**Prevention**: All new builds must include a level shifter. Do NOT omit it even for quick prototyping — silent data corruption is harder to debug than a missing component.
+**Prevention**: Fit both buffers before blaming the strip. Confirm `COLOR_ORDER` (firmware default BGR) with a known red before chasing wiring.
 
 ---
 
@@ -67,27 +67,27 @@ Entries are reverse-chronological. Search this file before debugging any recurri
 
 ---
 
-### 2025-xx-xx — BUG-006: mDNS `povpoi.local` not resolving on Windows
+### 2025-xx-xx — BUG-006: mDNS name is not `povpoi.local`
 
-**Issue**: Browser cannot reach `http://povpoi.local`; must use raw IP `192.168.4.1` instead.
+**Issue**: Browser cannot open a fixed `http://povpoi.local`. The raw IP `192.168.4.1` works on the AP.
 
-**Root Cause**: Windows mDNS support (via Bonjour/DNS-SD) is inconsistent. Some Windows versions resolve `.local` only when Apple Bonjour is installed; others use their own mDNS stack which may conflict.
+**Root Cause**: The firmware sets the hostname to `povpoi-` plus a short device id (`mdnsHostname` in `esp32_firmware.ino`) and prints `http://<that>.local` at boot. There is no `povpoi.local` registration. Windows mDNS is also inconsistent.
 
-**Solution**: Always provide the raw IP `192.168.4.1` as the fallback. Document both access methods. For Windows users, install Apple iTunes (bundles Bonjour) or use the raw IP.
+**Solution**: Use `http://192.168.4.1` on the AP. Use the hostname from the ESP32 serial log if you want mDNS.
 
-**Prevention**: Do not rely solely on mDNS. Always surface the raw IP in the serial monitor output and in the web UI's "About" section.
+**Prevention**: Do not document a fixed `povpoi.local`.
 
 ---
 
-### 2025-xx-xx — BUG-007: PlatformIO firmware — command processing partially broken
+### 2026-11-21 — BUG-007: Closed. There is one Teensy sketch
 
-**Issue**: Some commands sent from ESP32 to the PlatformIO Teensy firmware (`firmware/teensy41/`) are not processed, causing display to not respond.
+**Issue**: Notes said a second PlatformIO Teensy firmware had incomplete command processing.
 
-**Root Cause**: Command handler in PlatformIO build is partially implemented — known open item. The Arduino IDE firmware (`teensy_firmware/`) has complete command processing.
+**Root Cause**: That second tree is not in the repository. The only Teensy sketch is `firmware/teensy_firmware/teensy_firmware.ino`. PlatformIO builds it from the root `platformio.ini` (`pio run -e teensy41`). Arduino IDE opens the same file.
 
-**Solution**: Use Arduino IDE firmware (`teensy_firmware/teensy_firmware.ino`) for all production/deployment builds. PlatformIO firmware is for advanced development only.
+**Solution**: Change `firmware/teensy_firmware/teensy_firmware.ino`. Do not add another Teensy tree.
 
-**Prevention**: See ADR-001 in decisions.md. Default to Arduino IDE firmware unless there is a specific reason to use PlatformIO.
+**Prevention**: See ADR-001. PlatformIO is the preferred build. Arduino IDE is an alternate uploader for the same sketch.
 
 ---
 

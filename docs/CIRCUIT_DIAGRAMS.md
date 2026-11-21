@@ -1,6 +1,8 @@
 # Circuit Diagrams and Wiring Guide
 
-A comprehensive visual guide for wiring the Nebula Poi with Teensy 4.1, ESP32, and APA102 LED strip.
+Level shift on the current build is two SN74AHCT1G125 buffers, not a MOSFET module. Bench power is 5 V 4 A. The pair parts list is [HARDWARE_BOM.md](HARDWARE_BOM.md), and the pin-by-pin page is [WIRING.md](WIRING.md). Drawings below that still say "2-3 A" are older margins; use the 4 A supply.
+
+A visual guide for wiring the Nebula Poi with Teensy 4.1, ESP32-S3, and an APA102 strip.
 
 ## Table of Contents
 
@@ -195,7 +197,7 @@ GPIO 16/17 are available on all variants with the same wiring.
 
     ┌────────────────────┐
     │  5V POWER SUPPLY   │
-    │     2-3 Amp        │
+    │     4 Amp bench    │
     │  (Wall Adapter or  │
     │   Battery Pack)    │
     └──────┬─────┬───────┘
@@ -509,7 +511,7 @@ After completing wiring:
 - [Main Documentation](README.md)
 - [Wiring Quick Reference](WIRING.md)
 - [API Reference](API.md)
-- [Troubleshooting](../TROUBLESHOOTING.md)
+- [Troubleshooting](TROUBLESHOOTING.md)
 
 ---
 
