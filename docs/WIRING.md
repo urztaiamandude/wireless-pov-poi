@@ -1,5 +1,7 @@
 # Wiring Diagram
 
+Current build: two SN74AHCT1G125 buffers per poi, all 32 LEDs display, sacrificial count defaults to 0. Power and parts: [HARDWARE_BOM.md](HARDWARE_BOM.md). The [repository README](../README.md) wins if this page drifts.
+
 ## ESP32 Variant Compatibility
 
 **📌 This wiring guide works for ALL ESP32 variants:**
@@ -15,7 +17,7 @@
 - Your board will power on and boot normally with these connections
 - These pins were specifically chosen to avoid boot issues
 
-See [ESP32-S3 Compatibility Guide](ESP32_S3_COMPATIBILITY.md) for detailed comparison and [ESP32-S3 Purchase Guide](../ESP32_S3_PURCHASE_GUIDE.md) for buying recommendations.
+See [ESP32-S3 Compatibility Guide](ESP32_S3_COMPATIBILITY.md) for the module comparison and [HARDWARE_BOM.md](HARDWARE_BOM.md) for the parts to buy. There is no separate purchase guide.
 
 ## Complete System Wiring
 
@@ -25,8 +27,9 @@ See [ESP32-S3 Compatibility Guide](ESP32_S3_COMPATIBILITY.md) for detailed compa
 └─────────────────────────────────────────────────────────────────┘
 
 ┌──────────────────┐
-│  POWER SUPPLY    │
-│    5V 2-3A       │
+│  POWER           │
+│  Bench: 5V 4A    │
+│  or D24V50F5     │
 └────┬────┬────────┘
      │    │
      │    └──────────────────────────┐
@@ -35,8 +38,8 @@ See [ESP32-S3 Compatibility Guide](ESP32_S3_COMPATIBILITY.md) for detailed compa
 ┌────▼──────────────┐         ┌─────▼──────────────┐
 │   TEENSY 4.1      │         │  APA102 LED STRIP  │
 │                   │         │     (32 LEDs)      │
-│  Pin 11 (MOSI) ──┼────────►│ DATA (DI)          │
-│  Pin 13 (SCK)  ──┼────────►│ CLOCK (CI)         │
+│  Pin 11 (MOSI) ──┼─►[AHCT]►│ DATA (DI)          │
+│  Pin 13 (SCK)  ──┼─►[AHCT]►│ CLOCK (CI)         │
 │  GND ────────────┼────────►│ GND                │
 │  VIN (5V) ───────┤         │ 5V ◄────[from PSU] │
 │                   │         └────────────────────┘
@@ -83,8 +86,8 @@ See [ESP32-S3 Compatibility Guide](ESP32_S3_COMPATIBILITY.md) for detailed varia
 
 | Teensy Pin | Function | Connects To | Notes |
 |------------|----------|-------------|-------|
-| Pin 11 | SPI MOSI (Data) | APA102 DATA (DI) | LED data signal |
-| Pin 13 | SPI SCK (Clock) | APA102 CLOCK (CI) | LED clock signal |
+| Pin 11 | SPI MOSI (Data) | SN74AHCT1G125 input A | That gate's Y goes to APA102 DI |
+| Pin 13 | SPI SCK (Clock) | SN74AHCT1G125 input A | That gate's Y goes to APA102 CI |
 | Pin 0 | UART RX1 | ESP32 GPIO17 (TX2) | Serial receive from ESP32 |
 | Pin 1 | UART TX1 | ESP32 GPIO16 (RX2) | Serial transmit to ESP32 |
 | Pin A0 (pin 14) | Analog Input | MAX9814 OUT (optional) | Audio input for music-reactive patterns |
@@ -124,10 +127,9 @@ All variants use the same GPIO pins - **no wiring changes needed between variant
 ### Step 1: Power Supply Setup
 
 1. **Select Appropriate Power Supply**
-   - Voltage: 5V regulated
-   - Current: Minimum 2A, recommended 3A
-   - 32 LEDs at full brightness: ~1.9A
-   - Add headroom for Teensy and ESP32: ~200-300mA
+   - Bring-up: 5 V regulated, 4 A
+   - Portable: 3S LiPo into a Pololu D24V50F5 (see [HARDWARE_BOM.md](HARDWARE_BOM.md))
+   - 32 LEDs at full white: ~1.9 A, plus Teensy and ESP32-S3
    
 2. **Power Distribution**
    - Connect power supply GND to common ground rail
@@ -138,12 +140,12 @@ All variants use the same GPIO pins - **no wiring changes needed between variant
 
 1. **LED Control Pins**
    ```
-   Teensy Pin 11 → APA102 DI (DATA)
-   Teensy Pin 13 → APA102 CI (CLOCK)
+   Teensy Pin 11 → SN74AHCT1G125 A (data gate) → Y → APA102 DI
+   Teensy Pin 13 → SN74AHCT1G125 A (clock gate) → Y → APA102 CI
    ```
-   - Use short, direct wires for data/clock
-   - Keep wires away from power lines if possible
-   - Maximum wire length: 6 inches recommended
+   - Each gate: VCC = 5 V, OE = GND, GND common. SOT-23-5 pinout is in [HARDWARE_BOM.md](HARDWARE_BOM.md). Confirm pin 1 on your datasheet.
+   - Keep the 3.3 V side and the 5 V side short
+   - All 32 LEDs display. Sacrificial-LED count defaults to 0 and stays configurable.
 
 2. **Serial Communication to ESP32**
    ```
@@ -177,21 +179,13 @@ All variants use the same GPIO pins - **no wiring changes needed between variant
    ```
    - Alternatively: Power via USB (development/testing)
 
-#### ESP32-S3 UART Wiring (PlatformIO Firmware)
+#### ESP32-S3 UART Wiring
 
-For the **Lonely Binary ESP32-S3 N16R8 Dev Kit** with PlatformIO firmware:
+The firmware fixes these pins (`SERIAL_RX_PIN 16`, `SERIAL_TX_PIN 17`). There is no alternate GPIO 18 wiring.
 
-**Recommended Pin Configuration (Default):**
-```
-Teensy TX1 (Pin 1) → ESP32-S3 GPIO 17 (RX)
-Teensy RX1 (Pin 0) → ESP32-S3 GPIO 18 (TX)
-Common GND         → ESP32-S3 GND
-```
-
-**Alternative Pin Configuration:**
 ```
 Teensy TX1 (Pin 1) → ESP32-S3 GPIO 16 (RX)
-Teensy RX1 (Pin 0) → ESP32-S3 GPIO 17 (TX)
+Teensy RX1 (Pin 0) ← ESP32-S3 GPIO 17 (TX)
 Common GND         → ESP32-S3 GND
 ```
 
@@ -216,11 +210,12 @@ Common GND         → ESP32-S3 GND
 
 1. **Signal Connections**
    ```
-   APA102 DI → Level Shifter → Teensy Pin 11 (MOSI)
-   APA102 CI → Level Shifter → Teensy Pin 13 (SCK)
+   APA102 DI ← SN74AHCT1G125 Y ← Teensy Pin 11 (MOSI)
+   APA102 CI ← SN74AHCT1G125 Y ← Teensy Pin 13 (SCK)
    ```
-   - Hardware level shifter converts 3.3V → 5V for data/clock signals
-   - All 32 LEDs (0-31) are used for display (hardware MOSFET level shifter converts 3.3V → 5V)
+   - Two single-gate buffers, VCC at 5 V, OE at GND, shift 3.3 V to 5 V
+   - All 32 LEDs (0-31) are display pixels with this buffer
+   - A MOSFET shifter plus a dark sacrificial LED is a fallback only. Set sacrificial count to 1 in the web UI if you build that instead.
 
 2. **Power Connections**
    ```

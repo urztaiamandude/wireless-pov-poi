@@ -470,8 +470,8 @@ A: Yes, but manual sync during performance is not recommended. Use pre-performan
 
 - [API Documentation](API.md) - Complete API reference
 - [README](../README.md) - Project overview
-- [ARCHITECTURE](../ARCHITECTURE.md) - System architecture
-- [TROUBLESHOOTING](../TROUBLESHOOTING.md) - General troubleshooting
+- [Architecture notes](ARCHITECTURE_DESIGN.md) - Design notes, not a second firmware tree
+- [Troubleshooting](TROUBLESHOOTING.md) - First checks
 
 ---
 

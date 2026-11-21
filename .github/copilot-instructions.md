@@ -1,5 +1,7 @@
 # Copilot Instructions for Nebula POV Poi
 
+Hardware and build facts: [README.md](../README.md). If this file disagrees with the README or the firmware, follow those.
+
 ## Quick Reference
 
 This repository contains a wireless LED POV (Persistence of Vision) poi system with dual microcontrollers:
@@ -27,27 +29,26 @@ The **Teensy 4.1 is the ONLY device physically connected to the APA102 LEDs**. A
 The **ESP32-S3 is a WiFi/BLE bridge and web UI host**. It forwards user settings to the Teensy via serial UART. The ESP32-S3 should **NOT** enforce firmware-level LED display restrictions (e.g., brightness clamping, pattern count limits, LED index validation) because it does not physically control the LEDs.
 
 **When making changes:**
-- LED rendering logic, display restrictions, brightness application → **Teensy firmware only** (`teensy_firmware/`)
-- Web UI, API endpoints, settings relay, image upload handling → **ESP32 firmware** (`esp32_firmware/`)
+- LED rendering logic, display restrictions, brightness application → **Teensy firmware only** (`firmware/teensy_firmware/`)
+- Web UI, API endpoints, settings relay, image upload handling → **ESP32 firmware** (`firmware/esp32_firmware/`)
 
 ## Critical Design Constraints
 
 ### ⚠️ LED Array Layout - ALWAYS FOLLOW THIS
 
-The Teensy firmware uses a **sacrificial LED (LED 0)** for 3.3 V→5 V level shifting because the MOSFET-based level shifters are incompatible with the hardware. **31 LEDs (indices 1–31) are display pixels by default.**  The display range is now **runtime-configurable** via the web UI (Advanced Settings → LED Hardware Configuration) without recompiling — stored in EEPROM as `g_displayLeds` / `g_displayLedStart`.
+Level shift is two SN74AHCT1G125 buffers (data and clock, VCC 5 V, OE to GND). **Sacrificial LED count defaults to 0, so LEDs 0–31 all display.** The count stays runtime-configurable (Advanced Settings → LED hardware) and is stored in EEPROM. A MOSFET shifter plus a dark LED 0 is a fallback only. PSRAM (2× 8 MB) is required; the sketch halts without it. `COLOR_ORDER` is BGR.
 
 ```
-Physical LED Strip:
-┌──────┬────┬────┬────┬─────┬────┐
-│  0   │ 1  │ 2  │... │ 30  │ 31 │
-└──────┴────┴────┴────┴─────┴────┘
- Level    ↑────────────────────↑
- shift    Display pixels (default 31)
+Physical LED Strip (default):
+┌────┬────┬────┬─────┬────┐
+│  0 │ 1  │... │ 30  │ 31 │
+└────┴────┴────┴─────┴────┘
+ Display pixels 0–31
 ```
 
 **ALL display code MUST:**
-- Use runtime variables `g_displayLedStart` and `g_displayLeds` for indexing (NOT compile-time `#define` constants)
-- Default values: `g_displayLedStart = 1`, `g_displayLeds = 31`
+- Use runtime variables `g_displayLedStart` and `g_displayLeds`
+- Default values: `g_displayLedStart = 0`, `g_displayLeds = 32`
 - Iterate with: `for (int i = g_displayLedStart; i < g_displayLedStart + g_displayLeds; i++)`
 
 ```cpp
@@ -66,14 +67,12 @@ for (int i = 0; i < 32; i++) {
 
 | Directory | Purpose | Key Files | Status |
 |-----------|---------|-----------|--------|
-| `teensy_firmware/` | Arduino IDE firmware | `teensy_firmware.ino` (1681 lines) | **Production-ready** ⭐ |
-| `firmware/teensy41/` | PlatformIO modular firmware | `src/main.cpp`, `src/pov_engine.cpp` | ~95% complete |
-| `esp32_firmware/` | WiFi/BLE co-processor | `esp32_firmware.ino` | Production-ready |
-| `esp32_firmware/webui/` | React web interface | `App.tsx`, `components/` | Production-ready |
-| `examples/` | Python tools & tests | `image_converter.py`, `test_*.py` | Complete |
-| `docs/` | Documentation | `API.md`, `WIRING.md`, 22 guides | Complete |
+| `firmware/teensy_firmware/` | The only Teensy sketch | `teensy_firmware.ino` | PlatformIO from repo root, or Arduino IDE |
+| `firmware/esp32_firmware/` | WiFi/BLE co-processor and both UIs | `esp32_firmware.ino`, `webui/` | Build from this directory |
+| `examples/` | Python tools and tests | `image_converter.py`, `test_*.py` | `python3 -m pytest` |
+| `docs/` | Documentation | map in `docs/README.md` | README at repo root is the source of truth |
 
-**Firmware recommendation**: Use `teensy_firmware/` (Arduino IDE) for production. PlatformIO version is for advanced users and some features are still being ported.
+There is no `firmware/teensy41/` directory. Do not create one to "finish" command processing.
 
 ### ⚠️ Non-Compiled Files — DO NOT apply firmware fixes here
 
@@ -99,10 +98,9 @@ The following files are **NOT compiled into any firmware build**. Do not apply b
 # 4. Click Upload
 
 # PlatformIO builds
-pio run -e teensy41           # Build Teensy firmware
-pio run -e esp32s3            # Build ESP32-S3 firmware (recommended)
-pio run -e teensy41 -t upload # Upload Teensy
-pio run -e esp32s3 -t upload  # Upload ESP32-S3
+pio run -e teensy41           # Teensy, from the repository root
+cd firmware/esp32_firmware && pio run -e esp32s3
+# That platformio.ini pins espressif32@6.9.0. Do not build -e esp32s3 from the repo root.
 ```
 
 ### Web UI (React + TypeScript)
@@ -132,7 +130,7 @@ pytest test_image_converter.py -v  # Specific test
 
 ## REST API Quick Reference
 
-Base URL: `http://192.168.4.1` (or `http://povpoi.local` via mDNS)
+Base URL: `http://192.168.4.1` (mDNS is `povpoi-<id>.local` from the ESP32 boot log, not `povpoi.local`)
 
 | Endpoint | Method | Purpose |
 |----------|--------|---------|
@@ -201,10 +199,10 @@ leds[y + g_displayLedStart] = pixels[current_column][y];  // y ranges 0..g_displ
 ```
 
 ### Python Converters
-Converters use the default display height (31px). Match to the device's current `displayLeds` setting:
+Converters should match the device's current `displayLeds`. The rebuild default is 32 (sacrificial count 0).
 ```python
 # Resize maintaining aspect ratio
-target_height = 31  # Default for 1 sacrificial LED; change to match device displayLeds
+target_height = 32  # Default display LEDs; change to match device displayLeds
 aspect_ratio = img.width / img.height
 target_width = int(target_height * aspect_ratio)
 img = img.resize((target_width, target_height), Image.LANCZOS)
@@ -319,7 +317,7 @@ python image_converter.py input.jpg
    - Password: `povpoi123`
 3. Try direct IP: `http://192.168.4.1`
 4. Check ESP32 serial monitor for boot messages
-5. mDNS alternative: `http://povpoi.local`
+5. mDNS, if it resolves, is the hostname printed at ESP32 boot (`povpoi-<id>.local`)
 
 ### Serial Communication Problems (Teensy ↔ ESP32)
 1. Verify baud rate: **115200** on both devices
@@ -440,22 +438,11 @@ String response = "{\"brightness\":" + String(brightness) + "}";
 - **Import CSS in entry point** (`index.tsx`), not HTML
 - Build produces **single-chunk bundle** (no code splitting for embedded systems)
 
-## SD Card (Optional)
+## SD Card
 
-### Arduino IDE Firmware (`teensy_firmware/`)
-- **Enable**: Uncomment `#define SD_SUPPORT` in `teensy_firmware.ino`
-- **Directory**: `/poi_images/` (user must create manually)
-- **Uses**: Teensy 4.1 built-in SD slot
-- **Format**: FAT32 preferred (exFAT also supported via SdFat library)
+`SD_SUPPORT` is already defined in `firmware/teensy_firmware/teensy_firmware.ino`. The sketch creates `/poi_images` (`.pov`) and `/poi_patterns` (`.pat`). There is no `firmware/teensy41/` tree and no `/images/` directory in the running code.
 
-### PlatformIO Firmware (`firmware/teensy41/`)
-- **Always enabled** with SD support
-- **Directory**: `/images/` (auto-created on first save)
-- **SDIO**: Configured with `SdioConfig(FIFO_SDIO)` for performance (~20-25 MB/s read)
-
-**Card format**: FAT32 preferred. Single partition, no scratch partition needed.
-
-**Commands**: 0x20-0x23 (save/load/list/delete) when SD support enabled
+**Commands**: `0x20`–`0x24` and `0x30` (save, list, delete, info, load, pattern presets). Frames are `0xFF … 0xFE`.
 
 ## Additional Resources
 

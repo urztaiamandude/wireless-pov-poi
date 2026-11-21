@@ -1,7 +1,7 @@
 # POV Display Orientation Guide
 
 ## LED Strip Layout Diagrams
-- **Diagram**: ASCII representation of the 32 LED strip. All 32 LEDs are active display pixels (hardware MOSFET level shifter). LED 0 (bottom) displays row 0, and LED 31 (top) displays row 31.
+- **Diagram**: ASCII representation of the 32 LED strip. All 32 LEDs are active display pixels. Two SN74AHCT1G125 buffers shift data and clock to 5 V. LED 0 (bottom) displays row 0, and LED 31 (top) displays row 31, when the sacrificial-LED count is 0 (the default).
 
 ```
     LED 31 (Top)
@@ -17,7 +17,7 @@
 ```
 
 ## Image Data Structure Explanation
-Images are converted to **32 pixels tall**, matching the 32 display LEDs (LED 0–LED 31). All 32 LEDs are active display pixels — the hardware MOSFET level shifter handles 3.3V → 5V signal conversion externally. Each image column is streamed as a time slice while the poi spins. For every column:
+Images are converted to **32 pixels tall**, matching the 32 display LEDs (LED 0–LED 31) when sacrificial LEDs are 0. Two SN74AHCT1G125 gates shift 3.3 V data and clock to 5 V. Each image column is streamed as a time slice while the poi spins. For every column:
 
 - **Row 0 → LED 0** (bottom display LED)
 - **Row 31 → LED 31** (top display LED)
@@ -56,7 +56,7 @@ Use simple patterns to confirm orientation before loading complex images:
 ## Troubleshooting for Common Orientation Issues
 - **Upside-down image**: Ensure the converter flips vertically (`Image.FLIP_TOP_BOTTOM`) before upload.
 - **Wrong colors**: Verify RGB order and APA102 wiring (data/clock). Confirm FastLED color order.
-- **Level Shift Issues**: Ensure hardware MOSFET level shifter is correctly wired.
+- **Level Shift Issues**: Each SN74AHCT1G125 needs VCC at 5 V and OE at GND. A dark LED 0 usually means sacrificial count is still 1 in EEPROM.
 - **Stretched images**: Confirm height is fixed at 32 pixels and aspect ratio is preserved.
 - **Missing rows**: Check image height and ensure LED indices 0-31 are addressed.
 
@@ -65,7 +65,7 @@ Use simple patterns to confirm orientation before loading complex images:
 |------|-------|
 | Total LEDs | 32 |
 | Display LEDs | 32 (LED 0–LED 31) |
-| Level-shift method | Hardware MOSFET level shifter (external) |
+| Level-shift method | 2× SN74AHCT1G125 (external). Sacrificial LED is a fallback, default count 0. |
 | Image height | 32 pixels (rows 0-31) |
 | Brightness range | 0-255 |
 | Frame rate range | 10-1000 FPS (Teensy hardware limit; validate on hardware) |
@@ -75,13 +75,13 @@ Validation note: spin at the target frame rate and confirm the image remains smo
 
 ## Quick Reference Commands
 ```bash
-# Convert image (converter auto-resizes to 31px tall) from repo root
-python examples/image_converter.py path/to/image.png
+# Convert image from repo root. Default display height is 32 (sacrificial count 0).
+python3 examples/image_converter.py path/to/image.png
 
 # Run orientation tests
-pytest examples/test_vertical_flip.py -v
+python3 -m pytest examples/test_vertical_flip.py -v
 
 # Build firmware
 pio run -e teensy41
-pio run -e esp32s3
+cd firmware/esp32_firmware && pio run -e esp32s3
 ```

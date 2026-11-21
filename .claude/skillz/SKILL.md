@@ -148,8 +148,8 @@ If `docs/project_notes/` does not exist in the repo:
 1. Create the directory: `mkdir -p docs/project_notes`
 2. Copy the four template files from this skill's bundled templates (or create from formats above)
 3. Populate `key_facts.md` with current hardware config from README
-4. Add any known bugs from TROUBLESHOOTING.md into `bugs.md`
-5. Add any known decisions from ARCHITECTURE.md into `decisions.md`
+4. Add any known bugs from `docs/TROUBLESHOOTING.md` into `bugs.md`
+5. Add any known decisions from `docs/project_notes/decisions.md` (there is no root `ARCHITECTURE.md`)
 6. Update CLAUDE.md with the memory-aware protocols section above
 7. Commit: `git add docs/project_notes/ && git commit -m "chore: initialize project memory system"`
 

@@ -17,12 +17,14 @@ By the end of this guide, you will be able to:
 
 ### Hardware Checklist (Per Poi)
 
-- 1x Teensy 4.1 (POV engine)
-- 1x ESP32-S3 (WiFi/Web UI controller)
-- 1x APA102 LED strip (32 LEDs)
-- Stable 5V power source (2-3A recommended)
+- 1x Teensy 4.1 with **both** 8 MB PSRAM chips soldered (the firmware halts without them)
+- 1x ESP32-S3-DevKitC-1
+- 1x APA102 strip cut to 32 LEDs, data and clock through SN74AHCT1G125 buffers
+- 5 V 4 A bench supply for bring-up (the LiPo pack comes later; see [HARDWARE_BOM.md](HARDWARE_BOM.md))
 - Common ground between all boards
 - Safe mounting for spin tests
+
+Flash both boards before this checklist. Paths that do not depend on a handheld are in [FLASHING.md](FLASHING.md). On the Teensy serial monitor you want a PSRAM line, not `FATAL`. The first time the strip lights, show a known red. Firmware `COLOR_ORDER` is BGR; if that red looks blue, change it to BRG and reflash the Teensy.
 
 ### Safety Checklist
 
@@ -47,7 +49,7 @@ Expected result:
 ### 2) Open the Web UI
 
 1. Open a browser.
-2. Go to `http://192.168.4.1` (or `http://povpoi.local` if available).
+2. Go to `http://192.168.4.1`. mDNS, if it resolves, is `http://povpoi-<id>.local` from the ESP32 boot log, not `povpoi.local`.
 3. Confirm the dashboard/status is visible.
 
 Expected result:

@@ -1,7 +1,6 @@
 # POV Image Converter Tools
 
-> Note: Build documentation has moved to the wiki.
-> See [Build-Image-Converter](../wiki/Build-Image-Converter.md).
+Windows installer steps are in [BUILD_INSTALLER.md](BUILD_INSTALLER.md). There is no wiki page for this tool.
 
 ## GUI Image Converter (Recommended for Desktop)
 
@@ -43,12 +42,11 @@ For Windows users who don't want to install Python, a standalone executable is a
 
 ### For End Users
 
-**Download and run the pre-built executable** (when available from releases):
+This repository does not contain a pre-built `POV_POI_Image_Converter.exe`. Build one with [BUILD_INSTALLER.md](BUILD_INSTALLER.md), then:
 
-1. Download `POV_POI_Image_Converter.exe` from the [Releases page](../../releases)
-2. Double-click the file to run (no installation needed!)
-3. First launch may take 5-10 seconds (extraction)
-4. Use the GUI just like the Python version above
+1. Run the executable that script produces
+2. First launch may take 5-10 seconds (extraction)
+3. Use the GUI just like the Python version above
 
 **Note**: Windows Defender may show a warning (false positive). Click "More info" → "Run anyway"
 

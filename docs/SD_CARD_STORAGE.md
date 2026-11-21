@@ -1,5 +1,7 @@
 # SD Card Storage Implementation
 
+> This page describes an `SDStorageManager` class and an `/images/` directory that are **not in the firmware**. The sketch talks to the SD library directly. Images are `/poi_images/*.pov`. Pattern presets are `/poi_patterns/*.pat`. `SD_SUPPORT` is already defined. Treat the API sketches below as unused design notes.
+
 ## Overview
 
 This document describes the SD card storage implementation for the Teensy 4.1 POV Poi system. The implementation uses the Teensy 4.1's built-in SDIO interface to provide high-speed storage for POV images.
@@ -22,11 +24,11 @@ This document describes the SD card storage implementation for the Teensy 4.1 PO
   - 16GB-64GB capacity (64GB microSDXC OK)
   - FAT32 or exFAT formatted
 
-## SD Card Preparation (PlatformIO Firmware)
+## SD Card Preparation
 
 ### Quick Setup
 
-For the PlatformIO firmware (`firmware/teensy41/`), prepare your SD card as follows:
+The running sketch is `firmware/teensy_firmware/teensy_firmware.ino`. It creates `/poi_images` and `/poi_patterns`. There is no `firmware/teensy41/` tree. Prepare the card as follows:
 
 1. **Format the card**:
    - Single partition: FAT32 (recommended) or exFAT
@@ -34,7 +36,7 @@ For the PlatformIO firmware (`firmware/teensy41/`), prepare your SD card as foll
    - Keep 10–20% free space for optimal performance
 
 2. **Directory structure**:
-   - The firmware uses `/images` directory (auto-created on first save)
+   - The sketch uses `/poi_images` and `/poi_patterns` (created on boot if missing)
    - Optional `/tmp` directory for temporary files
    - No benefit to creating separate scratch partitions
 
@@ -347,7 +349,7 @@ On a Teensy 4.1 with SanDisk Extreme 32GB microSD card:
 
 ## Configuration
 
-Edit `firmware/teensy41/include/config.h` to customize:
+There is no `firmware/teensy41/include/config.h`. SD paths are the `SD_IMAGE_DIR` and `SD_PATTERN_DIR` macros in `firmware/teensy_firmware/teensy_firmware.ino`. The snippet below is an old design note, not a file you can edit:
 
 ```cpp
 // Enable/disable SD card support

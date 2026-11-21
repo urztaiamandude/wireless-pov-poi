@@ -1,9 +1,9 @@
 # Task: Complete PlatformIO Firmware Integration Testing
 
-**Priority**: High  
-**Estimated Time**: 4-8 hours  
-**Type**: firmware  
-**Status**: ready
+**Status**: obsolete. `firmware/teensy41/` is not in the repository. The Teensy firmware is `firmware/teensy_firmware/teensy_firmware.ino`, built with `pio run -e teensy41` from the repository root. Do not treat the paths below as files to open.
+
+**Priority**: retired  
+**Type**: firmware
 
 ## Description
 

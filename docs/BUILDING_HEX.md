@@ -1,10 +1,6 @@
 # Building HEX Files for Teensy Loader
 
-> Note: Build documentation has moved to the wiki.
-> See [Build-Teensy-HEX](../wiki/Build-Teensy-HEX.md) and
-> [Build-Teensy-CLI](../wiki/Build-Teensy-CLI.md).
-
-This guide explains how to compile the Teensy 4.1 firmware into a HEX file format that can be loaded using the Teensy Loader application.
+This guide explains how to compile the Teensy 4.1 firmware into a HEX file for the Teensy Loader. Day-to-day flashing, including a Raspberry Pi, is in [FLASHING.md](FLASHING.md). There is no wiki copy of this page.
 
 ## Prerequisites
 
@@ -23,7 +19,7 @@ You need one of the following:
 
 ### Step 1: Setup
 1. Open Arduino IDE
-2. Open `teensy_firmware/teensy_firmware.ino`
+2. Open `firmware/teensy_firmware/teensy_firmware.ino`
 3. Select **Tools > Board > Teensy 4.1**
 4. Select **Tools > USB Type > Serial**
 5. Select **Tools > CPU Speed > 600 MHz**
@@ -79,7 +75,7 @@ pio run -e teensy41
 
 ### Arduino IDE
 After using "Export Compiled Binary":
-- **Location**: `teensy_firmware/teensy_firmware.ino.teensy41.hex`
+- **Location**: next to the sketch, `firmware/teensy_firmware/teensy_firmware.ino.teensy41.hex` (Arduino export), or the PlatformIO build directory `.pio/build/teensy41/`
 - The IDE will show the location in the console output
 
 ### PlatformIO
@@ -193,7 +189,7 @@ Once you have the HEX file loaded:
 ## Getting Help
 
 If you encounter issues:
-- Check the [Troubleshooting Guide](../TROUBLESHOOTING.md)
+- Check [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
 - Review Teensy documentation: https://www.pjrc.com/teensy/
 - PlatformIO docs: https://docs.platformio.org/
 
