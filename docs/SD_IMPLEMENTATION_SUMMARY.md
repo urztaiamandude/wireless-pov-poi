@@ -1,5 +1,7 @@
 # SD Card Storage Implementation Summary
 
+> The `SDStorageManager` class described here is not in the repository. The running SD code is inside `firmware/teensy_firmware/teensy_firmware.ino` and uses `/poi_images` and `/poi_patterns`. Read this file as historical notes only.
+
 ## Overview
 
 This document summarizes the implementation of microSD card storage support for the Teensy 4.1 POV Poi system.
@@ -297,7 +299,7 @@ pio run --target upload
 
 - [Teensy 4.1 Documentation](https://www.pjrc.com/store/teensy41.html)
 - [SdFat Library GitHub](https://github.com/greiman/SdFat)
-- [POV Poi Architecture](../ARCHITECTURE.md)
+- [Architecture notes](ARCHITECTURE_DESIGN.md)
 - [SD Card Storage Documentation](SD_CARD_STORAGE.md)
 
 ## Conclusion

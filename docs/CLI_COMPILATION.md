@@ -1,9 +1,6 @@
 # CLI Compilation Guide for Teensy 4.1 Firmware
 
-> Note: Build documentation has moved to the wiki.
-> See [Build-Teensy-CLI](../wiki/Build-Teensy-CLI.md).
-
-Complete guide for compiling Teensy firmware from the command line.
+Command-line notes for the Teensy sketch. The supported PlatformIO command is in the [repository README](../README.md#build). There is no wiki copy of this page.
 
 ## Overview
 
@@ -70,7 +67,7 @@ cd /path/to/wireless-pov-poi
 # Compile the firmware
 arduino-cli compile \
   --fqbn teensy:avr:teensy41:usb=serial,speed=600,opt=o2std \
-  teensy_firmware/teensy_firmware.ino \
+  firmware/teensy_firmware/teensy_firmware.ino \
   --output-dir teensy_firmware/build
 
 # The HEX file will be at:
@@ -80,7 +77,7 @@ arduino-cli compile \
 ### One-Line Compile Command
 
 ```bash
-arduino-cli compile --fqbn teensy:avr:teensy41:usb=serial,speed=600,opt=o2std teensy_firmware/teensy_firmware.ino --output-dir teensy_firmware/build
+arduino-cli compile --fqbn teensy:avr:teensy41:usb=serial,speed=600,opt=o2std firmware/teensy_firmware/teensy_firmware.ino --output-dir teensy_firmware/build
 ```
 
 ### Build Script for Arduino CLI
@@ -103,7 +100,7 @@ fi
 # Compile
 arduino-cli compile \
   --fqbn teensy:avr:teensy41:usb=serial,speed=600,opt=o2std \
-  teensy_firmware/teensy_firmware.ino \
+  firmware/teensy_firmware/teensy_firmware.ino \
   --output-dir teensy_firmware/build
 
 echo ""
@@ -118,10 +115,10 @@ echo "HEX file: teensy_firmware/build/teensy_firmware.ino.hex"
 arduino-cli upload \
   --fqbn teensy:avr:teensy41 \
   --port /dev/ttyACM0 \
-  teensy_firmware/teensy_firmware.ino
+  firmware/teensy_firmware/teensy_firmware.ino
 
 # On Windows, use COM port:
-# arduino-cli upload --fqbn teensy:avr:teensy41 --port COM3 teensy_firmware/teensy_firmware.ino
+# arduino-cli upload --fqbn teensy:avr:teensy41 --port COM3 firmware/teensy_firmware/teensy_firmware.ino
 ```
 
 ---
@@ -245,7 +242,7 @@ jobs:
         run: |
           arduino-cli compile \
             --fqbn teensy:avr:teensy41:usb=serial,speed=600,opt=o2std \
-            teensy_firmware/teensy_firmware.ino \
+            firmware/teensy_firmware/teensy_firmware.ino \
             --output-dir teensy_firmware/build
       
       - name: Upload Artifact
@@ -315,7 +312,7 @@ arduino-cli board details -b teensy:avr:teensy41
 **"Compilation failed"**
 ```bash
 # Compile with verbose output
-arduino-cli compile --verbose --fqbn teensy:avr:teensy41 teensy_firmware/teensy_firmware.ino
+arduino-cli compile --verbose --fqbn teensy:avr:teensy41 firmware/teensy_firmware/teensy_firmware.ino
 ```
 
 ### PlatformIO Issues
@@ -349,11 +346,11 @@ pio run -e teensy41 --target upload --upload-port /dev/ttyACM0
 
 ```bash
 # Compile only
-arduino-cli compile --fqbn teensy:avr:teensy41:usb=serial,speed=600,opt=o2std teensy_firmware/teensy_firmware.ino
+arduino-cli compile --fqbn teensy:avr:teensy41:usb=serial,speed=600,opt=o2std firmware/teensy_firmware/teensy_firmware.ino
 
 # Compile and upload
-arduino-cli compile --fqbn teensy:avr:teensy41:usb=serial,speed=600,opt=o2std teensy_firmware/teensy_firmware.ino && \
-arduino-cli upload --fqbn teensy:avr:teensy41 --port /dev/ttyACM0 teensy_firmware/teensy_firmware.ino
+arduino-cli compile --fqbn teensy:avr:teensy41:usb=serial,speed=600,opt=o2std firmware/teensy_firmware/teensy_firmware.ino && \
+arduino-cli upload --fqbn teensy:avr:teensy41 --port /dev/ttyACM0 firmware/teensy_firmware/teensy_firmware.ino
 
 # List boards
 arduino-cli board list
@@ -430,7 +427,7 @@ pio device monitor --baud 115200
 ### For Distribution
 ```bash
 # Use Arduino CLI for standard builds
-arduino-cli compile --fqbn teensy:avr:teensy41:usb=serial,speed=600,opt=o2std teensy_firmware/teensy_firmware.ino
+arduino-cli compile --fqbn teensy:avr:teensy41:usb=serial,speed=600,opt=o2std firmware/teensy_firmware/teensy_firmware.ino
 # Distribute the HEX file
 ```
 

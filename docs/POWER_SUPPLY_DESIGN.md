@@ -1,6 +1,24 @@
 # Power Supply Design Guide
 
-Comprehensive power supply design guide for the Nebula Poi with Teensy 4.1, ESP32, and APA102 LEDs.
+## Current plan (this is the build)
+
+Bring-up: a **5 V, 4 A** bench supply on the 5 V rail (Teensy VIN, ESP32-S3 5 V, APA102 5 V, common ground). Full-white LED current is about 1.9 A before the two boards, so 2–3 A is tight and is not the supply to buy.
+
+Portable, per poi:
+
+- 3S 1300 mAh drone LiPo, XT60, quick-swap pod on the spin axis
+- **No BMS**
+- Balance-charge the pack off the poi
+- 10 A switch in the battery positive
+- INA219 on the handle side of the XT60
+- Pololu **D24V50F5** (5 V, 5 A) buck
+- 1000 µF across 5 V at the buck and at the strip
+
+Parts and the wire order are in [HARDWARE_BOM.md](HARDWARE_BOM.md) and [BATTERY_WIRING_QUICK_REFERENCE.md](BATTERY_WIRING_QUICK_REFERENCE.md). The INA219 is not read by firmware yet.
+
+Everything below this section is earlier design exploration (multiple regulators, a BMS, wall-wart distribution). It is not the rebuild plan. Where it says a BMS is mandatory, that requirement is withdrawn.
+
+Comprehensive power notes for the Teensy 4.1, ESP32-S3, and APA102 strip follow. The current table in "Power Requirements Analysis" is still a fair estimate of LED current.
 
 ## Table of Contents
 

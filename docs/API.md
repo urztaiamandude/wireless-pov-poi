@@ -7,7 +7,7 @@ This document describes the REST API provided by the ESP32 web server for contro
 When connected to the POV-POI-WiFi network:
 
 - IP Address: `http://192.168.4.1`
-- mDNS: `http://povpoi.local` (if supported)
+- mDNS: `http://povpoi-<id>.local`, printed on the ESP32 serial console at boot. There is no fixed `povpoi.local`.
 
 ## Authentication
 
@@ -423,7 +423,7 @@ All messages follow this structure:
 | 0xBB | Status Response | Teensy→ESP32 | Status data |
 | 0xCC | List Response | Teensy→ESP32 | SD image list (v2.0+) |
 
-**Note:** Commands 0x20-0x23 require SD card support to be enabled in Teensy firmware (uncomment `#define SD_SUPPORT`).
+**Note:** `SD_SUPPORT` is already defined in the Teensy sketch. Commands `0x20`–`0x24` and `0x30` are compiled in. Paths are `/poi_images` and `/poi_patterns`.
 
 ### SD Card Commands (v2.0+)
 

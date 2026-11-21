@@ -79,7 +79,7 @@ python3 -m scripts.test_hardware.run_tests --suite teensy --teensy-port /dev/tty
 python3 -m scripts.test_hardware.run_tests --suite api
 
 # Custom ESP32 URL
-python3 -m scripts.test_hardware.run_tests --suite api --esp32-url http://povpoi.local
+python3 -m scripts.test_hardware.run_tests --suite api --esp32-url http://192.168.4.1
 
 # Build + flash + test
 python3 -m scripts.test_hardware.run_tests --build --flash

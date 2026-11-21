@@ -404,9 +404,9 @@ The web interface is now fully mobile-responsive with:
 
 - [Image Converter Source](../examples/image_converter.py)
 - [Test Suite](../examples/test_image_converter.py)
-- [ESP32 Firmware](../esp32_firmware/esp32_firmware.ino)
-- [Teensy Firmware](../teensy_firmware/teensy_firmware.ino)
+- [ESP32 Firmware](../firmware/esp32_firmware/esp32_firmware.ino)
+- [Teensy Firmware](../firmware/teensy_firmware/teensy_firmware.ino)
 
 ---
 
-For questions or issues with image conversion, check the [Troubleshooting Guide](../TROUBLESHOOTING.md) or open an issue on GitHub.
+For questions or issues with image conversion, check [TROUBLESHOOTING.md](TROUBLESHOOTING.md).

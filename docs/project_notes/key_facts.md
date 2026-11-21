@@ -12,7 +12,12 @@ Quick lookup for ports, pins, constants, and non-secret configuration.
 | Main controller | Teensy 4.1 @ 600 MHz |
 | Co-processor | ESP32 / ESP32-S3 |
 | LED strip | APA102, 32 physical LEDs |
-| Default display LEDs | 31 (LED 0 sacrificial by default) |
+| Default display LEDs | 32 (sacrificial count defaults to 0; still configurable) |
+| Level shift | 2× SN74AHCT1G125, VCC 5 V, OE to GND |
+| PSRAM | Required, 2× 8 MB. Firmware halts without it |
+| Color order | `COLOR_ORDER BGR` in the Teensy sketch. Verify on first power-up |
+| Bring-up power | 5 V 4 A bench |
+| Portable power | 3S 1300 mAh XT60, no BMS, Pololu D24V50F5, INA219 in the handle, 10 A switch |
 
 ---
 
@@ -41,7 +46,7 @@ Quick lookup for ports, pins, constants, and non-secret configuration.
 | Setting | Value |
 |---------|-------|
 | AP SSID | `POV-POI-WiFi` |
-| AP IP | `192.168.4.1` |
+| AP IP | `192.168.4.1` (mDNS is `povpoi-<id>.local`, not `povpoi.local`) |
 | Baud rate (Teensy ↔ ESP32) | 115200 |
 | Brightness range | 0–255 |
 | Frame-rate range | 10–1000 FPS |

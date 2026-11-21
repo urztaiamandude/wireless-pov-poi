@@ -112,7 +112,7 @@ Thank you for your interest in contributing to the Nebula Poi project! This docu
 
 ## Testing Requirements
 
-**📖 See [TESTING.md](TESTING.md) for complete testing tools and procedures.**
+**See [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) for hardware checks, and run `cd examples && python3 -m pytest test_*.py -v` for the image tools.** There is no `TESTING.md`.
 
 Before submitting:
 

@@ -318,7 +318,7 @@ After installing ESP32-S3:
 - ESP32: ~30-50ms average
 - ESP32-S3: ~30-50ms average (same)
 
-### Image Upload Time (31x64 RGB)
+### Image Upload Time (example, small RGB frame)
 - ESP32: ~200-300ms
 - ESP32-S3: ~200-300ms (same, limited by WiFi)
 

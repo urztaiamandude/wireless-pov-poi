@@ -11,9 +11,9 @@ The **Wireless POV Poi** (also known as **Nebula Poi**) is a high-performance pe
 
 ## Repository Structure
 
-- **teensy_firmware/**: Core POV engine and LED controller firmware for Teensy 4.1.
-- **esp32_firmware/**: WiFi/BLE co-processor firmware for ESP32-S3, including an embedded web server.
-- **esp32_firmware/webui/**: React-based web interface for controlling the poi system (deployed to ESP32 filesystem).
+- **firmware/teensy_firmware/**: The only Teensy 4.1 sketch.
+- **firmware/esp32_firmware/**: ESP32-S3 firmware, embedded page, and the React app.
+- **firmware/esp32_firmware/webui/**: Richer React app. The embedded page in the `.ino` is the simple UI. Both use the same REST API.
 - **examples/**: Python-based tools for image conversion, testing, and protocol validation.
 - **docs/**: Comprehensive documentation covering hardware wiring, API, and protocols.
 - **scripts/**: Utility scripts for serial debugging and firmware management.
@@ -28,7 +28,7 @@ The **Wireless POV Poi** (also known as **Nebula Poi**) is a high-performance pe
 
 ### Teensy POV Engine
 
-**Configuration File**: [./platformio.ini](./platformio.ini), [./teensy_firmware/teensy_firmware.ino](./teensy_firmware/teensy_firmware.ino)
+**Configuration File**: [platformio.ini](../../platformio.ini), [teensy_firmware.ino](../../firmware/teensy_firmware/teensy_firmware.ino)
 
 #### Teensy Language & Runtime
 
@@ -56,18 +56,18 @@ pio run -e teensy41 -t upload
 #### Teensy Testing
 
 **Framework**: Custom Python test scripts
-**Test Location**: [./examples/](./examples/)
+**Test Location**: [examples/](../../examples/)
 **Naming Convention**: `test_*.py`
 **Run Command**:
 
 ```bash
 # Example test run
-python examples/test_teensy_standalone.py
+cd examples && python3 -m pytest test_*.py -v
 ```
 
 ### ESP32-S3 Wireless Co-processor
 
-**Configuration File**: [./esp32_firmware/platformio.ini](./esp32_firmware/platformio.ini), [./esp32_firmware/esp32_firmware.ino](./esp32_firmware/esp32_firmware.ino)
+**Configuration File**: [platformio.ini](../../firmware/esp32_firmware/platformio.ini), [esp32_firmware.ino](../../firmware/esp32_firmware/esp32_firmware.ino)
 
 #### ESP32-S3 Language & Runtime
 
@@ -85,16 +85,14 @@ python examples/test_teensy_standalone.py
 #### ESP32-S3 Build & Installation
 
 ```bash
-# Build using PlatformIO
+# From firmware/esp32_firmware. Do not use the root platformio.ini for this.
 pio run -e esp32s3
-
-# Upload to ESP32-S3
 pio run -e esp32s3 -t upload
 ```
 
 ### Web UI
 
-**Configuration File**: [./esp32_firmware/webui/package.json](./esp32_firmware/webui/package.json)
+**Configuration File**: [package.json](../../firmware/esp32_firmware/webui/package.json)
 
 #### Web UI Language & Runtime
 
@@ -114,7 +112,7 @@ pio run -e esp32s3 -t upload
 #### Web UI Build & Installation
 
 ```bash
-cd esp32_firmware/webui
+cd firmware/esp32_firmware/webui
 npm install
 npm run build
 ```
@@ -128,7 +126,7 @@ npm run dev
 
 ### Python Tools & Utilities
 
-**Configuration File**: [./examples/requirements.txt](./examples/requirements.txt)
+**Configuration File**: [requirements.txt](../../examples/requirements.txt)
 
 #### Python Tools Language & Runtime
 
