@@ -98,10 +98,9 @@ The following files are **NOT compiled into any firmware build**. Do not apply b
 # 4. Click Upload
 
 # PlatformIO builds
-pio run -e teensy41           # Build Teensy firmware
-pio run -e esp32s3            # Build ESP32-S3 firmware (recommended)
-pio run -e teensy41 -t upload # Upload Teensy
-pio run -e esp32s3 -t upload  # Upload ESP32-S3
+pio run -e teensy41           # Teensy, from the repository root
+cd firmware/esp32_firmware && pio run -e esp32s3
+# That platformio.ini pins espressif32@6.9.0. Do not build -e esp32s3 from the repo root.
 ```
 
 ### Web UI (React + TypeScript)
@@ -200,10 +199,10 @@ leds[y + g_displayLedStart] = pixels[current_column][y];  // y ranges 0..g_displ
 ```
 
 ### Python Converters
-Converters use the default display height (31px). Match to the device's current `displayLeds` setting:
+Converters should match the device's current `displayLeds`. The rebuild default is 32 (sacrificial count 0).
 ```python
 # Resize maintaining aspect ratio
-target_height = 31  # Default for 1 sacrificial LED; change to match device displayLeds
+target_height = 32  # Default display LEDs; change to match device displayLeds
 aspect_ratio = img.width / img.height
 target_width = int(target_height * aspect_ratio)
 img = img.resize((target_width, target_height), Image.LANCZOS)

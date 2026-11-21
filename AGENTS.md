@@ -35,8 +35,8 @@ The **Teensy 4.1 is the ONLY device physically connected to the APA102 LEDs**. A
 
 ### Non-obvious caveats
 
-- **Two `platformio.ini` files**: Root `src_dir` is `firmware/teensy_firmware` and that project builds the Teensy only. ESP32-S3 builds run inside `firmware/esp32_firmware`. A root environment named `esp32s3`, if one is still listed, compiles the Teensy sources with the ESP32 platform and is not a valid ESP32 build.
-- The Vite proxy in `firmware/esp32_firmware/webui/vite.config.ts` points at a hardcoded device IP. Without hardware, API calls from the React dev server fail; the UI still renders. The mock server on port 8765 is the standalone preview, not the React app.
+- **Two `platformio.ini` files**: Root `src_dir` is `firmware/teensy_firmware` and that project builds the Teensy only. ESP32-S3 builds run inside `firmware/esp32_firmware`. That file pins `platform = espressif32@6.9.0` and `memory_type = qio_opi`. Do not bump the pin without a successful compile. Platform 8.x does not compile this sketch.
+- The Vite dev server proxies `/api` to `VITE_API_PROXY_TARGET`, default `http://192.168.4.1`. Without hardware, those API calls fail; the UI still renders. The mock server on port 8765 is the standalone preview, not the React app.
 - Use `python3` (not `python`) — the system does not have a `python` symlink.
 - `pio` is installed to `~/.local/bin` — this is added to PATH via `~/.bashrc`.
 - There is no ESLint configuration in the project; `tsc --noEmit` is the primary static analysis tool for the web UI.

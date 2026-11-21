@@ -162,6 +162,9 @@ TEENSY_SERIAL.begin(SERIAL_BAUD, SERIAL_8N1, 16, 17);  // ✅ Works on both
 ```
 
 ### PlatformIO Configuration
+
+The project already builds the ESP32-S3 from `firmware/esp32_firmware/platformio.ini`. That file pins `platform = espressif32@6.9.0` and `memory_type = qio_opi`. The block below is an old sketch of an environment. It is not the file PlatformIO uses, and an unpinned `espressif32` does not compile this sketch.
+
 To add ESP32-S3 support to `platformio.ini`:
 
 ```ini

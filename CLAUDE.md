@@ -248,6 +248,7 @@ The following files are **NOT compiled into any firmware build**. Do not apply b
 pio run -e teensy41
 
 # ESP32-S3, from its own project. Never from the root platformio.ini.
+# platformio.ini there pins espressif32@6.9.0 and memory_type qio_opi.
 cd firmware/esp32_firmware && pio run -e esp32s3
 ```
 

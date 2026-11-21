@@ -50,7 +50,7 @@ cd firmware/esp32_firmware
 pio run -e esp32s3 -t upload
 ```
 
-This environment exists only in `firmware/esp32_firmware/platformio.ini`. Running `-e esp32s3` from the repository root is the wrong project.
+This environment exists only in `firmware/esp32_firmware/platformio.ini`. Running `-e esp32s3` from the repository root is the wrong project. That file pins `platform = espressif32@6.9.0` and `memory_type = qio_opi`. Do not bump the platform without a successful compile of this sketch.
 
 ### Arduino IDE
 

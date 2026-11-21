@@ -95,6 +95,8 @@ cd firmware/esp32_firmware
 pio run -e esp32s3
 ```
 
+That project's `platformio.ini` pins `platform = espressif32@6.9.0` (Arduino-ESP32 2.0.17) and sets `board_build.arduino.memory_type = qio_opi` for the N16R8. Leave the pin. Platform 8.x does not compile this sketch. PlatformIO still prints the board name "DevKitC-1-N8, No PSRAM"; the image is the 16 MB OPI build.
+
 Richer web UI:
 
 ```bash

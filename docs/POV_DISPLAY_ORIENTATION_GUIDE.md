@@ -75,13 +75,13 @@ Validation note: spin at the target frame rate and confirm the image remains smo
 
 ## Quick Reference Commands
 ```bash
-# Convert image (converter auto-resizes to 31px tall) from repo root
-python examples/image_converter.py path/to/image.png
+# Convert image from repo root. Default display height is 32 (sacrificial count 0).
+python3 examples/image_converter.py path/to/image.png
 
 # Run orientation tests
-pytest examples/test_vertical_flip.py -v
+python3 -m pytest examples/test_vertical_flip.py -v
 
 # Build firmware
 pio run -e teensy41
-pio run -e esp32s3
+cd firmware/esp32_firmware && pio run -e esp32s3
 ```
