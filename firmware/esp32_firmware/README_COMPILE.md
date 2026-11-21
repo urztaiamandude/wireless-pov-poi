@@ -1,6 +1,6 @@
 # Compiling and uploading the ESP32-S3 firmware
 
-Run PlatformIO from **this directory** (`firmware/esp32_firmware`). The root `platformio.ini` builds the Teensy only.
+Run PlatformIO from **this directory** (`firmware/esp32_firmware`). The root `platformio.ini` builds the Teensy only. `platformio.ini` here pins Espressif platform 6.9.0 (Arduino-ESP32 2.0.17) and sets `memory_type = qio_opi` for the N16R8. Do not drop the pin; platform 8.x does not compile this sketch.
 
 ```bash
 pio run -e esp32s3
@@ -9,7 +9,7 @@ pio run -e esp32s3 -t upload
 
 `build_and_upload.bat` does the same upload and then forces `--upload-port COM8`. Change that port before using the script on another machine. If the port never appears, hold BOOT, tap RESET, and release BOOT.
 
-The partition table is `default_16MB.csv` in this directory (4 MB factory app, SPIFFS for the rest of the 16 MB flash). `platformio.ini` points at it.
+`board_build.partitions = default_16MB.csv` is the table shipped with Arduino-ESP32, not a file in this directory. It is a 16 MB layout: NVS, two OTA apps (the running app is at `0x10000`), SPIFFS, and a coredump slot. PlatformIO's board line still says "DevKitC-1-N8, No PSRAM". That label is the board JSON name. The build uses `memory_type = qio_opi` (the SDK path `tools/sdk/esp32s3/qio_opi`) and `--flash_size 16MB`.
 
 ## Richer web UI (SPIFFS)
 

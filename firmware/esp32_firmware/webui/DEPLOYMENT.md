@@ -193,7 +193,9 @@ Reduce bundle size:
 
 ## Partition Table Configuration
 
-For larger web UIs, increase SPIFFS/LittleFS partition size:
+The firmware project already sets `board_build.partitions = default_16MB.csv`. That name is Arduino-ESP32's built-in 16 MB table (app slot at `0x10000`, SPIFFS about 3.4 MB). The examples below are for smaller modules and are not the table this build uses.
+
+For a different module, SPIFFS size is chosen with the partition name:
 
 ### Option 1: Use Predefined Table
 
