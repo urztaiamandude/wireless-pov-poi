@@ -1,5 +1,7 @@
 # Wireless POV Poi (Nebula Poi)
 
+For coding agents: see [AGENTS.md](AGENTS.md).
+
 Wireless LED POV poi project with a dual-controller architecture:
 
 - **Teensy 4.1** drives the APA102 LED strip and runs POV/pattern rendering.
