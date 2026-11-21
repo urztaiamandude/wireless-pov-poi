@@ -141,11 +141,11 @@ struct DeviceConfig {
 // Hardware LED configuration (persisted in Preferences under namespace "povpoi")
 struct LEDHardwareConfig {
   uint8_t numLeds;         // Total physical LEDs on strip (default: 32)
-  uint8_t sacrificialLeds; // LEDs used only for level shifting, not display (default: 1)
+  uint8_t sacrificialLeds; // LEDs kept dark for a fallback shifter. Default 0 (SN74AHCT1G125).
   // Derived:
   uint8_t displayLeds()    const { return numLeds - sacrificialLeds; }
   uint8_t displayLedStart() const { return sacrificialLeds; }
-} hwLEDConfig = { 32, 1 };
+} hwLEDConfig = { 32, 0 };
 
 // WiFi STA (client) credentials - saved to Preferences, used to connect to existing network
 String staSsid = "";
@@ -3291,10 +3291,10 @@ void loadDeviceConfig() {
 
   // Load LED hardware config
   hwLEDConfig.numLeds        = (uint8_t)preferences.getUInt("hw_numLeds",  32);
-  hwLEDConfig.sacrificialLeds = (uint8_t)preferences.getUInt("hw_sacLeds",   1);
+  hwLEDConfig.sacrificialLeds = (uint8_t)preferences.getUInt("hw_sacLeds",   0);
   // Clamp to valid range
   if (hwLEDConfig.numLeds < 2 || hwLEDConfig.numLeds > 32) hwLEDConfig.numLeds = 32;
-  if (hwLEDConfig.sacrificialLeds >= hwLEDConfig.numLeds) hwLEDConfig.sacrificialLeds = 1;
+  if (hwLEDConfig.sacrificialLeds >= hwLEDConfig.numLeds) hwLEDConfig.sacrificialLeds = 0;
 
   preferences.end();
 }

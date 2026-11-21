@@ -1,66 +1,37 @@
-# Compiling and Uploading ESP32 Firmware
+# Compiling and uploading the ESP32-S3 firmware
 
-> Note: Build documentation has moved to the wiki.
-> See [Build-ESP32-Firmware](../wiki/Build-ESP32-Firmware.md).
+Run PlatformIO from **this directory** (`firmware/esp32_firmware`). The root `platformio.ini` builds the Teensy only. `platformio.ini` here pins Espressif platform 6.9.0 (Arduino-ESP32 2.0.17) and sets `memory_type = qio_opi` for the N16R8. Do not drop the pin; platform 8.x does not compile this sketch.
 
-## Quick Start
-
-### Option 1: Using the Batch Script (Easiest)
-1. Double-click `build_and_upload.bat` in the `esp32_firmware` folder
-2. Wait for compilation and upload to complete
-
-### Option 2: Using PlatformIO Command Line
-
-#### Build only:
 ```bash
-cd esp32_firmware
 pio run -e esp32s3
+pio run -e esp32s3 -t upload
 ```
 
-#### Build and upload Web UI filesystem (SPIFFS):
+`build_and_upload.bat` does the same upload and then forces `--upload-port COM8`. Change that port before using the script on another machine. If the port never appears, hold BOOT, tap RESET, and release BOOT.
+
+`board_build.partitions = default_16MB.csv` is the table shipped with Arduino-ESP32, not a file in this directory. It is a 16 MB layout: NVS, two OTA apps (the running app is at `0x10000`), SPIFFS, and a coredump slot. PlatformIO's board line still says "DevKitC-1-N8, No PSRAM". That label is the board JSON name. The build uses `memory_type = qio_opi` (the SDK path `tools/sdk/esp32s3/qio_opi`) and `--flash_size 16MB`.
+
+## Richer web UI (SPIFFS)
+
+The firmware already contains a simple browser page. To serve the React app instead, build it and upload the filesystem:
+
 ```bash
-cd esp32_firmware/webui
-npm install          # one-time: install dependencies (needed on fresh checkout)
+cd webui
+npm install
 npm run build
-
-cd ../
-pio run -e esp32s3 --target uploadfs
+cd ..
+pio run -e esp32s3 -t uploadfs
 ```
 
-> `uploadfs` uses `webui/dist` directly (configured in `esp32_firmware/platformio.ini` as `data_dir = webui/dist`).
+`uploadfs` reads `webui/dist` (`data_dir` in `platformio.ini`).
 
-#### Build and upload to COM8:
-```bash
-cd esp32_firmware
-pio run -e esp32s3 --target upload --upload-port COM8
-```
+## Arduino IDE
 
-#### Monitor serial output:
-```bash
-cd esp32_firmware
-pio device monitor --port COM8 --baud 115200
-```
+1. Open `esp32_firmware.ino` in this folder. Leave `src/` next to it.
+2. Board: ESP32S3 Dev Module.
+3. USB CDC On Boot: Enabled. Flash size: 16 MB. PSRAM: OPI PSRAM.
+4. Upload.
 
-### Option 3: Using Arduino IDE
+## Serial monitor
 
-1. Open `esp32_firmware.ino` in Arduino IDE
-2. Select **Tools > Board > ESP32 Dev Module**
-3. Select **Tools > Port > COM8**
-4. Select **Tools > Partition Scheme > Default** (or "Minimal SPIFFS" if you have 4MB flash)
-5. Select **Tools > Flash Size > 4MB (32Mb)**
-6. Click **Upload** button
-
-## Troubleshooting
-
-### If compilation fails:
-- Make sure ESP32 board support is installed in Arduino IDE
-- For PlatformIO, the ESP32 platform will be downloaded automatically on first build
-
-### If upload fails:
-- Check that COM8 is the correct port (check Device Manager)
-- Try pressing the BOOT button on ESP32 during upload
-- Make sure no other program is using COM8
-
-### If you get "Permission denied" errors:
-- Close any serial monitor or other programs using COM8
-- Try running as administrator
+After boot the USB CDC port is the console (`ARDUINO_USB_CDC_ON_BOOT=1`). 115200 baud. The mDNS name printed there is `povpoi-<id>.local`, not `povpoi.local`. On the access point, use `http://192.168.4.1`.

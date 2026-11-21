@@ -389,7 +389,7 @@ def _rule_files(rule):
         for root in roots:
             for path in _iter_files(root, extensions):
                 resolved = path.resolve()
-                if resolved in seen:
+                if resolved in seen or resolved in SKIP_EXACT_PATHS:
                     continue
                 seen.add(resolved)
                 yield resolved

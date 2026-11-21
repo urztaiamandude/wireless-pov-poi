@@ -110,17 +110,17 @@ void loop() {
 
 export const getTeensySketch = (ledCount: number): ArduinoSketch => ({
   title: "Teensy 4.1 POV Engine (Simplified Example)",
-  description: "Educational example showing basic LED control and serial communication. See teensy_firmware/teensy_firmware.ino for production code.",
+  description: "Educational example showing basic LED control and serial communication. See firmware/teensy_firmware/teensy_firmware.ino for the firmware that actually ships.",
   libraries: ["FastLED", "SdFat", "ArduinoJson"],
   code: `
 // ==========================================
 // SIMPLIFIED EXAMPLE - NOT PRODUCTION CODE
-// For production firmware, see: teensy_firmware/teensy_firmware.ino
+// For the firmware that ships, see: firmware/teensy_firmware/teensy_firmware.ino
 // ==========================================
 
 // This example demonstrates the basic architecture of the Teensy POV engine.
 // The actual production firmware includes additional features:
-// - PSRAM support for storing up to 50 images
+// - PSRAM is required (2x 8MB). Up to 200 images, 32x400
 // - 18 built-in animated patterns (including music-reactive)
 // - Sequence playback with duration control
 // - SD card image loading and management
@@ -139,7 +139,7 @@ export const getTeensySketch = (ledCount: number): ArduinoSketch => ({
 #define SERIAL_BAUD 115200
 #define DEFAULT_BRIGHTNESS 128
 
-// Note: All 32 LEDs are active display pixels (hardware MOSFET level shifter handles 3.3V → 5V).
+// Note: All 32 LEDs display by default. Data and clock use SN74AHCT1G125 buffers (5V VCC, OE to GND).
 // Display loops start at index 0: for (int i = 0; i < NUM_LEDS; i++) { leds[i] = color; }
 
 constexpr uint8_t kPixelBytes = 3;
