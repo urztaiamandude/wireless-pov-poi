@@ -2,17 +2,19 @@
  * Nebula Poi - Teensy 4.1 Firmware
  * 
  * This firmware controls a 32 LED APA102 strip for POV (Persistence of Vision) display.
- * By default, LED 0 is sacrificial (3.3V→5V level shifting) and LEDs 1-31 are the 31 display pixels.
- * The display range is runtime-configurable via the web UI without recompiling.
- * Communicates with ESP32 via Serial1 to receive images, patterns, and sequences.
- * 
+ * Level shift is two SN74AHCT1G125 buffers (data and clock), so the default
+ * sacrificial-LED count is 0 and all 32 LEDs display. The count stays
+ * runtime-configurable (web UI / command 0x09 / EEPROM) for a fallback build
+ * that still darkens the first LEDs and uses a MOSFET shifter instead.
+ * Communicates with the ESP32-S3 via Serial1 using binary 0xFF...0xFE frames.
+ *
  * Hardware:
- * - Teensy 4.1
- * - APA102 LED Strip (32 physical LEDs; default: LED 0 sacrificial, LEDs 1-31 display)
- * - MAX9814 Microphone Amplifier Module (for audio-reactive patterns)
- * - ESP32 connected via Serial1 (RX1=0, TX1=1)
- * - Optional: microSD card in Teensy 4.1 built-in slot (for SD_SUPPORT)
- * - Optional: 2x 8MB PSRAM chips for 16MB external RAM (for PSRAM support)
+ * - Teensy 4.1 with 2x 8MB PSRAM soldered. setup() halts if PSRAM is missing.
+ * - APA102 strip, 32 physical LEDs, COLOR_ORDER BGR (verify on first power-up;
+ *   many strips are BRG — if a known red looks blue, change COLOR_ORDER)
+ * - Optional MAX9814 on A0, powered from 3.3V
+ * - ESP32-S3 on Serial1 (RX1=0, TX1=1)
+ * - microSD in the built-in slot (SD_SUPPORT is enabled)
  */
 
 #include <FastLED.h>
@@ -34,26 +36,27 @@
 #endif
 
 // LED Configuration
-// By default, LED 0 is sacrificial (3.3V→5V level shifting); LEDs 1-31 are the 31 display pixels.
-// The display range (g_displayLeds, g_displayLedStart) is runtime-configurable via the web UI
-// (POST /api/hardware/leds on ESP32 → serial command 0x09 → EEPROM) without recompiling.
-#define NUM_LEDS 32  // Total physical LEDs (compile-time max for array sizing)
-static_assert(NUM_LEDS == 32, "NUM_LEDS must be 32 — includes sacrificial LED(s) for level shifting");
+// Physical strip length is 32. Sacrificial count defaults to 0 because data and
+// clock go through SN74AHCT1G125 buffers (VCC=5V, OE to GND). A saved EEPROM
+// config (magic 0xA5) overrides this default. POST /api/hardware/leds on the
+// ESP32 sends command 0x09 and stores the new count.
+#define NUM_LEDS 32  // Total physical LEDs (compile-time array size)
+static_assert(NUM_LEDS == 32, "NUM_LEDS must be 32 — physical APA102 count");
 #define DATA_PIN 11
 #define CLOCK_PIN 13
 #define LED_TYPE APA102
+// BGR is the FastLED channel order for this build. Confirm with a solid red
+// on first power-up. Swap to BRG if red and blue are exchanged.
 #define COLOR_ORDER BGR
-// Default LED display range — stored in EEPROM and loaded at runtime.
-// Change via web UI (Advanced Settings → LED Hardware Configuration) without recompiling.
 #define DEFAULT_NUM_LEDS 32         // Physical LEDs total
-#define DEFAULT_SACRIFICIAL_LEDS 1  // LEDs 0..N-1 used only for level shifting (default: LED 0)
+#define DEFAULT_SACRIFICIAL_LEDS 0  // 0 = all 32 display. >0 darkens LEDs 0..N-1.
 // g_displayLeds and g_displayLedStart are runtime variables initialized in setup().
 
-// Audio Input Configuration (MAX9814 Microphone Amplifier Module)
-// MAX9814 output connects through level shifter to Teensy analog input.
-// Gain: no connect = 60dB, GND = 50dB, VDD = 40dB
-// Output: biased at VDD/2 (~1.65V), swings +/- based on audio level
-#define AUDIO_PIN A0         // Analog input from MAX9814 via level shifter
+// Audio Input Configuration (optional MAX9814)
+// Power the module from Teensy 3.3V so OUT stays inside the ADC range. A0 is
+// the audio input. Gain: open = 60dB, GND = 50dB, VDD = 40dB.
+// Output is biased at VDD/2 (~1.65V).
+#define AUDIO_PIN A0         // Analog input from MAX9814 OUT
 #define AUDIO_SAMPLES 64     // Samples for running average
 #define AUDIO_NOISE_FLOOR 50 // Minimum threshold to filter ambient noise
 
@@ -69,11 +72,12 @@ static_assert(TEENSY_UART_TX_PIN == 1, "TEENSY_UART_TX_PIN must remain 1 for ESP
 // IMAGE_HEIGHT is the compile-time array dimension (= NUM_LEDS = max possible display height).
 // g_displayLeds (runtime variable, loaded from EEPROM) controls how many rows are displayed.
 #ifdef ARDUINO_TEENSY41
-  // With 16MB PSRAM: 200 images at up to 32x400
-  // Without PSRAM: 10 images at up to 32x200
+  // 2x 8MB PSRAM is required. setup() halts when external_psram_size is 0.
+  // These sizes are the PSRAM build, not a no-PSRAM fallback.
   #define MAX_IMAGES 200
   #define IMAGE_MAX_WIDTH 400
 #else
+  // Not a supported poi target. Kept so the file can still be parsed off a Teensy 4.1.
   #define MAX_IMAGES 10
   #define IMAGE_MAX_WIDTH 200
 #endif

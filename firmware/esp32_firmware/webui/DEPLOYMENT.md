@@ -141,7 +141,7 @@ server.serveStatic("/", LittleFS, "/").setDefaultFile("index.html");
 
 2. **Access web UI**
    - Open browser to `http://192.168.4.1`
-   - Or use mDNS: `http://povpoi.local`
+   - Or the mDNS name printed at boot (`http://povpoi-<id>.local`). There is no fixed `povpoi.local`.
 
 3. **Check browser console**
    - Look for any 404 errors (missing files)

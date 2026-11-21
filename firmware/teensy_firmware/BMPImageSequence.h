@@ -1,3 +1,8 @@
+// STATUS: NOT YET INTEGRATED
+// teensy_firmware.ino does not #include this file. Sequence playback in the
+// sketch uses the sequence structs in the .ino, not this BMP playlist class.
+// Depends on BMPImageReader.h, which is also not included.
+
 #ifndef _BMPIMAGESEQUENCE_H
 #define _BMPIMAGESEQUENCE_H
 

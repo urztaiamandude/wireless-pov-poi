@@ -23,7 +23,7 @@ interface LEDHardwareConfigProps {
 
 const LEDHardwareConfig: React.FC<LEDHardwareConfigProps> = ({ setLedCount }) => {
   const [numLeds, setNumLeds] = useState(32);
-  const [sacrificialLeds, setSacrificialLeds] = useState(1);
+  const [sacrificialLeds, setSacrificialLeds] = useState(0);
   const [status, setStatus] = useState<'idle' | 'loading' | 'saving' | 'saved' | 'error'>('loading');
   const [errorMsg, setErrorMsg] = useState('');
   const savedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -43,8 +43,8 @@ const LEDHardwareConfig: React.FC<LEDHardwareConfigProps> = ({ setLedCount }) =>
       .then(r => r.ok ? r.json() : Promise.reject(r.status))
       .then(data => {
         setNumLeds(data.numLeds ?? 32);
-        setSacrificialLeds(data.sacrificialLeds ?? 1);
-        setLedCount(data.displayLeds ?? 31);
+        setSacrificialLeds(data.sacrificialLeds ?? 0);
+        setLedCount(data.displayLeds ?? 32);
         setStatus('idle');
       })
       .catch(() => setStatus('idle'));
@@ -548,9 +548,9 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCou
               The <code className="text-cyan-300">Refresh Rate</code> setting modulates the period of this timer.
             </p>
             <p>
-              When <strong>LED Count</strong> is changed (currently {ledCount}), the Teensy driver
-              re-allocates the <code>leds</code> array in PSRAM. The Nebula POI supports up to 64 LEDs
-              with PSRAM enabled.
+              Display LED count is currently {ledCount}. The sketch compiles a 32-LED array
+              (<code>NUM_LEDS</code>). Sacrificial count defaults to 0, so all 32 display.
+              Changing it here sends command 0x09; it does not resize the array.
             </p>
           </div>
           <div className="space-y-4 text-sm text-slate-400">
