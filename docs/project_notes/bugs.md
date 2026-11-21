@@ -79,13 +79,13 @@ Entries are reverse-chronological. Search this file before debugging any recurri
 
 ---
 
-### 2026-11-21 — BUG-007: Closed. There is no `firmware/teensy41/` tree
+### 2026-11-21 — BUG-007: Closed. There is one Teensy sketch
 
-**Issue**: Notes said a second PlatformIO Teensy firmware at `firmware/teensy41/` had incomplete command processing.
+**Issue**: Notes said a second PlatformIO Teensy firmware had incomplete command processing.
 
-**Root Cause**: That directory is not in the repository. The only Teensy sketch is `firmware/teensy_firmware/teensy_firmware.ino`. PlatformIO builds it from the root `platformio.ini` (`pio run -e teensy41`). Arduino IDE opens the same file. Both paths compile one sketch.
+**Root Cause**: That second tree is not in the repository. The only Teensy sketch is `firmware/teensy_firmware/teensy_firmware.ino`. PlatformIO builds it from the root `platformio.ini` (`pio run -e teensy41`). Arduino IDE opens the same file.
 
-**Solution**: Do not recreate `firmware/teensy41/` to "finish" command processing. Change `firmware/teensy_firmware/teensy_firmware.ino`.
+**Solution**: Change `firmware/teensy_firmware/teensy_firmware.ino`. Do not add another Teensy tree.
 
 **Prevention**: See ADR-001. PlatformIO is the preferred build. Arduino IDE is an alternate uploader for the same sketch.
 

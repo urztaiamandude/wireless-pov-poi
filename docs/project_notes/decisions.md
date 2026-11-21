@@ -7,22 +7,22 @@ Check this file before proposing any architectural change. Entries are numbered;
 ### ADR-001: One Teensy sketch, PlatformIO preferred
 
 **Date**: Project inception, revised 2026-11-21  
-**Status**: Active. Supersedes the claim that `firmware/teensy41/` is a second firmware.
+**Status**: Active.
 
-**Context**: Notes described an Arduino sketch and a separate PlatformIO tree at `firmware/teensy41/`. That tree is not in the repository.
+**Context**: Earlier notes described a second PlatformIO Teensy tree. That tree is not in the repository.
 
-**Decision**: `firmware/teensy_firmware/teensy_firmware.ino` is the only Teensy firmware. Build it with PlatformIO from the repository root (`pio run -e teensy41`). Arduino IDE + Teensy Loader is an alternate way to compile and flash the same file. ESP32-S3 builds only from `firmware/esp32_firmware`.
+**Decision**: `firmware/teensy_firmware/teensy_firmware.ino` is the only Teensy firmware. Build it with PlatformIO from the repository root (`pio run -e teensy41`). Arduino IDE + Teensy Loader is an alternate way to compile and flash the same file. ESP32-S3 builds only from `firmware/esp32_firmware`, which pins `platform = espressif32@6.9.0`.
 
-**Alternatives**: Maintaining two Teensy codebases. Rejected. The second tree was never present and the notes about its missing commands were about a path that does not exist.
+**Alternatives**: Maintaining two Teensy codebases. Rejected. There is one sketch.
 
-**Consequences**: Features land in the one sketch. Do not recreate `firmware/teensy41/`.
+**Consequences**: Features land in the one sketch. Do not add a second Teensy tree.
 
 ---
 
 ### ADR-002: All 32 LEDs display; sacrificial count defaults to 0
 
 **Date**: Early hardware design, revised 2026-11-21  
-**Status**: Active. Supersedes the fixed 31-pixel display and the "LED 32 is the shifter" wording.
+**Status**: Active.
 
 **Context**: The strip has 32 APA102s. Teensy GPIO is 3.3 V and the strip wants 5 V clocks and data. An earlier build darkened LED 0 and hoped the first pixel would level-shift the rest. MOSFET shifter modules were a poor fit.
 
@@ -43,7 +43,7 @@ Check this file before proposing any architectural change. Entries are numbered;
 
 **Decision**: HEIGHT is `g_displayLeds` (32 when the sacrificial count is 0). WIDTH (column count) comes from the source aspect ratio: `frame_count = round(source_width × (display_leds / source_height))`, capped by `IMAGE_MAX_WIDTH` (400 with the PSRAM build).
 
-**Alternatives**: A fixed 31-pixel height. That matched the old sacrificial default and is withdrawn.
+**Alternatives**: A fixed height one LED shorter than the strip. Withdrawn. Height follows `g_displayLeds`.
 
 **Consequences**: Converters and the upload path must use the active display height. "Width" means time slices along the spin, not a physical pixel pitch.
 

@@ -31,6 +31,8 @@ Quick lookup for ports, pins, constants, and non-secret configuration.
 | 13 | APA102 CLOCK (CI) |
 | 0 (RX1) | UART RX ← ESP32 TX |
 | 1 (TX1) | UART TX → ESP32 RX |
+| 18 / 19 | I2C SDA / SCL for the INA219. Not read by firmware yet |
+| A0 | Optional MAX9814, powered from 3.3 V |
 
 ### ESP32 / ESP32-S3
 
@@ -60,6 +62,7 @@ Quick lookup for ports, pins, constants, and non-secret configuration.
 | ESP32 firmware | `firmware/esp32_firmware/esp32_firmware.ino` |
 | Teensy firmware | `firmware/teensy_firmware/teensy_firmware.ino` |
 | ESP32 BLE bridge | `firmware/esp32_firmware/src/ble_bridge.h` and `firmware/esp32_firmware/src/ble_bridge.cpp` |
+| ESP32 platform pin | `espressif32@6.9.0` in `firmware/esp32_firmware/platformio.ini` |
 
 ---
 

@@ -1,5 +1,7 @@
 # Nebula Poi
 
+For coding agents: see [AGENTS.md](AGENTS.md).
+
 Wireless persistence-of-vision (POV) poi. A Teensy 4.1 drives a 32-LED APA102 strip. An ESP32-S3 hosts WiFi, BLE, and the control UIs, and talks to the Teensy over a binary UART protocol.
 
 This README is the source of truth for the current rebuild. If another document disagrees with this file or with the firmware, trust this file and the code. The hardware is being rebuilt from scratch and has not been fully validated end to end.
