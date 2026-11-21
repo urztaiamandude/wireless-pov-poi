@@ -1,4 +1,11 @@
 /*
+ * STATUS: NOT YET INTEGRATED
+ * teensy_firmware.ino does not #include this file. It is not part of the
+ * PlatformIO or Arduino build. Kept for a future INA219 monitor on Teensy
+ * I2C (SDA pin 18, SCL pin 19). Do not treat the comments below as the
+ * running power system. The portable plan is a Pololu D24V50F5 and no BMS.
+ * D24V25F5S is not a Pololu part number.
+ *
  * Battery Monitor Module for POV Poi
  *
  * Monitors battery voltage and current via INA219 module

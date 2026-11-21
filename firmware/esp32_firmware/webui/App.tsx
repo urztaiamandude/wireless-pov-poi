@@ -28,7 +28,7 @@ import { isNativePlatform, setDarkStatusBar, CapturedPhoto } from './nativeFeatu
 const App: React.FC = () => {
   const [view, setView] = useState<ViewMode>(ViewMode.DASHBOARD);
   const [globalPreviewUrl, setGlobalPreviewUrl] = useState<string | null>(null);
-  const [ledCount, setLedCount] = useState<number>(31);
+  const [ledCount, setLedCount] = useState<number>(32);
 
   // Configure native status bar on app launch
   useEffect(() => {

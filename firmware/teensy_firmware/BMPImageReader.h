@@ -1,3 +1,9 @@
+// STATUS: NOT YET INTEGRATED
+// teensy_firmware.ino does not #include this file. BMP loading is not part of
+// the running sketch. Images in the build are the POV slots filled over the
+// binary serial protocol and from /poi_images/*.pov. Keep this header until
+// a reviewed integration, but do not expect it to compile into the firmware.
+
 #ifndef _BMPIMAGEREADER_H
 #define _BMPIMAGEREADER_H
 
