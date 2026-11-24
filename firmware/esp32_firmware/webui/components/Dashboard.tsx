@@ -10,6 +10,8 @@ import {
 import { Device, PowerMode } from '../types';
 import { useDebounce } from '../hooks';
 import { hapticImpact } from '../nativeFeatures';
+import { clampPatternSpeed, RETRO_STROBE_PATTERN_ID } from '../displayLimits';
+import { imageFileToRawRgb } from '../povImage';
 
 /** Convert a hex color string like "#ff0000" to {r, g, b} for the firmware API */
 const hexToRgb = (hex: string) => {
@@ -38,8 +40,7 @@ function getDeviceBase(ip: string): string {
 }
 
 const DEFAULT_DEVICES: Device[] = [
-  { id: 'A1B2C3', name: 'POV_LEADER', ip: '192.168.4.1', status: 'Sync Leader', type: 'success', isPlaying: false, brightness: 128 },
-  { id: 'D4E5F6', name: 'POV_FOLLOWER', ip: '192.168.4.2', status: 'Awaiting Sync', type: 'info', isPlaying: false, brightness: 128 }
+  { id: 'A1B2C3', name: 'POV_LEADER', ip: '192.168.4.1', status: 'Connected', type: 'success', isPlaying: false, brightness: 128 },
 ];
 
 const DISPLAY_MODES = [
@@ -374,7 +375,13 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
         await fetch(`${base}/api/pattern`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ index: currentPattern, type: currentPattern, speed, color1: hexToRgb(color1), color2: hexToRgb(color2) }),
+          body: JSON.stringify({
+            index: currentPattern,
+            type: currentPattern,
+            speed: clampPatternSpeed(currentPattern, speed),
+            color1: hexToRgb(color1),
+            color2: hexToRgb(color2),
+          }),
         });
       } catch { /* offline */ }
     }
@@ -430,10 +437,12 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
     for (const dev of targets) {
       try {
         const base = getDeviceBase(dev.ip);
+        const speed = clampPatternSpeed(patternId, patternSpeed);
+        if (speed !== patternSpeed) setPatternSpeed(speed);
         const resPattern = await fetch(`${base}/api/pattern`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ index: patternId, type: patternId, speed: patternSpeed, color1: hexToRgb(patternColor1), color2: hexToRgb(patternColor2) }),
+          body: JSON.stringify({ index: patternId, type: patternId, speed, color1: hexToRgb(patternColor1), color2: hexToRgb(patternColor2) }),
         });
         if (!resPattern.ok) {
           const errText = await resPattern.text();
@@ -529,33 +538,42 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = '';
     if (!file) return;
 
-    const targets = isSyncMode ? devices : [activeDevice];
     setIsUploading(true);
+    let raw: { blob: Blob; filename: string };
+    try {
+      raw = await imageFileToRawRgb(file);
+    } catch {
+      addLog(`[Error] Could not convert ${file.name} to raw RGB`, 'text-red-500');
+      setIsUploading(false);
+      return;
+    }
 
+    const targets = isSyncMode ? devices : [activeDevice];
     for (const target of targets) {
-      addLog(`[Sync] Pushing ${file.name} to ${target.name}...`, 'text-amber-400');
+      addLog(`[Sync] Pushing ${raw.filename} to ${target.name}...`, 'text-amber-400');
       const formData = new FormData();
-      formData.append('file', file, file.name);
+      formData.append('file', raw.blob, raw.filename);
 
       try {
         const base = getDeviceBase(target.ip);
         const res = await fetch(`${base}/api/image`, { method: 'POST', body: formData });
         if (res.ok) {
-          updateDevice(target.id, { status: `Synced: ${file.name}`, type: 'success' });
-          addLog(`[OK] ${target.name} received ${file.name}`, 'text-green-400');
+          updateDevice(target.id, { status: `Synced: ${raw.filename}`, type: 'success' });
+          addLog(`[OK] ${target.name} received ${raw.filename}`, 'text-green-400');
         } else {
           throw new Error(`HTTP ${res.status}`);
         }
-      } catch (err) {
+      } catch {
         addLog(`[Error] Failed to sync to ${target.name}`, 'text-red-500');
         updateDevice(target.id, { status: 'Upload failed', type: 'error' });
       }
     }
 
     setIsUploading(false);
-    setFilename(file.name);
+    setFilename(raw.filename);
     addLog(`[Fleet] Upload sequence complete.`, 'text-green-400');
   };
 
@@ -585,6 +603,25 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
           setCurrentMode(mode);
           if (action === 'random') setCurrentPattern(index);
           const base = getDeviceBase(dev.ip);
+          if (action === 'random') {
+            const speed = clampPatternSpeed(index, patternSpeed);
+            if (index === RETRO_STROBE_PATTERN_ID) setPatternSpeed(speed);
+            const patternRes = await fetch(`${base}/api/pattern`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                index,
+                type: index,
+                speed,
+                color1: hexToRgb(patternColor1),
+                color2: hexToRgb(patternColor2),
+              }),
+            });
+            if (!patternRes.ok) {
+              const errText = await patternRes.text();
+              throw new Error(`HTTP ${patternRes.status} ${errText}`);
+            }
+          }
           const res = await fetch(`${base}/api/mode`, {
             method,
             headers: { 'Content-Type': 'application/json' },
@@ -985,11 +1022,14 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
                     <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
                       <Gauge size={11} className="text-orange-400" /> Speed
                     </label>
-                    <span className="text-orange-400 font-mono text-[10px]">{patternSpeed}</span>
+                    <span className="text-orange-400 font-mono text-[10px]">{clampPatternSpeed(currentPattern, patternSpeed)}</span>
                   </div>
                   <input
-                    type="range" min="1" max="255" value={patternSpeed}
-                    onChange={e => { const v = parseInt(e.target.value); if (!isNaN(v)) handlePatternSpeedChange(Math.max(1, Math.min(255, v))); }}
+                    type="range"
+                    min="1"
+                    max={currentPattern === RETRO_STROBE_PATTERN_ID ? 127 : 255}
+                    value={clampPatternSpeed(currentPattern, patternSpeed)}
+                    onChange={e => { const v = parseInt(e.target.value); if (!isNaN(v)) handlePatternSpeedChange(clampPatternSpeed(currentPattern, v)); }}
                     className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-orange-500"
                   />
                 </div>

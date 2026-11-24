@@ -315,7 +315,21 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCou
 
   const copyText = async (text: string, label: string) => {
     try {
-      await navigator.clipboard.writeText(text);
+      if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.setAttribute('readonly', '');
+        textarea.style.position = 'fixed';
+        textarea.style.left = '-9999px';
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        const success = document.execCommand('copy');
+        document.body.removeChild(textarea);
+        if (!success) throw new Error('execCommand copy failed');
+      }
       setWifiActionStatus(`${label} copied: ${text}`);
     } catch {
       setWifiActionStatus(`Could not copy ${label}.`);

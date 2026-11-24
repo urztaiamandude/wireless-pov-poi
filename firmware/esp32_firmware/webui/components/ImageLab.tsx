@@ -9,6 +9,17 @@ import {
 import { SequenceItem } from '../types';
 import { useDebounce } from '../hooks';
 import { isNativePlatform, takePhoto, pickPhoto, hapticImpact } from '../nativeFeatures';
+import {
+  clampLedHeight,
+  clampPatternSpeed,
+  clampSequenceDuration,
+  fitPovDimensions,
+  POV_IMAGE_MAX_HEIGHT,
+  SEQUENCE_DURATION_MAX_MS,
+  SEQUENCE_DURATION_MIN_MS,
+} from '../displayLimits';
+import { createId } from '../ids';
+import { createRawRGB, imageFileToRawRgb } from '../povImage';
 
 // Pattern definitions — must match Teensy firmware pattern IDs
 const PATTERN_LIST = [
@@ -168,38 +179,13 @@ const ImageLab: React.FC<ImageLabProps> = ({ onPreviewUpdate, initialPreview, le
     return new Blob([buffer], { type: 'image/bmp' });
   };
 
-  // Creates a raw RGB blob (R, G, B per pixel, top-to-bottom) suitable for the firmware's
-  // /api/image endpoint. Filename must be image_WxH.rgb for dimension parsing.
-  const createRawRGB = (canvas: HTMLCanvasElement): { blob: Blob; filename: string } => {
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
-    if (!ctx) throw new Error("Context failed");
-    const width = canvas.width;
-    const height = canvas.height;
-    const imgData = ctx.getImageData(0, 0, width, height).data;
-    const buffer = new Uint8Array(width * height * 3);
-    let offset = 0;
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        const i = (y * width + x) * 4;
-        buffer[offset++] = imgData[i];     // R
-        buffer[offset++] = imgData[i + 1]; // G
-        buffer[offset++] = imgData[i + 2]; // B
-      }
-    }
-    return {
-      blob: new Blob([buffer], { type: 'application/octet-stream' }),
-      filename: `image_${width}x${height}.rgb`,
-    };
-  };
-
   const generateProceduralArt = useCallback(() => {
     if (!canvasRef.current) return;
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const targetH = ledCount;
-    const targetW = targetH * 4;
+    const { width: targetW, height: targetH } = fitPovDimensions(ledCount * 4, ledCount, ledCount);
     canvas.width = targetW;
     canvas.height = targetH;
     setProcessedDimensions({ w: targetW, h: targetH });
@@ -268,11 +254,11 @@ const ImageLab: React.FC<ImageLabProps> = ({ onPreviewUpdate, initialPreview, le
     if (!selectedImage) return;
     const blob = canvasRef.current ? createBMP(canvasRef.current) : undefined;
     const newItem: SequenceItem = {
-      id: crypto.randomUUID(),
+      id: createId(),
       name: labMode === 'upload' ? 'Upload Frame' : `${patternType} Pattern`,
       dataUrl: selectedImage,
       blob,
-      duration: frameDuration,
+      duration: clampSequenceDuration(frameDuration),
       kind: 'image',
     };
     setSequence(prev => [...prev, newItem]);
@@ -283,10 +269,10 @@ const ImageLab: React.FC<ImageLabProps> = ({ onPreviewUpdate, initialPreview, le
     const pat = PATTERN_LIST.find(p => p.id === patternId);
     if (!pat) return;
     const newItem: SequenceItem = {
-      id: crypto.randomUUID(),
+      id: createId(),
       name: `Pattern: ${pat.label}`,
       dataUrl: '',           // no preview image for patterns
-      duration: patternPickerDuration,
+      duration: clampSequenceDuration(patternPickerDuration),
       kind: 'pattern',
       patternId,
     };
@@ -383,11 +369,30 @@ const ImageLab: React.FC<ImageLabProps> = ({ onPreviewUpdate, initialPreview, le
 
       for (const item of sequence) {
         if (item.kind === 'pattern') {
-          // Pattern item — no upload needed, reference by patternId directly
+          const patternId = item.patternId ?? 0;
+          const duration = clampSequenceDuration(item.duration);
+          // Configure the pattern slot before the sequence references it.
+          // An unconfigured slot plays black.
+          try {
+            const patternRes = await fetch(`${base}/api/pattern`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                index: patternId,
+                type: patternId,
+                speed: clampPatternSpeed(patternId, 50),
+                color1: { r: 255, g: 0, b: 0 },
+                color2: { r: 0, g: 0, b: 255 },
+              }),
+            });
+            if (!patternRes.ok) uploadErrors++;
+          } catch {
+            uploadErrors++;
+          }
           hwItems.push({
             kind: 'pattern',
-            index: item.patternId ?? 0,
-            duration: item.duration,
+            index: patternId,
+            duration,
           });
           continue;
         }
@@ -405,23 +410,7 @@ const ImageLab: React.FC<ImageLabProps> = ({ onPreviewUpdate, initialPreview, le
           let filename: string;
 
           if (item.blob) {
-            // Re-draw stored blob to an offscreen canvas for raw RGB export
-            const offscreen = document.createElement('canvas');
-            const url = URL.createObjectURL(item.blob);
-            await new Promise<void>(resolve => {
-              const img = new window.Image();
-              img.onload = () => {
-                offscreen.width = img.naturalWidth;
-                offscreen.height = img.naturalHeight;
-                const ctx = offscreen.getContext('2d');
-                ctx?.drawImage(img, 0, 0);
-                URL.revokeObjectURL(url);
-                resolve();
-              };
-              img.onerror = () => { URL.revokeObjectURL(url); resolve(); };
-              img.src = url;
-            });
-            const raw = createRawRGB(offscreen);
+            const raw = await imageFileToRawRgb(item.blob, ledCount);
             rgbBlob = raw.blob;
             filename = raw.filename;
           } else if (canvasRef.current) {
@@ -444,7 +433,7 @@ const ImageLab: React.FC<ImageLabProps> = ({ onPreviewUpdate, initialPreview, le
             // Clamp to MAX_USER_IMAGE_SLOT (127) — the sequence protocol only has 7 bits for image index
             const rawSlot = typeof json.slot === 'number' ? json.slot : FIRST_USER_IMAGE_SLOT;
             const assignedSlot = Math.min(rawSlot, MAX_USER_IMAGE_SLOT);
-            hwItems.push({ kind: 'image', index: assignedSlot, duration: item.duration });
+            hwItems.push({ kind: 'image', index: assignedSlot, duration: clampSequenceDuration(item.duration) });
           } else {
             uploadErrors++;
           }
@@ -500,9 +489,7 @@ const ImageLab: React.FC<ImageLabProps> = ({ onPreviewUpdate, initialPreview, le
       const ctx = canvas.getContext('2d');
       const img = new Image();
       img.onload = () => {
-        const targetH = ledCount;
-        const ratio = img.width / img.height;
-        const targetW = Math.max(1, Math.round(targetH * ratio));
+        const { width: targetW, height: targetH } = fitPovDimensions(img.width, img.height, ledCount);
         canvas.width = targetW;
         canvas.height = targetH;
         setProcessedDimensions({ w: targetW, h: targetH });
@@ -551,8 +538,10 @@ const ImageLab: React.FC<ImageLabProps> = ({ onPreviewUpdate, initialPreview, le
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Global Height (LEDs)</label>
               <input
                 type="number"
+                min={1}
+                max={POV_IMAGE_MAX_HEIGHT}
                 value={ledCount}
-                onChange={(e) => setLedCount(parseInt(e.target.value) || 1)}
+                onChange={(e) => setLedCount(clampLedHeight(parseInt(e.target.value, 10)))}
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white font-mono outline-none focus:ring-1 focus:ring-pink-500/50 transition-all"
               />
             </div>
@@ -607,8 +596,8 @@ const ImageLab: React.FC<ImageLabProps> = ({ onPreviewUpdate, initialPreview, le
                 <div className="bg-slate-950 border border-purple-700/40 rounded-2xl p-3 space-y-2">
                   <div className="flex items-center gap-2">
                     <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 flex-shrink-0">Duration</label>
-                    <input type="number" min={100} step={100} value={patternPickerDuration}
-                      onChange={e => setPatternPickerDuration(Math.max(100, parseInt(e.target.value) || 100))}
+                    <input type="number" min={SEQUENCE_DURATION_MIN_MS} max={SEQUENCE_DURATION_MAX_MS} step={100} value={patternPickerDuration}
+                      onChange={e => setPatternPickerDuration(clampSequenceDuration(parseInt(e.target.value, 10)))}
                       className="w-20 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-white font-mono text-xs outline-none" />
                     <span className="text-[9px] text-slate-500">ms</span>
                   </div>
@@ -674,21 +663,9 @@ const ImageLab: React.FC<ImageLabProps> = ({ onPreviewUpdate, initialPreview, le
               <div className="flex items-center gap-3 bg-black/40 px-4 py-2 rounded-full border border-slate-800 shadow-inner">
                 <Clock size={14} className="text-pink-400" />
                 <input
-                  type="number" step="100" min="100" value={frameDuration}
-                  onChange={(e) => {
-                    const raw = e.target.value;
-                    if (raw === '') {
-                      setFrameDuration(100);
-                      return;
-                    }
-                    const v = parseInt(raw, 10);
-                    if (isNaN(v)) {
-                      setFrameDuration(100);
-                    } else {
-                      setFrameDuration(Math.max(100, v));
-                    }
-                  }}
-                  className="bg-transparent text-[10px] font-mono text-cyan-400 outline-none w-12 text-center"
+                  type="number" step="100" min={SEQUENCE_DURATION_MIN_MS} max={SEQUENCE_DURATION_MAX_MS} value={frameDuration}
+                  onChange={(e) => setFrameDuration(clampSequenceDuration(parseInt(e.target.value, 10)))}
+                  className="bg-transparent text-[10px] font-mono text-cyan-400 outline-none w-16 text-center"
                 />
                 <span className="text-[8px] font-black text-slate-500 uppercase">ms/frame</span>
               </div>

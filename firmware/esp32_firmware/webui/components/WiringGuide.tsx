@@ -15,8 +15,8 @@ const WiringGuide: React.FC = () => {
           icon={<ArrowRightLeft className="text-cyan-400" />}
           title="UART Bridge"
           details={[
-            { from: "ESP32-S3 TX (GPIO 43)", to: "Teensy 4.1 RX1 (Pin 0)" },
-            { from: "ESP32-S3 RX (GPIO 44)", to: "Teensy 4.1 TX1 (Pin 1)" }
+            { from: "ESP32-S3 TX (GPIO 17)", to: "Teensy 4.1 RX1 (Pin 0)" },
+            { from: "ESP32-S3 RX (GPIO 16)", to: "Teensy 4.1 TX1 (Pin 1)" }
           ]}
         />
         <WiringCard
@@ -66,7 +66,7 @@ const WiringGuide: React.FC = () => {
         <h4 className="text-red-400 font-bold mb-2">CRITICAL SAFETY:</h4>
         <p className="text-slate-400 text-sm">
           High-density APA102 LED strips can pull significant amperage. <strong>Do not power the LEDs directly from the Teensy 5V pin.</strong>
-          Use a dedicated 5V power supply and share the ground with both boards. For portable POV systems, use 18650 cells with a boost converter.
+          Bring-up uses a 5 V, 4 A bench supply. Portable power is a 3S LiPo on an XT60 quick-swap pod with a Pololu D24V50F5 5 V buck. Share ground with both boards.
         </p>
       </div>
     </div>
