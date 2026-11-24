@@ -135,6 +135,7 @@ npm run cap:open:ios
 - The page served by the poi, and `npm run dev`, keep using relative `/api` URLs. Vite still proxies those to `VITE_API_PROXY_TARGET` (default `http://192.168.4.1`).
 - Android allows cleartext (`usesCleartextTraffic="true"`). `capacitor.config.ts` sets `server.androidScheme` to `http` so the WebView origin is `http://localhost` and calls to the poi are not mixed content. `CapacitorHttp` stays off so image uploads keep the WebView `fetch` implementation.
 - iOS allows local HTTP, including `192.168.4.1` and `.local`, via `NSAllowsArbitraryLoads`, `NSAllowsLocalNetworking`, and `NSLocalNetworkUsageDescription` in `ios/App/App/Info.plist`.
+- `npx cap sync ios` rewrites `ios/App/CapApp-SPM/Package.swift` so plugins point at `node_modules`. Do not commit that rewrite. The committed package stays the remote `capacitor-swift-pm` pin, because the default CodeQL Swift build has no `node_modules`. The device address is also stored in `localStorage`.
 - ESP32 firmware enables CORS (`server.enableCORS(true)`), so the native shell can call REST endpoints directly.
 
 ## Configuration
