@@ -26,9 +26,19 @@
 	<true/>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Nebula POV Poi connects to your local POV device over WiFi.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_http._tcp</string>
+	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>Nebula POV Poi uses the camera to capture images for the POV display.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Nebula POV Poi opens your photo library so you can send a picture to the POV display.</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
 	<key>UILaunchStoryboardName</key>

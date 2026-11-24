@@ -24,17 +24,20 @@ import {
   Zap
 } from 'lucide-react';
 import { isNativePlatform, setDarkStatusBar, CapturedPhoto } from './nativeFeatures';
+import { loadDeviceHost } from './deviceAddress';
 
 const App: React.FC = () => {
   const [view, setView] = useState<ViewMode>(ViewMode.DASHBOARD);
   const [globalPreviewUrl, setGlobalPreviewUrl] = useState<string | null>(null);
   const [ledCount, setLedCount] = useState<number>(32);
+  const [hostReady, setHostReady] = useState(false);
 
-  // Configure native status bar on app launch
+  // Load the saved poi address before the first /api call, and style the status bar.
   useEffect(() => {
     if (isNativePlatform()) {
       setDarkStatusBar();
     }
+    loadDeviceHost().finally(() => setHostReady(true));
   }, []);
 
   // Handler for photos captured via NativeToolbar camera
@@ -67,6 +70,10 @@ const App: React.FC = () => {
         return <Dashboard previewUrl={globalPreviewUrl} />;
     }
   };
+
+  if (!hostReady) {
+    return <div className="min-h-screen bg-slate-950" />;
+  }
 
   return (
     <div className="flex flex-col lg:flex-row min-h-screen">

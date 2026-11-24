@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Settings2, RefreshCw, Grid3X3, Palette, Info, RotateCw, Zap, CircuitBoard, Wifi, Lock, Trash2, Check } from 'lucide-react';
 import { useDebounce } from '../hooks';
+import { getDeviceBase, getDeviceHost, saveDeviceHost, subscribeDeviceHost, testDeviceConnection } from '../deviceAddress';
 
 interface AdvancedSettingsProps {
   ledCount: number;
@@ -30,6 +31,8 @@ const LEDHardwareConfig: React.FC<LEDHardwareConfigProps> = ({ setLedCount }) =>
 
   const displayLeds = Math.max(0, numLeds - sacrificialLeds);
   const displayLedStart = sacrificialLeds;
+  const [deviceHost, setDeviceHost] = useState(getDeviceHost);
+  useEffect(() => subscribeDeviceHost(setDeviceHost), []);
 
   // Clear any pending "reset to idle" timeout on unmount
   useEffect(() => {
@@ -39,7 +42,7 @@ const LEDHardwareConfig: React.FC<LEDHardwareConfigProps> = ({ setLedCount }) =>
   }, []);
 
   useEffect(() => {
-    fetch('/api/hardware/leds', { signal: AbortSignal.timeout(3000) })
+    fetch(`${getDeviceBase()}/api/hardware/leds`, { signal: AbortSignal.timeout(3000) })
       .then(r => r.ok ? r.json() : Promise.reject(r.status))
       .then(data => {
         setNumLeds(data.numLeds ?? 32);
@@ -48,7 +51,7 @@ const LEDHardwareConfig: React.FC<LEDHardwareConfigProps> = ({ setLedCount }) =>
         setStatus('idle');
       })
       .catch(() => setStatus('idle'));
-  }, [setLedCount]);
+  }, [setLedCount, deviceHost]);
 
   const handleSave = async () => {
     if (sacrificialLeds >= numLeds || numLeds < 2) {
@@ -64,7 +67,7 @@ const LEDHardwareConfig: React.FC<LEDHardwareConfigProps> = ({ setLedCount }) =>
     setStatus('saving');
     setErrorMsg('');
     try {
-      const res = await fetch('/api/hardware/leds', {
+      const res = await fetch(`${getDeviceBase()}/api/hardware/leds`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ numLeds, sacrificialLeds }),
@@ -198,8 +201,19 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCou
   const [wifiSsid, setWifiSsid] = useState('');
   const [wifiPassword, setWifiPassword] = useState('');
   const [wifiActionStatus, setWifiActionStatus] = useState<string | null>(null);
+  const [deviceHost, setDeviceHost] = useState(getDeviceHost);
+  const [deviceHostInput, setDeviceHostInput] = useState(getDeviceHost);
+  const [deviceHostError, setDeviceHostError] = useState<string | null>(null);
+  const [deviceTestStatus, setDeviceTestStatus] = useState<string | null>(null);
+  const [deviceTestOk, setDeviceTestOk] = useState<boolean | null>(null);
+  const [deviceTestLoading, setDeviceTestLoading] = useState(false);
 
-  const baseUrl = '';
+  useEffect(() => subscribeDeviceHost((host) => {
+    setDeviceHost(host);
+    setDeviceHostInput(host);
+  }), []);
+
+  const baseUrl = getDeviceBase();
 
   const fetchWifiStatus = useCallback(async () => {
     try {
@@ -309,6 +323,27 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCou
     }
   };
 
+  const handleSaveDeviceHost = async () => {
+    const saved = await saveDeviceHost(deviceHostInput);
+    if (!saved) {
+      setDeviceHostError('Use an IPv4 address or hostname, such as 192.168.4.1 or povpoi.local.');
+      setDeviceTestOk(false);
+      return;
+    }
+    setDeviceHostError(null);
+    setDeviceTestOk(true);
+    setDeviceTestStatus(`Saved. The phone app calls http://${saved}.`);
+  };
+
+  const handleTestDevice = async () => {
+    setDeviceTestLoading(true);
+    setDeviceHostError(null);
+    const result = await testDeviceConnection(deviceHostInput);
+    setDeviceTestOk(result.ok);
+    setDeviceTestStatus(result.detail);
+    setDeviceTestLoading(false);
+  };
+
   const openUrl = (url: string) => {
     window.open(url, '_blank', 'noopener,noreferrer');
   };
@@ -346,6 +381,44 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCou
           <p className="text-slate-400">Reference settings for the Teensy 4.1 POV engine. Hardware pins and LED count are configured in Teensy firmware.</p>
         </div>
       </header>
+
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+        <h3 className="text-white font-semibold mb-2 flex items-center gap-2">
+          <Wifi size={18} className="text-cyan-400" /> Device address
+        </h3>
+        <p className="text-slate-400 text-sm mb-4">
+          The installed phone app calls <span className="font-mono text-slate-200">http://{deviceHost}</span>. The page served by the poi, and Vite dev, keep using relative URLs.
+        </p>
+        <div className="flex flex-col md:flex-row gap-2">
+          <input
+            type="text"
+            value={deviceHostInput}
+            onChange={(e) => setDeviceHostInput(e.target.value)}
+            placeholder="192.168.4.1"
+            spellCheck={false}
+            autoCapitalize="none"
+            className="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white font-mono focus:ring-1 focus:ring-cyan-500 outline-none"
+          />
+          <button
+            onClick={handleSaveDeviceHost}
+            className="px-5 py-2.5 bg-slate-700 hover:bg-slate-600 text-white rounded-xl font-semibold transition-all"
+          >
+            Save
+          </button>
+          <button
+            onClick={handleTestDevice}
+            disabled={deviceTestLoading}
+            className="flex items-center justify-center gap-2 px-5 py-2.5 bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-800 text-white rounded-xl font-semibold transition-all"
+          >
+            {deviceTestLoading ? <RefreshCw className="animate-spin" size={18} /> : <Check size={18} />}
+            {deviceTestLoading ? 'Testing…' : 'Test connection'}
+          </button>
+        </div>
+        {deviceHostError && <p className="text-red-400 text-sm mt-3">{deviceHostError}</p>}
+        {deviceTestStatus && (
+          <p className={`text-sm mt-2 ${deviceTestOk ? 'text-green-400' : 'text-red-400'}`}>{deviceTestStatus}</p>
+        )}
+      </div>
 
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
         <h3 className="text-white font-semibold mb-6 flex items-center gap-2">

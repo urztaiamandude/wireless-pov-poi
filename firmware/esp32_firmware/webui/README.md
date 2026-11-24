@@ -131,9 +131,10 @@ npm run cap:open:ios
 
 ### Networking notes
 
-- The app talks to the device over local HTTP (`http://192.168.4.1` by default).
-- Android cleartext traffic is enabled in `AndroidManifest.xml`.
-- iOS local-network usage + ATS settings are configured in `ios/App/App/Info.plist`.
+- Join the phone to `POV-POI-WiFi`, then open the app. Display Config → Device address is where the app sends API calls. The default is `http://192.168.4.1`. Use Test connection (`GET /api/status`) after you change it. The address is stored with Capacitor Preferences.
+- The page served by the poi, and `npm run dev`, keep using relative `/api` URLs. Vite still proxies those to `VITE_API_PROXY_TARGET` (default `http://192.168.4.1`).
+- Android allows cleartext (`usesCleartextTraffic="true"`). `capacitor.config.ts` sets `server.androidScheme` to `http` so the WebView origin is `http://localhost` and calls to the poi are not mixed content. `CapacitorHttp` stays off so image uploads keep the WebView `fetch` implementation.
+- iOS allows local HTTP, including `192.168.4.1` and `.local`, via `NSAllowsArbitraryLoads`, `NSAllowsLocalNetworking`, and `NSLocalNetworkUsageDescription` in `ios/App/App/Info.plist`.
 - ESP32 firmware enables CORS (`server.enableCORS(true)`), so the native shell can call REST endpoints directly.
 
 ## Configuration
@@ -190,7 +191,7 @@ See `docs/API.md` in the root directory for complete API documentation.
 
 ## Fleet Configuration
 
-The dashboard addresses the connected access point. `DEFAULT_DEVICES` in `components/Dashboard.tsx` lists one device at `192.168.4.1`. Uploads and commands go to that device.
+In a browser on the poi, or under Vite, API calls are relative and hit the host that served the page. The phone app uses the saved device address instead (`deviceAddress.ts`, default `192.168.4.1`). The dashboard still lists that one access-point device.
 
 ## Project Structure
 
@@ -243,7 +244,7 @@ Use browser DevTools Network tab to inspect API requests/responses. The developm
 ### "Cannot connect to device"
 - Ensure you're connected to `POV-POI-WiFi` network
 - Verify ESP32 is powered and running firmware
-- Check that ESP32 IP is `192.168.4.1` (or update `DEVICE_IP` constants)
+- On a phone, open Display Config and confirm Device address. Test connection calls `http://<that host>/api/status`
 
 ### "Module not found" errors
 - Run `npm install` to ensure all dependencies are installed

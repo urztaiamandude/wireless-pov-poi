@@ -163,9 +163,9 @@ The following permissions are declared in `AndroidManifest.xml`:
 The app communicates with the ESP32 over local WiFi:
 
 1. Connect your phone to the **POV-POI-WiFi** network (password: `povpoi123`)
-2. The app reaches the ESP32 at `http://192.168.4.1`
+2. The app calls the host saved in Display Config → Device address, over `http://` (default `192.168.4.1`)
 3. Cleartext HTTP traffic is enabled in the manifest (`usesCleartextTraffic`)
-4. Capacitor config has `allowMixedContent: true` for the Android WebView
+4. `server.androidScheme` is `http`, so the WebView origin is `http://localhost` and poi requests are not mixed content. `allowMixedContent` remains on as a fallback
 
 ## Building a Release APK
 
@@ -193,7 +193,7 @@ cd android
 Replace the launcher icons in `android/app/src/main/res/mipmap-*/` directories with your own assets. Use [Android Asset Studio](https://romannurik.github.io/AndroidAssetStudio/) to generate all density variants.
 
 ### Splash Screen
-Replace `android/app/src/main/res/drawable*/splash.png` files. The background colour is set to `#020617` (slate-950) in `capacitor.config.ts`.
+Replace `android/app/src/main/res/drawable*/splash.png` files. The launch background is the Android `Theme.SplashScreen` style in `res/values/styles.xml`. The Capacitor SplashScreen plugin is not installed.
 
 ### App Name
 Edit `android/app/src/main/res/values/strings.xml`:
@@ -205,7 +205,7 @@ Edit `android/app/src/main/res/values/strings.xml`:
 
 ### "No connection to device"
 - Ensure phone is on **POV-POI-WiFi** network
-- Verify ESP32 is powered and serving at `192.168.4.1`
+- Verify the ESP32 is powered. In the app, Display Config → Test connection should reach `http://192.168.4.1/api/status` (or whatever Device address you saved)
 
 ### Camera not working
 - Grant camera permission when prompted

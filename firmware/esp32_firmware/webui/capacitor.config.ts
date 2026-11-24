@@ -5,7 +5,11 @@ const config: CapacitorConfig = {
   appName: 'Nebula POV Poi',
   webDir: 'dist',
   server: {
-    // ESP32 firmware is served over local HTTP (e.g., http://192.168.4.1).
+    // The Android WebView origin is http://localhost, so fetch() to the poi
+    // (http://192.168.4.1) is not mixed content. https://localhost would block
+    // that cleartext call on current WebViews. CapacitorHttp is left off so
+    // FormData uploads and AbortSignal keep using the WebView fetch stack.
+    androidScheme: 'http',
     cleartext: true,
   },
   plugins: {
@@ -18,15 +22,9 @@ const config: CapacitorConfig = {
       backgroundColor: '#0f172a',
       style: 'DARK',
     },
-    SplashScreen: {
-      launchAutoHide: true,
-      launchShowDuration: 1500,
-      backgroundColor: '#020617', // slate-950
-      showSpinner: false,
-    },
   },
   android: {
-    // Allow mixed content so the WebView can reach http://192.168.4.1
+    // Fallback if a WebView still treats the app origin as https.
     allowMixedContent: true,
     backgroundColor: '#020617',
   },

@@ -9,7 +9,8 @@ import {
 } from 'lucide-react';
 import { Device, PowerMode } from '../types';
 import { useDebounce } from '../hooks';
-import { hapticImpact } from '../nativeFeatures';
+import { hapticImpact, isNativePlatform } from '../nativeFeatures';
+import { getDeviceBase, getDeviceHost, subscribeDeviceHost } from '../deviceAddress';
 import { clampPatternSpeed, RETRO_STROBE_PATTERN_ID } from '../displayLimits';
 import { imageFileToRawRgb } from '../povImage';
 
@@ -29,14 +30,6 @@ const hexToRgb = (hex: string) => {
 
 interface DashboardProps {
   previewUrl: string | null;
-}
-
-function getDeviceBase(ip: string): string {
-  const isLocalhost = typeof window !== 'undefined' &&
-    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-  if (isLocalhost) return ''; // Vite proxy handles /api -> ESP32
-  const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
-  return ip ? `${protocol}//${ip}` : window.location.origin;
 }
 
 const DEFAULT_DEVICES: Device[] = [
@@ -84,6 +77,8 @@ const POWER_MODES: { id: PowerMode; label: string; sub: string; icon: React.Elem
 
 const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
   const [devices, setDevices] = useState<Device[]>(DEFAULT_DEVICES);
+  const [deviceHost, setDeviceHost] = useState(getDeviceHost);
+  useEffect(() => subscribeDeviceHost(setDeviceHost), []);
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(devices[0].id);
   const [isSyncMode, setIsSyncMode] = useState(true);
   const [filename, setFilename] = useState('pattern.bmp');
@@ -145,11 +140,7 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
   useEffect(() => {
     const checkConnection = async () => {
       try {
-        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-        const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
-        const base = isLocalhost || !activeDevice.ip
-          ? window.location.origin
-          : `${protocol}//${activeDevice.ip}`;
+        const base = getDeviceBase();
         const res = await fetch(`${base}/api/status`, { signal: AbortSignal.timeout(1500) });
         if (res.ok) {
           const data = await res.json();
@@ -180,11 +171,11 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
     checkConnection();
     const interval = setInterval(checkConnection, 5000);
     return () => clearInterval(interval);
-  }, [activeDevice.ip]);
+  }, [deviceHost]);
 
   // SD Card polling
   const refreshSdFiles = useCallback(async () => {
-    const base = getDeviceBase(activeDevice.ip);
+    const base = getDeviceBase();
     setSdLoading(true);
     try {
       const [listResult, infoResult, patternResult] = await Promise.allSettled([
@@ -208,7 +199,7 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
       }
     } catch { /* offline */ }
     setSdLoading(false);
-  }, [activeDevice.ip]);
+  }, [deviceHost]);
 
   useEffect(() => {
     if (!isOnline) return;
@@ -218,7 +209,7 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
   }, [isOnline, refreshSdFiles]);
 
   const handleSdLoad = async (file: string) => {
-    const base = getDeviceBase(activeDevice.ip);
+    const base = getDeviceBase();
     try {
       const res = await fetch(`${base}/api/sd/load`, {
         method: 'POST',
@@ -238,7 +229,7 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
   };
 
   const handleSdDelete = async (file: string) => {
-    const base = getDeviceBase(activeDevice.ip);
+    const base = getDeviceBase();
     try {
       const res = await fetch(`${base}/api/sd/delete`, {
         method: 'POST',
@@ -257,7 +248,7 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
   };
 
   const handleSdPatternLoad = async (name: string) => {
-    const base = getDeviceBase(activeDevice.ip);
+    const base = getDeviceBase();
     try {
       const res = await fetch(`${base}/api/sd/pattern/load`, {
         method: 'POST',
@@ -275,7 +266,7 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
   };
 
   const handleSdPatternSave = async (name: string) => {
-    const base = getDeviceBase(activeDevice.ip);
+    const base = getDeviceBase();
     try {
       const res = await fetch(`${base}/api/sd/pattern/save`, {
         method: 'POST',
@@ -308,7 +299,7 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
       const targets = isSyncModeRef.current ? [devicesRef.current[0]] : [activeDeviceRef.current];
       for (const dev of targets) {
         try {
-          const base = getDeviceBase(dev.ip);
+          const base = getDeviceBase();
           const res = await fetch(`${base}/api/brightness`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -333,7 +324,7 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
       const targets = isSyncModeRef.current ? [devicesRef.current[0]] : [activeDeviceRef.current];
       for (const dev of targets) {
         try {
-          const base = getDeviceBase(dev.ip);
+          const base = getDeviceBase();
           const res = await fetch(`${base}/api/framerate`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -371,7 +362,7 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
     const targets = isSyncModeRef.current ? [devicesRef.current[0]] : [activeDeviceRef.current];
     for (const dev of targets) {
       try {
-        const base = getDeviceBase(dev.ip);
+        const base = getDeviceBase();
         await fetch(`${base}/api/pattern`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -411,7 +402,7 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
     const targets = isSyncMode ? [devices[0]] : [activeDevice];
     for (const dev of targets) {
       try {
-        const base = getDeviceBase(dev.ip);
+        const base = getDeviceBase();
         const res = await fetch(`${base}/api/mode`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -436,7 +427,7 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
     const targets = isSyncMode ? [devices[0]] : [activeDevice];
     for (const dev of targets) {
       try {
-        const base = getDeviceBase(dev.ip);
+        const base = getDeviceBase();
         const speed = clampPatternSpeed(patternId, patternSpeed);
         if (speed !== patternSpeed) setPatternSpeed(speed);
         const resPattern = await fetch(`${base}/api/pattern`, {
@@ -470,7 +461,7 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
     const targets = isSyncMode ? [devices[0]] : [activeDevice];
     for (const dev of targets) {
       try {
-        const base = getDeviceBase(dev.ip);
+        const base = getDeviceBase();
         const res = await fetch(`${base}/api/mode`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -495,7 +486,7 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
     const targets = isSyncMode ? [devices[0]] : [activeDevice];
     for (const dev of targets) {
       try {
-        const base = getDeviceBase(dev.ip);
+        const base = getDeviceBase();
         const res = await fetch(`${base}/api/mode`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -518,7 +509,7 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
     const targets = isSyncMode ? [devices[0]] : [activeDevice];
     for (const dev of targets) {
       try {
-        const base = getDeviceBase(dev.ip);
+        const base = getDeviceBase();
         const res = await fetch(`${base}/api/power/mode`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -558,7 +549,7 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
       formData.append('file', raw.blob, raw.filename);
 
       try {
-        const base = getDeviceBase(target.ip);
+        const base = getDeviceBase();
         const res = await fetch(`${base}/api/image`, { method: 'POST', body: formData });
         if (res.ok) {
           updateDevice(target.id, { status: `Synced: ${raw.filename}`, type: 'success' });
@@ -602,7 +593,7 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
 
           setCurrentMode(mode);
           if (action === 'random') setCurrentPattern(index);
-          const base = getDeviceBase(dev.ip);
+          const base = getDeviceBase();
           if (action === 'random') {
             const speed = clampPatternSpeed(index, patternSpeed);
             if (index === RETRO_STROBE_PATTERN_ID) setPatternSpeed(speed);
@@ -632,7 +623,7 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
             throw new Error(`HTTP ${res.status} ${errText}`);
           }
         } else if (action === 'brightness') {
-          const base = getDeviceBase(dev.ip);
+          const base = getDeviceBase();
           const res = await fetch(`${base}/api/brightness`, {
             method,
             headers: { 'Content-Type': 'application/json' },
@@ -644,7 +635,7 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
           }
         } else if (action === 'load') {
           if (!value) throw new Error('Filename is required for load action');
-          const base = getDeviceBase(dev.ip);
+          const base = getDeviceBase();
           const res = await fetch(`${base}/api/sd/load`, {
             method,
             headers: { 'Content-Type': 'application/json' },
@@ -658,7 +649,7 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
 
         if (isSyncMode && action !== 'brightness') {
           try {
-            await fetch(`${getDeviceBase(dev.ip)}/api/sync/execute`, {
+            await fetch(`${getDeviceBase()}/api/sync/execute`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ action, val: value ?? '' })
@@ -736,7 +727,7 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
                   </div>
                   <div className={`w-2 h-2 rounded-full ${device.isPlaying ? 'bg-green-500 animate-pulse' : 'bg-slate-600'}`} />
                 </div>
-                <div className="text-[10px] mt-1 text-slate-500 font-mono">{device.ip} • {device.status}</div>
+                <div className="text-[10px] mt-1 text-slate-500 font-mono">{isNativePlatform() ? deviceHost : device.ip} • {device.status}</div>
               </button>
             ))}
           </div>
