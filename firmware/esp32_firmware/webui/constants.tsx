@@ -36,7 +36,7 @@ export const getESP32Sketch = (ledCount: number): ArduinoSketch => ({
 const char* ssid = "POV-POI-WiFi";
 const char* password = "povpoi123";
 
-// Serial to Teensy (TX=GPIO43, RX=GPIO44 for ESP32-S3)
+// Serial to Teensy (TX=GPIO17, RX=GPIO16 for ESP32-S3)
 #define TEENSY_SERIAL Serial2
 #define SERIAL_BAUD 115200
 
@@ -57,8 +57,8 @@ void relayToTeensy(String json) {
 
 void setup() {
   Serial.begin(115200);
-  // ESP32-S3 uses GPIO 43 (TX) and GPIO 44 (RX) for Serial2
-  TEENSY_SERIAL.begin(SERIAL_BAUD, SERIAL_8N1, 44, 43);
+  // ESP32-S3 Serial2: RX=GPIO16, TX=GPIO17. begin(baud, config, rxPin, txPin).
+  TEENSY_SERIAL.begin(SERIAL_BAUD, SERIAL_8N1, 16, 17);
 
   // Initialize filesystem
   if(!SPIFFS.begin(true)) {

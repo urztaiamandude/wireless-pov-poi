@@ -190,13 +190,7 @@ See `docs/API.md` in the root directory for complete API documentation.
 
 ## Fleet Configuration
 
-Default fleet IPs are defined in `components/Dashboard.tsx`:
-
-```typescript
-const FLEET_IPS = ['192.168.4.1', '192.168.4.2'];
-```
-
-Modify this array to match your multi-device setup.
+The dashboard addresses the connected access point. `DEFAULT_DEVICES` in `components/Dashboard.tsx` lists one device at `192.168.4.1`. Uploads and commands go to that device.
 
 ## Project Structure
 
