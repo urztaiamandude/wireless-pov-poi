@@ -1,6 +1,6 @@
 # SD Card Storage Implementation Summary
 
-> The `SDStorageManager` class described here is not in the repository. The running SD code is inside `firmware/teensy_firmware/teensy_firmware.ino` and uses `/poi_images` and `/poi_patterns`. Read this file as historical notes only.
+> **Obsolete.** Every `firmware/teensy41/` path below is a file that is not in this repository. The running SD code is inside `firmware/teensy_firmware/teensy_firmware.ino` and uses `/poi_images` and `/poi_patterns`. This page is left in place so the owner can decide whether to delete it. Do not follow it.
 
 ## Overview
 

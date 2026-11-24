@@ -37,7 +37,7 @@ A hardware change (part, pin, power path, LED count, level shifter) updates all 
 - [docs/WIRING.md](docs/WIRING.md) and the power docs listed above
 - The pin defines in both `firmware/teensy_firmware/` and `firmware/esp32_firmware/`
 
-The Teensy is the only device on the APA102 strip. LED rendering, brightness, and display limits belong in `firmware/teensy_firmware/`. The ESP32 forwards settings. It does not clamp brightness, pattern indexes, or LED indexes.
+The Teensy is the only device on the APA102 strip. LED rendering and which LEDs are lit belong in `firmware/teensy_firmware/`. `POST /api/brightness` forwards the value as a raw byte: the ESP32 does not clamp it to 0–255 (a larger integer wraps in the `uint8_t` cast), and the Teensy passes that byte to `FastLED.setBrightness`. `POST /api/power/mode` can lower the stored brightness before forwarding it (`powersave` caps at 180, `ultrasave` at 80). `POST /api/pattern` clamps pattern `index` and `type` to 0–18. `POST /api/hardware/leds` rejects `numLeds` outside 2–32 and a sacrificial count that is not less than `numLeds`. `POST /api/mode` does not range-check mode or index.
 
 ## Firmware facts
 

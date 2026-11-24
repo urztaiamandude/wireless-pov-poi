@@ -6,7 +6,7 @@ This guide covers soldering the external PSRAM chips on a Teensy 4.1.
 
 The current firmware **requires** PSRAM. `setup()` halts if `external_psram_size` is 0, because the image buffers are placed in external RAM. Both footprints must be populated. A board with no PSRAM, or only one chip, will not run this sketch.
 
-With 16 MB (2× 8 MB) the sketch stores up to 200 images, each up to 32×400 pixels.
+With 16 MB (2× 8 MB) the sketch allocates `MAX_IMAGES` 200, each up to 400 columns by 32 rows. That is the array size. Image slots reachable from the ESP32 (upload, SD load slot, sequence items) are 0–127. Sequence playback masks the image index to 7 bits, so a picture stored at slot 128 or above cannot be selected from a sequence or from the web API. The serial line below still prints 200 because that is `MAX_IMAGES`.
 
 The Teensy 4.1 footprints are optional in PJRC's hardware sense. They are not optional for this project.
 
@@ -107,6 +107,8 @@ Repeat the process for the second PSRAM chip on the other footprint.
    EXTMEM usage: ~7 MB of 16 MB PSRAM
    ```
 
+That `200` is `MAX_IMAGES`, the array length. The ESP32 and sequence playback only reach slots 0–127.
+
 If PSRAM is not detected, check:
 - Chip orientation (pin 1 position)
 - Solder joints (reflow if necessary)
@@ -115,7 +117,7 @@ If PSRAM is not detected, check:
 
 ## Firmware Configuration
 
-The firmware detects PSRAM at startup and **halts** with a `FATAL` message if it is missing. There is no runtime fallback to a smaller internal-RAM image set. On a Teensy 4.1 the sketch always builds the large `EXTMEM` arrays (`MAX_IMAGES` 200, `IMAGE_MAX_WIDTH` 400). The `#else` branch in the sketch (10 images, width 200) is for non-Teensy 4.1 builds and is not a supported poi configuration.
+The firmware detects PSRAM at startup and **halts** with a `FATAL` message if it is missing. There is no runtime fallback to a smaller internal-RAM image set. On a Teensy 4.1 the sketch always builds the large `EXTMEM` arrays (`MAX_IMAGES` 200, `IMAGE_MAX_WIDTH` 400). The `#else` branch in the sketch (10 images, width 200) is for non-Teensy 4.1 builds and is not a supported poi configuration. The 200-slot array is not the number of images the ESP32 can address. Upload, SD load, and sequences stop at slot 127.
 
 ## Memory Usage
 
@@ -125,7 +127,7 @@ With PSRAM installed, the memory layout is:
 |--------|------|-------|
 | Internal RAM | 1 MB | Code, stack, small buffers |
 | External PSRAM (2× 8MB) | 16 MB | Image storage and large buffers (e.g. command buffer) |
-| **Typical PSRAM usage** | **~7.3 MB** | **200 images × ~38 KB + 80 KB cmd buffer (≈46% of total PSRAM)** |
+| **Typical PSRAM usage** | **~7.3 MB** | **`MAX_IMAGES` 200 × ~38 KB + 80 KB cmd buffer (≈46% of total PSRAM). Control paths reach slots 0–127 only.** |
 
 The firmware uses the `EXTMEM` keyword to place large arrays in PSRAM:
 - Image pixel arrays

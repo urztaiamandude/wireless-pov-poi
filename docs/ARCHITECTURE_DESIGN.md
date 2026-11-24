@@ -1,5 +1,7 @@
 # Architecture & Design Patterns
 
+**Design notes, not the running firmware.** Where a diagram below shows a text serial command (`IMAGE:`, `LIVE:`, `MODE:`) or a 31-LED column, that is an old sketch. The link is `0xFF CMD LEN DATA 0xFE` on Teensy pins 0/1 and ESP32 GPIO 16/17. The strip is 32 APA102 LEDs. See [PROTOCOLS.md](PROTOCOLS.md) and [API.md](API.md).
+
 **Design decisions, patterns, and architectural guidelines for Nebula POI**
 
 ---
@@ -50,7 +52,8 @@
 
 **Purpose:** Decouple command senders (web UI) from command executors (Teensy)
 
-**Implementation:**
+**Implementation (not the firmware).** The sketch does not read newline-terminated `MODE:` strings. This block is an old design sketch:
+
 ```cpp
 // Command structure (implicit)
 struct Command {
@@ -397,7 +400,7 @@ ESP32 converts to 31px height (auto-scale)
     ↓
 ESP32 converts to hex RGB string
     ↓
-ESP32 sends "IMAGE:width,31,<hex_data>\n" to Teensy
+ESP32 sends UART 0x02 (RGB bytes) to the Teensy. Not the text line "IMAGE:width,31,<hex_data>".
     ↓
 Teensy parses hex data into RGB array
     ↓
@@ -408,7 +411,7 @@ Teensy switches to MODE_IMAGE
 displayImage() renders from buffer
 ```
 
-**Bottleneck:** Serial transfer of large images (1-3 seconds for 64×31)
+**Bottleneck:** Serial transfer of large images (width up to 400, display height 32)
 
 **Optimization:** Could compress or use chunked transfer
 
@@ -421,17 +424,17 @@ User draws on canvas (touch/mouse)
     ↓
 JavaScript captures touch coordinates
     ↓
-Convert coordinates to LED column (0-30)
+Convert coordinates to a display row (0 .. displayLeds-1, 32 when sacrificial count is 0)
     ↓
 Map to RGB color based on color picker
     ↓
-Build frame array (31 LEDs × RGB)
+Build a pixel array (up to 32 LEDs × RGB)
     ↓
 POST to /api/live with frame data
     ↓
 ESP32 receives frame
     ↓
-ESP32 sends "LIVE:<hex_data>\n" to Teensy
+ESP32 sends UART 0x05 (RGB bytes), not the text line "LIVE:<hex_data>"
     ↓
 Teensy updates leds[] array
     ↓
@@ -453,8 +456,9 @@ FastLED.show() displays immediately
 // LED array: known size at compile time
 CRGB leds[NUM_LEDS];
 
-// Image buffer: max width × 31 × 3
-uint8_t imageBuffer[MAX_IMAGE_WIDTH * 31 * 3];
+// Illustrative only. The ESP32 upload buffer is MAX_IMAGE_WIDTH * MAX_IMAGE_HEIGHT * 3
+// (400 * 64 * 3). The Teensy pixel array is [400][32].
+uint8_t imageBuffer[MAX_IMAGE_WIDTH * 32 * 3];
 ```
 
 **Benefits:**

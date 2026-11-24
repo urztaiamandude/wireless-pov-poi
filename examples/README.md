@@ -134,8 +134,11 @@ python image_converter.py photo.jpg converted.png
 ## Image Guidelines
 
 ### Size Requirements
-- **Width**: 31 pixels (matches LED count) - **automatically converted**
-- **Height**: Up to 64 pixels recommended (automatically adjusted)
+
+The poi firmware shows **32** APA102 LEDs. `DEFAULT_SACRIFICIAL_LEDS` is 0, so all 32 are display pixels. These Python tools still default to a height of **31** and still describe LED 0 as sacrificial. That default does not match the current strip. Pass a height of 32 until the scripts are updated. Do not treat 31 as the LED count.
+
+- **Height**: one row per display LED. The scripts default to 31; the firmware display height defaults to 32.
+- **Width**: scaled from the source. The Teensy accepts up to 400 columns.
 - **Format**: JPG, PNG, GIF (non-animated)
 
 ### Automatic Conversion
@@ -146,7 +149,7 @@ The system automatically converts images to POV-compatible format:
 - **Command-Line Script**: Use `image_converter.py` to pre-convert images
 - **Teensy Processing**: Final image processing and storage handled by Teensy 4.1
 
-Images of any size are automatically resized to 31 pixels wide while maintaining aspect ratio. Heights exceeding 64 pixels are cropped.
+The converters resize the **height** to the LED axis (script default 31, firmware display 32) and scale the width. Heights the script is given above its max are cropped. The strip is not 31 pixels wide.
 
 ### Design Tips
 - Use high contrast colors
@@ -176,7 +179,7 @@ If you prefer to prepare images manually:
 
 ### Using Image Editor (GIMP, Photoshop, etc.)
 
-1. Create new image: 31 × 64 pixels
+1. Create new image: 32 rows (one per LED) by the column count you want (up to 400)
 2. Use "Nearest Neighbor" interpolation when resizing
 3. Draw your design
 4. Export as PNG
@@ -245,7 +248,7 @@ img.save('gradient.png')
 ## Tips for Best Results
 
 1. **High Contrast**: Use bright colors against dark backgrounds
-2. **Simple Shapes**: Complex images don't translate well at 31 pixels
+2. **Simple Shapes**: Complex images don't translate well at 32 rows
 3. **Test Small**: Start with simple patterns before complex images
 4. **Color Choice**: Primary colors (R, G, B) are brightest
 5. **Brightness**: Adjust system brightness based on environment
