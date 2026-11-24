@@ -4,12 +4,10 @@ A comprehensive React-based web interface for controlling and configuring the Ne
 
 ## Features
 
-- **Dashboard**: Fleet control interface for managing multiple POV devices
+- **Dashboard**: Fleet control interface for managing multiple POV devices, including live draw (`POST /api/live`)
 - **Image Lab**: Upload images or generate procedural art, create sequences
-- **Advanced Settings**: Configure hardware parameters (LED count, GPIO pins, refresh rates)
-- **Code Viewers**: Browse ESP32 and Teensy Arduino sketch templates
+- **Advanced Settings**: LED count, WiFi, and refresh rate (10–1000 FPS)
 - **Wiring Guide**: Visual reference for hardware connections
-- **Firmware Manager**: OTA update interface (UI ready, backend pending)
 
 ## Prerequisites
 
@@ -200,12 +198,10 @@ In a browser on the poi, or under Vite, API calls are relative and hit the host 
 esp32_firmware/webui/
 ├── components/          # React components
 │   ├── Dashboard.tsx    # Fleet control interface
+│   ├── LiveDraw.tsx     # Live mode strip painter (POST /api/live)
 │   ├── ImageLab.tsx     # Image processing and sequences
 │   ├── AdvancedSettings.tsx  # Hardware configuration
-│   ├── CodeViewer.tsx   # Arduino sketch display
-│   ├── WiringGuide.tsx  # Hardware connection guide
-│   └── FirmwareManager.tsx   # OTA updates (UI only)
-├── constants.tsx        # Arduino sketch templates
+│   └── WiringGuide.tsx  # Hardware connection guide
 ├── types.ts            # TypeScript interfaces
 ├── App.tsx             # Main application
 ├── index.tsx           # Entry point
@@ -218,7 +214,7 @@ esp32_firmware/webui/
 ## Known Limitations
 
 ### OTA Firmware Updates
-The Firmware Manager UI is complete, but the backend OTA endpoints (`/api/ota/esp32` and `/api/ota/teensy`) are not yet implemented in the ESP32 firmware. Use USB and Arduino IDE/PlatformIO for firmware updates until these endpoints are added.
+The web UI no longer includes an OTA upload screen. The ESP32 firmware has no `/api/ota/esp32` or `/api/ota/teensy` handler. Use USB and Arduino IDE or PlatformIO until those endpoints exist.
 
 ### Tailwind CDN
 Currently using Tailwind via CDN, which is not optimal for production (large bundle, no tree-shaking). Follow the Tailwind CSS Setup section above to switch to a proper build configuration.

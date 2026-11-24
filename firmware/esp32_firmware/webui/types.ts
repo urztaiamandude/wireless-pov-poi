@@ -3,10 +3,7 @@ export enum ViewMode {
   DASHBOARD = 'DASHBOARD',
   PATTERN_PREVIEW = 'PATTERN_PREVIEW',
   RETRO_STROBE = 'RETRO_STROBE',
-  CODE_ESP32 = 'CODE_ESP32',
-  CODE_TEENSY = 'CODE_TEENSY',
   WIRING = 'WIRING',
-  FIRMWARE = 'FIRMWARE',
   ADVANCED_SETTINGS = 'ADVANCED_SETTINGS',
   IMAGE_LAB = 'IMAGE_LAB'
 }
@@ -25,13 +22,6 @@ export interface ControlState {
   playing: boolean;
   brightness: number;
   filename: string;
-}
-
-export interface ArduinoSketch {
-  title: string;
-  code: string;
-  description: string;
-  libraries: string[];
 }
 
 export type PowerMode = 'performance' | 'balanced' | 'powersave' | 'ultrasave';

@@ -11,7 +11,8 @@ import { Device, PowerMode } from '../types';
 import { useDebounce } from '../hooks';
 import { hapticImpact, isNativePlatform } from '../nativeFeatures';
 import { getDeviceBase, getDeviceHost, subscribeDeviceHost } from '../deviceAddress';
-import { clampPatternSpeed, RETRO_STROBE_PATTERN_ID } from '../displayLimits';
+import { clampFrameRate, clampPatternSpeed, FRAME_RATE_MAX_FPS, FRAME_RATE_MIN_FPS, RETRO_STROBE_PATTERN_ID, RETRO_STROBE_SPEED_MAX, PATTERN_SPEED_MAX, PATTERN_SPEED_MIN } from '../displayLimits';
+import LiveDraw from './LiveDraw';
 import { imageFileToRawRgb } from '../povImage';
 
 /** Convert a hex color string like "#ff0000" to {r, g, b} for the firmware API */
@@ -148,7 +149,7 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
           const now = Date.now();
           if (typeof data.mode === 'number' && now - lastModeInteraction.current > 1000) setCurrentMode(data.mode);
           if (typeof data.brightness === 'number' && now - lastBrightnessInteraction.current > 1000) setLocalBrightness(data.brightness);
-          if (typeof data.framerate === 'number' && now - lastFrameRateInteraction.current > 1000) setLocalFrameRate(data.framerate);
+          if (typeof data.framerate === 'number' && now - lastFrameRateInteraction.current > 1000) setLocalFrameRate(clampFrameRate(data.framerate));
           if (typeof data.count === 'number' && data.count > 0) setMaxContentIndex(data.count - 1);
           if (typeof data.sdCardPresent === 'boolean') setSdPresent(data.sdCardPresent);
           if (typeof data.index === 'number' && now - lastModeInteraction.current > 1000) setContentIndex(data.index);
@@ -352,9 +353,10 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
   };
 
   const handleFrameRateChange = (value: number) => {
+    const fps = clampFrameRate(value);
     lastFrameRateInteraction.current = Date.now();
-    setLocalFrameRate(value);
-    debouncedFrameRateUpdate(value);
+    setLocalFrameRate(fps);
+    debouncedFrameRateUpdate(fps);
   };
 
   // Send updated pattern config (speed/colors) without changing the pattern type
@@ -822,6 +824,10 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
             </div>
           )}
 
+          {currentMode === 4 && (
+            <LiveDraw />
+          )}
+
           {/* Sequence Slot Selector (Sequence mode) */}
           {currentMode === 3 && (
             <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4">
@@ -1017,12 +1023,16 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
                   </div>
                   <input
                     type="range"
-                    min="1"
-                    max={currentPattern === RETRO_STROBE_PATTERN_ID ? 127 : 255}
+                    min={PATTERN_SPEED_MIN}
+                    max={currentPattern === RETRO_STROBE_PATTERN_ID ? RETRO_STROBE_SPEED_MAX : PATTERN_SPEED_MAX}
                     value={clampPatternSpeed(currentPattern, patternSpeed)}
                     onChange={e => { const v = parseInt(e.target.value); if (!isNaN(v)) handlePatternSpeedChange(clampPatternSpeed(currentPattern, v)); }}
                     className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-orange-500"
                   />
+                  <div className="flex justify-between text-[8px] text-slate-600 font-mono mt-1">
+                    <span>{PATTERN_SPEED_MIN}</span>
+                    <span>{currentPattern === RETRO_STROBE_PATTERN_ID ? `${RETRO_STROBE_SPEED_MAX} (RGB flag uses bit 7)` : PATTERN_SPEED_MAX}</span>
+                  </div>
                 </div>
 
                 {/* Pattern Colors */}
@@ -1102,10 +1112,17 @@ const Dashboard: React.FC<DashboardProps> = ({ previewUrl }) => {
                     <span className="text-cyan-400 font-mono text-sm">{localFrameRate} FPS</span>
                   </div>
                   <input
-                    type="range" min="10" max="1000" value={localFrameRate}
-                    onChange={(e) => { const v = parseInt(e.target.value); if (!isNaN(v)) handleFrameRateChange(Math.max(10, Math.min(1000, v))); }}
+                    type="range"
+                    min={FRAME_RATE_MIN_FPS}
+                    max={FRAME_RATE_MAX_FPS}
+                    value={clampFrameRate(localFrameRate)}
+                    onChange={(e) => { const v = parseInt(e.target.value); if (!isNaN(v)) handleFrameRateChange(v); }}
                     className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
                   />
+                  <div className="flex justify-between text-[8px] text-slate-600 font-mono mt-1">
+                    <span>{FRAME_RATE_MIN_FPS} FPS</span>
+                    <span>{FRAME_RATE_MAX_FPS} FPS</span>
+                  </div>
                 </div>
 
                 {/* Upload */}

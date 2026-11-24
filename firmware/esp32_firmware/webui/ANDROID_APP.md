@@ -9,7 +9,7 @@ The Nebula POV Poi Android app wraps the React web UI in a native shell using [C
 - **Pattern Preview** — animated 18-pattern visualiser
 - **Image Lab** — upload / generate images, build sequences and deploy to hardware
 - **Advanced Settings** — LED hardware config, WiFi management
-- **Wiring Guide, Code Viewers, Firmware Manager**
+- **Wiring Guide**
 
 ### Native-Only Enhancements
 These features are available only when running inside the Android app:
