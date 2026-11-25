@@ -1,0 +1,77 @@
+# Debug APK of the Capacitor web UI. No signing secrets: assembleDebug uses
+# the Android Gradle plugin's automatic debug keystore.
+#
+# npm workspaces hoist dependencies to the repository root, so install with
+# `npm ci` from the root. `npx cap sync android` then rewrites the generated
+# Gradle includes (capacitor.settings.gradle, capacitor.build.gradle) to those
+# hoisted paths and copies capacitor.config.ts into the Android assets. That
+# keeps this job valid both before and after the androidScheme / device-address
+# change in PR #206, without committing the generated Gradle files.
+
+name: Android debug APK
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+    paths:
+      - firmware/esp32_firmware/webui/**
+      - .github/workflows/android-debug-apk.yml
+      - package.json
+      - package-lock.json
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  assemble-debug:
+    name: Assemble debug APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK packages
+        run: |
+          set +o pipefail
+          yes | sdkmanager --licenses >/dev/null
+          sdkmanager --install "platforms;android-36" "build-tools;35.0.0"
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Build web app
+        run: npm run webui:build
+
+      - name: Sync Capacitor Android project
+        working-directory: firmware/esp32_firmware/webui
+        run: npx cap sync android
+
+      - name: Assemble debug APK
+        working-directory: firmware/esp32_firmware/webui/android
+        run: bash ./gradlew assembleDebug --no-daemon
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: pov-poi-debug-apk
+          path: firmware/esp32_firmware/webui/android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error

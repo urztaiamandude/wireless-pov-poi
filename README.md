@@ -109,6 +109,21 @@ cd ..
 pio run -e esp32s3 -t uploadfs
 ```
 
+### Android debug APK
+
+GitHub Actions builds an installable debug APK of the Capacitor app. Android Studio is not required.
+
+The workflow runs on every push to `main`, on pull requests that change `firmware/esp32_firmware/webui/` or the workflow file, and when someone starts it with **Run workflow**.
+
+1. Open the **Actions** tab and choose **Android debug APK**.
+2. Open a green run. The newest run on `main` is the current app.
+3. Download the **pov-poi-debug-apk** artifact. GitHub wraps it in a zip; the file inside is `app-debug.apk`.
+4. Copy that APK to the phone and open it. Android asks you to allow installs from this source (the files app or browser you used). Allow it, then install.
+
+It is a debug build. The debug keystore is created by the Android Gradle plugin, so the workflow has no signing secrets. Join `POV-POI-WiFi` (`povpoi123`) before using the app with a poi.
+
+The ESP32 also serves this app at `http://192.168.4.1` when the built web UI is on SPIFFS. Open that address in the phone browser if you would rather not install the APK. When SPIFFS has no `/index.html`, that same address serves the smaller page embedded in the ESP32 firmware.
+
 Image tools:
 
 ```bash

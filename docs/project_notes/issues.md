@@ -30,6 +30,7 @@ Current issue tracker aligned to the present repository structure.
 - ✅ Web-based control flow from ESP32 firmware endpoints to Teensy commands
 - ✅ BLE bridge implementation for ESP32 firmware (`src/ble_bridge.*`)
 - ✅ Python image conversion and test utilities in `examples/`
+- ✅ Android debug APK workflow (artifact `pov-poi-debug-apk`); Gradle wrapper 8.13 for AGP 8.13
 
 ---
 
