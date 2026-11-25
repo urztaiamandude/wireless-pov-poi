@@ -52,6 +52,11 @@ Current issue tracker aligned to the present repository structure.
 
 - 🐛 mDNS hostname reliability can vary by client OS/network setup (fallback: direct IP)
 - 🐛 Serial link currently has no flow-control lines; packet framing remains required
+- 🐛 BLE `CC_SET_PATTERN` (`0x04`) is forwarded as Teensy `0x03` with the payload unchanged, so a type-first body is one field early (`slot` gets the type byte). Not fixed in this docs pass.
+- 🐛 `CC_SET_PATTERN_ALL` sends pattern index `0xFF`. The Teensy clears the LEDs. Auto-cycle is not implemented.
+- 🐛 `POST /api/sync/push` acknowledges JSON and does not apply it. `POST /api/sync/execute` still reports `settingsUpdated: true`.
+- 🐛 ESP-NOW pairing is RAM-only. Mirror mode does not copy images or sequences. Incoming commands are applied even in independent mode.
+- 🐛 Image slots 128–199 exist in the Teensy array and are not reachable from the ESP32 API or from sequence playback.
 
 ---
 

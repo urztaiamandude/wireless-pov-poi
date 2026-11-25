@@ -1,5 +1,7 @@
 # Image Orientation Fix - Visual Demonstration
 
+The pixel counts in this note (31×62, LED 1–31, LED 0 sacrificial) are what the Python converters still emit. The firmware strip is 32 APA102 LEDs and `DEFAULT_SACRIFICIAL_LEDS` is 0. Row 0 is still the bottom of the image (`g_displayLedStart`). Do not add a sacrificial LED to match this page.
+
 ## Problem Statement
 
 For image conversion, the number of LEDs should represent the height, with the first LED (closest to the board) being the bottom of the picture and the last LED being the top. This way the picture scrolls naturally when the poi are held vertically and moved horizontally.

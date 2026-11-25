@@ -1,1281 +1,458 @@
-# API Documentation
+# HTTP API
 
-This document describes the REST API provided by the ESP32 web server for controlling the Nebula Poi.
+The routes below are the ones `setupWebServer()` registers in `firmware/esp32_firmware/esp32_firmware.ino`. If this page and that function disagree, the sketch wins.
+
+UART command bytes are in [PROTOCOLS.md](PROTOCOLS.md). This page does not redefine them.
 
 ## Base URL
 
-When connected to the POV-POI-WiFi network:
+On the access point `POV-POI-WiFi` (password `povpoi123`):
 
-- IP Address: `http://192.168.4.1`
-- mDNS: `http://povpoi-<id>.local`, printed on the ESP32 serial console at boot. There is no fixed `povpoi.local`.
+- `http://192.168.4.1`
+- mDNS, when `MDNS.begin` succeeds: `http://povpoi-<id>.local`, where `<id>` is the last six characters of the device id with colons removed. There is no fixed `povpoi.local`.
 
-## Authentication
+The AP password is not an HTTP credential.
 
-Currently, the API does not require authentication. All endpoints are publicly accessible on the local WiFi network.
+JSON bodies are read from the POST body (`server.arg("plain")`). No `/api/*` route reads query parameters.
 
-## Response Format
+## Authentication and CORS
 
-All API responses are in JSON format with appropriate HTTP status codes.
+There is no authentication. Any client that can reach the device can call every route.
 
-Success Response:
+`server.enableCORS(true)` is called before `server.begin()`. The sketch does not set an origin allow-list. On Arduino-ESP32 2.0.17 that helper adds `Access-Control-Allow-Origin: *`. CORS is open.
 
-```json
-{
-  "status": "ok"
-}
+## Responses
 
-```
+Command handlers that accept a request answer **HTTP 200** with `"status": "ok"`. That means the ESP32 parsed the body and, where the route says so, wrote a UART or ESP-NOW frame. It does not mean the Teensy applied the command, that an SD file changed, or that a peer received it. Several routes return `ok` even when the operation was a no-op (legacy sync execute, sync push, SD delete and load with no card check).
 
-Error Response:
+Validation failures use **400**, **413**, **500**, or **503** and a body `{"error":"..."}`. They do not use `"status": "ok"`.
 
-```json
-{
-  "error": "Error description"
-}
+Two SD list routes use **HTTP 200** with an `error` string when the card is missing or the Teensy does not answer. See those routes below.
 
-```
+There is no rate limit and no WebSocket server. Nothing is registered at `/ws` or `/api/battery`.
 
-## Endpoints
+## Display values the Teensy understands
 
-### System Status
+`POST /api/mode` forwards `mode` and `index` with no range check. The Teensy display loop uses:
 
-#### Get System Status
+| `mode` | Meaning |
+|---|---|
+| 0 | Idle (LEDs off) |
+| 1 | Image |
+| 2 | Pattern |
+| 3 | Sequence |
+| 4 | Live frame |
 
-Get current system state and connection status.
+Pattern ids are **0–18** (`MAX_PATTERNS` is 19):
 
-**Endpoint:** `GET /api/status`
+| Id | Pattern |
+|---|---|
+| 0 | Rainbow |
+| 1 | Wave |
+| 2 | Gradient |
+| 3 | Sparkle |
+| 4 | Fire |
+| 5 | Comet |
+| 6 | Breathing |
+| 7 | Strobe |
+| 8 | Meteor |
+| 9 | Wipe |
+| 10 | Plasma |
+| 11–15 | Audio (MAX9814): VU meter, pulse, rainbow, center burst, sparkle |
+| 16 | Split spin |
+| 17 | Theater chase |
+| 18 | Retro strobe |
 
-**Response:**
+Image slots the ESP32 will assign, load, or put in a sequence are **0–127**. The Teensy PSRAM array is `MAX_IMAGES` 200, and a raw UART `0x0B` can name a higher slot, but sequence playback keeps only the low 7 bits of an image index. Slots 128–199 are not reachable from this API. Web uploads start at slot 5 and stop at 127.
+
+## Routes
+
+| Method | Path |
+|---|---|
+| GET | `/` |
+| GET | `/api/status` |
+| POST | `/api/mode` |
+| POST | `/api/brightness` |
+| POST | `/api/framerate` |
+| POST | `/api/power/mode` |
+| POST | `/api/pattern` |
+| POST | `/api/sequence` |
+| POST | `/api/image` |
+| POST | `/api/live` |
+| GET | `/api/sync/status` |
+| POST | `/api/sync/discover` |
+| POST | `/api/sync/execute` |
+| GET | `/api/sync/data` |
+| POST | `/api/sync/push` |
+| GET | `/api/device/config` |
+| POST | `/api/device/config` |
+| GET | `/api/hardware/leds` |
+| POST | `/api/hardware/leds` |
+| GET | `/api/wifi/status` |
+| GET | `/api/wifi/scan` |
+| POST | `/api/wifi/connect` |
+| POST | `/api/wifi/disconnect` |
+| GET | `/api/multipoi/status` |
+| POST | `/api/multipoi/pair` |
+| POST | `/api/multipoi/unpair` |
+| POST | `/api/multipoi/syncmode` |
+| POST | `/api/multipoi/peercmd` |
+| GET | `/api/sd/list` |
+| GET | `/api/sd/info` |
+| POST | `/api/sd/delete` |
+| POST | `/api/sd/load` |
+| GET | `/api/sd/pattern/list` |
+| POST | `/api/sd/pattern/save` |
+| POST | `/api/sd/pattern/load` |
+| GET | `/manifest.json` |
+| GET | `/sw.js` |
+
+Unmatched paths go to `handleNotFound`, which serves a SPIFFS file at that path when one exists, otherwise **404**.
+
+## GET `/api/status`
+
+No body.
 
 ```json
 {
   "connected": true,
-  "mode": 2,
+  "mode": 0,
   "index": 0,
   "brightness": 128,
-  "framerate": 50
+  "framerate": 50,
+  "sdCardPresent": false,
+  "powerMode": 1,
+  "count": 10
 }
-
 ```
 
-**Response Fields:**
+`connected` and `sdCardPresent` come from the Teensy status poll. `brightness` and `framerate` are the ESP32's copy (boot defaults 128 and 50). `powerMode` is 0–3 (boot default 1, balanced). `count` is the number of images this boot has uploaded, or **10** when that count is still 0. It is not the Teensy slot count and it is not 200.
 
-- `connected` (boolean): Teensy connection status
-- `mode` (integer): Current display mode (0-4)
-  - 0: Idle (off)
-  - 1: Image display
-  - 2: Pattern display
-  - 3: Sequence playback
-  - 4: Live mode
-- `index` (integer): Current image/pattern/sequence index
-- `brightness` (integer): LED brightness (0-255)
-- `framerate` (integer): Display frame rate (10-1000 FPS)
-
-**Example:**
-
-```bash
-curl http://192.168.4.1/api/status
-
-```
-
----
-
-### Display Mode Control
-
-#### Set Display Mode
-
-Change the current display mode and select which content to display.
-
-**Endpoint:** `POST /api/mode`
-
-**Request Body:**
+## POST `/api/mode`
 
 ```json
-{
-  "mode": 2,
-  "index": 0
-}
-
+{ "mode": 2, "index": 0 }
 ```
 
-**Request Fields:**
+Both fields are optional. Omitted fields stay at the ESP32's current values, and those current values are what is sent. Invalid JSON is **400** `{"error":"Invalid JSON"}`. A missing body is **400** `{"error":"No data"}`. There is no range check.
 
-- `mode` (integer, required): Display mode (0-4)
-- `index` (integer, required): Content index to display
+Success: **200** `{"status":"ok"}`. UART `0x01` with `[mode][index]`. In mirror mode this is also broadcast over ESP-NOW.
 
-**Response:**
+## POST `/api/brightness`
 
 ```json
-{
-  "status": "ok"
-}
-
+{ "brightness": 128 }
 ```
 
-**Example:**
+`brightness` is required. Missing or non-integer: **400** `{"error":"Invalid data"}`.
 
-```bash
-curl -X POST http://192.168.4.1/api/mode \
-  -H "Content-Type: application/json" \
-  -d '{"mode": 2, "index": 0}'
+The value is cast to `uint8_t` and forwarded. The ESP32 does not clamp it to 0–255; a larger integer wraps. The Teensy passes that byte to `FastLED.setBrightness` with no further clamp. A power-mode change can lower the stored brightness later (see below).
 
-```
+Success: **200** `{"status":"ok"}`. UART `0x06`. Mirrored over ESP-NOW when mirror mode is on.
 
----
-
-### System Settings
-
-#### Set Brightness
-
-Adjust LED brightness.
-
-**Endpoint:** `POST /api/brightness`
-
-**Request Body:**
+## POST `/api/framerate`
 
 ```json
-{
-  "brightness": 200
-}
-
+{ "framerate": 60 }
 ```
 
-**Request Fields:**
+`framerate` is required. Missing or non-integer: **400** `{"error":"Invalid data"}`.
 
-- `brightness` (integer, required): Brightness level (0-255)
-  - 0: LEDs off
-  - 128: Half brightness
-  - 255: Full brightness
+The value is cast to `uint16_t` and sent as big-endian FPS (UART `0x07`, two bytes). There is no 10–1000 limit on this route. `0` is still sent; the Teensy ignores a 2-byte FPS of 0 and leaves its delay unchanged. The ESP32's local delay estimate becomes 20 ms in that case.
 
-**Response:**
+Success: **200** `{"status":"ok"}`. Mirrored over ESP-NOW when mirror mode is on.
+
+## POST `/api/power/mode`
+
+The handler searches the raw body for the text `"mode":` and then a quoted string. It is not a general JSON parse. These strings are accepted:
+
+| `mode` | `powerMode` | ESP32 CPU | FPS sent | Brightness cap |
+|---|---|---|---|---|
+| `performance` | 0 | 240 MHz | 1000 | 255 |
+| `balanced` | 1 | 160 MHz | 60 | 255 |
+| `powersave` | 2 | 80 MHz | 30 | 180 |
+| `ultrasave` | 3 | 80 MHz | 15 | 80 |
+
+Unknown text: **400** `{"error":"Unknown mode"}`. No `"mode":` field: **400** `{"error":"No data"}`.
+
+On success the ESP32 sets its CPU frequency, stores the FPS, and sends UART `0x07`. If the current brightness is above the cap, it lowers `state.brightness` and sends UART `0x06`. The cap is not applied to a later `POST /api/brightness`.
+
+Success body:
 
 ```json
-{
-  "status": "ok"
-}
-
+{"status":"ok","mode":"powersave","cpu_mhz":80,"framerate":30,"max_brightness":180}
 ```
 
-**Example:**
+The power-mode name itself is not broadcast. The FPS write, and a brightness write when the cap hits, are broadcast in mirror mode.
 
-```bash
-curl -X POST http://192.168.4.1/api/brightness \
-  -H "Content-Type: application/json" \
-  -d '{"brightness": 150}'
-
-```
-
-**Note:** Lower brightness saves power and reduces heat.
-
----
-
-#### Set Frame Rate
-
-Change the display refresh rate.
-
-**Endpoint:** `POST /api/framerate`
-
-**Request Body:**
-
-```json
-{
-  "framerate": 60
-}
-
-```
-
-**Request Fields:**
-
-- `framerate` (integer, required): Frame rate in FPS (10-1000)
-  - 30: Smooth, lower CPU usage
-  - 50: Default, good balance
-  - 60+: Very smooth, higher CPU usage
-  - 500+: POV-quality (high column density per revolution)
-
-**Response:**
-
-```json
-{
-  "status": "ok"
-}
-
-```
-
-**Example:**
-
-```bash
-curl -X POST http://192.168.4.1/api/framerate \
-  -H "Content-Type: application/json" \
-  -d '{"framerate": 60}'
-
-```
-
----
-
-### Pattern Control
-
-#### Upload Pattern Configuration
-
-Create or update a pattern with specific colors and animation type.
-
-**Endpoint:** `POST /api/pattern`
-
-**Request Body:**
+## POST `/api/pattern`
 
 ```json
 {
   "index": 0,
-  "type": 1,
-  "color1": {
-    "r": 255,
-    "g": 0,
-    "b": 0
-  },
-  "color2": {
-    "r": 0,
-    "g": 0,
-    "b": 255
-  },
+  "type": 0,
+  "color1": {"r": 255, "g": 0, "b": 0},
+  "color2": {"r": 0, "g": 0, "b": 255},
   "speed": 50
 }
-
 ```
 
-**Request Fields:**
+Defaults when a field is missing: `index` 0, `type` 0, `speed` 50, color1 red, color2 blue. Each channel is a byte.
 
-- `index` (integer, required): Pattern slot (0-4)
-- `type` (integer, required): Pattern type
-  - 0: Rainbow - Rotating rainbow effect
-  - 1: Wave - Color wave animation
-  - 2: Gradient - Smooth gradient between colors
-  - 3: Sparkle - Random sparkles
-  - 4+: Custom patterns (if implemented)
-- `color1` (object, required): Primary color RGB values (0-255)
-- `color2` (object, required): Secondary color RGB values (0-255)
-- `speed` (integer, required): Animation speed (1-100)
+`index` and `type` above 18 are **clamped to 18**. They are not rejected. JSON that does not parse: **400** `{"error":"No data"}` (including a body that is present but invalid).
 
-**Response:**
+Success: **200** `{"status":"ok"}`. UART `0x03`, nine bytes: `[index][type][r1][g1][b1][r2][g2][b2][speed]`. Mirrored over ESP-NOW in mirror mode. This route does not switch the display to pattern mode; send `POST /api/mode` with `"mode": 2` and the same index.
+
+## POST `/api/sequence`
 
 ```json
 {
-  "status": "ok"
-}
-
-```
-
-**Example:**
-
-```bash
-curl -X POST http://192.168.4.1/api/pattern \
-  -H "Content-Type: application/json" \
-  -d '{
-    "index": 0,
-    "type": 1,
-    "color1": {"r": 255, "g": 0, "b": 0},
-    "color2": {"r": 0, "g": 255, "b": 0},
-    "speed": 75
-  }'
-
-```
-
----
-
-### Image Management
-
-#### Upload Image
-
-Upload an image for POV display. The web UI pre-converts images to raw RGB format; external clients may send raw RGB or use the same format.
-
-**Endpoint:** `POST /api/image`
-
-**Request:** Multipart form data
-
-**Form Fields:**
-
-- `file` (file, required): Raw RGB data with filename encoding dimensions as `image_WxH.rgb` (e.g. `image_32x64.rgb`)
-
-**Response:**
-
-```json
-{
-  "status": "ok"
-}
-
-```
-
-**Example:**
-
-```bash
-curl -X POST http://192.168.4.1/api/image \
-  -F "image=@myimage.png"
-
-```
-
-**Image Guidelines:**
-
-- Width: 32 pixels (matching LED count)
-- Height: Up to 64 pixels recommended
-- Format: Any standard image format
-- High contrast works best for POV
-- Simple graphics better than photos
-
-**Note:** Image processing converts the uploaded image to LED-compatible format. Complex images may not translate well to 32-pixel width.
-
----
-
-### Live Mode
-
-#### Send Live Frame
-
-Send real-time LED data for immediate display.
-
-**Endpoint:** `POST /api/live`
-
-**Request Body:**
-
-```json
-{
-  "pixels": [
-    {"r": 255, "g": 0, "b": 0},
-    {"r": 0, "g": 255, "b": 0},
-    {"r": 0, "g": 0, "b": 255}
+  "index": 1,
+  "loop": true,
+  "items": [
+    {"kind": "image", "index": 5, "duration": 2000},
+    {"kind": "pattern", "index": 0, "duration": 1000}
   ]
 }
-
 ```
 
-**Request Fields:**
+| Field | Rule |
+|---|---|
+| `index` | Sequence slot. Default 1. **0 is rejected** (demo sequence). **5 or more is rejected.** Valid user slots are 1–4. |
+| `loop` | Default true. |
+| `items` | Required, at least one. Only the first **10** are sent; extras are dropped with no error. |
+| `kind` | `"pattern"` or anything else (treated as an image). Default `"image"`. |
+| image `index` | 0–127. Outside that range: **400**. |
+| pattern `index` | 0–18. Outside that range: **400**. |
+| `duration` | Milliseconds. Default 2000. Values under 100 are raised to 100. |
 
-- `pixels` (array, required): Array of 32 RGB color objects
-  - Each object has `r`, `g`, `b` fields (0-255)
-  - Array length must be exactly 32 (matching display LEDs)
+Success: **200** `{"status":"ok","seqIndex":1,"itemCount":2}`. UART `0x04`. This route does not start playback. Send `POST /api/mode` with `"mode": 3` and the sequence index.
 
-**Response:**
+## POST `/api/image`
+
+Multipart upload, not JSON. The filename is parsed as `image_<width>x<height>.rgb`. If that parse fails, width and height stay **32×32**. Declared width must be 1–400 and height 1–64, and the declared byte count must fit in the 76,800-byte buffer. Otherwise the upload ends with **413** `{"error":"Image dimensions exceed firmware limits"}`. An aborted upload is **500** `{"error":"Upload aborted"}`.
+
+The pixel bytes are raw RGB888, `width * height * 3`. If fewer bytes arrive, height is reduced to match the buffer.
+
+Slot assignment: `nextImageSlot` starts at **5** each boot (0–4 are the demo slots). It increments through **127**, then wraps to 5. The response includes the slot that was used:
 
 ```json
-{
-  "status": "ok"
-}
-
+{"status":"ok","slot":5}
 ```
 
-**Example:**
+The handler then tells the Teensy to show that image (UART `0x01`, mode 1). If `sdCardPresent` is true it also sends a save (`0x20`) under a generated `up#####` stem. The Teensy adds `.pov`. Image upload is not broadcast to paired poi.
 
-```bash
-curl -X POST http://192.168.4.1/api/live \
-  -H "Content-Type: application/json" \
-  -d '{
-    "pixels": [
-      {"r": 255, "g": 0, "b": 0},
-      {"r": 255, "g": 127, "b": 0},
-      {"r": 255, "g": 255, "b": 0}
-    ]
-  }'
+The Teensy pixel array is 400 columns by **32** rows (`IMAGE_HEIGHT`). The ESP32's height check allows up to 64. A height above 32 passes this route and does not fit that array. Treat 32 as the display height.
 
-```
-
-**Use Cases:**
-
-- Real-time drawing applications
-- Music visualization
-- External control from another system
-- Custom animations
-
-**Performance Note:** Live mode updates should not exceed ~50 FPS to avoid overwhelming the serial communication.
-
----
-
-## Serial Protocol (Teensy ↔ ESP32)
-
-For developers extending the system, here's the internal serial protocol.
-
-### Message Format
-
-All messages follow this structure:
-
-```text
-[0xFF] [CMD] [LEN] [DATA...] [0xFE]
-```
-
-- `0xFF`: Start marker
-- `CMD`: Command byte
-- `LEN`: Data length
-- `DATA`: Command-specific data
-- `0xFE`: End marker
-
-### Command Codes
-
-| Code | Command | Direction | Description |
-| ------ | --------- | ----------- | ------------- |
-| 0x01 | Set Mode | ESP32→Teensy | Change display mode |
-| 0x02 | Upload Image | ESP32→Teensy | Transfer image data |
-| 0x03 | Upload Pattern | ESP32→Teensy | Send pattern config |
-| 0x04 | Upload Sequence | ESP32→Teensy | Send sequence data |
-| 0x05 | Live Frame | ESP32→Teensy | Real-time LED data |
-| 0x06 | Set Brightness | ESP32→Teensy | Adjust brightness |
-| 0x07 | Set Frame Rate | ESP32→Teensy | Adjust frame rate |
-| 0x10 | Status Request | ESP32→Teensy | Request status |
-| 0x20 | Save to SD | ESP32→Teensy | Save image to SD card (v2.0+) |
-| 0x21 | Load from SD | ESP32→Teensy | Load image from SD card (v2.0+) |
-| 0x22 | List SD Images | ESP32→Teensy | List stored images (v2.0+) |
-| 0x23 | Delete from SD | ESP32→Teensy | Delete image from SD (v2.0+) |
-| 0xAA | Acknowledge | Teensy→ESP32 | Command received |
-| 0xBB | Status Response | Teensy→ESP32 | Status data |
-| 0xCC | List Response | Teensy→ESP32 | SD image list (v2.0+) |
-
-**Note:** `SD_SUPPORT` is already defined in the Teensy sketch. Commands `0x20`–`0x24` and `0x30` are compiled in. Paths are `/poi_images` and `/poi_patterns`.
-
-### SD Card Commands (v2.0+)
-
-#### Save Image to SD (0x20)
-
-Saves an image from RAM to SD card for persistent storage.
-
-**Format:**
-
-```text
-0xFF 0x20 [LEN] [FILENAME_LEN] [FILENAME...] [IMG_INDEX] 0xFE
-```
-
-**Fields:**
-
-- `FILENAME_LEN`: Length of filename (1 byte)
-- `FILENAME`: Filename without extension (max 32 chars)
-- `IMG_INDEX`: Image slot to save (0-9)
-
-**Response:** ACK (0xAA)
-
-**Example:** Save image slot 0 as "heart"
-
-```text
-0xFF 0x20 0x07 0x05 'h' 'e' 'a' 'r' 't' 0x00 0xFE
-```
-
-#### Load Image from SD (0x21)
-
-Loads a stored image from SD card into RAM.
-
-**Format:**
-
-```text
-0xFF 0x21 [LEN] [FILENAME_LEN] [FILENAME...] [IMG_INDEX] 0xFE
-```
-
-**Fields:**
-
-- `FILENAME_LEN`: Length of filename (1 byte)
-- `FILENAME`: Filename without extension (max 32 chars)
-- `IMG_INDEX`: Target image slot (0-9)
-
-**Response:** ACK (0xAA)
-
-**Example:** Load "heart" into slot 0
-
-```text
-0xFF 0x21 0x07 0x05 'h' 'e' 'a' 'r' 't' 0x00 0xFE
-```
-
-#### List SD Images (0x22)
-
-Lists all stored images on SD card.
-
-**Format:**
-
-```text
-0xFF 0x22 0x00 0xFE
-```
-
-**Response:** List response (0xCC)
-
-```text
-0xFF 0xCC [COUNT] [NAME1_LEN] [NAME1...] [NAME2_LEN] [NAME2...] ... 0xFE
-```
-
-**Fields:**
-
-- `COUNT`: Number of images found
-- For each image:
-  - `NAMEX_LEN`: Length of filename
-  - `NAMEX`: Filename without extension
-
-**Example Response:** Two images "heart" and "star"
-
-```text
-0xFF 0xCC 0x02 0x05 'h' 'e' 'a' 'r' 't' 0x04 's' 't' 'a' 'r' 0xFE
-```
-
-#### Delete Image from SD (0x23)
-
-Deletes an image file from SD card.
-
-**Format:**
-
-```text
-0xFF 0x23 [LEN] [FILENAME_LEN] [FILENAME...] 0xFE
-```
-
-**Fields:**
-
-- `FILENAME_LEN`: Length of filename (1 byte)
-- `FILENAME`: Filename without extension (max 32 chars)
-
-**Response:** ACK (0xAA)
-
-**Example:** Delete "heart"
-
-```text
-0xFF 0x23 0x06 0x05 'h' 'e' 'a' 'r' 't' 0xFE
-```
-
-### SD Card File Format
-
-Images are stored as `.pov` files with this structure:
-
-```text
-[WIDTH:1] [HEIGHT:1] [RGB_DATA...]
-```
-
-- Width: 1 byte (max 31)
-- Height: 1 byte (max 64)
-- RGB Data: width × height × 3 bytes (R, G, B values)
-
-### Example: Set Mode Command
-
-```text
-0xFF 0x01 0x02 0x02 0x00 0xFE
-│    │    │    │    │    │
-│    │    │    │    │    └─ End marker
-│    │    │    │    └────── Index: 0
-│    │    │    └─────────── Mode: 2 (pattern)
-│    │    └──────────────── Length: 2 bytes
-│    └───────────────────── Command: Set Mode
-└────────────────────────── Start marker
-```
-
----
-
-## Error Codes
-
-| HTTP Code | Description |
-| ----------- | ------------- |
-| 200 | Success |
-| 400 | Bad Request - Invalid or missing data |
-| 404 | Not Found - Invalid endpoint |
-| 500 | Internal Server Error |
-
----
-
-## Rate Limiting
-
-No explicit rate limiting is implemented, but practical limits exist:
-
-- Serial baudrate: 115200 bps
-- Web server handles one request at a time
-- Live mode updates: ~50 FPS maximum recommended
-- File uploads: Limited by SPIFFS storage and upload speed
-
----
-
-## CORS
-
-The API does not currently implement CORS headers. Access is limited to devices on the same WiFi network.
-
----
-
-## WebSocket Support
-
-WebSocket support is not currently implemented but could be added for:
-
-- Real-time status updates
-- Bidirectional live mode
-- Lower latency control
-- Streaming animations
-
----
-
-## Testing the API
-
-### Using curl
-
-```bash
-# Get status
-curl http://192.168.4.1/api/status
-
-# Set pattern mode
-curl -X POST http://192.168.4.1/api/mode \
-  -H "Content-Type: application/json" \
-  -d '{"mode": 2, "index": 0}'
-
-# Set brightness to 50%
-curl -X POST http://192.168.4.1/api/brightness \
-  -H "Content-Type: application/json" \
-  -d '{"brightness": 128}'
-
-# Set rainbow pattern
-curl -X POST http://192.168.4.1/api/pattern \
-  -H "Content-Type: application/json" \
-  -d '{
-    "index": 0,
-    "type": 0,
-    "color1": {"r": 255, "g": 0, "b": 0},
-    "color2": {"r": 0, "g": 0, "b": 255},
-    "speed": 50
-  }'
-
-```
-
-### Using Postman
-
-1. Create new request
-2. Set method to POST
-3. Enter URL: `http://192.168.4.1/api/mode`
-4. Set Headers: `Content-Type: application/json`
-5. Set Body (raw JSON): `{"mode": 2, "index": 0}`
-6. Send request
-
-### Using Python
-
-```python
-import requests
-
-base_url = "http://192.168.4.1"
-
-# Get status
-response = requests.get(f"{base_url}/api/status")
-print(response.json())
-
-# Set pattern
-data = {
-    "index": 0,
-    "type": 1,
-    "color1": {"r": 255, "g": 0, "b": 0},
-    "color2": {"r": 0, "g": 255, "b": 0},
-    "speed": 50
-}
-response = requests.post(f"{base_url}/api/pattern", json=data)
-print(response.json())
-
-```
-
----
-
-## Future API Enhancements
-
-Planned additions:
-
-- WebSocket support for real-time updates
-- Authentication for security
-- Sequence management endpoints
-- Preset library management
-- Configuration backup/restore
-- OTA update endpoints
-- Statistics and diagnostics
-
----
-
-## Support
-
-For API questions or issues:
-
-- Check serial monitor output for debugging
-- Verify WiFi connection to POV-POI-WiFi
-- Test with curl before integration work
-- Review example code in documentation
-
----
-
-## Peer-to-Peer Synchronization API 🆕
-
-### Overview
-
-The sync API enables peer-to-peer communication between multiple POV poi devices. Devices can discover each other, exchange data, and synchronize their settings, images, and patterns.
-
-### Sync Status
-
-#### Get Sync Status
-
-Get current synchronization status and list of peer devices.
-
-**Endpoint:** `GET /api/sync/status`
-
-**Response:**
+## POST `/api/live`
 
 ```json
-{
-  "deviceId": "A1:B2:C3:D4:E5:F6",
-  "deviceName": "Left Poi",
-  "syncGroup": "PoiPair01",
-  "autoSync": true,
-  "syncInterval": 30000,
-  "peers": [
-    {
-      "deviceId": "F6:E5:D4:C3:B2:A1",
-      "deviceName": "Right Poi",
-      "ipAddress": "192.168.4.2",
-      "lastSeen": 1706518800,
-      "online": true
-    }
-  ]
-}
-
+{"pixels": [{"r": 255, "g": 0, "b": 0}]}
 ```
 
-**Response Fields:**
+Pixels are RGB bytes. Only the first `displayLeds()` pixels are used (`numLeds - sacrificialLeds`, at most 32). Missing channels default to 0. A body that is present but not valid JSON still returns **200** `{"status":"ok"}` and sends a black frame. A missing body is **400** `{"error":"No data"}`.
 
-- `deviceId` (string): Unique device identifier (MAC-based)
-- `deviceName` (string): User-configured device name
-- `syncGroup` (string): Sync group identifier (optional)
-- `autoSync` (boolean): Auto-sync enabled status
-- `syncInterval` (number): Auto-sync interval in milliseconds
-- `peers` (array): List of discovered peer devices
-  - `deviceId` (string): Peer device ID
-  - `deviceName` (string): Peer device name
-  - `ipAddress` (string): Peer IP address
-  - `lastSeen` (number): Last seen timestamp
-  - `online` (boolean): Peer online status
+UART `0x05`. This route does not set mode 4. The Teensy shows `liveBuffer` only when the current mode is 4.
 
-**Example:**
+## Hardware LEDs
 
-```bash
-curl http://192.168.4.1/api/sync/status
-
-```
-
----
-
-### Peer Discovery
-
-#### Discover Peers
-
-Manually trigger peer device discovery using mDNS.
-
-**Endpoint:** `POST /api/sync/discover`
-
-**Request Body:** None required
-
-**Response:**
+### GET `/api/hardware/leds`
 
 ```json
-{
-  "status": "ok",
-  "peersFound": 1,
-  "peers": [
-    {
-      "deviceId": "F6:E5:D4:C3:B2:A1",
-      "deviceName": "Right Poi",
-      "ipAddress": "192.168.4.2"
-    }
-  ]
-}
-
+{"numLeds": 32, "sacrificialLeds": 0, "displayLeds": 32, "displayLedStart": 0}
 ```
 
-**Response Fields:**
+Loaded from NVS keys `hw_numLeds` and `hw_sacLeds` (defaults 32 and 0). Out-of-range saved values are corrected at boot.
 
-- `status` (string): Operation status
-- `peersFound` (number): Number of peers discovered
-- `peers` (array): List of discovered peers
-
-**Example:**
-
-```bash
-curl -X POST http://192.168.4.1/api/sync/discover
-
-```
-
----
-
-### Sync Execution
-
-#### Execute Sync
-
-Trigger synchronization with a specific peer device.
-
-**Endpoint:** `POST /api/sync/execute`
-
-**Request Body:**
+### POST `/api/hardware/leds`
 
 ```json
-{
-  "peerId": "F6:E5:D4:C3:B2:A1",
-  "direction": "bidirectional",
-  "syncImages": true,
-  "syncPatterns": true,
-  "syncSettings": true
-}
-
+{"numLeds": 32, "sacrificialLeds": 0}
 ```
 
-**Request Fields:**
+Either field may be omitted. `numLeds` must be **2–32** and `sacrificialLeds` must be **less than `numLeds`**. Otherwise **400** with `{"error":"numLeds must be 2-32 and sacrificialLeds must be less than numLeds"}`.
 
-- `peerId` (string, required): Target peer device ID
-- `direction` (string, optional): Sync direction
-  - `"bidirectional"` (default): Merge data from both devices
-  - `"push"`: Push data to peer only
-  - `"pull"`: Pull data from peer only
-- `syncImages` (boolean, optional): Sync images (default: true)
-- `syncPatterns` (boolean, optional): Sync patterns (default: true)
-- `syncSettings` (boolean, optional): Sync settings (default: true)
+Success returns the same four fields as GET, plus `"status":"ok"`. Values are stored in NVS and sent as UART `0x09`.
 
-**Response:**
+## WiFi station
 
-```json
-{
-  "status": "ok",
-  "itemsSynced": 5,
-  "imagesAdded": 2,
-  "patternsAdded": 1,
-  "settingsUpdated": true
-}
-
-```
-
-**Response Fields:**
-
-- `status` (string): Operation status
-- `itemsSynced` (number): Total items synchronized
-- `imagesAdded` (number): Images added/updated
-- `patternsAdded` (number): Patterns added/updated
-- `settingsUpdated` (boolean): Settings updated status
-
-**Example:**
-
-```bash
-curl -X POST http://192.168.4.1/api/sync/execute \
-  -H "Content-Type: application/json" \
-  -d '{"peerId":"F6:E5:D4:C3:B2:A1","direction":"bidirectional"}'
-
-```
-
----
-
-### Sync Data
-
-#### Get Sync Data
-
-Retrieve device's current data for synchronization.
-
-**Endpoint:** `GET /api/sync/data`
-
-**Response:**
-
-```json
-{
-  "deviceId": "A1:B2:C3:D4:E5:F6",
-  "deviceName": "Left Poi",
-  "images": [
-    {
-      "id": "img_001",
-      "name": "spiral.png",
-      "width": 31,
-      "height": 64,
-      "timestamp": 1706518800,
-      "size": 5952
-    }
-  ],
-  "patterns": [
-    {
-      "id": "pat_001",
-      "type": 0,
-      "name": "Rainbow Fast",
-      "timestamp": 1706518700
-    }
-  ],
-  "settings": {
-    "brightness": 128,
-    "framerate": 60,
-    "mode": 2,
-    "index": 0,
-    "timestamp": 1706518900
-  }
-}
-
-```
-
-**Response Fields:**
-
-- `deviceId` (string): Source device ID
-- `deviceName` (string): Source device name
-- `images` (array): List of images available for sync
-- `patterns` (array): List of patterns available for sync
-- `settings` (object): Current device settings
-
-**Example:**
-
-```bash
-curl http://192.168.4.1/api/sync/data
-
-```
-
----
-
-### Push Sync Data
-
-#### Push Data to Device
-
-Push synchronization data to this device from peer.
-
-**Endpoint:** `POST /api/sync/push`
-
-**Request Body:**
-
-```json
-{
-  "deviceId": "F6:E5:D4:C3:B2:A1",
-  "deviceName": "Right Poi",
-  "images": [...],
-  "patterns": [...],
-  "settings": {
-    "brightness": 150,
-    "framerate": 60,
-    "mode": 2,
-    "index": 0,
-    "timestamp": 1706518900
-  }
-}
-
-```
-
-**Request Fields:**
-
-- `deviceId` (string): Source device ID
-- `deviceName` (string): Source device name
-- `images` (array, optional): Images to sync
-- `patterns` (array, optional): Patterns to sync
-- `settings` (object, optional): Settings to sync
-
-**Response:**
-
-```json
-{
-  "status": "ok",
-  "message": "Sync data received"
-}
-
-```
-
-**Example:**
-
-```bash
-curl -X POST http://192.168.4.1/api/sync/push \
-  -H "Content-Type: application/json" \
-  -d '{"deviceId":"F6:E5:D4:C3:B2:A1","settings":{"brightness":150}}'
-
-```
-
----
-
-## Device Configuration API 🆕
-
-### Get Device Configuration
-
-#### Get Configuration
-
-Get device identification and sync configuration.
-
-**Endpoint:** `GET /api/device/config`
-
-**Response:**
-
-```json
-{
-  "deviceId": "A1:B2:C3:D4:E5:F6",
-  "deviceName": "Left Poi",
-  "syncGroup": "PoiPair01",
-  "autoSync": true,
-  "syncInterval": 30000
-}
-
-```
-
-**Response Fields:**
-
-- `deviceId` (string): Unique device identifier
-- `deviceName` (string): User-configured device name
-- `syncGroup` (string): Sync group identifier
-- `autoSync` (boolean): Auto-sync enabled
-- `syncInterval` (number): Auto-sync interval (ms)
-
-**Example:**
-
-```bash
-curl http://192.168.4.1/api/device/config
-
-```
-
----
-
-### Update Device Configuration
-
-#### Update Configuration
-
-Update device name, sync group, and sync settings.
-
-**Endpoint:** `POST /api/device/config`
-
-**Request Body:**
-
-```json
-{
-  "deviceName": "Left Poi",
-  "syncGroup": "PoiPair01",
-  "autoSync": true,
-  "syncInterval": 30000
-}
-
-```
-
-**Request Fields:**
-
-- `deviceName` (string, optional): New device name
-- `syncGroup` (string, optional): New sync group
-- `autoSync` (boolean, optional): Enable/disable auto-sync
-- `syncInterval` (number, optional): Auto-sync interval in ms
-
-**Response:**
-
-```json
-{
-  "status": "ok",
-  "message": "Configuration updated"
-}
-
-```
-
-**Example:**
-
-```bash
-curl -X POST http://192.168.4.1/api/device/config \
-  -H "Content-Type: application/json" \
-  -d '{"deviceName":"Left Poi","autoSync":true}'
-
-```
-
----
-
-## WiFi Network API
-
-The device runs in **AP+STA** mode: it always provides the **POV-POI-WiFi** access point, and can also connect to your home/router WiFi so you can reach the web UI from any device on your network.
-
-### Get WiFi Status
-
-**Endpoint:** `GET /api/wifi/status`
-
-**Response:**
+### GET `/api/wifi/status`
 
 ```json
 {
   "apIp": "192.168.4.1",
   "apSsid": "POV-POI-WiFi",
-  "staConnected": true,
-  "staIp": "192.168.1.42",
-  "savedSsid": "MyHomeWiFi"
+  "staConnected": false,
+  "staIp": "",
+  "savedSsid": ""
 }
-
 ```
 
-- `apIp` / `apSsid`: Access point IP and SSID (always available).
-- `staConnected`: Whether the device is connected to a saved network.
-- `staIp`: Device IP on the home network when `staConnected` is true; use this URL to open the web UI from your LAN.
-- `savedSsid`: SSID of the saved network (empty if none).
+`mdnsName` is included only when mDNS started.
 
-**Example:**
+### GET `/api/wifi/scan`
 
-```bash
-curl http://192.168.4.1/api/wifi/status
+Asynchronous. The first call (and any call while a scan is running) returns **200** `{"scanning": true}`. When the scan finishes:
 
+```json
+{"scanning": false, "networks": [{"ssid": "example", "rssi": -40, "secure": true}]}
 ```
 
----
+At most 20 networks (`MAX_SCAN_RESULTS`). Hidden networks are included in the scan.
 
-### Connect to a WiFi Network
+### POST `/api/wifi/connect`
 
-**Endpoint:** `POST /api/wifi/connect`
+```json
+{"ssid": "example", "password": "secret"}
+```
 
-**Request Body:**
+`ssid` is required and must be non-empty after trim. `password` is optional and defaults to `""`. Missing body: **400** `{"error":"No data"}`. Missing ssid: **400** `{"error":"Missing ssid"}`. Empty ssid: **400** `{"error":"SSID cannot be empty"}`.
+
+Success: **200** `{"status":"ok","message":"Connecting to network. Check /api/wifi/status for result."}`. Credentials are stored (`sta_ssid`, `sta_password`) and `WiFi.begin` is called. The HTTP response does not wait for association.
+
+### POST `/api/wifi/disconnect`
+
+No body. Disconnects STA and deletes the saved SSID and password.
+
+**200** `{"status":"ok","message":"Disconnected and credentials cleared"}`.
+
+## Device config
+
+### GET `/api/device/config`
 
 ```json
 {
-  "ssid": "MyHomeWiFi",
-  "password": "your_wifi_password"
+  "deviceId": "AA:BB:CC:DD:EE:FF",
+  "deviceName": "POV Poi EE:FF",
+  "syncGroup": "",
+  "autoSync": false,
+  "syncInterval": 30000
 }
-
 ```
 
-Credentials are saved and the device attempts to connect. Connection is asynchronous; poll `GET /api/wifi/status` to see when `staConnected` becomes true and to get `staIp`.
+`deviceId` defaults to the WiFi MAC. `autoSync` defaults to false. `syncInterval` is milliseconds (default 30000). `syncGroup` is stored and is **not** read by the ESP-NOW pairer.
 
-**Response:**
+### POST `/api/device/config`
+
+Optional fields: `deviceName` (string), `syncGroup` (string), `autoSync` (boolean). `deviceId` and `syncInterval` in the body are ignored. Missing body: **400** `{"error":"No data"}`. Invalid JSON: **400** `{"error":"Invalid JSON"}`.
+
+Success: **200** `{"status":"ok","message":"Configuration updated"}`. Name, group, and auto-sync are written to NVS.
+
+## SD card
+
+The ESP32 does not mount the card. These routes send UART commands. `sdCardPresent` is whatever the last Teensy status poll said.
+
+| Route | Card check | Success body | Failure |
+|---|---|---|---|
+| GET `/api/sd/list` | yes | `{"files":["name", ...]}` | **200** `{"error":"SD card not present","files":[]}` or `{"error":"Failed to read response","files":[]}` |
+| GET `/api/sd/info` | no UART call | `present`, `totalSpace` 0, `freeSpace` 0, `spaceAvailable` false, `note` | always **200**. Space is not read. Teensy `0x23` is not sent. |
+| POST `/api/sd/delete` | none | `{"status":"ok"}` | **400** if `filename` is missing |
+| POST `/api/sd/load` | none | `{"status":"ok","slot":N}` | **400** if `filename` is missing |
+| GET `/api/sd/pattern/list` | yes | `{"presets":["name", ...]}` | **200** with `error` and `"presets":[]` |
+| POST `/api/sd/pattern/save` | **503** if absent | `{"status":"ok"}` | **400** if `name` is missing or not `[A-Za-z0-9_-]{1,32}` |
+| POST `/api/sd/pattern/load` | **503** if absent | `{"status":"ok"}` | same name rules |
+
+Delete and load accept `{"filename":"name.pov"}`. A trailing `.pov` and any directory prefix are stripped. The stem is truncated to 32 bytes. Delete and load return `ok` after the bytes are written to the UART. They do not wait for a Teensy result.
+
+Load also accepts `"slot"`. The slot is used only when it is an integer from **0 to 127**. Any other value is ignored and slot **0** is sent. After the load command the ESP32 waits 100 ms and sends mode 1 for that slot.
+
+Pattern save and load use `{"name":"preset"}`.
+
+## Legacy HTTP sync
+
+These routes are separate from `/api/multipoi/*`. They keep an mDNS peer table in RAM (at most 5). They do not copy images or patterns. `syncGroup` is not used to filter peers.
+
+### GET `/api/sync/status`
+
+`deviceId`, `deviceName`, `syncGroup`, `autoSync`, `syncInterval` (milliseconds), and `peers[]` of `deviceId`, `deviceName`, `ipAddress`, `lastSeen` (`millis()` of the last mDNS sighting, not a Unix time), `online`.
+
+### POST `/api/sync/discover`
+
+Runs mDNS discovery and returns **200** `{"status":"ok","peersFound":N,"peers":[...]}` with `deviceId`, `deviceName`, and `ipAddress`.
+
+### POST `/api/sync/execute`
+
+Body must include `peerId`. Other fields (`direction`, `syncImages`, `syncPatterns`, `syncSettings`) are ignored.
+
+The handler calls `performSync`, which GETs the peer's `/api/sync/data` and POSTs this device's brightness, framerate, mode, and index to the peer's `/api/sync/push`. The peer payload is logged and **not applied**. If the peer is missing or offline, `performSync` returns without doing that, and this route still responds:
+
+```json
+{"status":"ok","itemsSynced":1,"imagesAdded":0,"patternsAdded":0,"settingsUpdated":true}
+```
+
+Those counts are constants. They are not a report of what changed.
+
+### GET `/api/sync/data`
+
+`deviceId`, `deviceName`, a **hardcoded** `images` list (ids 0–2), a **hardcoded** `patterns` list (ids 0–17, pattern 18 omitted), and `settings` from the live ESP32 state (`brightness`, `framerate`, `mode`, `index`, `timestamp` = `millis()`).
+
+### POST `/api/sync/push`
+
+Requires a body. The body is printed to serial and not parsed. **200** `{"status":"ok","message":"Sync data received"}`.
+
+## ESP-NOW multi-poi
+
+Behavior and its limits are in [POI_PAIRING.md](POI_PAIRING.md). The HTTP surface:
+
+### GET `/api/multipoi/status`
 
 ```json
 {
-  "status": "ok",
-  "message": "Connecting to network. Check /api/wifi/status for result."
+  "syncMode": "mirror",
+  "localName": "POV Poi EE:FF",
+  "localMac": "AA:BB:CC:DD:EE:FF",
+  "hasPairedPeer": false,
+  "autoPair": true,
+  "peers": []
 }
-
 ```
 
-**Example:**
+`syncMode` is `"mirror"` or `"independent"`. `hasPairedPeer` is true only when a peer is both paired and online (seen within 10 s). `autoPair` is the in-RAM flag; nothing in the sketch turns it off, and this API cannot set it. Each peer has `name`, `mac`, `state` (0 none, 1 discovering, 2 pair-sent, 3 paired — only 3 is assigned by the pairer), `online`, `mode`, `index`, `brightness`.
 
-```bash
-curl -X POST http://192.168.4.1/api/wifi/connect \
-  -H "Content-Type: application/json" \
-  -d '{"ssid":"MyHomeWiFi","password":"your_password"}'
+### POST `/api/multipoi/pair`
 
-```
+No body. Broadcasts a pair request. **200** `{"status":"ok","message":"Pair request broadcast"}`. The response does not mean a peer answered.
 
----
+### POST `/api/multipoi/unpair`
 
-### Disconnect and Clear Saved Network
+Optional `{"index": 0}` unpairs that peer and returns `{"status":"ok"}`. No body, or a body without an integer `index`, unpairs everyone: `{"status":"ok","message":"All peers unpaired"}`.
 
-**Endpoint:** `POST /api/wifi/disconnect`
+### POST `/api/multipoi/syncmode`
 
-Disconnects from the current STA network and clears saved SSID/password. The device continues to serve the POV-POI-WiFi access point.
+`{"mode": "mirror"}` or `{"mode": "independent"}`. Numeric `0` and `1` are also accepted. Missing body: **400** `{"error":"No data"}`. Missing mode: **400** `{"error":"Missing mode"}`. Anything else: **400** `{"error":"Invalid mode (use mirror or independent)"}`.
 
-**Response:**
+Success: `{"status":"ok","syncMode":"mirror"}`. The mode is RAM-only.
+
+### POST `/api/multipoi/peercmd`
 
 ```json
-{
-  "status": "ok",
-  "message": "Disconnected and credentials cleared"
-}
-
+{"peer": 0, "cmd": "brightness", "brightness": 128}
 ```
 
-**Example:**
+`peer` is required (index into the peer array). `cmd` is `mode`, `pattern`, `brightness`, or `framerate`.
 
-```bash
-curl -X POST http://192.168.4.1/api/wifi/disconnect
+| `cmd` | Fields | Defaults |
+|---|---|---|
+| `mode` | `mode`, `index` | 0, 0 |
+| `pattern` | `index`, `type`, `color1`, `color2`, `speed` | 0, 0, red, blue, 50 |
+| `brightness` | `brightness` | 128 |
+| `framerate` | `framerate` | 50 |
 
-```
+Pattern index and type are **not** clamped on this route. Unknown `cmd`: **400** `{"error":"Unknown cmd"}`. Success: **200** `{"status":"ok"}` even if `peer` is out of range (the send is then a no-op). The command goes to that peer over ESP-NOW. It is not applied to the local Teensy.
 
----
+## Static files
 
-## Sync API Examples
+GET `/` serves SPIFFS `/index.html` when that file exists, otherwise the PROGMEM page in the sketch.
 
-### Python Example: Pair Two Devices
+GET `/manifest.json` and GET `/sw.js` return strings embedded in the sketch.
 
-```python
-import requests
-import time
+## Known gaps
 
-# Device endpoints
-device1 = "http://192.168.4.1"
-device2 = "http://192.168.4.2"  # Second device IP
-
-def configure_device(url, name, sync_group):
-    """Configure device identity and sync settings"""
-    config = {
-        "deviceName": name,
-        "syncGroup": sync_group,
-        "autoSync": True,
-        "syncInterval": 30000
-    }
-    response = requests.post(f"{url}/api/device/config", json=config)
-    return response.json()
-
-def discover_peers(url):
-    """Discover peer devices"""
-    response = requests.post(f"{url}/api/sync/discover")
-    return response.json()
-
-def sync_with_peer(url, peer_id):
-    """Synchronize with specific peer"""
-    data = {
-        "peerId": peer_id,
-        "direction": "bidirectional",
-        "syncImages": True,
-        "syncPatterns": True,
-        "syncSettings": True
-    }
-    response = requests.post(f"{url}/api/sync/execute", json=data)
-    return response.json()
-
-# Configure both devices
-print("Configuring devices...")
-configure_device(device1, "Left Poi", "PoiPair01")
-configure_device(device2, "Right Poi", "PoiPair01")
-
-# Wait for mDNS to propagate
-time.sleep(2)
-
-# Discover peers
-print("Discovering peers...")
-peers = discover_peers(device1)
-print(f"Found {peers['peersFound']} peers")
-
-# Sync if peer found
-if peers['peersFound'] > 0:
-    peer_id = peers['peers'][0]['deviceId']
-    print(f"Syncing with {peers['peers'][0]['deviceName']}...")
-    result = sync_with_peer(device1, peer_id)
-    print(f"Sync complete: {result}")
-else:
-    print("No peers found")
-
-```
-
-### JavaScript Example: Auto-Sync Monitor
-
-```javascript
-// Monitor sync status and display peer information
-async function monitorSyncStatus() {
-    try {
-        const response = await fetch('http://192.168.4.1/api/sync/status');
-        const status = await response.json();
-        
-        console.log(`Device: ${status.deviceName} (${status.deviceId})`);
-        console.log(`Auto-Sync: ${status.autoSync ? 'Enabled' : 'Disabled'}`);
-        console.log(`Peers: ${status.peers.length}`);
-        
-        status.peers.forEach(peer => {
-            console.log(`  - ${peer.deviceName}: ${peer.online ? 'Online' : 'Offline'}`);
-        });
-        
-    } catch (error) {
-        console.error('Failed to get sync status:', error);
-    }
-}
-
-// Trigger manual sync
-async function syncNow(peerId) {
-    try {
-        const response = await fetch('http://192.168.4.1/api/sync/execute', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                peerId: peerId,
-                direction: 'bidirectional'
-            })
-        });
-        
-        const result = await response.json();
-        console.log('Sync result:', result);
-        
-    } catch (error) {
-        console.error('Sync failed:', error);
-    }
-}
-
-// Run monitor every 5 seconds
-setInterval(monitorSyncStatus, 5000);
-
-```
-
----
-
-## Future Sync API Enhancements
-
-Planned additions:
-
-- Image binary data transfer
-- Pattern data structures
-- Sequence synchronization
-- Conflict resolution options
-- Sync history and logs
-- Bandwidth optimization
-- Selective item sync
-- Multi-device group sync
-
-For complete sync setup guide, see [POI Pairing Guide](POI_PAIRING.md).
+- `"status": "ok"` is not a confirmed result from the Teensy or from a peer.
+- No authentication. CORS is open.
+- No `/api/battery`, no WebSocket, no rate limit.
+- `GET /api/status` `count` is not image capacity.
+- `GET /api/sd/info` does not report card capacity.
+- `POST /api/sync/push` does not apply the body. `POST /api/sync/execute` reports success anyway.
+- Image slots above 127 are not reachable from these routes.
+- `POST /api/power/mode` depends on the substring `"mode":` in the body.

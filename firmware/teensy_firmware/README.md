@@ -14,7 +14,7 @@ Arduino IDE opens the same `.ino` (board Teensy 4.1, USB type Serial, 600 MHz). 
 - 32 APA102 LEDs. `DEFAULT_SACRIFICIAL_LEDS` is 0, so all 32 display. The count is still configurable (command `0x09`, stored in EEPROM). A saved EEPROM record overrides the default.
 - `COLOR_ORDER` is `BGR`. On first power-up, show a known red. If it looks blue, change the define to `BRG`.
 - `SD_SUPPORT` is defined. Images are `/poi_images/*.pov`. Pattern presets are `/poi_patterns/*.pat`.
-- Up to 200 images, each up to 32×400, in external PSRAM.
+- The PSRAM array is `MAX_IMAGES` 200, each up to 400 columns by 32 rows. Slots the ESP32 can upload, load, or put in a sequence are 0–127 (web uploads use 5–127). Sequence playback keeps 7 bits of image index, so slots 128–199 are not reachable from the ESP32. The boot log still prints `MAX_IMAGES` (200).
 - Patterns 0–18, sequences, live frames.
 - UART to the ESP32-S3 is binary: `0xFF`, command, length, payload, `0xFE`. Pins: RX1 = 0, TX1 = 1, 115200 8N1.
 

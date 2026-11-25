@@ -42,7 +42,7 @@ Image upload layout, from `receiveImage()`:
 | `0x08` | Sync time offset | int32 milliseconds, big-endian |
 | `0x09` | LED config | physical LED count, sacrificial count |
 | `0x0A` | Read LED config | none. Reply is `0xFF 0xBD num sacrificial display 0xFE` |
-| `0x0B` | Next image slot | slot index. Resets to 0 after the next `0x02`. |
+| `0x0B` | Next image slot | slot index. The Teensy accepts `0 .. MAX_IMAGES-1` (0–199 on the PSRAM build) and resets the slot to 0 after the next `0x02`. The ESP32 only sends 0–127. Sequence items store an image index in 7 bits, so slots 128–199 cannot be played from a sequence. |
 | `0x10` | Status | none |
 | `0x20` | Save image to SD | filename length, filename, image slot |
 | `0x21` | List SD images | none |
@@ -66,7 +66,7 @@ The ESP32-S3 is AP+STA.
 | AP address | `http://192.168.4.1` |
 | mDNS | `http://povpoi-<id>.local` printed at boot. Not `povpoi.local`. |
 
-HTTP is the API both UIs use. The endpoint list in the firmware is the authority; [API.md](API.md) is the written version and should be checked against `esp32_firmware.ino` when they drift. Common routes:
+HTTP is the API both UIs use. The endpoint list in the firmware is the authority; [API.md](API.md) is the written version of every route `setupWebServer()` registers. There is no authentication, and `server.enableCORS(true)` leaves CORS open. Handlers that accept a command answer `"status": "ok"` without a Teensy confirmation. Common routes:
 
 | Method | Path | Role |
 |---|---|---|
@@ -88,4 +88,4 @@ The ESP32 BLE bridge speaks Nordic UART Service and translates those packets int
 
 ## Multi-poi
 
-Discovery uses mDNS service `_povpoi._tcp` (the firmware calls `MDNS.addService("povpoi", "tcp", 80)`). Behavior on real hardware is unproven. See [POI_PAIRING.md](POI_PAIRING.md).
+Live pairing is ESP-NOW (`firmware/esp32_firmware/src/espnow_sync.h`), not the HTTP routes. Peers are RAM-only. Mirror mode forwards mode, pattern parameters, brightness, frame rate, and a time offset. It does not copy images. The legacy mDNS service `_povpoi._tcp` (`MDNS.addService("povpoi", "tcp", 80)`) feeds `/api/sync/*`. `POST /api/sync/push` acknowledges the body and does not apply it. Behavior on real hardware is unproven. See [POI_PAIRING.md](POI_PAIRING.md).

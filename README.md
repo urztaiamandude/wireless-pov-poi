@@ -49,7 +49,7 @@ Teensy 4.1  (POV, FastLED, SD, PSRAM)
 APA102 × 32
 ```
 
-The Teensy is the only chip wired to the LEDs. The ESP32 forwards settings. It does not clamp brightness or decide which LEDs exist.
+The Teensy is the only chip wired to the LEDs. `POST /api/brightness` forwards a raw byte and does not clamp it. `POST /api/power/mode` can lower that brightness (`powersave` 180, `ultrasave` 80). `POST /api/pattern` clamps pattern index and type to 0–18. `POST /api/hardware/leds` accepts `numLeds` from 2 to 32 only when the sacrificial count is lower than that.
 
 The Teensy↔ESP32 link is a **binary** frame: `0xFF`, command, length, payload, `0xFE`. It is not newline-terminated text. Command bytes and the HTTP API are in [docs/PROTOCOLS.md](docs/PROTOCOLS.md) and [docs/API.md](docs/API.md).
 
@@ -118,7 +118,7 @@ python3 -m pytest test_*.py -v
 
 ## What is already in the firmware
 
-Images, patterns 0–18 (including music-reactive 11–15 when a mic is fitted), sequences, brightness, frame rate, SD image and pattern files, BLE, a REST API, live frames, and multi-poi sync code. Sync is experimental until it is tried on two real poi. OTA updates are not implemented. Battery monitoring is not implemented.
+Images, patterns 0–18 (including music-reactive 11–15 when a mic is fitted), sequences, brightness, frame rate, SD image and pattern files, BLE, a REST API, live frames, and multi-poi sync code. The Teensy PSRAM array is 200 images. The ESP32 API and sequence playback only reach slots 0–127. Sync is experimental until it is tried on two real poi: ESP-NOW pairing is not saved across reboot, mirror mode does not copy images, and the older HTTP sync route does not apply what it receives. OTA updates are not implemented. Battery monitoring is not implemented.
 
 ## License
 

@@ -35,40 +35,23 @@
 
 ## WiFi Module: ESP32-S3
 
-### ESP32-S3 N16R8 (Recommended)
+### ESP32-S3 DevKitC-1 N16R8 (this build)
 
 **Specifications:**
 - **MCU:** Xtensa dual-core LX7
 - **Clock Speed:** 240 MHz (per core)
 - **Flash:** 16 MB
-- **PSRAM:** 8 MB
+- **PSRAM:** 8 MB on the module. The sketch does not store images there. Images go to the Teensy.
 - **WiFi:** 802.11 b/g/n (2.4 GHz)
-- **Bluetooth:** BLE 5.0
+- **Bluetooth:** BLE 5.0 (Nordic UART Service in the sketch)
 - **USB:** Native USB (OTG)
 
-**Why ESP32-S3?**
-- Large flash (16MB) for web UI assets
-- PSRAM for image buffering
-- Dual-core for parallel WiFi + BLE
-- Better than ESP32 classic for this use case
-
 **Pin Configuration:**
-- GPIO 16 (RX2): Serial receive from Teensy
-- GPIO 17 (TX2): Serial transmit to Teensy
-- GPIO 18 is not used. Do not move the UART there.
+- GPIO 16 (Serial2 RX): Serial receive from Teensy TX1
+- GPIO 17 (Serial2 TX): Serial transmit to Teensy RX1
+- GPIO 18 is not used. Do not move the UART there. GPIO 43/44 are not the Teensy link.
 
-### ESP32 Classic (Supported but not recommended)
-
-**Specifications:**
-- **Flash:** 4 MB (typical)
-- **PSRAM:** Not standard
-- **Still works** but less headroom for features
-
-**See:** [HARDWARE_BOM.md](HARDWARE_BOM.md) for the parts to buy and [ESP32_S3_COMPATIBILITY.md](ESP32_S3_COMPATIBILITY.md) for the module notes.
-
-**Used Pins:**
-- GPIO 16 (RX2): Serial from Teensy
-- GPIO 17 (TX2): Serial to Teensy
+The PlatformIO environment is `esp32s3` in `firmware/esp32_firmware`. An original ESP32 is not a second supported build. See [ESP32_S3_COMPATIBILITY.md](ESP32_S3_COMPATIBILITY.md).
 
 ---
 
@@ -79,7 +62,8 @@
 **Type:** APA102-C (Dotstar compatible)
 - **Count:** 32 LEDs
 - **Display:** 32 LEDs (LED 0-31)
-- **Level Shifter:** Hardware level shifter (3.3V -> 5V)
+- **Level shifter:** two SN74AHCT1G125 single-gate buffers (data on Teensy pin 11, clock on pin 13), VCC 5 V, OE to GND
+- **Color order in the sketch:** `BGR`. Check a known red on first power-up.
 
 **Electrical:**
 - **Voltage:** 5V DC

@@ -10,7 +10,7 @@ Quick lookup for ports, pins, constants, and non-secret configuration.
 |------|-------|
 | Project name | Nebula POV Poi (`wireless-pov-poi`) |
 | Main controller | Teensy 4.1 @ 600 MHz |
-| Co-processor | ESP32 / ESP32-S3 |
+| Co-processor | ESP32-S3 DevKitC-1 N16R8 (16 MB flash, 8 MB PSRAM). WiFi, BLE, and the web UI only |
 | LED strip | APA102, 32 physical LEDs |
 | Default display LEDs | 32 (sacrificial count defaults to 0; still configurable) |
 | Level shift | 2× SN74AHCT1G125, VCC 5 V, OE to GND |
@@ -50,8 +50,9 @@ Quick lookup for ports, pins, constants, and non-secret configuration.
 | AP SSID | `POV-POI-WiFi` |
 | AP IP | `192.168.4.1` (mDNS is `povpoi-<id>.local`, not `povpoi.local`) |
 | Baud rate (Teensy ↔ ESP32) | 115200 |
-| Brightness range | 0–255 |
-| Frame-rate range | 10–1000 FPS |
+| Brightness | Raw byte on `POST /api/brightness` (no 0–255 clamp; values wrap). `powersave` can cap at 180 and `ultrasave` at 80 |
+| Frame rate | `POST /api/framerate` stores a `uint16` and does not clamp to 10–1000. Power modes set 1000, 60, 30, or 15. A 2-byte FPS of 0 is ignored by the Teensy |
+| Image slots | Teensy array `MAX_IMAGES` 200. ESP32 upload, SD load slot, and sequence image indexes are 0–127. Web uploads use 5–127 |
 
 ---
 
@@ -91,4 +92,7 @@ Quick lookup for ports, pins, constants, and non-secret configuration.
 ## Notes
 
 - Teensy is the only controller physically driving APA102 LEDs.
-- ESP32/ESP32-S3 hosts WiFi/BLE/web UI and forwards control data over UART.
+- The ESP32-S3 hosts WiFi, BLE, and the web UI, and forwards control data over UART.
+- `POST /api/pattern` clamps pattern index and type to 0–18. `POST /api/hardware/leds` rejects `numLeds` outside 2–32.
+- ESP-NOW peers are not stored. Legacy `POST /api/sync/push` does not apply its body.
+- BLE `CC_SET_PATTERN` copies the payload with no slot byte. An 8-byte type-first body is stored one field early. See `docs/BLE_PROTOCOL.md`.

@@ -20,10 +20,10 @@ If a document below conflicts with the README or the code, the README and the co
 | [API.md](API.md) | HTTP API on the ESP32. Both UIs use it. |
 | [PROTOCOLS.md](PROTOCOLS.md) | Binary Teensy↔ESP32 frames. |
 | [BLE_PROTOCOL.md](BLE_PROTOCOL.md) | BLE bridge. It translates to the same binary frames. |
-| [POI_PAIRING.md](POI_PAIRING.md) | Multi-poi sync. Code exists; treat behavior as unproven on hardware. |
+| [POI_PAIRING.md](POI_PAIRING.md) | ESP-NOW pairing (not persisted, mirror mode partial) and the legacy HTTP sync stub. Unproven on hardware. |
 | [POWER_SUPPLY_DESIGN.md](POWER_SUPPLY_DESIGN.md) | Current power plan, then older explorations that are not the build. |
 | [CIRCUIT_DIAGRAMS.md](CIRCUIT_DIAGRAMS.md) | Extra wiring drawings. Level-shift part is the one in the BOM. |
-| [ESP32_S3_COMPATIBILITY.md](ESP32_S3_COMPATIBILITY.md) | Why the N16R8 module. |
+| [ESP32_S3_COMPATIBILITY.md](ESP32_S3_COMPATIBILITY.md) | Current ESP32-S3 DevKitC-1 N16R8 and the GPIO 16/17 Teensy UART. |
 | [BUILDING_HEX.md](BUILDING_HEX.md) | Exporting a Teensy `.hex`. |
 | [CLI_COMPILATION.md](CLI_COMPILATION.md) | Extra command-line build notes. |
 | [IMAGE_CONVERSION.md](IMAGE_CONVERSION.md) | Turning pictures into POV frames. |
@@ -53,7 +53,7 @@ These were written against designs that are not in `firmware/teensy_firmware/tee
 |---|---|
 | [SD_CARD_STORAGE.md](SD_CARD_STORAGE.md) | Describes an `SDStorageManager` class and `/images/`. The sketch uses the SD library and `/poi_images`. |
 | [SD_IMPLEMENTATION_SUMMARY.md](SD_IMPLEMENTATION_SUMMARY.md) | Same class, which is not in the tree. |
-| [ARCHITECTURE_DESIGN.md](ARCHITECTURE_DESIGN.md) | Design discussion. The serial section now matches the binary protocol; other sections are still design notes. |
+| [ARCHITECTURE_DESIGN.md](ARCHITECTURE_DESIGN.md) | Design discussion. Flow diagrams that still show `IMAGE:` / `LIVE:` text or 31 LEDs are old notes. The running link is the binary frame in [PROTOCOLS.md](PROTOCOLS.md). |
 | [PERFORMANCE_OPTIMIZATIONS.md](PERFORMANCE_OPTIMIZATIONS.md) | Optimization notes, not a procedure. |
 | [project_notes/issues.md](project_notes/issues.md) | Scratch issues. |
 

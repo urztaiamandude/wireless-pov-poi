@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Documentation corrected against the current sketches: Teensy UART is ESP32 GPIO 16/17 (not 43/44), `docs/API.md` lists only routes registered in `esp32_firmware.ino`, image slots reachable from the ESP32 are 0–127, and the pairing and BLE pages describe what the code does, including the `CC_SET_PATTERN` off-by-one. The [1.0.0] specification block later in this file is that release, not the current sketch.
+
 - Removed hardcoded STA fallback SSID/password defaults from `firmware/esp32_firmware/esp32_firmware.ino` and replaced them with empty defaults configured only via the web UI.
 - Removed ESP32 firmware config split-brain by deleting `firmware/esp32_firmware/src/config.h` and moving BLE bridge defaults into `firmware/esp32_firmware/src/ble_bridge.h`.
 - Renamed Teensy UART pin macros in `firmware/teensy_firmware/teensy_firmware.ino` to `TEENSY_UART_RX_PIN` / `TEENSY_UART_TX_PIN` while preserving pin values.

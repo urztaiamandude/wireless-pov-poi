@@ -189,8 +189,10 @@ Currently, the application uses standard OS file dialog shortcuts:
 
 ## Tips for Best Results
 
+The GUI still defaults to a height of 31 and the session log below shows that default (`31x23`, `31x40`). The poi strip is 32 APA102 LEDs with sacrificial count defaulting to 0. A 31-row image does not fill the strip. The script has not been changed in this docs pass.
+
 1. **Use High Contrast Images**: Better visibility on LEDs
-2. **Simple Designs**: Complex details lost at 31 pixels width
+2. **Simple Designs**: Complex details are lost at 32 display rows. The converter default of 31 is narrower than the strip.
 3. **Portrait Orientation**: Works best for POV display
 4. **Test Settings**: Try with/without contrast enhancement
 5. **Batch Similar Images**: Same settings applied to all

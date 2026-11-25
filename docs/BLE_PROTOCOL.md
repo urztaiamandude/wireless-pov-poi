@@ -1,418 +1,187 @@
-# BLE Protocol Documentation
+# BLE protocol
 
-## Overview
+The ESP32 bridge is `firmware/esp32_firmware/src/ble_bridge.cpp`. It advertises one service, the Nordic UART Service, and translates `0xD0 … 0xD1` writes into the Teensy frame `0xFF CMD LEN DATA 0xFE`. It does not parse text commands.
 
-The Wireless POV Poi uses Bluetooth Low Energy (BLE) for communication between Flutter apps (Windows/Web) and the POI hardware. The ESP32 co-processor implements the Nordic UART Service (NUS) and acts as a BLE-to-UART bridge, translating BLE commands to the internal Teensy protocol.
+BLE is compiled when `BLE_ENABLED` is set. The bridge is constructed from `esp32_firmware.ino` and polled from `loop()`.
 
-## Architecture
+## GATT
 
-```
-Flutter App (Windows/Web)
-         ↓ BLE (Nordic UART Service)
-    ESP32 Co-Processor (BLE Bridge)
-         ↓ Serial UART (translated protocol)
-    Teensy 4.1 (LED Controller)
-         ↓ SPI
-    APA102 LED Strip (32 pixels)
-```
+| | UUID | Properties |
+|---|---|---|
+| Service | `6e400001-b5a3-f393-e0a9-e50e24dcca9e` | Nordic UART Service |
+| RX (phone → poi) | `6e400002-b5a3-f393-e0a9-e50e24dcca9e` | write, write without response |
+| TX (poi → phone) | `6e400003-b5a3-f393-e0a9-e50e24dcca9e` | read, notify, plus a CCCD (`BLE2902`) |
 
-## Nordic UART Service (NUS)
+The GAP name is `Wireless POV Poi`. Advertising includes the service UUID and scan response. Preferred connection intervals are `0x06` and `0x12`. The sketch does not call `setMTU`. Notify chunks are capped at `BLE_MAX_PACKET_SIZE` (509) with 10 ms between chunks.
 
-The BLE implementation uses the Nordic UART Service, which provides a simple serial-like interface over BLE.
+The bridge keeps one `deviceConnected` flag. After a disconnect it waits 500 ms and calls `startAdvertising()` again. It does not configure a connection limit in the controller.
 
-### Service UUID
-```
-6e400001-b5a3-f393-e0a9-e50e24dcca9e
-```
+## Frame
 
-### Characteristics
-
-| UUID | Type | Description |
-|------|------|-------------|
-| `6e400002-b5a3-f393-e0a9-e50e24dcca9e` | RX | Write commands from app to device |
-| `6e400003-b5a3-f393-e0a9-e50e24dcca9e` | TX | Read responses from device to app (with notify) |
-
-### Device Name
-```
-"Wireless POV Poi"
-```
-
-This name appears during BLE scanning and is used by Flutter apps to discover the device.
-
-## BLE Protocol Format
-
-### Message Structure
-
-All BLE messages use the following format:
+App → device:
 
 ```
-[0xD0] [command_code] [data_bytes...] [0xD1]
+0xD0  opcode  payload…  0xD1
 ```
 
-- **Start Marker**: `0xD0`
-- **Command Code**: 1 byte (see command table below)
-- **Data**: Variable length (0-506 bytes)
-- **End Marker**: `0xD1`
+The bridge strips `0xD0` and `0xD1`. `opcode` is the first byte it keeps. The rest is the payload.
 
-### Maximum Packet Size
+Device → app, built from a Teensy frame `0xFF cmd len data… 0xFE`:
 
-BLE has a maximum packet size of **509 bytes**. For larger transfers (e.g., images), the data should be split into multiple packets.
-
-## Command Reference
-
-### Command Codes
-
-| Code | Name | Description |
-|------|------|-------------|
-| 0x00 | CC_SUCCESS | Success response from device |
-| 0x01 | CC_ERROR | Error response from device |
-| 0x02 | CC_SET_BRIGHTNESS | Set global brightness (0-255) |
-| 0x03 | CC_SET_SPEED | Set POV rotation speed / frame rate |
-| 0x04 | CC_SET_PATTERN | Upload pattern data |
-| 0x05 | CC_SET_PATTERN_SLOT | Select pattern slot (1-15) |
-| 0x06 | CC_SET_PATTERN_ALL | Enable auto-pattern cycling |
-| 0x0E | CC_SET_SEQUENCER | Upload pattern sequence |
-| 0x0F | CC_START_SEQUENCER | Start sequencer playback |
-
-### Command Details
-
-#### 0x02 - CC_SET_BRIGHTNESS
-
-Sets the global LED brightness for APA102 LEDs.
-
-**Format:**
 ```
-[0xD0] [0x02] [brightness] [0xD1]
+0xD0  cmd  data…  0xD1
 ```
 
-**Parameters:**
-- `brightness`: 0-255 (0 = off, 255 = full brightness)
+The length byte is dropped. A Teensy ack is `0xFF 0xAA <cmd> 0xFE` (four bytes, no extra data). The bridge treats `0xAA` as the command and the following command byte as the length, so the notify is:
 
-**Example:** Set brightness to 128 (50%)
 ```
-0xD0 0x02 0x80 0xD1
+0xD0 0xAA 0xD1
 ```
 
-**Response:**
+`CC_SUCCESS` (`0x00`) and `CC_ERROR` (`0x01`) are constants in the header. The bridge never sends them. A client that waits for `D0 00 D1` will not see a success.
+
+## Opcodes the bridge handles
+
+| Opcode | Name | What the bridge sends to the Teensy |
+|---|---|---|
+| `0x02` | `CC_SET_BRIGHTNESS` | `0xFF 0x06 0x01 <brightness> 0xFE` |
+| `0x03` | `CC_SET_SPEED` | `0xFF 0x07 <len> <payload> 0xFE`. One payload byte is the legacy delay in milliseconds, not the 16-bit FPS the web API sends. |
+| `0x04` | `CC_SET_PATTERN` | Opcode rewritten to `0x03`. Payload copied unchanged. See the known issue below. |
+| `0x05` | `CC_SET_PATTERN_SLOT` | `0xFF 0x01 0x02 0x02 <slot> 0xFE` (mode 2, that index). The slot byte is not range-checked. |
+| `0x06` | `CC_SET_PATTERN_ALL` | `0xFF 0x01 0x02 0x02 0xFF 0xFE`. **Not implemented** on the Teensy: index 255 is `>= MAX_PATTERNS`, so `displayPattern()` clears the LEDs. There is no auto-cycle. |
+| `0x0E` | `CC_SET_SEQUENCER` | Opcode rewritten to `0x04`. Payload copied unchanged. |
+| `0x0F` | `CC_START_SEQUENCER` | `0xFF 0x01 0x02 0x03 <index> 0xFE` (mode 3, that sequence index). |
+| anything else | pass-through | `0xFF <same opcode> <len> <payload> 0xFE`. The Teensy has no handler for `0x00` or `0x01`. |
+
+### `0x02` brightness
+
 ```
-[0xD0] [0x00] [0xD1]  // Success
-```
-
----
-
-#### 0x03 - CC_SET_SPEED
-
-Sets the POV rotation speed / frame rate.
-
-**Format:**
-```
-[0xD0] [0x03] [speed] [0xD1]
-```
-
-**Parameters:**
-- `speed`: Frame delay in milliseconds (lower = faster)
-  - Range: 1-255
-  - Typical: 10-20ms for fast rotation, 30-50ms for slow
-
-**Example:** Set speed to 20ms (50 FPS)
-```
-0xD0 0x03 0x14 0xD1
+D0 02 80 D1
 ```
 
-**Response:**
+sets brightness 128. The byte is forwarded as-is.
+
+### `0x03` speed
+
 ```
-[0xD0] [0x00] [0xD1]  // Success
-```
-
----
-
-#### 0x04 - CC_SET_PATTERN
-
-Uploads a pattern to the device. The pattern is stored in RAM and can be saved to SD card.
-
-**Format:**
-```
-[0xD0] [0x04] [pattern_data...] [0xD1]
+D0 03 14 D1
 ```
 
-**Pattern Data Structure:**
-```
-[type] [color1_r] [color1_g] [color1_b] [color2_r] [color2_g] [color2_b] [speed]
-```
+is a one-byte frame delay of 20 ms on the Teensy (`0x07` with length 1). It is not "50 FPS". The web route `POST /api/framerate` uses a different, two-byte FPS encoding. Sending two payload bytes here would forward both, and the Teensy would read them as big-endian FPS.
 
-**Parameters:**
-- `type`: Pattern type (0-15)
-  - Basic: 0=rainbow, 1=wave, 2=gradient, 3=sparkle, 4=fire, 5=comet
-  - 6=breathing, 7=strobe, 8=meteor, 9=wipe, 10=plasma
-  - Music: 11=VU meter, 12=pulse, 13=rainbow, 14=center, 15=sparkle
-- `color1`: Primary color (RGB, 3 bytes)
-- `color2`: Secondary color (RGB, 3 bytes)
-- `speed`: Animation speed (1-255)
+### `0x05` show a pattern slot
 
-**Example:** Upload rainbow pattern with speed 50
 ```
-0xD0 0x04 0x00 0xFF 0x00 0x00 0x00 0xFF 0x00 0x32 0xD1
+D0 05 03 D1
 ```
 
-**Response:**
+shows pattern slot 3, if that slot is active. Slots are 0–18. The old "1–15" range is wrong. This command does not upload pattern data.
+
+### `0x0F` start a sequence
+
 ```
-[0xD0] [0x00] [0xD1]  // Success
-```
-
----
-
-#### 0x05 - CC_SET_PATTERN_SLOT
-
-Selects and displays a specific pattern from the available slots.
-
-**Format:**
-```
-[0xD0] [0x05] [slot] [0xD1]
+D0 0F 01 D1
 ```
 
-**Parameters:**
-- `slot`: Pattern slot number (0-15)
+selects sequence mode and sequence index 1. It does not upload the sequence.
 
-**Example:** Select pattern slot 3
-```
-0xD0 0x05 0x03 0xD1
-```
+### `0x0E` sequence upload
 
-**Response:**
+The bridge does not reshape the payload. The Teensy `receiveSequence()` reads:
+
 ```
-[0xD0] [0x00] [0xD1]  // Success
+seqIndex  count  loop  (item  duration_hi  duration_lo) × count
 ```
 
----
+`seqIndex` must be 0–4 or the Teensy returns without storing. `count` is stored as sent; playback walks at most 10 items. `loop` is 0 or 1. Each `item` byte uses bit 7 as the kind flag: 0 = image index 0–127, 1 = pattern index 0–18.
 
-#### 0x06 - CC_SET_PATTERN_ALL
+A payload that starts at `count` and omits `seqIndex` and `loop` is stored shifted. That layout is not implemented as a translator.
 
-Enables auto-pattern cycling mode, which automatically cycles through all available patterns.
+## Known issue: `CC_SET_PATTERN` is off by one
 
-**Format:**
+`CC_SET_PATTERN` (`0x04`) only changes the opcode to Teensy `0x03` and copies the BLE payload into the UART frame (`ble_bridge.cpp`, `translateBLEtoInternalProtocol`).
+
+The Teensy stores nine data bytes (`receivePattern()`):
+
 ```
-[0xD0] [0x06] [0xD1]
-```
-
-**Parameters:** None
-
-**Example:** Enable auto-cycling
-```
-0xD0 0x06 0xD1
+slot  type  r1  g1  b1  r2  g2  b2  speed
 ```
 
-**Response:**
+`slot` must be 0–18. `type` is the pattern id, also 0–18.
+
+The bytes that match that layout are:
+
 ```
-[0xD0] [0x00] [0xD1]  // Success
-```
-
----
-
-#### 0x0E - CC_SET_SEQUENCER
-
-Uploads a sequence of patterns/images with durations.
-
-**Format:**
-```
-[0xD0] [0x0E] [count] [item1] [duration1_msb] [duration1_lsb] ... [0xD1]
+D0 04  00 00  FF 00 00  00 00 FF  32  D1
 ```
 
-**Parameters:**
-- `count`: Number of sequence items (1-10)
-- `itemN`: Pattern/image index
-- `durationN`: Duration in milliseconds (16-bit, MSB first)
+slot 0, type 0 (rainbow), color1 red, color2 blue, speed 50.
 
-**Example:** Sequence with 2 patterns (pattern 0 for 1000ms, pattern 1 for 500ms)
-```
-0xD0 0x0E 0x02 0x00 0x03 0xE8 0x01 0x01 0xF4 0xD1
-```
+An eight-byte body that starts at `type` (the layout this document used to specify, and the layout an Open-Pixel-Poi-style client sends) is one field early:
 
-**Response:**
-```
-[0xD0] [0x00] [0xD1]  // Success
-```
+| Byte the client meant | Byte the Teensy stores |
+|---|---|
+| type | slot |
+| color1.r | type |
+| color1.g | color1.r |
+| … | … |
+| speed | color2.b |
+| (none) | speed is whatever byte follows, or 0 |
 
----
+Example: `D0 04 00 FF 00 00 00 00 FF 32 D1` was documented as "rainbow, speed 50". The Teensy reads slot 0, **type 0xFF**, and color1 starting at `00 00 00`. The bridge does not insert a slot byte and does not reject the short body. Until that is fixed in firmware, clients have to send the nine-byte form above.
 
-#### 0x0F - CC_START_SEQUENCER
+`POST /api/pattern` already sends the nine-byte form. The bug is the BLE path only.
 
-Starts playback of the uploaded sequence.
+## What is not on BLE
 
-**Format:**
-```
-[0xD0] [0x0F] [sequence_index] [0xD1]
-```
+- Image upload. There is no image opcode.
+- LED count. Use `POST /api/hardware/leds`.
+- A generated success or error frame. Watch for `D0 AA D1` if you need the Teensy ack, and treat it as "an ack was forwarded," not as a decoded command number.
 
-**Parameters:**
-- `sequence_index`: Sequence slot number (0-4)
+## Notifying the phone
 
-**Example:** Start sequence 0
-```
-0xD0 0x0F 0x00 0xD1
-```
+TX supports read and notify. The bridge writes a value and calls `notify()` from `sendResponse()`. Enable notifications on the TX characteristic after connect.
 
-**Response:**
-```
-[0xD0] [0x00] [0xD1]  // Success
-```
+## Sketch of a client
 
----
-
-## Response Format
-
-All commands return a response using the same protocol format:
-
-**Success:**
-```
-[0xD0] [0x00] [0xD1]
-```
-
-**Error:**
-```
-[0xD0] [0x01] [error_code] [0xD1]
-```
-
-Error codes (TBD - to be defined in future versions).
-
-## Implementation Notes
-
-### ESP32 BLE Bridge
-
-The ESP32 acts as a bridge between BLE and the Teensy UART:
-
-1. **Receives BLE command** (0xD0...0xD1 format)
-2. **Translates to internal protocol** (0xFF...0xFE format)
-3. **Forwards via Serial UART** to Teensy
-4. **Receives response** from Teensy
-5. **Translates back to BLE protocol**
-6. **Sends via BLE notify** to app
-
-### Command Translation
-
-The BLE bridge translates BLE command codes to internal Teensy command codes:
-
-| BLE Code | Internal Code | Description |
-|----------|--------------|-------------|
-| 0x02 | 0x06 | Brightness |
-| 0x03 | 0x07 | Speed/Frame rate |
-| 0x04 | 0x03 | Pattern upload |
-| 0x05 | 0x01 | Set mode (pattern) |
-| 0x06 | 0x01 | Set mode (auto-cycle) |
-| 0x0E | 0x04 | Sequence upload |
-| 0x0F | 0x01 | Set mode (sequence) |
-
-### Connection Management
-
-- The device advertises as "Wireless POV Poi"
-- Only one BLE connection is supported at a time
-- WiFi and BLE can coexist on ESP32
-- Connection timeout: Device automatically restarts advertising after disconnect
-
-### Performance
-
-- **Pattern upload time**: < 2 seconds for 31×64 pixel pattern
-- **BLE range**: ~10 meters (typical indoor environment)
-- **Command latency**: < 50ms typical
-
-## Flutter Integration
-
-### Example Code (Flutter Blue Plus)
+UUIDs and the brightness write match the bridge. The notify check has to look for `0xAA`, not `0x00`.
 
 ```dart
-import 'package:flutter_blue_plus/flutter_blue_plus.dart';
-
-// UUIDs
 final serviceUuid = Guid("6e400001-b5a3-f393-e0a9-e50e24dcca9e");
 final rxUuid = Guid("6e400002-b5a3-f393-e0a9-e50e24dcca9e");
 final txUuid = Guid("6e400003-b5a3-f393-e0a9-e50e24dcca9e");
 
-// Scan for device
-FlutterBluePlus.startScan(timeout: Duration(seconds: 4));
-
-FlutterBluePlus.scanResults.listen((results) {
-  for (ScanResult r in results) {
-    if (r.device.name == "Wireless POV Poi") {
-      // Found the device!
-      connectToDevice(r.device);
-    }
-  }
-});
-
-// Connect and discover services
-Future<void> connectToDevice(BluetoothDevice device) async {
-  await device.connect();
-  List<BluetoothService> services = await device.discoverServices();
-  
-  for (BluetoothService service in services) {
-    if (service.uuid == serviceUuid) {
-      var characteristics = service.characteristics;
-      for (BluetoothCharacteristic c in characteristics) {
-        if (c.uuid == rxUuid) {
-          rxCharacteristic = c;
-        } else if (c.uuid == txUuid) {
-          txCharacteristic = c;
-          // Enable notifications
-          await c.setNotifyValue(true);
-        }
-      }
-    }
-  }
+Future<void> setBrightness(BluetoothCharacteristic rx, int brightness) async {
+  await rx.write([0xD0, 0x02, brightness & 0xFF, 0xD1]);
 }
 
-// Send command
-Future<void> setBrightness(int brightness) async {
-  List<int> cmd = [0xD0, 0x02, brightness, 0xD1];
-  await rxCharacteristic.write(cmd);
-}
-
-// Listen for responses
-txCharacteristic.value.listen((value) {
-  // value is List<int> containing response
-  if (value.length >= 3 && value[0] == 0xD0 && value[2] == 0xD1) {
-    if (value[1] == 0x00) {
-      print("Success!");
-    } else {
-      print("Error: ${value[1]}");
-    }
+void onNotify(List<int> value) {
+  // Teensy ack arrives as D0 AA D1. 0x00 is not produced by this firmware.
+  if (value.length >= 3 && value[0] == 0xD0 && value[1] == 0xAA) {
+    // ack forwarded; the original command byte is not in this packet
   }
-});
+}
 ```
 
-## Testing
+A pattern write that lines up with `receivePattern()`:
 
-### Test Commands
+```dart
+await rx.write([
+  0xD0, 0x04,
+  0x00,       // slot
+  0x00,       // type (rainbow)
+  0xFF, 0x00, 0x00,
+  0x00, 0x00, 0xFF,
+  0x32,       // speed
+  0xD1,
+]);
+```
 
-Use a BLE terminal app (e.g., Nordic nRF Connect) to test:
+## Known gaps
 
-1. **Scan for device**: Look for "Wireless POV Poi"
-2. **Connect**: Establish BLE connection
-3. **Test brightness**: Send `D0 02 80 D1` to set 50% brightness
-4. **Test pattern**: Send `D0 05 00 D1` to select pattern 0
-
-## Troubleshooting
-
-### Device not found in scan
-- Ensure ESP32 is powered on
-- Check that BLE is enabled in firmware (`BLE_ENABLED=1`)
-- Device may already be connected to another app
-
-### Commands not working
-- Verify command format (must start with 0xD0, end with 0xD1)
-- Check that Teensy is powered and connected to ESP32
-- Enable serial debug output to see command processing
-
-### Connection drops
-- Check distance (BLE range ~10m)
-- Reduce WiFi interference
-- Ensure stable power supply
-
-## References
-
-- **Nordic UART Service**: https://developer.nordicsemi.com/nRF_Connect_SDK/doc/latest/nrf/libraries/bluetooth_services/services/nus.html
-- **ESP32 BLE Arduino**: https://github.com/nkolban/ESP32_BLE_Arduino
-- **Flutter Blue Plus**: https://pub.dev/packages/flutter_blue_plus
-- **Open-Pixel-Poi Protocol**: https://github.com/Mitchlol/Open-Pixel-Poi
-
-## License
-
-This protocol documentation is part of the Wireless POV Poi project and is licensed under the same terms as the main project.
+- `CC_SET_PATTERN` does not add the slot byte. An 8-byte type-first payload is stored one field early.
+- `CC_SET_PATTERN_ALL` does not cycle patterns. Index `0xFF` clears the strip.
+- Success and error opcodes `0x00` and `0x01` are not emitted. Acks are `0xAA` with the command byte dropped.
+- `CC_SET_SPEED` is a millisecond delay when the payload is one byte. It is not the web API's frames-per-second field.
+- `CC_SET_SEQUENCER` is a raw copy. The Teensy layout is `seqIndex, count, loop, items…`.
+- No image transfer, no MTU request, and no second GATT service.
