@@ -8,7 +8,8 @@ This README is the source of truth for the current rebuild. If another document 
 
 Parts for one pair: [docs/HARDWARE_BOM.md](docs/HARDWARE_BOM.md).  
 How to flash: [docs/FLASHING.md](docs/FLASHING.md).  
-Doc map: [docs/README.md](docs/README.md).
+Doc map: [docs/README.md](docs/README.md).  
+Open work: [TODO.md](TODO.md).
 
 ## Current hardware
 
@@ -75,6 +76,7 @@ mDNS is **not** a fixed `povpoi.local`. The firmware starts `http://povpoi-<id>.
 | `firmware/teensy_firmware/BMPImageSequence.h` | Not included. Future BMP playlist. |
 | `firmware/esp32_firmware/` | ESP32-S3 firmware, embedded page, and `webui/`. |
 | `docs/` | Documentation. Start here only after this README. |
+| `TODO.md` | Open work: bring-up, firmware follow-ups, and repo cleanup. |
 | `examples/` | Python image tools and tests. |
 | `platformio.ini` | **Teensy build only.** |
 

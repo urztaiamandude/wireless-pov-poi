@@ -32,6 +32,7 @@ If a document below conflicts with the README or the code, the README and the co
 | [project_notes/key_facts.md](project_notes/key_facts.md) | Pin and path cheat sheet. |
 | [project_notes/decisions.md](project_notes/decisions.md) | Architectural decisions. |
 | [project_notes/bugs.md](project_notes/bugs.md) | Bug log. |
+| [../TODO.md](../TODO.md) | Open work: bring-up, firmware follow-ups, and repo cleanup. |
 
 ## Power and battery
 
