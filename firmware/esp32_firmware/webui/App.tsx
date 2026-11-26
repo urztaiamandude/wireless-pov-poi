@@ -1,23 +1,18 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { ViewMode } from './types';
-import { getESP32Sketch, getTeensySketch } from './constants';
 import Dashboard from './components/Dashboard';
 import PatternPreview from './components/PatternPreview';
 import RetroStrobe from './components/RetroStrobe';
-import CodeViewer from './components/CodeViewer';
 import WiringGuide from './components/WiringGuide';
-import FirmwareManager from './components/FirmwareManager';
 import AdvancedSettings from './components/AdvancedSettings';
 import ImageLab from './components/ImageLab';
 import NativeToolbar from './components/NativeToolbar';
 import {
   LayoutDashboard,
-  Cpu,
   CircuitBoard,
   Wrench,
   Github,
-  CloudUpload,
   Settings2,
   ImageIcon,
   Sparkles,
@@ -46,8 +41,8 @@ const App: React.FC = () => {
     setView(ViewMode.IMAGE_LAB);
   }, []);
 
-  const renderContent = () => {
-    switch (view) {
+  const renderContent = (current: ViewMode) => {
+    switch (current) {
       case ViewMode.DASHBOARD:
         return <Dashboard previewUrl={globalPreviewUrl} />;
       case ViewMode.PATTERN_PREVIEW:
@@ -58,16 +53,12 @@ const App: React.FC = () => {
         return <ImageLab onPreviewUpdate={setGlobalPreviewUrl} initialPreview={globalPreviewUrl} ledCount={ledCount} setLedCount={setLedCount} />;
       case ViewMode.ADVANCED_SETTINGS:
         return <AdvancedSettings ledCount={ledCount} setLedCount={setLedCount} />;
-      case ViewMode.CODE_ESP32:
-        return <CodeViewer sketch={getESP32Sketch(ledCount)} />;
-      case ViewMode.CODE_TEENSY:
-        return <CodeViewer sketch={getTeensySketch(ledCount)} />;
       case ViewMode.WIRING:
         return <WiringGuide />;
-      case ViewMode.FIRMWARE:
-        return <FirmwareManager />;
-      default:
-        return <Dashboard previewUrl={globalPreviewUrl} />;
+      default: {
+        const _exhaustive: never = current;
+        return _exhaustive;
+      }
     }
   };
 
@@ -121,28 +112,10 @@ const App: React.FC = () => {
         />
         <div className="h-4" />
         <NavItem
-          active={view === ViewMode.CODE_ESP32}
-          onClick={() => setView(ViewMode.CODE_ESP32)}
-          icon={<Cpu size={20} />}
-          label="ESP32 Sketch"
-        />
-        <NavItem
-          active={view === ViewMode.CODE_TEENSY}
-          onClick={() => setView(ViewMode.CODE_TEENSY)}
-          icon={<Cpu size={20} />}
-          label="Teensy Sketch"
-        />
-        <NavItem
           active={view === ViewMode.WIRING}
           onClick={() => setView(ViewMode.WIRING)}
           icon={<Wrench size={20} />}
           label="Wiring Guide"
-        />
-        <NavItem
-          active={view === ViewMode.FIRMWARE}
-          onClick={() => setView(ViewMode.FIRMWARE)}
-          icon={<CloudUpload size={20} />}
-          label="Firmware (OTA)"
         />
 
         <div className="pt-8 px-4 hidden lg:block">
@@ -161,7 +134,7 @@ const App: React.FC = () => {
       {/* Main Content Area */}
       <main className="flex-1 lg:ml-64 p-4 md:p-8 bg-slate-950">
         <div className="max-w-5xl mx-auto animate-fadeIn">
-          {renderContent()}
+          {renderContent(view)}
         </div>
       </main>
 

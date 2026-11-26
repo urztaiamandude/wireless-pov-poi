@@ -1,8 +1,9 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Settings2, RefreshCw, Grid3X3, Palette, Info, RotateCw, Zap, CircuitBoard, Wifi, Lock, Trash2, Check } from 'lucide-react';
+import { Settings2, RefreshCw, Info, RotateCw, CircuitBoard, Wifi, Lock, Trash2, Check } from 'lucide-react';
 import { useDebounce } from '../hooks';
 import { getDeviceBase, getDeviceHost, saveDeviceHost, subscribeDeviceHost, testDeviceConnection } from '../deviceAddress';
+import { clampFrameRate, FRAME_RATE_MAX_FPS, FRAME_RATE_MIN_FPS } from '../displayLimits';
 
 interface AdvancedSettingsProps {
   ledCount: number;
@@ -190,8 +191,6 @@ const LEDHardwareConfig: React.FC<LEDHardwareConfigProps> = ({ setLedCount }) =>
 const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCount }) => {
   const [refreshRate, setRefreshRate] = useState(60);
   const [refreshRateStatus, setRefreshRateStatus] = useState<string | null>(null);
-  const [pixelDensity, setPixelDensity] = useState(144);
-  const [colorDepth, setColorDepth] = useState(24);
 
   // WiFi network (connect to existing network to access web UI over that network)
   const [wifiStatus, setWifiStatus] = useState<WifiStatus | null>(null);
@@ -260,9 +259,10 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCou
   );
 
   const handleRefreshRateChange = (value: number) => {
-    setRefreshRate(value);
+    const fps = clampFrameRate(value);
+    setRefreshRate(fps);
     setRefreshRateStatus(null);
-    debouncedFrameRateUpdate(value);
+    debouncedFrameRateUpdate(fps);
   };
 
   const handleWifiConnect = async () => {
@@ -543,26 +543,25 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCou
         <LEDHardwareConfig setLedCount={setLedCount} />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-6">
         <ConfigCard
           icon={<RotateCw className="text-blue-400" />}
           title="Refresh Rate"
           value={`${refreshRate} FPS`}
-          description="Frame rate sent to Teensy 4.1 via /api/framerate. The Teensy controls actual LED timing — the ESP32 only relays this value."
+          description="Sent with POST /api/framerate. The Teensy sets its delay to 1000/fps milliseconds and will not go below 1 ms, so 1000 FPS is the fastest rate it runs."
         >
           <input
             type="range"
-            min="10"
-            max="250"
-            step="5"
+            min={FRAME_RATE_MIN_FPS}
+            max={FRAME_RATE_MAX_FPS}
+            step="1"
             value={refreshRate}
             onChange={(e) => { const v = parseInt(e.target.value); if (!isNaN(v)) handleRefreshRateChange(v); }}
             className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-400"
           />
           <div className="flex justify-between text-[10px] text-slate-500 mt-2 font-mono">
-            <span>10 FPS</span>
-            <span>120 FPS</span>
-            <span>250 FPS</span>
+            <span>{FRAME_RATE_MIN_FPS} FPS</span>
+            <span>{FRAME_RATE_MAX_FPS} FPS</span>
           </div>
           {refreshRateStatus && (
             <div className={`flex items-center gap-1 mt-2 text-[10px] font-mono ${refreshRateStatus.startsWith('Applied') ? 'text-green-400' : 'text-red-400'}`}>
@@ -570,57 +569,6 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCou
               {refreshRateStatus}
             </div>
           )}
-        </ConfigCard>
-
-        <ConfigCard
-          icon={<Grid3X3 className="text-purple-400" />}
-          title="Angular Resolution"
-          value={`${pixelDensity} PX`}
-          description="Total vertical slices in a full 360° rotation. Matches your encoder resolution."
-        >
-          <div className="grid grid-cols-4 gap-2">
-            {[72, 144, 288, 576].map((val) => (
-              <button
-                key={val}
-                onClick={() => setPixelDensity(val)}
-                className={`py-2 rounded-lg text-xs font-bold border transition-all ${
-                  pixelDensity === val
-                    ? 'bg-purple-500/10 border-purple-500 text-purple-400 shadow-[0_0_10px_rgba(168,85,247,0.2)]'
-                    : 'bg-slate-800 border-slate-700 text-slate-500 hover:border-slate-600'
-                }`}
-              >
-                {val}
-              </button>
-            ))}
-          </div>
-        </ConfigCard>
-
-        <ConfigCard
-          icon={<Palette className="text-pink-400" />}
-          title="Color Depth"
-          value={`${colorDepth} BIT`}
-          description="Bit-depth per color channel. Lowering can improve frame rates on high-density displays."
-        >
-          <div className="flex gap-4">
-            {[8, 16, 24].map((val) => (
-              <label key={val} className="flex-1 cursor-pointer">
-                <input
-                  type="radio"
-                  name="depth"
-                  className="hidden"
-                  checked={colorDepth === val}
-                  onChange={() => setColorDepth(val)}
-                />
-                <div className={`py-3 rounded-xl text-center border transition-all font-bold text-sm ${
-                  colorDepth === val
-                    ? 'bg-pink-500/10 border-pink-500 text-pink-400 shadow-lg shadow-pink-900/10'
-                    : 'bg-slate-800 border-slate-700 text-slate-500'
-                }`}>
-                  {val === 24 ? 'TRUE' : val + 'b'}
-                </div>
-              </label>
-            ))}
-          </div>
         </ConfigCard>
       </div>
 
@@ -643,7 +591,7 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ ledCount, setLedCou
           <div className="space-y-4 text-sm text-slate-400">
             <div className="bg-black/40 border border-slate-700 p-4 rounded-xl font-mono text-[11px]">
               <div className="text-slate-500 mb-2">// Hardware Allocation (Teensy 4.1)</div>
-              <div className="text-cyan-400">#define NUM_LEDS {ledCount}</div>
+              <div className="text-cyan-400">#define NUM_LEDS 32</div>
               <div className="text-cyan-400">CRGB leds[NUM_LEDS];</div>
               <div className="text-purple-400">FastLED.addLeds&lt;APA102, 11, 13&gt;(leds, NUM_LEDS);</div>
               <div className="text-slate-300 mt-2">// Configured in Teensy firmware (not via ESP32)</div>

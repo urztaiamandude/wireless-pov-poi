@@ -5,7 +5,6 @@ export default {
     "./components/**/*.{js,ts,jsx,tsx}",
     "./App.tsx",
     "./index.tsx",
-    "./constants.tsx",
   ],
   theme: {
     extend: {

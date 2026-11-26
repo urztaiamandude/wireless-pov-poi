@@ -10,6 +10,21 @@ export const SEQUENCE_DURATION_MAX_MS = 65535;
 
 export const RETRO_STROBE_PATTERN_ID = 18;
 
+/**
+ * Frame rate sent to POST /api/framerate.
+ * The ESP32 handler stores a uint16 and does not clamp. The Teensy sets
+ * frameDelay = 1000 / fps and raises a zero delay to 1 ms, so 1000 FPS is
+ * the fastest rate it runs. The on-device page and docs/API.md use 10–1000.
+ * Below 10, the ESP32's uint8 cachedFrameDelay (1000/fps) overflows.
+ */
+export const FRAME_RATE_MIN_FPS = 10;
+export const FRAME_RATE_MAX_FPS = 1000;
+
+/** Pattern speed byte is 1–255. Retro Strobe keeps bit 7 for the RGB flag. */
+export const PATTERN_SPEED_MIN = 1;
+export const PATTERN_SPEED_MAX = 255;
+export const RETRO_STROBE_SPEED_MAX = 127;
+
 export function clampLedHeight(value: number): number {
   if (!Number.isFinite(value)) return POV_IMAGE_MIN_HEIGHT;
   return Math.max(POV_IMAGE_MIN_HEIGHT, Math.min(POV_IMAGE_MAX_HEIGHT, Math.round(value)));
@@ -42,13 +57,18 @@ export function fitPovDimensions(
   return { width, height: fittedHeight };
 }
 
+export function clampFrameRate(fps: number): number {
+  if (!Number.isFinite(fps)) return 60;
+  return Math.max(FRAME_RATE_MIN_FPS, Math.min(FRAME_RATE_MAX_FPS, Math.round(fps)));
+}
+
 /**
  * Speed byte sent to /api/pattern.
  * Retro Strobe uses bit 7 as the RGB-mode flag, so the Dashboard slider
  * may only occupy bits 6..0 (1–127). Other patterns keep the 1–255 slider.
  */
 export function clampPatternSpeed(patternId: number, speed: number): number {
-  const max = patternId === RETRO_STROBE_PATTERN_ID ? 127 : 255;
-  if (!Number.isFinite(speed)) return 1;
-  return Math.max(1, Math.min(max, Math.round(speed)));
+  const max = patternId === RETRO_STROBE_PATTERN_ID ? RETRO_STROBE_SPEED_MAX : PATTERN_SPEED_MAX;
+  if (!Number.isFinite(speed)) return PATTERN_SPEED_MIN;
+  return Math.max(PATTERN_SPEED_MIN, Math.min(max, Math.round(speed)));
 }
