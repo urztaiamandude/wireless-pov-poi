@@ -102,3 +102,15 @@ Entries are reverse-chronological. Search this file before debugging any recurri
 **Prevention**: Add a comment block near the buffer declaration explaining axis convention. The HEIGHT axis (32 LEDs) is always the second index; the WIDTH/time axis is always the first.
 
 ---
+
+### 2026-11-25 — BUG-009: Android Gradle wrapper older than AGP 8.13
+
+**Issue**: The Capacitor Android project could not run `assembleDebug`. Android Gradle Plugin 8.13.0 rejected the Gradle 8.9 wrapper.
+
+**Root Cause**: AGP 8.13 requires Gradle 8.13. The wrapper in `firmware/esp32_firmware/webui/android/gradle/wrapper/gradle-wrapper.properties` was still 8.9. npm workspaces also hoist `@capacitor/*` to the repo-root `node_modules`, while the committed `capacitor.settings.gradle` points at `webui/node_modules`.
+
+**Solution**: The wrapper distribution is Gradle 8.13. CI installs from the repo root (`npm ci`), builds the web app, runs `npx cap sync android` (which rewrites the Gradle includes to the hoisted `node_modules`), then `./gradlew assembleDebug`.
+
+**Prevention**: When Capacitor or the Android Gradle Plugin version changes, set the wrapper to that plugin's minimum Gradle version before expecting a CI APK.
+
+---
