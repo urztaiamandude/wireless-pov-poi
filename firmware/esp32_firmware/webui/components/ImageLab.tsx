@@ -20,6 +20,7 @@ import {
 } from '../displayLimits';
 import { createId } from '../ids';
 import { createRawRGB, imageFileToRawRgb } from '../povImage';
+import { getDeviceBase } from '../deviceAddress';
 
 // Pattern definitions — must match Teensy firmware pattern IDs
 const PATTERN_LIST = [
@@ -49,13 +50,6 @@ interface ImageLabProps {
   initialPreview: string | null;
   ledCount: number;
   setLedCount: (count: number) => void;
-}
-
-function getDeviceBase(): string {
-  if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
-    return '';
-  }
-  return window.location.origin;
 }
 
 // Teensy sequence slot for user-defined sequences (slot 0 is the preloaded demo sequence)

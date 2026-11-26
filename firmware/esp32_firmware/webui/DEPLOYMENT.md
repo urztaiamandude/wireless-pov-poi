@@ -6,6 +6,8 @@ This guide explains how to build and deploy the React web UI to your ESP32's SPI
 
 The ESP32 serves the web UI as static files from its internal filesystem (SPIFFS or LittleFS). This allows the web interface to work without an external web server, making the POV system completely self-contained.
 
+The Capacitor phone app does not load this filesystem copy. It ships its own bundle and calls the poi at the Device address in Display Config (default `http://192.168.4.1`). Join the phone to `POV-POI-WiFi` before opening the app. Use Test connection on that screen to hit `/api/status`.
+
 ## Prerequisites
 
 - Node.js 18+ and npm (run `npm install` once after cloning to install dependencies)

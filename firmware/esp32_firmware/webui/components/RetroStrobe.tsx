@@ -2,14 +2,7 @@
 import React, { useState, useCallback } from 'react';
 import { Zap, ToggleLeft, ToggleRight } from 'lucide-react';
 import { hapticImpact } from '../nativeFeatures';
-
-function getDeviceBase(): string {
-  if (typeof window === 'undefined') return '';
-  const isLocalhost =
-    window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-  if (isLocalhost) return ''; // Vite proxy handles /api -> ESP32
-  return window.location.origin;
-}
+import { getDeviceBase } from '../deviceAddress';
 
 /** Pattern type ID for Retro Strobe on the Teensy. */
 const RETRO_STROBE_TYPE = 18;
